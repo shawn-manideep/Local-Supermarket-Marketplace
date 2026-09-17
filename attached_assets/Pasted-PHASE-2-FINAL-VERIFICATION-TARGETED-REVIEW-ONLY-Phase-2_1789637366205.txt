@@ -1,0 +1,180 @@
+PHASE 2 FINAL VERIFICATION — TARGETED REVIEW ONLY
+
+Phase 2 implementation has been reviewed.
+
+Do NOT start Phase 3.
+Do NOT implement any new marketplace functionality.
+Do NOT set up GitHub, Vercel, Railway, or production Supabase.
+Do NOT add UI.
+Do NOT add customer/vendor/admin marketplace endpoints.
+Do NOT perform unrelated refactoring.
+
+Your task is ONLY to inspect the existing Phase 2 implementation and verify the following architecture requirements from the locked Master Product & Architecture Blueprint v1.1 and Phase 2 instructions.
+
+1. STORE COMMISSION RATE
+
+Verify that stores has:
+
+commission_rate
+
+Requirements:
+- nullable
+- represents an optional store-specific commission rate
+- vendor must not be able to arbitrarily modify it
+- order commission snapshots must remain historical and immutable after order creation
+- do not implement automated settlement
+
+If this field is missing or incorrect, fix only the minimum necessary schema/migration/code required.
+
+2. PRODUCT SOFT DELETE / AVAILABILITY
+
+Verify products has:
+
+is_active
+
+and separately:
+
+availability
+
+Required semantics:
+
+is_active = false
+→ disabled/discontinued/not customer-facing
+
+availability = false
+→ active product but temporarily unavailable
+
+These must NOT be treated as the same concept.
+
+Do not introduce hard deletion for historically referenced products.
+
+If is_active is missing or incorrect, make the minimum necessary Phase 2 correction.
+
+3. DELIVERY FOUNDATION
+
+Verify the order model contains the required MVP/future-compatible delivery foundation:
+
+delivery_type:
+- vendor_staff
+- platform_partner
+
+MVP behavior:
+- vendor_staff
+
+Also verify:
+- delivery_contact_name
+- delivery_contact_phone
+
+No delivery partner/fleet functionality should be implemented.
+
+If any required foundation field/enum is missing, make only the minimum schema correction.
+
+4. AUTH USER / ROLE / CUSTOMER PROFILE TRIGGER
+
+Inspect the Supabase Auth profile trigger and role model carefully.
+
+Required architecture:
+
+Roles:
+- customer
+- vendor
+- admin
+
+Publicly created users default to customer.
+
+Vendor/admin roles require controlled/manual provisioning.
+
+There must be:
+- no public admin signup
+- no public role-assignment API
+- no client-controlled role escalation
+
+Verify that the automatic customer-profile creation trigger does not create an inconsistent or dangerous role model for vendor/admin users.
+
+Do not redesign the architecture unless an actual contradiction exists.
+
+If a real issue exists, fix the minimum necessary code/schema/trigger behavior.
+
+5. VENDOR OWNERSHIP
+
+Verify:
+
+stores.owner_user_id
+
+is tied to the authenticated vendor identity and that one vendor user can own at most one store.
+
+Verify that authorization does not trust a client-provided store_id.
+
+Do not add marketplace endpoints.
+
+6. DATABASE / RLS
+
+Inspect the actual SQL migration and Drizzle schema to verify:
+
+- all required Phase 2 tables exist
+- foreign keys are correct
+- RLS is enabled
+- customer isolation exists
+- vendor isolation exists
+- admin access is explicitly role-controlled
+- order_items are protected through their parent order
+- order_status_history is protected through its parent order
+- vendor cannot change store ownership or approval state
+- no global_products table
+- no store_products table
+
+Do not add any future-phase tables.
+
+7. ORDER SNAPSHOTS
+
+Verify that historical order data preserves the required snapshots, including as applicable:
+
+- product name snapshot
+- price snapshot
+- delivery address snapshot
+- delivery fee snapshot
+- total amount
+- commission rate snapshot
+- commission amount snapshot
+
+Historical orders must not depend on the current product/store values for historical meaning.
+
+8. MIGRATION SAFETY
+
+If any correction is required:
+
+- update Drizzle schema
+- update migration appropriately
+- preserve deterministic migration history
+- do not delete or rewrite unrelated migrations
+- run the relevant schema/migration consistency checks
+
+9. REGRESSION CHECK
+
+After any corrections, run:
+
+- pnpm typecheck
+- backend build
+- customer web startup/check
+- dashboard build/check
+- backend startup/check
+- Drizzle schema/migration consistency check
+- existing GET /health
+
+10. REPORT
+
+At the end report ONLY:
+
+A. What was verified
+B. What was missing/wrong, if anything
+C. Exact files changed
+D. Dependencies changed, if any
+E. Migration changes, if any
+F. Verification commands and results
+G. Any remaining limitation that requires real Supabase credentials
+H. Confirmation that NO Phase 3+ functionality was implemented
+
+IMPORTANT:
+This is a final Phase 2 verification/correction pass only.
+
+STOP after this report.

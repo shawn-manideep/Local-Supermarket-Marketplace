@@ -245,13 +245,104 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
   IF public.current_app_role() = 'vendor'
-     AND (NEW.owner_user_id IS DISTINCT FROM OLD.owner_user_id OR NEW.status IS DISTINCT FROM OLD.status) THEN
-    RAISE EXCEPTION 'Vendors cannot change store ownership or approval status';
+     AND (
+       NEW.owner_user_id IS DISTINCT FROM OLD.owner_user_id
+       OR NEW.status IS DISTINCT FROM OLD.status
+       OR NEW.commission_rate IS DISTINCT FROM OLD.commission_rate
+     ) THEN
+    RAISE EXCEPTION 'Vendors cannot change store ownership, approval status, or commission rate';
   END IF;
   RETURN NEW;
 END;
 $$;--> statement-breakpoint
 CREATE TRIGGER stores_protect_vendor_identity BEFORE UPDATE ON public.stores FOR EACH ROW EXECUTE FUNCTION public.prevent_vendor_store_identity_changes();--> statement-breakpoint
+CREATE OR REPLACE FUNCTION public.ensure_vendor_store_owner()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.user_profiles
+    WHERE id = NEW.owner_user_id AND role = 'vendor'
+  ) THEN
+    RAISE EXCEPTION 'A store owner must have the vendor role';
+  END IF;
+  RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER stores_require_vendor_owner
+BEFORE INSERT OR UPDATE OF owner_user_id ON public.stores
+FOR EACH ROW EXECUTE FUNCTION public.ensure_vendor_store_owner();--> statement-breakpoint
+CREATE OR REPLACE FUNCTION public.prevent_catalog_hard_delete()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Catalog entities must be deactivated with is_active=false instead of deleted';
+  RETURN OLD;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER categories_prevent_hard_delete
+BEFORE DELETE ON public.categories
+FOR EACH ROW EXECUTE FUNCTION public.prevent_catalog_hard_delete();--> statement-breakpoint
+CREATE TRIGGER products_prevent_hard_delete
+BEFORE DELETE ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.prevent_catalog_hard_delete();--> statement-breakpoint
+CREATE OR REPLACE FUNCTION public.prevent_order_snapshot_changes()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF (
+    NEW.subtotal IS DISTINCT FROM OLD.subtotal
+    OR NEW.delivery_fee_snapshot IS DISTINCT FROM OLD.delivery_fee_snapshot
+    OR NEW.total_amount IS DISTINCT FROM OLD.total_amount
+    OR NEW.commission_rate_snapshot IS DISTINCT FROM OLD.commission_rate_snapshot
+    OR NEW.commission_amount_snapshot IS DISTINCT FROM OLD.commission_amount_snapshot
+    OR NEW.delivery_address_snapshot IS DISTINCT FROM OLD.delivery_address_snapshot
+    OR NEW.delivery_contact_name IS DISTINCT FROM OLD.delivery_contact_name
+    OR NEW.delivery_contact_phone IS DISTINCT FROM OLD.delivery_contact_phone
+  ) THEN
+    RAISE EXCEPTION 'Historical order snapshots are immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER orders_prevent_snapshot_changes
+BEFORE UPDATE ON public.orders
+FOR EACH ROW EXECUTE FUNCTION public.prevent_order_snapshot_changes();--> statement-breakpoint
+CREATE OR REPLACE FUNCTION public.prevent_order_item_snapshot_changes()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF (
+    NEW.product_name_snapshot IS DISTINCT FROM OLD.product_name_snapshot
+    OR NEW.product_price_snapshot IS DISTINCT FROM OLD.product_price_snapshot
+    OR NEW.quantity IS DISTINCT FROM OLD.quantity
+    OR NEW.subtotal IS DISTINCT FROM OLD.subtotal
+  ) THEN
+    RAISE EXCEPTION 'Historical order item snapshots are immutable';
+  END IF;
+  RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER order_items_prevent_snapshot_changes
+BEFORE UPDATE ON public.order_items
+FOR EACH ROW EXECUTE FUNCTION public.prevent_order_item_snapshot_changes();--> statement-breakpoint
+CREATE OR REPLACE FUNCTION public.prevent_order_hard_delete()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Historical orders cannot be deleted';
+  RETURN OLD;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER orders_prevent_hard_delete
+BEFORE DELETE ON public.orders
+FOR EACH ROW EXECUTE FUNCTION public.prevent_order_hard_delete();--> statement-breakpoint
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE public.customer_addresses ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
