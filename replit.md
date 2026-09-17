@@ -1,6 +1,6 @@
 # Local Supermarket Marketplace
 
-Phase 1 repository foundation for the customer app, vendor/admin dashboard, and minimal API skeleton.
+Phase 2 infrastructure foundation for the customer app, vendor/admin dashboard, Supabase database, and authentication.
 
 ## Run & Operate
 
@@ -9,31 +9,39 @@ Phase 1 repository foundation for the customer app, vendor/admin dashboard, and 
 - `pnpm --filter @workspace/dashboard run dev` — run the dashboard starter
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all Phase 1 packages
+- `pnpm --filter @workspace/db run generate` — generate a Drizzle migration from the database schema
+- `pnpm --filter @workspace/db run check` — validate Drizzle migration consistency
+- `pnpm --filter @workspace/db run migrate` — apply migrations to Supabase using `SUPABASE_DB_URL`
 
 ## Stack
 
 - pnpm workspaces, Node.js, TypeScript
 - Customer app: Expo + React Native + TypeScript
 - Dashboard: React + Vite + TypeScript
-- API: Express + TypeScript
+- API: Express + TypeScript with Supabase Auth middleware
+- Database: Supabase PostgreSQL + Drizzle ORM
 
 ## Where things live
 
 - `apps/customer` — Expo starter app
 - `apps/dashboard` — React web starter
-- `backend/api` — minimal Express API with `GET /health`
-- `packages/*` — empty shared package foundations
-- `database/migrations` — reserved for a later phase
+- `backend/api` — Express API with `GET /health` and reusable Supabase Auth middleware
+- `lib/db` — Drizzle schema, config, and database access
+- `packages/shared-types` — shared application role definitions
+- `packages/validation` — Supabase configuration validation
+- `packages/api-client` and `packages/constants` — reserved shared package foundations
+- `database/migrations` — deterministic Drizzle migration files plus Supabase RLS SQL
 - `docs` — phase documentation placeholders
 
 ## Architecture decisions
 
 - Phase 1 intentionally uses pnpm workspaces because the provided project foundation already uses pnpm.
+- Supabase credentials are required before applying migrations or exercising authenticated requests.
 - Marketplace functionality is deferred to later phases.
 
 ## Product
 
-The marketplace product is not implemented yet. Phase 1 only establishes the repository foundation.
+The marketplace product is not implemented yet. Phase 2 establishes database and authentication infrastructure only.
 
 ## User preferences
 
@@ -41,7 +49,7 @@ No additional preferences recorded.
 
 ## Gotchas
 
-Keep database, authentication, and marketplace work out of Phase 1.
+Do not add marketplace UI or business endpoints until the infrastructure phase is reviewed.
 
 ## Pointers
 

@@ -1,0 +1,912 @@
+# PHASE 2 — SUPABASE + DATABASE + AUTHENTICATION
+
+## Project
+
+Local Supermarket Marketplace
+
+## Phase
+
+Phase 2 — Supabase + Database + Authentication
+
+## SOURCE OF TRUTH
+
+The attached/available Master Product & Architecture Blueprint v1.1 is the authoritative architecture contract.
+
+Use ONLY the v1.1 architecture decisions.
+
+Do NOT use older versions of the blueprint or older project recommendations if they conflict with v1.1.
+
+In particular, the following are LOCKED:
+
+- Supabase PostgreSQL
+- Drizzle ORM
+- Zod
+- Supabase Auth
+- Roles: customer, vendor, admin
+- No custom password authentication
+- Store-owned independent products
+- NO global/shared product entity
+- NO `store_products` table
+- Store-owned categories
+- Vendor identity: 1 authenticated user : 1 store
+- Admin signup: none
+- Admin provisioning: manual
+- Vendor isolation is mandatory
+- Supabase Row-Level Security is required
+- Vendor authorization must never trust store_id supplied by the client
+- Customer resources must be scoped to the authenticated customer
+- No delivery-partner system
+- No payment gateway
+- No marketplace UI implementation in this phase
+
+---
+
+# OBJECTIVE
+
+Implement ONLY the database and authentication foundation.
+
+This phase must establish:
+
+1. Supabase project integration/configuration
+2. PostgreSQL database schema
+3. Drizzle ORM schema/configuration
+4. Database migrations
+5. Supabase Auth integration
+6. Application user/profile/role relationship
+7. Authentication middleware/foundation for the backend
+8. Role definitions
+9. Supabase Row-Level Security policies
+10. Zod validation foundation where required for authentication-related inputs
+11. Environment variable configuration/documentation
+12. Documentation updates for the Phase 2 implementation
+
+Do NOT implement Phase 3 or later functionality.
+
+---
+
+# IMPORTANT — EXISTING CODE
+
+Before changing anything:
+
+1. Inspect the entire existing repository structure.
+2. Inspect the existing package/workspace configuration.
+3. Inspect the Phase 1 customer app, dashboard, backend, shared packages, and documentation.
+4. Preserve all working Phase 1 functionality.
+5. Do not rewrite the existing project foundation unnecessarily.
+6. Do not change frameworks.
+7. Do not migrate from pnpm to npm.
+8. Do not refactor unrelated code.
+
+---
+
+# 1. SUPABASE
+
+Integrate the project with Supabase.
+
+Use environment variables only.
+
+Never hardcode:
+
+- Supabase URL
+- Supabase anon/public key
+- Supabase service-role key
+- database password
+- JWT secrets
+- any credentials
+
+If the required Supabase credentials are not available in the environment:
+
+- DO NOT invent credentials.
+- DO NOT create fake credentials.
+- Implement the configuration structure.
+- Create/update `.env.example`.
+- Clearly report which variables are required.
+- Continue with all implementation and static checks that can be performed without real credentials.
+- Do not block the entire phase unnecessarily.
+
+Do not expose the Supabase service-role key to customer or dashboard client code.
+
+---
+
+# 2. DATABASE TECHNOLOGY
+
+Use:
+
+- Supabase PostgreSQL
+- Drizzle ORM
+- PostgreSQL migrations
+
+Do NOT introduce another database.
+
+Do NOT introduce:
+
+- Prisma
+- Sequelize
+- TypeORM
+- MongoDB
+- SQLite as the server database
+- another ORM
+
+Configure Drizzle consistently with the existing pnpm monorepo.
+
+Keep the database implementation centralized and maintainable.
+
+---
+
+# 3. DATABASE ENTITIES
+
+Create the MVP database foundation for these conceptual entities:
+
+customers
+customer_addresses
+
+stores
+store_service_pincodes
+store_operating_hours
+
+categories
+products
+
+carts
+cart_items
+
+orders
+order_items
+order_status_history
+
+Authentication identities are managed by Supabase Auth.
+
+The application database must maintain the necessary relationship between authenticated users and application roles/profiles.
+
+Do not create unrelated tables.
+
+Do not create:
+
+- global_products
+- store_products
+- delivery_partners
+- delivery_assignments
+- payment gateway tables
+- notification infrastructure
+- generic audit log infrastructure
+- coupons
+- loyalty
+- subscriptions
+- referrals
+- POS tables
+- inventory synchronization systems
+
+---
+
+# 4. AUTHENTICATED USER / ROLE MODEL
+
+Use Supabase Auth as the authentication identity provider.
+
+Application roles are:
+
+customer
+vendor
+admin
+
+Do not create custom password hashing/authentication.
+
+Do not create a public role-assignment API.
+
+Do not allow a client to assign itself the admin or vendor role.
+
+The application database must link authenticated Supabase user IDs to the appropriate application profile/role.
+
+The implementation must support:
+
+- customer identity
+- vendor identity
+- admin identity
+
+Vendor relationship:
+
+ONE authenticated vendor user → ONE store.
+
+Multi-staff vendor accounts are deferred.
+
+---
+
+# 5. ADMIN PROVISIONING
+
+There is NO public admin signup.
+
+Do not create:
+
+POST /admin/register
+
+Do not create any public API allowing arbitrary role assignment.
+
+Admin accounts are manually provisioned.
+
+Create the database/auth structure necessary for an administrator account to exist, but do not build an admin onboarding UI.
+
+---
+
+# 6. CUSTOMER PROFILE
+
+Create the customer application profile relationship.
+
+A customer profile must be associated with the authenticated Supabase user.
+
+Customer resources must later be scoped to that authenticated customer.
+
+Do not implement customer-facing profile screens in this phase.
+
+---
+
+# 7. VENDOR PROFILE
+
+Create the vendor-to-store identity relationship required by the architecture.
+
+The database must support:
+
+authenticated vendor user
+        ↓
+vendor identity
+        ↓
+authorized store
+        ↓
+store resources
+
+A vendor must have exactly one store relationship in MVP.
+
+Do not implement vendor store management UI yet.
+
+Do not implement product/category management UI yet.
+
+Do not implement store CRUD endpoints yet.
+
+Those belong to later phases.
+
+---
+
+# 8. STORE DATABASE FOUNDATION
+
+The stores table must support the architecture required by later phases.
+
+Include the fields required for:
+
+- store identity
+- store name
+- description
+- logo/image reference where appropriate
+- phone
+- delivery fee
+- minimum order value
+- commission rate
+- store status
+- timestamps
+
+Store status must support exactly:
+
+PENDING_APPROVAL
+ACTIVE
+SUSPENDED
+REJECTED
+
+Only ACTIVE stores will later be customer-visible.
+
+Operating/open status will later be computed from operating hours.
+
+Do not implement the store-management UI or API in this phase.
+
+---
+
+# 9. COMMISSION SOURCE
+
+The store must support a nullable store-specific commission rate.
+
+The intended rule is:
+
+- if a store-specific commission rate exists, it is the effective rate
+- otherwise a future platform default commission rate may be used
+
+Do NOT create automated settlements.
+
+Do NOT create vendor settlement tables.
+
+Do NOT implement commission calculations in checkout yet.
+
+The database must simply preserve the source configuration needed by later phases.
+
+---
+
+# 10. STORE SERVICE PINCODES
+
+Create:
+
+store_service_pincodes
+
+A store can serve multiple pincodes.
+
+A pincode can be served by multiple stores.
+
+Use simple pincode matching.
+
+Do NOT create:
+
+- maps
+- GPS
+- geofencing
+- radius calculations
+- route systems
+- location APIs
+
+---
+
+# 11. STORE OPERATING HOURS
+
+Create:
+
+store_operating_hours
+
+The schema must support store operating hours by day.
+
+The later application will compute whether a store is currently open/closed.
+
+Do not implement operating-status UI in this phase.
+
+Do not add a manual open/closed status as a replacement for operating hours.
+
+---
+
+# 12. STORE-OWNED CATEGORIES
+
+Categories belong to exactly one store.
+
+There is NO global category master.
+
+A category cannot be shared between stores.
+
+Create the database relationship:
+
+store
+  ↓
+category
+  ↓
+products
+
+Do not implement category management UI/API yet.
+
+---
+
+# 13. STORE-OWNED PRODUCTS — CRITICAL
+
+Each product belongs to exactly ONE store.
+
+Each product may belong to one store-owned category.
+
+Required conceptual product fields:
+
+id
+store_id
+category_id
+name
+description
+sku
+external_code
+price
+availability
+stock_quantity
+image_url
+created_at
+updated_at
+
+`sku` and `external_code` may be nullable initially.
+
+Product names must NOT be global unique identifiers.
+
+Products with the same name in different stores must be allowed.
+
+DO NOT create:
+
+global product
+global_products
+store_products
+
+There must be NO global/shared product catalog.
+
+This is a locked architectural decision.
+
+---
+
+# 14. SOFT DELETE / ACTIVE FLAGS
+
+Products and categories must not be hard-deleted casually once historical references can exist.
+
+Use an `is_active` flag for products and categories.
+
+Meaning:
+
+is_active = true
+→ active catalog entity
+
+is_active = false
+→ disabled/discontinued and not customer-facing
+
+For products, availability is separate:
+
+availability = true
+→ active product currently available for ordering
+
+availability = false
+→ active product temporarily unavailable/out of stock
+
+Do not confuse:
+
+is_active
+
+with:
+
+availability
+
+Do not physically delete historical order information.
+
+---
+
+# 15. CART FOUNDATION
+
+Create:
+
+carts
+cart_items
+
+Cart status must support exactly:
+
+ACTIVE
+ABANDONED
+CONVERTED
+
+An active cart belongs to one customer and one store.
+
+The database must support the one-store cart rule.
+
+Do not implement cart UI or cart APIs yet.
+
+Do not implement checkout logic yet.
+
+---
+
+# 16. ORDER FOUNDATION
+
+Create:
+
+orders
+order_items
+order_status_history
+
+The order schema must be capable of supporting the locked MVP order model.
+
+Order statuses:
+
+PLACED
+ACCEPTED
+PREPARING
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+
+Exception statuses:
+
+REJECTED
+CANCELLED
+
+Do not implement order APIs or status transition logic yet.
+
+The legal transition rules will be implemented in the later order phase.
+
+---
+
+# 17. HISTORICAL ORDER SNAPSHOTS
+
+The order database must preserve historical transaction values.
+
+Prepare the order schema for snapshots including:
+
+- product name snapshot
+- product price snapshot
+- subtotal
+- delivery fee snapshot
+- total amount
+- commission rate snapshot
+- commission amount snapshot
+- delivery address snapshot
+- delivery type
+- delivery contact name
+- delivery contact phone
+
+Do not implement checkout calculations yet.
+
+Do not implement payments yet.
+
+---
+
+# 18. DELIVERY FOUNDATION
+
+Support:
+
+delivery_type
+
+Allowed values:
+
+vendor_staff
+platform_partner
+
+MVP default/use:
+
+vendor_staff
+
+Do NOT create:
+
+- delivery partner table
+- driver table
+- delivery assignment table
+- driver app
+- GPS
+- live tracking
+- route optimization
+- fleet management
+
+`platform_partner` exists only as a future extensibility value.
+
+---
+
+# 19. PAYMENT FOUNDATION
+
+MVP payment method is:
+
+COD
+
+Do not integrate:
+
+- Razorpay
+- UPI
+- cards
+- payment webhooks
+- online refunds
+- payment reconciliation
+
+Do not add payment-provider dependencies.
+
+---
+
+# 20. SUPABASE ROW-LEVEL SECURITY
+
+Enable RLS on application tables where appropriate.
+
+RLS must provide a second security layer beneath the backend.
+
+At minimum establish the architecture needed to enforce:
+
+### Customer isolation
+
+A customer must only access their own customer-owned resources.
+
+### Vendor isolation
+
+A vendor must only access resources belonging to their authorized store.
+
+Vendor A must never be able to access Vendor B's:
+
+- store
+- categories
+- products
+- service pincodes
+- orders
+- operational data
+
+### Admin access
+
+Admin access must be role-controlled.
+
+Do not create a public policy that allows arbitrary authenticated users to become admins.
+
+Document the RLS design clearly.
+
+---
+
+# 21. BACKEND AUTHENTICATION FOUNDATION
+
+Add the minimum backend authentication foundation required to verify Supabase Auth JWTs.
+
+The backend must be able to establish:
+
+authenticated user ID
+authenticated role
+authorized vendor/store relationship where applicable
+
+Do not implement marketplace endpoints yet.
+
+Do not implement vendor APIs yet.
+
+Do not implement customer APIs yet.
+
+Do not implement admin APIs yet.
+
+Only create reusable authentication/authorization foundation required by later phases.
+
+Do not duplicate password authentication.
+
+---
+
+# 22. VALIDATION
+
+Add Zod only where it is actually required for Phase 2.
+
+Use it for authentication/configuration-related validation where appropriate.
+
+Do not create schemas for future marketplace endpoints that do not exist yet.
+
+Do not add unnecessary validation abstractions.
+
+---
+
+# 23. ENVIRONMENT CONFIGURATION
+
+Create/update:
+
+.env.example
+
+Document required environment variables.
+
+At minimum distinguish:
+
+PUBLIC/client-safe Supabase configuration
+
+from:
+
+SERVER-ONLY secrets
+
+The Supabase service-role key must NEVER be exposed to:
+
+- Expo client
+- React dashboard client
+- browser JavaScript
+- public API responses
+
+Never commit real credentials.
+
+---
+
+# 24. DATABASE MIGRATIONS
+
+Create proper migration files for the Phase 2 database schema.
+
+Migrations must be deterministic and reviewable.
+
+Do not manually modify production data.
+
+Do not create sample marketplace data unless explicitly requested.
+
+Do not insert fake supermarkets, products, customers, or orders.
+
+---
+
+# 25. DOCUMENTATION
+
+Update:
+
+docs/DATABASE_SCHEMA.md
+docs/SECURITY.md
+docs/ARCHITECTURE.md
+docs/API_SPECIFICATION.md
+docs/DEVELOPMENT_STATUS.md
+docs/CHANGELOG.md
+
+Documentation must describe what was actually implemented.
+
+Do not copy the entire blueprint into these files.
+
+Document:
+
+- tables created
+- important relationships
+- role model
+- Supabase Auth relationship
+- RLS approach
+- environment variables
+- server-only secrets
+- vendor/store isolation foundation
+- known limitations
+- anything that could not be verified because credentials were unavailable
+
+---
+
+# 26. DEPENDENCY RULE
+
+Add ONLY dependencies genuinely required for Phase 2.
+
+Expected categories:
+
+- Supabase client/auth integration
+- Drizzle ORM
+- PostgreSQL/Drizzle tooling as required
+- Zod where required
+
+Do NOT install:
+
+- Razorpay
+- Twilio
+- Google Maps
+- GPS libraries
+- notification libraries
+- delivery libraries
+- payment libraries
+- unnecessary UI libraries
+- state-management libraries
+- unrelated frameworks
+
+Before adding a dependency, check whether an existing dependency already solves the requirement.
+
+---
+
+# 27. DO NOT BUILD FUTURE PHASES
+
+DO NOT implement:
+
+- vendor store UI
+- vendor product UI
+- vendor category UI
+- admin dashboard functionality
+- customer registration screens
+- customer login screens
+- store discovery UI
+- catalog UI
+- cart UI
+- checkout UI
+- order UI
+- delivery UI
+- reports
+- analytics
+- CSV import
+- payments
+- notifications
+- GPS
+- delivery partners
+- substitutions
+- partial fulfillment
+- POS
+- coupons
+- loyalty
+- referrals
+- multi-city
+- AI search
+- recommendations
+
+Phase 2 is infrastructure only.
+
+---
+
+# 28. SECURITY REQUIREMENTS
+
+Do not trust client-provided authorization fields.
+
+Especially:
+
+store_id
+
+must NEVER be accepted from a vendor request as the source of authorization.
+
+Later vendor operations must derive the authorized store from authenticated identity.
+
+The client is not a security boundary.
+
+Preserve this architecture in all reusable backend code.
+
+---
+
+# 29. VERIFICATION
+
+Run appropriate checks.
+
+At minimum:
+
+1. pnpm install
+2. TypeScript checks
+3. Drizzle schema/type checks where available
+4. migration validation where possible
+5. backend build
+6. customer app still starts
+7. customer web still starts
+8. dashboard still builds/starts
+9. backend still starts
+10. existing GET /health still returns:
+
+{
+  "status": "ok"
+}
+
+If real Supabase credentials are available, verify the database connection and migrations safely.
+
+If credentials are NOT available, do not fabricate them.
+
+Instead perform all possible local/static validation and clearly report the limitation.
+
+---
+
+# 30. REGRESSION REQUIREMENT
+
+Phase 1 functionality must remain intact.
+
+Do not break:
+
+- Expo customer starter
+- Expo Web
+- dashboard starter
+- backend startup
+- GET /health
+- workspace TypeScript checks
+
+---
+
+# 31. FINAL REPORT REQUIRED
+
+After implementation, report:
+
+A. Exact files created/modified.
+
+B. Dependencies added:
+- package
+- version
+- reason
+
+C. Database tables created.
+
+D. Database relationships.
+
+E. Migrations created.
+
+F. RLS policies created.
+
+G. Authentication implementation.
+
+H. Role implementation.
+
+I. Environment variables required.
+
+J. Commands executed.
+
+K. Verification results.
+
+L. Supabase connection/migration result.
+
+M. Any credentials/configuration that must still be supplied manually.
+
+N. Deviations from this specification.
+
+O. Known limitations.
+
+P. Explicit scope confirmation:
+No Phase 3+ marketplace functionality was implemented.
+
+---
+
+# 32. STOP CONDITION
+
+When Phase 2 is complete:
+
+STOP.
+
+Do NOT begin Phase 3.
+
+Do NOT implement vendor/store management.
+
+Do NOT implement categories/products UI.
+
+Do NOT implement customer authentication screens.
+
+Do NOT implement store discovery.
+
+Do NOT implement carts.
+
+Do NOT implement checkout.
+
+Do NOT implement orders.
+
+Wait for review and approval.
+
+# END OF PHASE 2

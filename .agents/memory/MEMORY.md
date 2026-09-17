@@ -1,1 +1,2 @@
 - [Expo and workspace compatibility](expo-and-workspace-compatibility.md) — keep Expo SDK and shared React type packages aligned before full workspace checks.
+- [Supabase Phase 2 foundation](supabase-phase2-foundation.md) — keep DB access lazy and keep Auth/RLS enforcement in reviewable migrations.
