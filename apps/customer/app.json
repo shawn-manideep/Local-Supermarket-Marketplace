@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Local Supermarket Marketplace",
+    "slug": "local-supermarket-marketplace",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android", "web"]
+  }
+}

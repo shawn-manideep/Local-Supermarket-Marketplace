@@ -1,0 +1,558 @@
+# PHASE 1 — REPOSITORY + PROJECT FOUNDATION ONLY
+
+## Project
+
+Local Supermarket Marketplace
+
+## Phase
+
+Phase 1 — Repository + Project Foundation
+
+## Important
+
+This is a new project and there is currently no existing application code to inspect.
+
+For this Phase 1 only, you may create the initial project structure from scratch.
+
+For every future phase after Phase 1, you MUST inspect the existing codebase before making any changes.
+
+---
+
+# OBJECTIVE
+
+Set up ONLY the repository and project foundation.
+
+This phase must produce:
+
+* the monorepo structure
+* the customer Expo starter app
+* the vendor/admin React web starter app
+* the Node/Express/TypeScript backend skeleton
+* the backend `/health` endpoint
+* empty shared packages ready for future phases
+* documentation placeholders
+
+This phase must NOT implement the actual marketplace.
+
+---
+
+# REQUIRED REPOSITORY STRUCTURE
+
+Create:
+
+```text
+supermarket-marketplace/
+├── apps/
+│   ├── customer/
+│   └── dashboard/
+│
+├── backend/
+│   └── api/
+│
+├── packages/
+│   ├── shared-types/
+│   ├── validation/
+│   ├── api-client/
+│   └── constants/
+│
+├── database/
+│   └── migrations/
+│
+└── docs/
+    ├── PRODUCT_REQUIREMENTS.md
+    ├── ARCHITECTURE.md
+    ├── DATABASE_SCHEMA.md
+    ├── API_SPECIFICATION.md
+    ├── BUSINESS_RULES.md
+    ├── SECURITY.md
+    ├── DEVELOPMENT_STATUS.md
+    └── CHANGELOG.md
+```
+
+Do not create additional application modules unless they are required for the basic project structure to work.
+
+---
+
+# 1. CUSTOMER APP
+
+Location:
+
+```text
+apps/customer/
+```
+
+Technology:
+
+* Expo
+* React Native
+* TypeScript
+
+Target platforms:
+
+* Android
+* iOS
+* Web
+
+For this phase, create only the default/starter application.
+
+The starter screen may contain simple placeholder text such as:
+
+```text
+Local Supermarket Marketplace
+Customer App — Phase 1
+```
+
+Requirements:
+
+* Expo project must start successfully.
+* Expo web must start successfully.
+* TypeScript must be configured.
+* Do not build authentication.
+* Do not build navigation.
+* Do not build store discovery.
+* Do not build products.
+* Do not build cart.
+* Do not build checkout.
+* Do not build orders.
+* Do not build any marketplace functionality.
+
+Native production builds/app-store publishing are NOT part of Phase 1.
+
+---
+
+# 2. DASHBOARD APP
+
+Location:
+
+```text
+apps/dashboard/
+```
+
+Technology:
+
+* React
+* TypeScript
+* Web
+
+Create only a basic starter page.
+
+Display:
+
+```text
+Vendor/Admin Dashboard — Phase 1
+```
+
+Requirements:
+
+* application builds successfully
+* application starts successfully
+* TypeScript works
+
+Do NOT implement:
+
+* login
+* vendor dashboard
+* admin dashboard
+* store management
+* product management
+* category management
+* order management
+* reports
+* business logic
+
+Only the placeholder page is required.
+
+---
+
+# 3. BACKEND API
+
+Location:
+
+```text
+backend/api/
+```
+
+Technology:
+
+* Node.js
+* Express
+* TypeScript
+
+Create the basic backend application.
+
+Implement exactly ONE API endpoint:
+
+```http
+GET /health
+```
+
+Response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+Requirements:
+
+* backend starts locally
+* `/health` responds successfully
+* TypeScript compilation works
+
+Do NOT implement:
+
+* authentication
+* Supabase
+* database
+* Drizzle
+* Zod
+* JWT
+* users
+* vendors
+* stores
+* products
+* categories
+* carts
+* orders
+* payments
+* delivery
+* business logic
+
+---
+
+# 4. SHARED PACKAGES
+
+Create these packages:
+
+```text
+packages/shared-types/
+packages/validation/
+packages/api-client/
+packages/constants/
+```
+
+They should be structurally ready for future use.
+
+For this phase:
+
+### shared-types
+
+Empty starter TypeScript package.
+
+Do NOT create marketplace types yet.
+
+### validation
+
+Empty starter package.
+
+Do NOT install or use Zod yet.
+
+### api-client
+
+Empty starter package.
+
+Do NOT implement API client functionality yet.
+
+### constants
+
+Empty starter package.
+
+Do NOT create business constants yet.
+
+---
+
+# 5. DATABASE DIRECTORY
+
+Create:
+
+```text
+database/migrations/
+```
+
+It must remain empty.
+
+Do NOT:
+
+* connect to Supabase
+* install Drizzle
+* create schemas
+* create migrations
+* create database tables
+* create seed data
+* create database models
+
+Database work begins in Phase 2.
+
+---
+
+# 6. DOCUMENTATION
+
+Create these files:
+
+```text
+docs/PRODUCT_REQUIREMENTS.md
+docs/ARCHITECTURE.md
+docs/DATABASE_SCHEMA.md
+docs/API_SPECIFICATION.md
+docs/BUSINESS_RULES.md
+docs/SECURITY.md
+docs/DEVELOPMENT_STATUS.md
+docs/CHANGELOG.md
+```
+
+For the first six architecture/reference documents, use only a simple placeholder such as:
+
+```text
+See Master Product & Architecture Blueprint v1.1.
+Detailed implementation documentation will be populated in the appropriate development phase.
+```
+
+For:
+
+```text
+docs/DEVELOPMENT_STATUS.md
+```
+
+write:
+
+```text
+Phase 1 complete — repository foundation only.
+```
+
+For:
+
+```text
+docs/CHANGELOG.md
+```
+
+write:
+
+```text
+v0.1.0 — initial repository structure
+```
+
+Do NOT copy the entire blueprint into these files during Phase 1.
+
+---
+
+# 7. WORKSPACE CONFIGURATION
+
+Use a monorepo workspace.
+
+Preferred:
+
+```text
+npm workspaces
+```
+
+You may use pnpm workspaces ONLY if you have a strong technical reason.
+
+If you choose pnpm instead of npm:
+
+* explain exactly why
+* do not change any other architectural decision
+* report the deviation in your final summary
+
+Configure TypeScript at the repository root with a shared base configuration.
+
+Individual applications/packages should extend the shared TypeScript configuration where appropriate.
+
+---
+
+# 8. DEPENDENCY RULE
+
+Install ONLY dependencies required to create and run the Phase 1 projects.
+
+Do NOT install any of the following:
+
+```text
+Supabase
+Drizzle
+Zod
+JWT/authentication libraries
+Razorpay
+Twilio
+Google Maps
+payment libraries
+notification libraries
+database drivers
+ORMs
+```
+
+Do not add dependencies for future functionality.
+
+If a dependency is installed because Expo, React, Express, or TypeScript requires it, report it in the final summary.
+
+---
+
+# 9. STRICT SCOPE BOUNDARY
+
+DO NOT implement:
+
+* database schema
+* authentication
+* authorization
+* user roles
+* vendor accounts
+* admin accounts
+* stores
+* categories
+* products
+* SKU
+* external_code
+* carts
+* checkout
+* orders
+* order statuses
+* delivery
+* payments
+* commissions
+* service pincodes
+* inventory
+* notifications
+* maps
+* GPS
+* CSV import
+* analytics
+* reports
+* business rules
+* marketplace UI
+
+These belong to later phases.
+
+---
+
+# 10. DO NOT OVER-ARCHITECT
+
+Do not create:
+
+* microservices
+* unnecessary abstractions
+* unnecessary database layers
+* delivery-partner systems
+* authentication frameworks
+* API business-service layers
+* advanced state management
+* production deployment configuration
+
+unless required strictly to make the Phase 1 starter applications run.
+
+Keep this phase intentionally small.
+
+---
+
+# 11. VERIFICATION
+
+After implementation, verify each component.
+
+## Customer
+
+Verify that the Expo application starts successfully.
+
+Verify that the web target starts successfully.
+
+## Dashboard
+
+Verify that the React application builds successfully and displays:
+
+```text
+Vendor/Admin Dashboard — Phase 1
+```
+
+## Backend
+
+Start the API and verify:
+
+```http
+GET /health
+```
+
+returns:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## TypeScript
+
+Run the appropriate TypeScript/build checks.
+
+---
+
+# 12. FINAL REPORT REQUIRED
+
+When finished, provide a concise implementation report containing:
+
+### A. Files created
+
+List every file created.
+
+### B. Dependencies
+
+List every dependency installed, including version, and explain why it was necessary for Phase 1.
+
+### C. Commands executed
+
+List the important commands used to:
+
+* install dependencies
+* start customer app
+* start dashboard
+* start backend
+* run builds/type checks
+
+### D. Verification results
+
+State whether:
+
+* customer app starts
+* customer web starts
+* dashboard builds/starts
+* backend starts
+* `/health` works
+* TypeScript checks pass
+
+### E. Deviations
+
+Clearly list anything that differs from this prompt.
+
+If there are no deviations, explicitly state:
+
+```text
+No deviations from the Phase 1 specification.
+```
+
+### F. Scope confirmation
+
+Explicitly state:
+
+```text
+No database, authentication, or business logic was implemented in this phase.
+```
+
+Also confirm that no future-phase marketplace functionality was implemented.
+
+---
+
+# 13. STOP CONDITION
+
+After completing Phase 1:
+
+STOP.
+
+Do not start Phase 2.
+
+Do not create the database.
+
+Do not configure Supabase.
+
+Do not implement authentication.
+
+Do not implement products, stores, carts, orders, or any other marketplace functionality.
+
+Wait for further instructions.
+
+# END OF PHASE 1

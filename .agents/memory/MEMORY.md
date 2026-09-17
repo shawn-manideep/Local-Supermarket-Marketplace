@@ -1,0 +1,1 @@
+- [Expo and workspace compatibility](expo-and-workspace-compatibility.md) — keep Expo SDK and shared React type packages aligned before full workspace checks.

@@ -1,44 +1,47 @@
-# [Project name]
+# Local Supermarket Marketplace
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Phase 1 repository foundation for the customer app, vendor/admin dashboard, and minimal API skeleton.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api run dev` — run the Phase 1 API skeleton
+- `pnpm --filter @workspace/customer run start` — run the Expo customer starter
+- `pnpm --filter @workspace/dashboard run dev` — run the dashboard starter
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm run build` — typecheck + build all Phase 1 packages
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- pnpm workspaces, Node.js, TypeScript
+- Customer app: Expo + React Native + TypeScript
+- Dashboard: React + Vite + TypeScript
+- API: Express + TypeScript
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `apps/customer` — Expo starter app
+- `apps/dashboard` — React web starter
+- `backend/api` — minimal Express API with `GET /health`
+- `packages/*` — empty shared package foundations
+- `database/migrations` — reserved for a later phase
+- `docs` — phase documentation placeholders
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Phase 1 intentionally uses pnpm workspaces because the provided project foundation already uses pnpm.
+- Marketplace functionality is deferred to later phases.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The marketplace product is not implemented yet. Phase 1 only establishes the repository foundation.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+No additional preferences recorded.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+Keep database, authentication, and marketplace work out of Phase 1.
 
 ## Pointers
 

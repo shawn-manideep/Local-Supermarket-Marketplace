@@ -4,6 +4,18 @@
   "files": [],
   "references": [
     {
+      "path": "./packages/shared-types"
+    },
+    {
+      "path": "./packages/validation"
+    },
+    {
+      "path": "./packages/api-client"
+    },
+    {
+      "path": "./packages/constants"
+    },
+    {
       "path": "./lib/db"
     },
     {
