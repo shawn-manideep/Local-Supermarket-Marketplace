@@ -111,3 +111,106 @@ export const commissionRateSchema = z.preprocess(
 export const commissionRateUpdateSchema = z.object({
   commissionRate: commissionRateSchema,
 }).strict();
+
+const catalogNameSchema = z.string().trim().min(1);
+const catalogTextSchema = z.string().trim().nullable().optional();
+const catalogCodeSchema = z.string().trim().min(1).nullable().optional();
+const catalogUuidSchema = z.string().uuid();
+function normalizeNumericInput(value: unknown) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") return Number(value);
+  return value;
+}
+
+const stockQuantitySchema = z.preprocess(
+  normalizeNumericInput,
+  z.number().finite().int().min(0).max(2_147_483_647),
+);
+const catalogPriceSchema = z.preprocess(
+  normalizeNumericInput,
+  z
+    .number()
+    .finite()
+    .min(0)
+    .max(9_999_999_999.99)
+    .refine(
+      (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+      "Must have at most two decimal places",
+    ),
+);
+
+export const categoryIdParamSchema = z.object({
+  categoryId: catalogUuidSchema,
+}).strict();
+
+export const productIdParamSchema = z.object({
+  productId: catalogUuidSchema,
+}).strict();
+
+export const categoryQuerySchema = z.object({
+  categoryId: catalogUuidSchema.optional(),
+}).strict();
+
+export const categoryCreateSchema = z.object({
+  name: catalogNameSchema,
+}).strict();
+
+export const categoryUpdateSchema = z.object({
+  name: catalogNameSchema,
+}).strict();
+
+const productFieldsSchema = {
+  name: catalogNameSchema,
+  description: catalogTextSchema,
+  sku: catalogCodeSchema,
+  externalCode: catalogCodeSchema,
+  price: catalogPriceSchema,
+  availability: z.boolean(),
+  stockQuantity: stockQuantitySchema,
+  imageUrl: z.string().trim().url().max(2_048).nullable().optional(),
+  categoryId: catalogUuidSchema.nullable().optional(),
+} as const;
+
+export const productCreateSchema = z.object({
+  name: productFieldsSchema.name,
+  description: productFieldsSchema.description,
+  sku: productFieldsSchema.sku,
+  externalCode: productFieldsSchema.externalCode,
+  price: productFieldsSchema.price,
+  availability: productFieldsSchema.availability.optional(),
+  stockQuantity: productFieldsSchema.stockQuantity.optional(),
+  imageUrl: productFieldsSchema.imageUrl,
+  categoryId: productFieldsSchema.categoryId,
+}).strict();
+
+export const productUpdateSchema = z.object({
+  name: productFieldsSchema.name.optional(),
+  description: productFieldsSchema.description,
+  sku: productFieldsSchema.sku,
+  externalCode: productFieldsSchema.externalCode,
+  price: productFieldsSchema.price.optional(),
+  availability: productFieldsSchema.availability.optional(),
+  stockQuantity: productFieldsSchema.stockQuantity.optional(),
+  imageUrl: productFieldsSchema.imageUrl,
+  categoryId: productFieldsSchema.categoryId,
+})
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one permitted product field is required",
+  });
+
+export const productAvailabilitySchema = z.object({
+  availability: z.boolean(),
+}).strict();
+
+export const productPriceSchema = z.object({
+  price: catalogPriceSchema,
+}).strict();
+
+export const productStockQuantitySchema = z.object({
+  stockQuantity: stockQuantitySchema,
+}).strict();
+
+export const productCategorySchema = z.object({
+  categoryId: catalogUuidSchema.nullable(),
+}).strict();

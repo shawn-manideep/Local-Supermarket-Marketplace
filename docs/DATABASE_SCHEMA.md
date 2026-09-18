@@ -45,3 +45,24 @@ currently `COD`.
 Products and categories use `is_active`. Product `availability` remains a
 separate flag, so disabling a product and temporarily making it unavailable
 are distinct operations.
+
+## Phase 4 catalog integrity
+
+Phase 4 reuses the existing `categories` and `products` tables without a new
+migration:
+
+- Every category belongs directly to one store.
+- Every product belongs directly to one store and may belong to one category.
+- The composite foreign key from `(products.store_id, products.category_id)` to
+  `(categories.store_id, categories.id)` prevents cross-store category
+  assignment.
+- Category names are unique only within a store.
+- Non-null SKU and external code values are unique only within a store. Both
+  fields may be null.
+- Product names are not globally unique and are not permanent identifiers.
+- Price uses `numeric(12,2)` with a non-negative database check.
+- Stock uses an integer with a non-negative database check.
+- Database triggers prevent hard deletion of categories and products.
+
+There is no global product/category master and no `store_products` table. Two
+stores selling the same item retain separate product records.

@@ -19,7 +19,7 @@ export default function App() {
             <p className="eyebrow">Local Supermarket Marketplace</p>
             <h1>Store management</h1>
           </div>
-          <div className="phase-badge">Phase 3</div>
+          <div className="phase-badge">Phase 4</div>
         </header>
 
         <section className="auth-strip">

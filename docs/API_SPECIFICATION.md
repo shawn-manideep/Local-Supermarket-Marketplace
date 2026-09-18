@@ -1,4 +1,4 @@
-# Phase 3 API Specification
+# Management API Specification — Phases 3–4
 
 All management routes use JSON and require a Supabase Auth bearer token:
 
@@ -91,7 +91,65 @@ Allowed status transitions are:
 
 Invalid transitions return `409 Conflict`.
 
-## Out of scope
+## Vendor categories
 
-Phase 3 does not add product, category, customer discovery, cart, checkout,
-order, payment, delivery-partner, settlement, or reporting APIs.
+All category routes require the `vendor` role and derive the store from the
+authenticated user.
+
+- `GET /api/vendor/categories`
+- `GET /api/vendor/categories/:categoryId`
+- `POST /api/vendor/categories` with `{ "name": "Staples" }`
+- `PATCH /api/vendor/categories/:categoryId` with `{ "name": "Pantry" }`
+- `POST /api/vendor/categories/:categoryId/activate`
+- `POST /api/vendor/categories/:categoryId/deactivate`
+
+Categories are deactivated with `isActive`; there is no hard-delete endpoint.
+
+## Vendor products
+
+All product routes require the `vendor` role. Product and category identifiers
+are always checked against the authenticated vendor's store.
+
+- `GET /api/vendor/products`
+- `GET /api/vendor/products?categoryId=:categoryId`
+- `GET /api/vendor/products/:productId`
+- `POST /api/vendor/products`
+- `PATCH /api/vendor/products/:productId`
+- `POST /api/vendor/products/:productId/activate`
+- `POST /api/vendor/products/:productId/deactivate`
+- `PATCH /api/vendor/products/:productId/availability`
+- `PATCH /api/vendor/products/:productId/price`
+- `PATCH /api/vendor/products/:productId/stock-quantity`
+- `PATCH /api/vendor/products/:productId/category`
+
+Create and general update payloads use these catalog fields:
+
+```json
+{
+  "name": "Tata Salt",
+  "description": "Iodised salt",
+  "sku": "SALT-1KG",
+  "externalCode": null,
+  "price": 28,
+  "availability": true,
+  "stockQuantity": 40,
+  "imageUrl": "https://example.com/tata-salt.jpg",
+  "categoryId": "11111111-1111-4111-8111-111111111111"
+}
+```
+
+`sku`, `externalCode`, `description`, `imageUrl`, and `categoryId` may be null.
+Price must be non-negative with at most two decimal places. Stock must be a
+non-negative integer. `storeId`, `isActive`, IDs, and timestamps are rejected
+from create/general update bodies.
+
+Dedicated update payloads are `{ "availability": false }`, `{ "price": 29.5 }`,
+`{ "stockQuantity": 25 }`, and `{ "categoryId": null }`.
+
+Product `isActive` and `availability` are independent. Deactivation never
+hard-deletes a product.
+
+## Out of scope after Phase 4
+
+There are no customer discovery/catalog, search, cart, checkout, order, payment,
+delivery-partner, settlement, recommendation, or reporting APIs.

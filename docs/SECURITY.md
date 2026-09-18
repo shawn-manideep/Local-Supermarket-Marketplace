@@ -64,3 +64,18 @@ management access.
 
 The dashboard token field is held only in React page state and is not written
 to local storage. A complete authentication UI remains outside this phase.
+
+## Phase 4 catalog isolation
+
+Every category and product endpoint requires the `vendor` role. The API derives
+`storeId` from the authenticated vendor and combines it with category/product
+IDs in every detail lookup and mutation predicate.
+
+Client-provided store ownership fields are rejected by strict Zod schemas.
+Assigning or filtering by a category first verifies that the category belongs
+to the authenticated vendor's store. The existing composite foreign key and
+RLS policies provide additional database enforcement.
+
+Category/product hard-delete routes do not exist, and database triggers reject
+direct hard-delete attempts. Malformed JSON is returned as a `400` client
+error rather than an internal server error.

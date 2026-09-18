@@ -6,6 +6,7 @@ import {
   type ServicePincode,
   type Store,
 } from "./api";
+import { CatalogManagementPanel } from "./CatalogManagementPanel";
 
 const dayNames = [
   "Sunday",
@@ -308,6 +309,14 @@ export function VendorStorePanel({ token, onMessage }: VendorStorePanelProps) {
             })}
           </div>
         </div>
+      )}
+
+      {store && (
+        <CatalogManagementPanel
+          onMessage={onMessage}
+          storeId={store.id}
+          token={token}
+        />
       )}
     </section>
   );

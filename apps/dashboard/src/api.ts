@@ -37,6 +37,32 @@ export interface OperatingHour {
   updatedAt: string;
 }
 
+export interface Category {
+  id: string;
+  storeId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: string;
+  storeId: string;
+  categoryId: string | null;
+  name: string;
+  description: string | null;
+  sku: string | null;
+  externalCode: string | null;
+  price: string;
+  availability: boolean;
+  stockQuantity: number;
+  imageUrl: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface ApiErrorPayload {
   error?: string;
   details?: Array<{ path?: Array<string | number>; message?: string }>;

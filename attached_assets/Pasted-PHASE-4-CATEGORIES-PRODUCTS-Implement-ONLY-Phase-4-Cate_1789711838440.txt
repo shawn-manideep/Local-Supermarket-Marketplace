@@ -1,0 +1,843 @@
+PHASE 4 — CATEGORIES + PRODUCTS
+
+Implement ONLY Phase 4: Categories + Products.
+
+The locked Master Product & Architecture Blueprint v1.1, the approved Phase 2 foundation, and the approved Phase 3 implementation are the source of truth.
+
+IMPORTANT WORKFLOW:
+- Continue development entirely in Replit.
+- Do NOT push to GitHub yet.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT configure production Supabase.
+- Production setup remains deferred to Phase 12.
+- Inspect the existing codebase before making changes.
+- Preserve all Phase 1, Phase 2, and Phase 3 functionality.
+- Do not rewrite the architecture.
+- Do not replace Supabase Auth, PostgreSQL, Drizzle, Express, Zod, Expo, React, or the existing workspace structure.
+- Do not add unnecessary dependencies.
+- Implement ONLY Phase 4.
+- Do not implement Phase 5+ functionality.
+- Do not create customer marketplace functionality prematurely.
+
+==================================================
+1. PHASE 4 OBJECTIVE
+==================================================
+
+Build the store-owned category and product management foundation.
+
+The application MUST use the locked product architecture:
+
+Store
+  ├── Category
+  │     ├── Product
+  │     └── Product
+  ├── Category
+  │     └── Product
+  └── Category
+        └── Product
+
+IMPORTANT:
+
+Each supermarket owns its own independent category and product records.
+
+There is NO global product master.
+
+There is NO shared product entity.
+
+There is NO `store_products` table.
+
+Do NOT introduce either of these concepts.
+
+If Store A and Store B both sell "Tata Salt", they have two independent product records belonging to their respective stores.
+
+==================================================
+2. EXISTING ARCHITECTURE — PRESERVE
+==================================================
+
+Customer:
+- Expo + React Native + TypeScript
+
+Dashboard:
+- React + TypeScript + Vite
+
+Backend:
+- Node.js + Express + TypeScript
+
+Database:
+- Supabase PostgreSQL
+
+ORM:
+- Drizzle
+
+Validation:
+- Zod
+
+Authentication:
+- Supabase Auth
+
+Roles:
+- customer
+- vendor
+- admin
+
+Vendor ownership model:
+
+authenticated vendor
+      ↓
+user_profiles
+      ↓
+stores.owner_user_id
+      ↓
+vendor's store
+      ↓
+categories/products
+
+NEVER trust a client-provided store_id as an authorization source.
+
+The backend must derive the vendor's store from the authenticated identity.
+
+==================================================
+3. CATEGORY MODEL
+==================================================
+
+Reuse the existing Phase 2 `categories` table.
+
+Each category belongs to exactly one store.
+
+Required conceptual fields include, according to the existing schema:
+
+- id
+- store_id
+- name
+- description if already supported
+- display/order position if already supported
+- is_active
+- created_at
+- updated_at
+
+Do NOT create a global category master.
+
+Do NOT create shared categories across stores.
+
+A category name does not become a global identifier.
+
+==================================================
+4. CATEGORY FUNCTIONALITY — VENDOR
+==================================================
+
+Authenticated vendors must be able to manage categories belonging to their own store.
+
+Implement:
+
+- list own categories
+- get category details
+- create category
+- update category
+- activate category
+- deactivate category
+
+All operations must be restricted to the authenticated vendor's store.
+
+Vendor A must never be able to:
+
+- read Vendor B's categories
+- modify Vendor B's categories
+- deactivate Vendor B's categories
+- create a category under Vendor B's store
+
+Do not trust request-body `store_id`.
+
+The backend must derive the store from the authenticated vendor.
+
+==================================================
+5. CATEGORY VALIDATION
+==================================================
+
+Use Zod for request validation.
+
+Validate appropriate fields such as:
+
+- name
+- description
+- display/order position if supported
+
+Reject:
+
+- empty category names
+- invalid values
+- malformed requests
+- unauthorized store references
+
+Do not introduce unnecessary business restrictions such as arbitrary limits unless required by the existing architecture.
+
+==================================================
+6. CATEGORY DEACTIVATION / DELETE RULE
+==================================================
+
+Categories must NOT be hard-deleted once they can be historically referenced.
+
+Use:
+
+is_active
+
+for catalog lifecycle.
+
+Meaning:
+
+is_active = true
+→ active/customer-facing category
+
+is_active = false
+→ disabled/not customer-facing
+
+Do not confuse deactivation with temporary product availability.
+
+If a category has products, deactivation must not destroy those products.
+
+Do not implement cascading hard deletion.
+
+==================================================
+7. PRODUCT MODEL
+==================================================
+
+Reuse the existing Phase 2 `products` table.
+
+Products are store-owned.
+
+Each product must belong to:
+
+- exactly one store
+- optionally one category belonging to that same store
+
+The existing product architecture includes:
+
+- id
+- store_id
+- category_id
+- name
+- description
+- sku
+- external_code
+- price
+- availability
+- stock_quantity
+- image_url
+- is_active
+- created_at
+- updated_at
+
+Preserve the existing schema rather than unnecessarily redesigning it.
+
+==================================================
+8. PRODUCT IDENTITY RULE
+==================================================
+
+SKU and external_code are optional.
+
+They may initially be NULL.
+
+Product names are NOT permanent identifiers.
+
+Do NOT create a global uniqueness rule such as:
+
+UNIQUE(name)
+
+across all stores.
+
+Do NOT assume products with the same name are the same product.
+
+If uniqueness constraints already exist, inspect them and preserve only those compatible with the locked architecture.
+
+==================================================
+9. PRODUCT CATEGORY OWNERSHIP
+==================================================
+
+A product's category must belong to the SAME store as the product.
+
+For example:
+
+Store A
+  Category A1
+    Product A1
+
+Store B
+  Category B1
+    Product B1
+
+Product A1 must never be assignable to Category B1.
+
+Enforce this in backend validation and, where appropriate, database constraints.
+
+Never rely only on the client UI.
+
+==================================================
+10. PRODUCT FUNCTIONALITY — VENDOR
+==================================================
+
+Authenticated vendors must be able to manage products belonging to their own store.
+
+Implement:
+
+- list own products
+- get product details
+- create product
+- update product
+- activate product
+- deactivate product
+- update product availability
+- update stock quantity
+- update price
+- assign/change category
+- manage SKU
+- manage external_code
+- manage description
+- manage image URL/reference using the existing architecture
+
+Do NOT build advanced inventory management.
+
+Do NOT build inventory synchronization.
+
+Do NOT build POS integration.
+
+Do NOT build stock movement/warehouse management.
+
+This phase is basic catalog/product management only.
+
+==================================================
+11. CRITICAL PRODUCT LIFECYCLE RULE
+==================================================
+
+There are TWO separate concepts:
+
+A. is_active
+
+B. availability
+
+They MUST remain separate.
+
+`is_active = false`
+
+means:
+
+- disabled
+- discontinued
+- not customer-facing
+
+`availability = false`
+
+means:
+
+- product remains active
+- product temporarily cannot be ordered/sold
+
+Example:
+
+Product:
+is_active = true
+availability = false
+
+means:
+
+"The product still exists in the store catalog but is currently unavailable."
+
+Do NOT automatically set is_active=false when availability=false.
+
+Do NOT delete a product merely because it is unavailable.
+
+==================================================
+12. PRODUCT HARD DELETE
+==================================================
+
+Products must NOT be hard-deleted because historical orders may reference them.
+
+Use:
+
+is_active
+
+for catalog deactivation.
+
+Historical order records must remain intact.
+
+Do not create a DELETE endpoint that physically removes products.
+
+If an existing generic DELETE implementation exists, replace it with safe deactivation behavior only where necessary.
+
+Do not break historical order relationships.
+
+==================================================
+13. PRICE
+==================================================
+
+Allow vendors to manage the current product price.
+
+Validate:
+
+- price must be numeric
+- price must not be negative
+- use the existing database numeric/decimal representation
+- avoid floating-point precision problems where applicable
+
+Do not introduce:
+
+- discounts
+- coupons
+- sale campaigns
+- promotional pricing
+- tax engine
+- dynamic pricing
+
+Those are outside Phase 4.
+
+Remember:
+
+Current product price can change.
+
+Historical order-item price snapshots must NOT change.
+
+==================================================
+14. STOCK QUANTITY
+==================================================
+
+Support the existing basic:
+
+stock_quantity
+
+field.
+
+Allow vendors to update the current quantity.
+
+Validate:
+
+- no negative stock quantity
+- appropriate numeric/integer format according to existing schema
+
+Do NOT implement:
+
+- inventory ledger
+- stock movement history
+- warehouse management
+- purchase synchronization
+- POS synchronization
+- automatic stock deduction from orders
+
+Order-related stock behavior belongs to later phases.
+
+==================================================
+15. SKU / EXTERNAL CODE
+==================================================
+
+Support:
+
+- sku
+- external_code
+
+Both may be nullable.
+
+Do not require them during product creation unless the existing architecture explicitly requires it.
+
+If uniqueness is implemented, scope it appropriately to the store rather than globally unless the existing architecture explicitly requires otherwise.
+
+Do not use product name as a unique identifier.
+
+==================================================
+16. PRODUCT IMAGES
+==================================================
+
+Use the existing image URL/reference field and architecture.
+
+Do not introduce a new image-storage provider.
+
+Do not add an unnecessary image-processing service.
+
+If Supabase Storage infrastructure is not yet configured because production Supabase is deferred, allow the product model/API to store an appropriate image URL/reference without requiring live production storage.
+
+Do not invent credentials.
+
+Do not expose server-only secrets.
+
+==================================================
+17. ADMIN ACCESS
+==================================================
+
+Admin functionality should be limited to what is actually required for Phase 4.
+
+Do NOT turn the admin into a global product owner.
+
+The core product architecture remains:
+
+Store → Categories → Products
+
+If admin needs catalog visibility for management/support, access must still preserve store ownership context.
+
+Do not create a global product catalog.
+
+Do not create admin functionality that merges products across stores.
+
+Do not create a global category master.
+
+==================================================
+18. API DESIGN
+==================================================
+
+Create only Phase 4 APIs required for category/product management.
+
+Vendor category APIs should support:
+
+- list own categories
+- get own category
+- create category
+- update category
+- activate/deactivate category
+
+Vendor product APIs should support:
+
+- list own products
+- get own product
+- create product
+- update product
+- activate/deactivate product
+- update availability
+- update price
+- update stock quantity
+- assign/change category
+
+Follow the existing API conventions.
+
+Every protected endpoint must use:
+
+- authentication middleware
+- role authorization
+- vendor-store resolution
+- ownership validation
+- Zod validation
+- Drizzle persistence
+
+Do not create:
+
+- customer discovery APIs
+- customer catalog browsing APIs
+- cart APIs
+- checkout APIs
+- order APIs
+- payment APIs
+- delivery APIs
+- recommendation APIs
+- search APIs
+
+Those belong to later phases.
+
+==================================================
+19. SECURITY / TENANT ISOLATION
+==================================================
+
+Security is mandatory.
+
+Vendor A must only access:
+
+Store A
+  ↓
+Store A categories
+  ↓
+Store A products
+
+Vendor A must NEVER access Store B by modifying:
+
+- store_id
+- category_id
+- product_id
+
+in a request.
+
+The backend must verify relationships.
+
+For example, when Vendor A assigns a product to Category B:
+
+1. Authenticate vendor
+2. Resolve Vendor A's store
+3. Verify Category B belongs to Vendor A's store
+4. Reject if it does not
+5. Persist only valid relationships
+
+Do not rely on the frontend.
+
+Preserve Phase 2 RLS.
+
+Do not weaken RLS to make development easier.
+
+==================================================
+20. DATABASE CONSTRAINTS / INTEGRITY
+==================================================
+
+Inspect the existing schema before changing it.
+
+Where practical, enforce:
+
+- product belongs to a valid store
+- category belongs to a valid store
+- product category belongs to same store
+- prices cannot be negative
+- stock cannot be negative
+- commission/order snapshot protections from Phase 2 remain intact
+- historical orders remain protected
+- categories/products cannot be hard-deleted
+
+Do not introduce unnecessary new tables.
+
+Only create a migration if genuinely required.
+
+==================================================
+21. DASHBOARD UI
+==================================================
+
+Add a minimal functional vendor catalog-management UI.
+
+Do not redesign the entire dashboard.
+
+Vendor dashboard should provide:
+
+Categories:
+- category list
+- add category
+- edit category
+- activate/deactivate category
+
+Products:
+- product list
+- filter/group by category where useful
+- add product
+- edit product
+- price
+- stock quantity
+- availability
+- active/inactive status
+- SKU
+- external code
+- description
+- image URL/reference
+- category selection
+
+Keep UI simple, clean, and functional.
+
+Do NOT build the customer marketplace.
+
+Do NOT build customer store discovery.
+
+Do NOT build cart or checkout.
+
+==================================================
+22. CATEGORY/PRODUCT UX RULES
+==================================================
+
+The UI must clearly distinguish:
+
+ACTIVE / INACTIVE
+
+from:
+
+AVAILABLE / UNAVAILABLE
+
+For example:
+
+Product status:
+- Active + Available
+- Active + Unavailable
+- Inactive
+
+Do not present "Unavailable" as if the product were deleted.
+
+Prevent accidental destructive deletion.
+
+Use confirmation where appropriate for deactivation.
+
+==================================================
+23. TESTING
+==================================================
+
+Create focused tests where the project structure supports them.
+
+At minimum test:
+
+CATEGORY:
+
+- vendor can list own categories
+- vendor can create own category
+- vendor can update own category
+- vendor can deactivate own category
+- vendor cannot access another store's category
+- vendor cannot modify another store's category
+- invalid category data is rejected
+
+PRODUCT:
+
+- vendor can list own products
+- vendor can create own product
+- vendor can update own product
+- vendor can deactivate own product
+- vendor can update availability
+- vendor can update price
+- vendor can update stock
+- vendor can assign a category from own store
+- vendor cannot assign category from another store
+- vendor cannot access another store's product
+- vendor cannot modify another store's product
+- negative price rejected
+- negative stock rejected
+- invalid product data rejected
+
+LIFECYCLE:
+
+- inactive product is not hard-deleted
+- unavailable product remains active
+- category deactivation does not hard-delete products
+- historical order protections from Phase 2 remain intact
+
+SECURITY:
+
+- customer cannot access vendor catalog management endpoints
+- vendor cannot access another vendor's catalog
+- admin protections remain intact
+
+If authenticated integration testing requires real Supabase credentials and cannot run, clearly report the limitation. Do not invent credentials.
+
+==================================================
+24. REGRESSION TESTING
+==================================================
+
+After implementation run relevant checks:
+
+- pnpm install
+- pnpm typecheck
+- pnpm --filter @workspace/api run build
+- pnpm --filter @workspace/db run check
+- pnpm --filter @workspace/dashboard run build
+- Customer Expo web startup/check
+- Backend startup/check
+- GET /health
+- Phase 3 tests
+- Phase 4 tests
+- git diff --check
+
+Ensure no Phase 1/2/3 regression.
+
+==================================================
+25. DOCUMENTATION
+==================================================
+
+Update only relevant documentation:
+
+- docs/API_SPECIFICATION.md
+- docs/DATABASE_SCHEMA.md
+- docs/ARCHITECTURE.md if required
+- docs/BUSINESS_RULES.md
+- docs/SECURITY.md
+- docs/DEVELOPMENT_STATUS.md
+- docs/CHANGELOG.md
+
+Document:
+
+- store-owned categories
+- store-owned products
+- no global product model
+- no store_products table
+- product identity rules
+- SKU/external_code rules
+- category ownership
+- product lifecycle
+- is_active vs availability
+- price rules
+- stock rules
+- vendor isolation
+- category/product APIs
+
+Do not rewrite unrelated sections.
+
+==================================================
+26. DEPENDENCY CONTROL
+==================================================
+
+Before adding any dependency:
+
+- inspect existing dependencies
+- reuse existing packages
+- add nothing unless genuinely necessary
+
+Do not introduce:
+
+- payment SDKs
+- mapping SDKs
+- delivery SDKs
+- analytics SDKs
+- search engines
+- image-processing services
+- additional authentication providers
+
+==================================================
+27. PRODUCTION / DEPLOYMENT
+==================================================
+
+Do NOT:
+
+- create production Supabase project
+- apply production migrations
+- configure Vercel
+- configure Railway
+- push GitHub
+- create production secrets
+- configure payments
+- configure delivery partners
+- configure maps/GPS
+
+All production/deployment work remains Phase 12.
+
+==================================================
+28. SCOPE CONTROL
+==================================================
+
+DO NOT implement:
+
+- customer store discovery
+- customer catalog
+- search
+- cart
+- checkout
+- orders
+- payments
+- delivery
+- coupons
+- loyalty
+- referrals
+- POS
+- advanced inventory
+- weighted products
+- substitutions
+- partial fulfillment
+- delivery partner system
+- multi-city
+- advanced analytics
+- recommendations
+
+Those belong to later phases.
+
+==================================================
+29. FINAL REPORT
+==================================================
+
+At the end provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. APIs created
+E. Database/migration changes
+F. RLS/security changes
+G. Dashboard UI changes
+H. Tests created
+I. Verification commands and results
+J. Known limitations
+K. Explicit confirmation that Phase 5+ functionality was NOT implemented
+L. Explicit confirmation that GitHub/Vercel/Railway/production Supabase were NOT configured
+
+STOP after the report.
+
+Do not automatically begin Phase 5.
