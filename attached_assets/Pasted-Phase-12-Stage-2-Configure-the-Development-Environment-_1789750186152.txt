@@ -1,0 +1,56 @@
+Phase 12 — Stage 2: Configure the Development Environment Variables.
+
+Stage 1 is complete and verified. Replit is securely connected to exactly the existing Supabase DEVELOPMENT project:
+
+- Project: supermarket-marketplace-dev
+- Region: South Asia (Mumbai)
+- Status: ACTIVE_HEALTHY
+
+Proceed with Stage 2 ONLY.
+
+TASK:
+Securely configure the development runtime environment required by the existing application using the connected Supabase development project.
+
+Required development configuration:
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+- SUPABASE_DB_URL
+- SUPABASE_SERVICE_ROLE_KEY
+
+IMPORTANT:
+- Use Replit's secure Secrets/environment-variable mechanism and the connected Supabase integration where possible.
+- Never print, expose, echo, commit, or include secret values in the report.
+- Do not put secrets into source files.
+- Do not modify .env files in a way that commits credentials.
+- Do not use production credentials.
+- Do not create a production Supabase project.
+- Do not connect GitHub.
+- Do not configure Railway or Vercel.
+- Do not apply any migrations yet.
+- Do not create test users or fixtures yet.
+- Do not change the database schema or application architecture.
+- Preserve all Phase 1–11 work.
+
+First inspect the existing application configuration and determine exactly how each of the four variables is expected to be used.
+
+Then configure the development runtime securely.
+
+For verification:
+1. Confirm each required variable is present/configured without displaying its value.
+2. Confirm the values point to the connected DEVELOPMENT Supabase project.
+3. Confirm server-only secrets are not exposed to the customer frontend.
+4. Confirm no credentials were written to tracked source files.
+5. Confirm the existing local migrations 0000–0004 remain unchanged and available.
+6. Run only the relevant configuration/type/build/security checks needed to verify Stage 2.
+7. Do NOT apply migrations.
+
+At the end, report:
+- Stage 2 status: PASS or BLOCKED
+- Which required variables are configured, by name only
+- Whether server-only/public separation is correct
+- Whether any source files were changed
+- Checks performed and results
+- Any blocker
+- The exact next stage
+
+STOP after Stage 2. Do not proceed to Stage 3 automatically.
