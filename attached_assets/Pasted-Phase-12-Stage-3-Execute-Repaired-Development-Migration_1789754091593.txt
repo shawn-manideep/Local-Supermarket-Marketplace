@@ -1,0 +1,64 @@
+Phase 12 — Stage 3: Execute Repaired Development Migrations
+
+The Stage 3 blocker repair has been reviewed and APPROVED.
+
+Execute the repaired development migration sequence against ONLY:
+
+Project: supermarket-marketplace-dev
+Environment: development
+
+Apply these migrations in exact order:
+
+1. 0000_furry_doomsday.sql — using the approved repaired statement order
+2. 0001_customer_marketplace_read_policies.sql
+3. 0002_secure_customer_cart_writes.sql
+4. 0003_harden_order_history.sql
+5. 0004_phase11_security_hardening.sql
+
+Requirements:
+
+- Use the existing development Supabase credentials.
+- Do not modify any migration further.
+- Do not modify application source code.
+- Do not modify the Drizzle schema.
+- Do not reorder or regenerate migrations.
+- Do not create test users or fixtures yet.
+- Do not write application/business data.
+- Do not touch production Supabase.
+- Do not connect or push to GitHub.
+- Do not configure Vercel or Railway.
+- Do not publish the Replit application.
+- Do not perform unrelated database changes.
+
+Execute the migrations transactionally/safely according to the project's existing migration mechanism.
+
+After execution, verify:
+
+1. All five migrations are recorded remotely.
+2. They are recorded in the correct order.
+3. The expected core tables exist.
+4. The repaired composite category uniqueness exists.
+5. The products → categories composite foreign key exists.
+6. RLS is enabled where expected by migrations.
+7. No unexpected application/business data was inserted.
+
+If ANY migration fails:
+
+- STOP immediately.
+- Do not improvise a repair.
+- Do not continue with later migrations.
+- Report the exact migration and PostgreSQL error.
+
+If all five succeed:
+
+- STOP.
+- Do not begin Stage 4.
+- Provide a Stage 3 PASS report including:
+  - migrations applied
+  - remote migration history
+  - core schema verification
+  - composite unique constraint verification
+  - composite FK verification
+  - RLS verification
+  - confirmation that no application/business fixtures were created
+  - confirmation that production/GitHub/Vercel/Railway remained untouched
