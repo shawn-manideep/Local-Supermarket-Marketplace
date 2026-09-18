@@ -1,0 +1,80 @@
+Phase 12 — Stage 4: Development Auth Test Fixtures
+
+Stage 3 is PASS.
+
+Now execute ONLY Stage 4 against the controlled development Supabase project:
+
+Project: supermarket-marketplace-dev
+Environment: development
+
+Create isolated development-only authentication test identities and the minimum database fixtures required for the upcoming live security/integration tests.
+
+Required identities:
+
+1. Customer A
+2. Customer B
+3. Vendor A
+4. Vendor B
+5. Admin
+
+Requirements:
+
+- Use Supabase Auth for identity creation.
+- Do NOT create users through a public signup flow for fixture provisioning if the server-side/admin mechanism is available.
+- Assign application roles only through the controlled development fixture process.
+- Never expose or print service-role credentials.
+- Use clearly synthetic development-only email addresses.
+- Use strong unique test passwords and do not print them in the report.
+- Vendor A must own Store A.
+- Vendor B must own Store B.
+- Customer A and Customer B must remain completely separate.
+- Admin must be an admin only through the controlled development fixture process.
+- Do not create any production users.
+- Do not touch the production Supabase project.
+
+Create only the minimum supporting records needed for later tests:
+
+- user_profiles
+- customers
+- customer_addresses where required
+- stores
+- store_service_pincodes
+- store_operating_hours where required
+
+Do NOT create categories, products, carts, orders, order items, or order history yet unless absolutely required by the fixture mechanism. Stage 4 should prepare identities and minimum ownership fixtures only.
+
+Use synthetic development data. Do not use any real person's personal email, phone number, address, or other personal information.
+
+Verify after creation:
+
+- All five Auth identities exist.
+- Each identity maps to exactly one intended application role.
+- Vendor A resolves only to Store A.
+- Vendor B resolves only to Store B.
+- Customer A and Customer B have distinct customer identities.
+- Admin has the admin role.
+- No fixture has cross-linked ownership.
+- No production resources were touched.
+
+Run safe read-only verification after fixture creation.
+
+Do not begin Stage 5.
+Do not run the live security test matrix yet.
+Do not modify application source code.
+Do not modify migrations or schema.
+Do not push to GitHub.
+Do not configure Vercel or Railway.
+
+If fixture creation fails, STOP and report the exact failure without improvising a workaround.
+
+If successful, STOP and provide a Stage 4 report containing:
+
+- PASS or BLOCKED
+- fixture identities created (use synthetic labels only; do not print passwords)
+- roles
+- vendor-to-store mappings
+- customer ownership mappings
+- supporting records created
+- verification results
+- confirmation that no production resources were touched
+- confirmation that no application source/migration/schema was changed
