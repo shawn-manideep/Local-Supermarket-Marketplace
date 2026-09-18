@@ -24,3 +24,7 @@ timeoutMs = 20000
 [userenv.development]
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd2NvbGlwZWF2eG51enFsYW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDQ3NTgsImV4cCI6MjEwNTMyMDc1OH0.zBlScn5VQhHUXrik7vqge848UOcLuRzzDN7DCZ75RjI"
 SUPABASE_URL = "https://gkwcolipeavxnuzqlamb.supabase.co"
+
+[userenv.shared]
+SUPABASE_DB_URL = "postgresql://postgres:ShawnGlobal!@#9@db.gkwcolipeavxnuzqlamb.supabase.co:5432/postgres"
+SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd2NvbGlwZWF2eG51enFsYW1iIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTc0NDc1OCwiZXhwIjoyMTA1MzIwNzU4fQ.4nMB0hReLujQiAnJcBtxDQzDVZkul1JOhyDRiP9I7qs"
