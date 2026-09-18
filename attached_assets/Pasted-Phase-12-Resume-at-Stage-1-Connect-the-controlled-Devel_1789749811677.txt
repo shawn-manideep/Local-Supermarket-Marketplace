@@ -1,0 +1,45 @@
+Phase 12 — Resume at Stage 1: Connect the controlled Development Supabase environment.
+
+The development Supabase project has now been created manually by me:
+
+Project name: supermarket-marketplace-dev
+Region: South Asia (Mumbai)
+
+The previous Supabase connection attempt was intentionally cancelled because the project did not exist yet. Do NOT treat that previous cancellation as the current blocker.
+
+Your task now is ONLY to establish the Replit ↔ Supabase connection for this DEVELOPMENT project and verify that the connection is available to the project.
+
+IMPORTANT:
+- Connect ONLY to the Supabase project `supermarket-marketplace-dev`.
+- Do NOT connect to or create a production Supabase project.
+- Do NOT connect GitHub yet.
+- Do NOT configure Railway or Vercel.
+- Do NOT publish or deploy anything.
+- Do NOT change the database architecture.
+- Do NOT switch to Neon.
+- Do NOT manually create application tables if the connection succeeds.
+- Do NOT modify application code unnecessarily.
+- Do NOT expose or print Supabase passwords, service-role keys, access tokens, or other secrets in your response.
+- Use Replit's secure Supabase integration/connection flow where available.
+- Preserve all existing Phase 1–11 work.
+
+First inspect the current project state and confirm that the existing Phase 12 stop condition is simply the missing development Supabase connection.
+
+Then initiate the Supabase connection flow and connect the existing `supermarket-marketplace-dev` project.
+
+After the connection succeeds:
+1. Verify that the development Supabase environment is actually available.
+2. Verify that the required development environment variables/secrets are configured securely without printing their values.
+3. Verify that the local migrations 0000–0004 are still present.
+4. Do NOT apply migrations yet unless the Phase 12 brief explicitly requires that as the next stage after connection.
+5. Do NOT create test accounts/fixtures yet.
+6. Do NOT proceed to GitHub or production.
+
+At the end, report:
+- whether the DEV Supabase connection succeeded,
+- which non-secret configuration items are available,
+- whether migrations 0000–0004 are detected,
+- any blocker,
+- the exact next Phase 12 stage.
+
+STOP after completing this connection stage.
