@@ -116,3 +116,51 @@ test("Phase 8 migration hardens immutable order history and identity", async () 
     /payment_intent|refund|settlement|delivery_partner|tracking_location/i,
   );
 });
+
+test("order placement structurally locks before rechecking and converts atomically", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const orderRoute = routes.slice(
+    routes.indexOf('ordersRouter.post("/api/customer/orders"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders"'),
+  );
+  const advisoryLock = orderRoute.indexOf("pg_advisory_xact_lock");
+  const activeCartRead = orderRoute.indexOf('eq(carts.status, "ACTIVE")');
+  const cartRowLock = orderRoute.indexOf('.for("update")');
+  const orderInsert = orderRoute.indexOf("tx.insert(orders)");
+  const itemInsert = orderRoute.indexOf("tx.insert(orderItems)");
+  const historyInsert = orderRoute.indexOf("tx.insert(orderStatusHistory)");
+  const cartConversion = orderRoute.indexOf('status: "CONVERTED"');
+
+  assert.ok(advisoryLock >= 0);
+  assert.ok(advisoryLock < activeCartRead);
+  assert.ok(activeCartRead < cartRowLock);
+  assert.ok(cartRowLock < orderInsert);
+  assert.ok(orderInsert < itemInsert);
+  assert.ok(itemInsert < historyInsert);
+  assert.ok(historyInsert < cartConversion);
+  assert.match(orderRoute, /isolationLevel: "read committed"/);
+});
+
+test("Phase 2 and Phase 8 migrations preserve exact order visibility and snapshots", async () => {
+  const [foundation, hardening] = await Promise.all([
+    readFile(
+      new URL("../../../../database/migrations/0000_furry_doomsday.sql", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../../../../database/migrations/0003_harden_order_history.sql", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(foundation, /orders_customer_vendor_admin_select[\s\S]*customer_id = auth\.uid\(\)[\s\S]*store_id = public\.current_store_id\(\)[\s\S]*current_app_role\(\) = 'admin'/);
+  assert.match(foundation, /order_items_customer_vendor_admin_select[\s\S]*orders\.id = order_items\.order_id/);
+  assert.match(foundation, /order_status_history_customer_vendor_admin_select[\s\S]*orders\.id = order_status_history\.order_id/);
+  assert.match(foundation, /CREATE TRIGGER orders_prevent_snapshot_changes/);
+  assert.match(foundation, /NEW\.subtotal IS DISTINCT FROM OLD\.subtotal/);
+  assert.match(foundation, /NEW\.delivery_address_snapshot IS DISTINCT FROM OLD\.delivery_address_snapshot/);
+  assert.match(foundation, /CREATE TRIGGER order_items_prevent_snapshot_changes/);
+  assert.match(foundation, /NEW\.product_name_snapshot IS DISTINCT FROM OLD\.product_name_snapshot/);
+  assert.match(foundation, /NEW\.product_price_snapshot IS DISTINCT FROM OLD\.product_price_snapshot/);
+  assert.match(hardening, /DROP POLICY IF EXISTS orders_admin_manage ON public\.orders/);
+});

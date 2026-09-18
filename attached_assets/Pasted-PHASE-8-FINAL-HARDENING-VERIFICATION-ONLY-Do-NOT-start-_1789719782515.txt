@@ -1,0 +1,192 @@
+PHASE 8 — FINAL HARDENING / VERIFICATION ONLY
+
+Do NOT start Phase 9.
+
+Do NOT add new business functionality.
+
+Do NOT redesign the order system.
+
+The Phase 8 implementation is already complete. Perform a focused final security and concurrency verification only.
+
+Focus specifically on:
+
+1. DUPLICATE ORDER PROTECTION
+
+Inspect the complete order-placement implementation and database migration.
+
+Verify that two concurrent POST /api/customer/orders requests using the same ACTIVE cart cannot create two orders.
+
+Verify that:
+
+- the per-customer advisory lock is acquired consistently
+- the cart row is locked
+- ACTIVE cart status is rechecked after waiting
+- only one transaction can convert the cart
+- the losing request cannot create another order
+- no orphan order_items can be produced
+- no duplicate PLACED status-history records can be produced
+
+Do not introduce Redis, queues, distributed locks, or new infrastructure.
+
+If the current implementation is already correct, do not modify it unnecessarily.
+
+2. ORDER HISTORY DATABASE PROTECTION
+
+Inspect database/migrations/0003_harden_order_history.sql.
+
+Verify that direct database/API writes cannot:
+
+- UPDATE existing order_status_history rows
+- DELETE order_status_history rows
+- insert arbitrary history records through public authenticated Supabase access
+- bypass the lifecycle rules through direct order mutation
+
+Verify that legitimate backend lifecycle operations remain possible.
+
+3. ORDER IMMUTABILITY
+
+Verify database protections for:
+
+- order customer identity
+- order store identity
+- order financial snapshots
+- order delivery snapshots
+- order item order identity
+- order item product identity
+- historical order item values
+
+Confirm that customers/vendors cannot directly rewrite historical financial or ownership data.
+
+4. RLS REVIEW
+
+Inspect all existing RLS policies relevant to:
+
+- orders
+- order_items
+- order_status_history
+
+Verify:
+
+Customer:
+- can read only own orders
+- can read only related order items/history
+- cannot directly mutate orders/order_items/history in a way that bypasses the backend
+
+Vendor:
+- can access only own-store orders/items/history
+- cannot access another store's orders
+- cannot bypass lifecycle authorization
+
+Admin:
+- retains intended authorized visibility
+- cannot accidentally create a broad public mutation path
+
+Do NOT weaken RLS.
+
+5. STATUS TRANSITION REVIEW
+
+Verify that lifecycle transitions cannot bypass the application service.
+
+Required transitions:
+
+PLACED → ACCEPTED
+PLACED → REJECTED
+PLACED → CANCELLED
+ACCEPTED → PREPARING
+PREPARING → READY
+READY → OUT_FOR_DELIVERY
+OUT_FOR_DELIVERY → DELIVERED
+
+Verify terminal statuses cannot reopen.
+
+6. STOCK — DO NOT IMPLEMENT YET
+
+Do NOT add stock deduction or reservation in this hardening task.
+
+The current Phase 8 decision is:
+
+- stock is revalidated during order creation
+- stock reservation/deduction is deferred
+
+Document this explicitly as a known MVP limitation.
+
+Do not modify stock behavior unless an existing implementation already requires a correction.
+
+7. LIVE SUPABASE
+
+Do NOT create production Supabase.
+
+Do NOT create production secrets.
+
+If no development Supabase credentials are available, do not pretend live integration testing was performed.
+
+Instead:
+
+- perform static/schema/RLS/migration review
+- run all available local tests
+- clearly identify which checks require a real Supabase environment
+
+8. TESTS
+
+Run the complete existing suite.
+
+At minimum:
+
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm --filter @workspace/api run test
+pnpm --filter @workspace/api run build
+pnpm --filter @workspace/db run check
+pnpm --filter @workspace/dashboard run build
+Customer Expo Web export
+Customer Metro web bundle
+Backend startup
+GET /health
+git diff --check
+
+Also run focused tests for:
+
+- duplicate order protection
+- order history immutability
+- direct order mutation protection
+- direct order-item mutation protection
+- ownership immutability
+- legal/illegal lifecycle transitions
+
+9. DO NOT CHANGE SCOPE
+
+Do NOT implement:
+
+- Phase 9 vendor dashboard
+- Phase 9 admin dashboard
+- delivery operations
+- online payments
+- payment gateway
+- GPS/maps
+- delivery partners
+- advanced inventory
+- stock reservation
+- stock deduction
+- settlements
+- coupons
+- loyalty
+- refunds
+
+10. FINAL REPORT
+
+Return only a focused verification report containing:
+
+A. Duplicate-order protection result
+B. Order-history protection result
+C. Order immutability result
+D. RLS review result
+E. Lifecycle protection result
+F. Tests and exact results
+G. Any files changed
+H. Any migration changes
+I. Remaining limitations
+J. Explicit statement whether Phase 8 is ready for approval
+
+STOP.
+
+Do NOT begin Phase 9.
