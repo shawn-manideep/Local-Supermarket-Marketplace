@@ -43,7 +43,7 @@ async function cartResponse(ownerId: string) {
     unitPrice: products.price, availability: products.availability,
     isActive: products.isActive, stockQuantity: products.stockQuantity,
   }).from(cartItems).innerJoin(products, eq(products.id, cartItems.productId))
-    .where(eq(cartItems.cartId, cart.id)).orderBy(asc(products.name));
+    .where(eq(cartItems.cartId, cart.id)).orderBy(asc(products.name)).limit(100);
   const items = rows.map(({ isActive, stockQuantity, ...item }) => ({
     ...item,
     lineSubtotal: centsToMoney(moneyToCents(item.unitPrice) * BigInt(item.quantity)),

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { Router, type Request } from "express";
 import {
   customerCatalogQuerySchema,
@@ -65,11 +65,26 @@ customerMarketplaceRouter.get("/api/customer/stores", requireRole("customer"), a
   const { pincode } = await discoveryContext(request);
   const rows = await getDb().select(publicStore).from(stores)
     .innerJoin(storeServicePincodes, and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, pincode)))
-    .where(eq(stores.status, "ACTIVE")).orderBy(asc(stores.name));
-  const results = await Promise.all(rows.map(async (store) => {
-    const hours = await hoursFor(store.id);
+    .where(eq(stores.status, "ACTIVE")).orderBy(asc(stores.name)).limit(100);
+  const storeIds = rows.map((store) => store.id);
+  const allHours = storeIds.length
+    ? await getDb().select({
+      storeId: storeOperatingHours.storeId, dayOfWeek: storeOperatingHours.dayOfWeek,
+      opensAt: storeOperatingHours.opensAt, closesAt: storeOperatingHours.closesAt,
+      isClosed: storeOperatingHours.isClosed,
+    }).from(storeOperatingHours).where(inArray(storeOperatingHours.storeId, storeIds))
+      .orderBy(asc(storeOperatingHours.dayOfWeek))
+    : [];
+  const hoursByStore = new Map<string, typeof allHours>();
+  for (const hour of allHours) {
+    const existing = hoursByStore.get(hour.storeId) ?? [];
+    existing.push(hour);
+    hoursByStore.set(hour.storeId, existing);
+  }
+  const results = rows.map((store) => {
+    const hours = (hoursByStore.get(store.id) ?? []).map(({ storeId: _storeId, ...hour }) => hour);
     return { ...store, operatingStatus: operatingStatus(hours), operatingHours: hours };
-  }));
+  });
   response.json({ stores: results });
 }));
 
@@ -88,7 +103,7 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/categories", requir
   const { pincode } = await discoveryContext(request);
   await visibleStore(parsed.data.storeId, pincode);
   const list = await getDb().select({ id: categories.id, storeId: categories.storeId, name: categories.name })
-    .from(categories).where(and(eq(categories.storeId, parsed.data.storeId), eq(categories.isActive, true))).orderBy(asc(categories.name));
+     .from(categories).where(and(eq(categories.storeId, parsed.data.storeId), eq(categories.isActive, true))).orderBy(asc(categories.name)).limit(100);
   response.json({ categories: list });
 }));
 
@@ -109,7 +124,7 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/products", requireR
   if (query.categoryId) conditions.push(eq(products.categoryId, query.categoryId));
   const list = await getDb().select(publicProduct).from(products)
     .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
-    .where(and(...conditions)).orderBy(asc(products.name));
+   .where(and(...conditions)).orderBy(asc(products.name)).limit(100);
   response.json({ products: list });
 }));
 

@@ -221,3 +221,28 @@ implemented.
   GPS, maps, live location, route calculation, delivery partners/agents,
   proof of delivery, realtime, and notifications are out of scope.
 - No new delivery table, endpoint, migration, or dependency is needed.
+
+## Phase 11 hardening rules
+
+- API reads are limited to 300 requests per client IP per minute; mutations
+  are limited to 60 per client IP per minute; customer order creation is
+  limited to 10 per client IP per minute. These limits are dependency-free and
+  enforced at the trusted proxy/API boundary. Exceeding a limit returns 429
+  with `Retry-After`.
+- JSON request bodies may not exceed 100 KB. Oversized requests return 413 and
+  malformed JSON returns 400 without leaking implementation details.
+- List endpoints have a maximum page size of 100. Admin order date windows may
+  span no more than 366 days. Customer order lists are deterministically
+  sorted newest-first by creation time and ID.
+- Production-facing unhandled errors are generic and do not disclose secrets,
+  SQL, stack traces, or internal paths.
+- Marketplace operating-hours reads no longer perform an N+1 query pattern.
+  Frontend duplicate/stale request guards prevent obsolete responses from
+  replacing current state, and controls have accessible labels.
+- Migration 0004 is forward-only: it revokes unnecessary function privileges,
+  protects store identity columns from reassignment, makes carts private to
+  customers (with intentional admin visibility), and adds order-list indexes.
+  Migration 0003 remains approved and unchanged.
+
+Phase 11 is hardening only. It adds no payment, deployment, production
+configuration, or other Phase 12 functionality.

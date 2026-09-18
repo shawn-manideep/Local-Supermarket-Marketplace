@@ -45,6 +45,32 @@ test("customer and vendor order routes require authentication", async () => {
   }
 });
 
+test("Phase 11 rejects oversized bodies and throttles order creation", async () => {
+  const server = createApp().listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const base = `http://127.0.0.1:${port}`;
+    const oversized = await fetch(`${base}/api/customer/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ value: "x".repeat(110_000) }),
+    });
+    assert.equal(oversized.status, 413);
+
+    for (let attempt = 0; attempt < 9; attempt += 1) {
+      assert.equal((await fetch(`${base}/api/customer/orders`, { method: "POST" })).status, 401);
+    }
+    const limited = await fetch(`${base}/api/customer/orders`, { method: "POST" });
+    assert.equal(limited.status, 429);
+    assert.ok(Number(limited.headers.get("retry-after")) > 0);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("Phase 9 order list queries are strict and bounded", () => {
   assert.equal(vendorOrderQuerySchema.safeParse({ page: "1", pageSize: "100", status: "READY" }).success, true);
   assert.equal(vendorOrderQuerySchema.safeParse({ pageSize: "101" }).success, false);
@@ -54,6 +80,10 @@ test("Phase 9 order list queries are strict and bounded", () => {
     to: "2025-01-02T00:00:00.000Z",
   }).success, true);
   assert.equal(adminOrderQuerySchema.safeParse({ from: "not-a-date" }).success, false);
+  assert.equal(adminOrderQuerySchema.safeParse({
+    from: "2025-01-01T00:00:00.000Z",
+    to: "2026-01-03T00:00:00.000Z",
+  }).success, false);
 });
 
 test("Phase 9 routes use bounded deterministic reads and no generic order patch", async () => {
@@ -163,6 +193,49 @@ test("Phase 8 migration hardens immutable order history and identity", async () 
     migration,
     /payment_intent|refund|settlement|delivery_partner|tracking_location/i,
   );
+});
+
+test("Phase 11 migration hardens definer privileges, scope identity, carts, and order indexes", async () => {
+  const migration = await readFile(
+    new URL("../../../../database/migrations/0004_phase11_security_hardening.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.handle_new_auth_user\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.prevent_order_history_mutation\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.current_app_role\(\) TO authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.current_store_id\(\) TO authenticated/);
+  assert.match(migration, /carts\.customer_id = auth\.uid\(\) OR public\.current_app_role\(\) = 'admin'/);
+  assert.doesNotMatch(migration, /carts\.store_id = public\.current_store_id\(\)/);
+  assert.match(migration, /stores_owner_user_id_immutable/);
+  for (const table of ["store_service_pincodes", "store_operating_hours", "categories", "products"]) {
+    assert.match(migration, new RegExp(`${table}_store_id_immutable`));
+  }
+  assert.match(migration, /orders_customer_newest_idx[\s\S]*customer_id, created_at DESC, id DESC/);
+  assert.match(migration, /orders_store_status_newest_idx[\s\S]*store_id, status, created_at DESC, id DESC/);
+});
+
+test("Phase 11 structurally enforces role, ownership, and protected-field boundaries", async () => {
+  const [orderRoutes, cartRoutes, catalogRoutes, customerRoutes] = await Promise.all([
+    readFile(new URL("./routes.ts", import.meta.url), "utf8"),
+    readFile(new URL("../customer-cart/routes.ts", import.meta.url), "utf8"),
+    readFile(new URL("../catalog-management/routes.ts", import.meta.url), "utf8"),
+    readFile(new URL("../customer-management/routes.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(orderRoutes, /requireRole\("customer"\)/);
+  assert.match(orderRoutes, /requireRole\("vendor"\)/);
+  assert.match(orderRoutes, /requireRole\("admin"\)/);
+  assert.match(orderRoutes, /eq\(orders\.customerId, userId\(req\)\)/);
+  assert.match(orderRoutes, /eq\(orders\.storeId, storeId\)/);
+  assert.doesNotMatch(orderRoutes, /ordersRouter\.(patch|put)\("\/api\/admin\/orders/);
+  assert.match(cartRoutes, /eq\(carts\.customerId, ownerId\)/);
+  assert.match(catalogRoutes, /eq\(products\.storeId, storeId\)/);
+  assert.match(catalogRoutes, /eq\(categories\.storeId, storeId\)/);
+  assert.match(customerRoutes, /eq\(customerAddresses\.customerId, ownerId\)/);
+  assert.equal(customerOrderCreateSchema.safeParse({
+    addressId: crypto.randomUUID(), paymentMethod: "COD", customerId: crypto.randomUUID(),
+    storeId: crypto.randomUUID(), status: "DELIVERED", subtotal: "0.01",
+    totalAmount: "0.01", commissionAmountSnapshot: "0.01",
+  }).success, false);
 });
 
 test("order placement structurally locks before rechecking and converts atomically", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerOrderDetail, type CustomerOrderStatus, type CustomerOrderSummary } from "./lib/api";
 
@@ -13,19 +13,23 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
   const [selected, setSelected] = useState<CustomerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const listGeneration = useRef(0);
+  const detailGeneration = useRef(0);
 
   const load = async () => {
+    const request = ++listGeneration.current;
     setLoading(true); setError("");
-    try { const result = await customerApi<{ orders: CustomerOrderSummary[] }>("/api/customer/orders"); setOrders(result.orders); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to load orders."); }
-    finally { setLoading(false); }
+    try { const result = await customerApi<{ orders: CustomerOrderSummary[] }>("/api/customer/orders"); if (request === listGeneration.current) setOrders(result.orders); }
+    catch (reason) { if (request === listGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load orders."); }
+    finally { if (request === listGeneration.current) setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
   const open = async (id: string) => {
+    const request = ++detailGeneration.current;
     setLoading(true); setError("");
-    try { const result = await customerApi<{ order: CustomerOrderDetail }>(`/api/customer/orders/${id}`); setSelected(result.order); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to load order."); }
-    finally { setLoading(false); }
+    try { const result = await customerApi<{ order: CustomerOrderDetail }>(`/api/customer/orders/${id}`); if (request === detailGeneration.current) setSelected(result.order); }
+    catch (reason) { if (request === detailGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load order."); }
+    finally { if (request === detailGeneration.current) setLoading(false); }
   };
   useEffect(() => { if (initialOrderId) void open(initialOrderId); }, [initialOrderId]);
   const cancel = () => {
@@ -43,13 +47,13 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
       } },
     ]);
   };
-  if (selected) return <OrderDetail order={selected} back={() => setSelected(null)} cancel={cancel} error={error} />;
+  if (selected) return <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} cancel={cancel} error={error} />;
   if (loading) return <View style={styles.center}><ActivityIndicator color={colors.accent} /><Text style={styles.body}>Loading your orders…</Text></View>;
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.eyebrow}>ORDERS</Text><Text style={styles.hero}>Your orders</Text><Text style={styles.body}>A clear record from local shop to doorstep.</Text>
     {!!error && <View style={styles.errorBox}><Text style={styles.error}>{error}</Text><Pressable onPress={() => void load()}><Text style={styles.link}>Try again</Text></Pressable></View>}
     {orders.length === 0 && !error ? <View style={styles.empty}><Text style={styles.title}>No orders yet</Text><Text style={styles.body}>Your first supermarket order will appear here.</Text></View> : orders.map((order) =>
-      <Pressable key={order.id} onPress={() => void open(order.id)} style={styles.card}>
+     <Pressable accessibilityRole="button" accessibilityLabel={`View order from ${order.storeName}`} key={order.id} onPress={() => void open(order.id)} style={styles.card}>
         <View style={styles.between}><View><Text style={styles.title}>{order.storeName}</Text><Text style={styles.body}>{date(order.createdAt)}</Text></View><Text style={styles.status}>{order.status.replaceAll("_", " ")}</Text></View>
         <View style={styles.between}><Text style={styles.body}>Order #{order.id.slice(0, 8)}</Text><Text style={styles.total}>{money(order.totalAmount)}</Text></View>
       </Pressable>)}

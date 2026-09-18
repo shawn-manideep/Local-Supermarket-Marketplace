@@ -23,6 +23,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
   const [error, setError] = useState("");
   const discoveryGeneration = useRef(0);
   const catalogGeneration = useRef(0);
+  const [adding, setAdding] = useState(false);
 
   const clearCatalog = () => {
     ++catalogGeneration.current;
@@ -113,6 +114,8 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
   };
 
   const addToCart = async (selected: CustomerProduct, confirmStoreSwitch = false) => {
+    if (adding) return;
+    setAdding(true);
     try {
       await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId:selected.id, quantity:1, confirmStoreSwitch }) });
       openCart();
@@ -123,7 +126,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
           { text:"Cancel" }, { text:"Start new cart", style:"destructive", onPress:() => void addToCart(selected, true) },
         ]);
       } else setError(message);
-    }
+    } finally { setAdding(false); }
   };
 
   if (product && store) return <ScrollView contentContainerStyle={styles.page}>
@@ -132,7 +135,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
     <Text style={styles.hero}>{product.name}</Text><Text style={styles.price}>₹{product.price}</Text>
     <Text style={styles.body}>{product.description ?? "No description provided."}</Text>
     <Text style={[styles.badge, !product.availability && styles.closed]}>{product.availability ? "Available" : "Unavailable"}</Text>
-    <Pressable disabled={!product.availability} onPress={() => void addToCart(product)} style={[styles.primary,!product.availability&&{opacity:.4}]}><Text style={styles.primaryText}>{product.availability?"Add to Cart":"Unavailable"}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Add product to cart" disabled={!product.availability || adding} onPress={() => void addToCart(product)} style={[styles.primary,!product.availability&&{opacity:.4}]}><Text style={styles.primaryText}>{adding ? "Adding…" : product.availability?"Add to Cart":"Unavailable"}</Text></Pressable>
   </ScrollView>;
 
   if (store) return <ScrollView contentContainerStyle={styles.page}>

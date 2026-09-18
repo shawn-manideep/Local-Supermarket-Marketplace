@@ -110,7 +110,8 @@ storeManagementRouter.get(
     const pincodes = await getDb()
       .select()
       .from(storeServicePincodes)
-      .where(eq(storeServicePincodes.storeId, vendorStoreId(request)));
+      .where(eq(storeServicePincodes.storeId, vendorStoreId(request)))
+      .limit(100);
     response.json({ pincodes });
   }),
 );
@@ -177,7 +178,8 @@ storeManagementRouter.get(
       .select()
       .from(storeOperatingHours)
       .where(eq(storeOperatingHours.storeId, vendorStoreId(request)))
-      .orderBy(storeOperatingHours.dayOfWeek);
+      .orderBy(storeOperatingHours.dayOfWeek)
+      .limit(100);
     response.json({ hours });
   }),
 );
@@ -236,7 +238,8 @@ storeManagementRouter.get(
     const storeList = await getDb()
       .select()
       .from(stores)
-      .orderBy(desc(stores.createdAt));
+      .orderBy(desc(stores.createdAt))
+      .limit(100);
     response.json({ stores: storeList });
   }),
 );

@@ -29,6 +29,13 @@
       "when": 1789718200000,
       "tag": "0003_harden_order_history",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789718800000,
+      "tag": "0004_phase11_security_hardening",
+      "breakpoints": true
     }
   ]
 }

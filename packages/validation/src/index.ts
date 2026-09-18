@@ -350,4 +350,10 @@ export const adminOrderQuerySchema = z.object({
 }).strict().refine(
   (value) => !value.from || !value.to || Date.parse(value.from) <= Date.parse(value.to),
   { message: "from must be before to", path: ["to"] },
+).refine(
+  (value) =>
+    !value.from ||
+    !value.to ||
+    Date.parse(value.to) - Date.parse(value.from) <= 366 * 24 * 60 * 60 * 1000,
+  { message: "Date range must not exceed 366 days", path: ["to"] },
 );

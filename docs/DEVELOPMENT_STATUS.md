@@ -57,3 +57,28 @@ credential-backed live integration tests, migration application, and deployment
 were not performed or claimed. Existing local checks from earlier phases remain
 documented above; this status does not claim authenticated integration
 coverage.
+
+Phase 11 complete — security, reliability, and regression hardening was
+implemented without changing the approved product scope. The API now has
+dependency-free trusted-proxy per-client-IP limits of 300 reads/minute, 60
+mutations/minute, and 10 order creations/minute, a 100 KB JSON limit, safe
+413/429 handling, and production-safe unhandled errors. A singleton Supabase
+verifier and role-error propagation preserve meaningful infrastructure errors.
+Formerly unbounded lists are capped at 100, admin date windows at 366 days,
+and customer order sorting is deterministic. Marketplace hours no longer use
+an N+1 query; frontend duplicate/stale request guards and accessibility labels
+were added.
+
+Forward-only migration 0004 revokes unnecessary function privileges, protects
+store identities, enforces customer cart privacy, and adds order indexes.
+Approved migration 0003 was not changed. The Phase 11 suite contains 33 tests.
+SAST: 0 findings; HoundDog: 0 findings; no hardcoded secrets found.
+
+Dependency scans report the same seven transitive Expo/Metro build-tool findings
+involving `image-size`, `postcss`, and `uuid`: Replit's scanner reports **5 high
+and 2 moderate**, while `pnpm audit` reports **4 high and 3 moderate**. No
+untrusted CSS or image-upload processing exists, and major/toolchain overrides
+were not applied without compatibility evidence. Authenticated
+role/IDOR/RLS/migration/concurrency live tests remain blocked without
+development Supabase credentials and fixtures. This is not a production-ready
+claim: no Phase 12, deployment, or production changes were made.

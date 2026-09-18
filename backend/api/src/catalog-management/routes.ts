@@ -85,7 +85,8 @@ catalogManagementRouter.get(
       .select()
       .from(categories)
       .where(eq(categories.storeId, storeId))
-      .orderBy(asc(categories.name));
+      .orderBy(asc(categories.name))
+      .limit(100);
     response.json({ categories: categoryList });
   }),
 );
@@ -170,7 +171,7 @@ catalogManagementRouter.get(
       await requireCategoryInStore(storeId, parsed.data.categoryId);
       conditions.push(eq(products.categoryId, parsed.data.categoryId));
     }
-    const productList = await getDb().select().from(products).where(and(...conditions)).orderBy(asc(products.name));
+    const productList = await getDb().select().from(products).where(and(...conditions)).orderBy(asc(products.name)).limit(100);
     response.json({ products: productList });
   }),
 );

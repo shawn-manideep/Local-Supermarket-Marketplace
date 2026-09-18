@@ -373,3 +373,31 @@ Phase 10 adds no migration, new delivery table, separate delivery order,
 delivery lifecycle, GPS/maps/location service, partner/agent system, realtime
 transport, notifications, payment integration, or stock
 reservation/deduction. Simple refresh/refetch remains sufficient.
+
+## Phase 11 hardening
+
+Phase 11 adds dependency-free, in-process API abuse protection. For requests
+under `/api/`, the trusted proxy configuration is used to identify the client
+IP. Each client IP is limited in a one-minute bucket to **300 reads,
+60 mutations, and 10 customer order creations**. Order creation has its own
+more restrictive bucket; other `POST`, `PATCH`, `PUT`, and `DELETE` requests
+use the mutation bucket. Exceeded limits return a safe `429 Too Many
+Requests` response with `Retry-After`; no external rate-limit service or
+dependency is introduced.
+
+JSON request bodies are limited to **100 KB**. Oversized bodies return a safe
+`413 Request body is too large`, and malformed JSON returns a safe `400`.
+Unhandled errors are logged without exposing stack traces, SQL, paths,
+credentials, tokens, or environment values to clients; production responses
+return only `500 Internal server error`.
+
+All formerly unbounded list reads now have a maximum page size of **100**.
+Admin order date windows are limited to **366 days** (inclusive of the
+requested range), and invalid or overlong windows are rejected by validation.
+Customer order lists use deterministic newest-first ordering by `created_at`
+and `id`, so equal timestamps cannot reorder between requests.
+
+Phase 11 also removed the marketplace operating-hours N+1 query pattern.
+Frontend requests guard against duplicate and stale responses, and interactive
+controls expose accessible labels. These are regression and reliability
+improvements; no new business workflow or endpoint is introduced.

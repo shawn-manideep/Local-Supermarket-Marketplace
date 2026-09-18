@@ -137,8 +137,9 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
 }));
 
 ordersRouter.get("/api/customer/orders", requireRole("customer"), asyncHandler(async (req, res) => {
-  const list = await getDb().select({ ...safeOrderSummaryFields, storeName: stores.name }).from(orders)
-    .innerJoin(stores, eq(stores.id, orders.storeId)).where(eq(orders.customerId, userId(req))).orderBy(desc(orders.createdAt));
+    const list = await getDb().select({ ...safeOrderSummaryFields, storeName: stores.name }).from(orders)
+    .innerJoin(stores, eq(stores.id, orders.storeId)).where(eq(orders.customerId, userId(req)))
+    .orderBy(desc(orders.createdAt), desc(orders.id)).limit(100);
   res.json({ orders: list });
 }));
 ordersRouter.get("/api/customer/orders/:orderId", requireRole("customer"), asyncHandler(async (req, res) => {

@@ -79,7 +79,8 @@ customerManagementRouter.get(
       .select()
       .from(customerAddresses)
       .where(eq(customerAddresses.customerId, customerId(request)))
-      .orderBy(asc(customerAddresses.createdAt));
+      .orderBy(asc(customerAddresses.createdAt))
+      .limit(100);
     response.json({ addresses });
   }),
 );

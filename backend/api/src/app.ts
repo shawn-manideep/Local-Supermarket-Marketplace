@@ -6,6 +6,7 @@ import { customerCartRouter } from "./customer-cart/index.js";
 import { HttpError } from "./http.js";
 import { storeManagementRouter } from "./store-management/index.js";
 import { ordersRouter } from "./orders/index.js";
+import { createApiRateLimit } from "./security.js";
 
 function isMalformedJsonError(error: unknown) {
   return (
@@ -19,10 +20,21 @@ function isMalformedJsonError(error: unknown) {
   );
 }
 
+function isBodyTooLargeError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    (error as { type?: string }).type === "entity.too.large"
+  );
+}
+
 export function createApp() {
   const app = express();
 
-  app.use(express.json());
+  app.set("trust proxy", 1);
+  app.use(createApiRateLimit());
+  app.use(express.json({ limit: "100kb" }));
 
   app.get("/health", (_request, response) => {
     response.json({ status: "ok" });
@@ -46,6 +58,10 @@ export function createApp() {
         response.status(400).json({ error: "Malformed JSON body" });
         return;
       }
+      if (isBodyTooLargeError(error)) {
+        response.status(413).json({ error: "Request body is too large" });
+        return;
+      }
 
       if (error instanceof HttpError) {
         response.status(error.statusCode).json({
@@ -55,8 +71,9 @@ export function createApp() {
         return;
       }
 
+      const detail = error instanceof Error ? error.stack ?? error.message : String(error);
       process.stderr.write(
-        `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
+        `${process.env.NODE_ENV === "development" ? detail : "Unhandled request error"}\n`,
       );
       response.status(500).json({ error: "Internal server error" });
     },

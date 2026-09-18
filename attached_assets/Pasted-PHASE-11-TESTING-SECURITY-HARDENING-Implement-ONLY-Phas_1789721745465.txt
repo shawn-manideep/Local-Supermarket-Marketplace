@@ -1,0 +1,1164 @@
+PHASE 11 — TESTING, SECURITY & HARDENING
+
+Implement ONLY Phase 11: Testing, Security & Hardening.
+
+The locked Master Product & Architecture Blueprint v1.1 and all approved Phase 1–10 implementations are the source of truth.
+
+PHASE 10 IS APPROVED AND COMPLETE.
+
+IMPORTANT:
+
+This phase is primarily a SECURITY, QUALITY, REGRESSION, HARDENING, AND READINESS phase.
+
+Do NOT add major new product functionality.
+
+Do NOT redesign the application.
+
+Do NOT change the locked architecture.
+
+Do NOT introduce global products.
+
+Do NOT create store_products.
+
+Do NOT change the authentication architecture.
+
+Do NOT add payment processing.
+
+Do NOT add delivery partners.
+
+Do NOT add GPS/maps.
+
+Do NOT add realtime.
+
+Do NOT add notifications.
+
+Do NOT add advanced inventory.
+
+Do NOT add stock reservation/deduction.
+
+Do NOT start Phase 12 deployment.
+
+Do NOT configure production Supabase.
+
+Do NOT configure Vercel.
+
+Do NOT configure Railway.
+
+Do NOT push to GitHub.
+
+Continue entirely in Replit.
+
+==================================================
+1. PHASE 11 OBJECTIVE
+==================================================
+
+Perform a complete security, reliability, regression, and production-readiness review of the implemented MVP.
+
+The goal is to find and fix defects before deployment.
+
+Treat the application as if it will soon be exposed to real users.
+
+Inspect:
+
+- customer application
+- vendor dashboard
+- admin dashboard
+- backend APIs
+- authentication
+- authorization
+- database schema
+- migrations
+- RLS
+- request validation
+- financial calculations
+- order lifecycle
+- delivery lifecycle
+- catalog isolation
+- cart isolation
+- address isolation
+- historical snapshots
+- error handling
+- dependency/security posture
+- build/runtime behavior
+
+Fix concrete issues found.
+
+Do not make speculative architectural changes.
+
+==================================================
+2. SECURITY REVIEW — AUTHENTICATION
+==================================================
+
+Review all authenticated routes.
+
+Verify:
+
+- unauthenticated requests are rejected
+- Supabase bearer tokens are validated correctly
+- expired/invalid tokens are rejected
+- role resolution is server-side
+- customer role cannot become vendor/admin through request data
+- vendor role cannot become admin through request data
+- admin role cannot be self-assigned
+- no public admin signup exists
+- no public role-assignment endpoint exists
+
+Inspect authentication middleware carefully.
+
+Do not replace Supabase Auth.
+
+==================================================
+3. AUTHORIZATION REVIEW
+==================================================
+
+Perform an endpoint-by-endpoint authorization review.
+
+Classify every API route as:
+
+- public
+- customer
+- vendor
+- admin
+- shared authenticated
+
+For every protected endpoint verify:
+
+authenticated identity
+    ↓
+role
+    ↓
+resource ownership/scope
+    ↓
+authorized operation
+
+Never rely only on frontend restrictions.
+
+==================================================
+4. IDOR SECURITY REVIEW
+==================================================
+
+Look specifically for insecure direct object references.
+
+Test or structurally verify:
+
+Customer A → Customer B address
+Customer A → Customer B order
+Customer A → Customer B cart
+Customer A → another customer's order item
+
+Vendor A → Vendor B store
+Vendor A → Vendor B category
+Vendor A → Vendor B product
+Vendor A → Vendor B order
+Vendor A → Vendor B order item
+
+Non-admin → admin resources
+
+Admin → unauthorized mutation paths
+
+Client-provided IDs must never override authenticated ownership.
+
+==================================================
+5. STORE ISOLATION
+==================================================
+
+Verify vendor isolation across ALL vendor resources:
+
+- store
+- service pincodes
+- operating hours
+- categories
+- products
+- carts if applicable
+- orders
+- order items
+- order history
+
+Vendor A must never read or modify Vendor B's resources.
+
+Inspect both:
+
+- API authorization
+- database RLS
+
+==================================================
+6. CUSTOMER ISOLATION
+==================================================
+
+Verify customers can access only their own:
+
+- profile
+- addresses
+- carts
+- orders
+- order items
+- order history
+- delivery information
+
+Test ID substitution wherever IDs are accepted.
+
+==================================================
+7. ADMIN BOUNDARIES
+==================================================
+
+Verify:
+
+- admin endpoints require admin role
+- vendor cannot call admin endpoints
+- customer cannot call admin endpoints
+- admin cannot accidentally create broad public mutation paths
+- no generic admin order mutation exists
+- no arbitrary status assignment exists
+
+Admin privileges should remain intentional.
+
+==================================================
+8. REQUEST VALIDATION
+==================================================
+
+Review every API input schema.
+
+Use Zod consistently.
+
+Look for:
+
+- missing validation
+- permissive schemas
+- unknown fields being accepted
+- client financial fields
+- arbitrary status values
+- arbitrary role values
+- arbitrary store ownership
+- malformed UUIDs
+- invalid dates
+- negative amounts
+- negative quantities
+- oversized strings
+- unreasonable pagination values
+
+Reject unexpected protected fields where appropriate.
+
+==================================================
+9. MASS ASSIGNMENT REVIEW
+==================================================
+
+Inspect all POST/PATCH APIs for accidental mass assignment.
+
+A client must NOT be able to submit protected fields such as:
+
+- customer_id
+- owner_user_id
+- store_id
+- role
+- commission_rate
+- commission_amount
+- status
+- created_at
+- updated_at
+- financial snapshots
+- delivery snapshots
+
+unless explicitly authorized by the endpoint.
+
+==================================================
+10. SQL / DATABASE SECURITY
+==================================================
+
+Inspect all Drizzle/database queries.
+
+Verify:
+
+- parameterized queries
+- no string-concatenated SQL using untrusted input
+- no raw SQL injection paths
+- no unsafe dynamic WHERE clauses
+- no unsafe sorting expressions
+- no unsafe table/column interpolation
+
+Pay particular attention to:
+
+- search/filter endpoints
+- date filters
+- pagination
+- store filters
+- order IDs
+- product IDs
+- category IDs
+
+==================================================
+11. RLS AUDIT
+==================================================
+
+Review ALL RLS policies and migrations.
+
+At minimum inspect:
+
+- user_profiles
+- customers
+- customer_addresses
+- stores
+- store_service_pincodes
+- store_operating_hours
+- categories
+- products
+- carts
+- cart_items
+- orders
+- order_items
+- order_status_history
+
+Verify:
+
+Customer isolation.
+
+Vendor store isolation.
+
+Admin protection.
+
+Public access restrictions.
+
+No accidental broad authenticated policies.
+
+No anonymous mutation paths.
+
+No policy that allows ownership escalation.
+
+==================================================
+12. SECURITY DEFINER REVIEW
+==================================================
+
+Inspect all SECURITY DEFINER functions.
+
+Verify:
+
+- fixed search_path
+- explicit permissions
+- no unsafe dynamic SQL
+- no unintended privilege escalation
+- EXECUTE privileges are appropriately restricted
+- PUBLIC does not receive unnecessary execution rights
+
+Do not remove secure helper functions merely because they use SECURITY DEFINER.
+
+==================================================
+13. DATABASE MIGRATION REVIEW
+==================================================
+
+Inspect every migration in:
+
+database/migrations
+
+Verify:
+
+- migrations are ordered correctly
+- no destructive accidental migration
+- no duplicate schema objects
+- no conflicting policies
+- no unsafe grants
+- no accidental public permissions
+- triggers are correctly scoped
+- immutable fields remain protected
+- append-only history remains protected
+
+Do not apply production migrations.
+
+Do not create a production database.
+
+==================================================
+14. ORDER SECURITY REVIEW
+==================================================
+
+Review complete order flow:
+
+Cart
+→ Checkout validation
+→ Order creation
+→ PLACED
+→ Vendor actions
+→ Delivery
+→ DELIVERED
+
+Verify:
+
+- client cannot alter price
+- client cannot alter total
+- client cannot alter commission
+- client cannot alter delivery fee
+- client cannot alter address snapshot
+- client cannot alter product snapshot
+- client cannot assign order to another store
+- client cannot assign order to another customer
+- client cannot arbitrarily set status
+
+==================================================
+15. ORDER CONCURRENCY
+==================================================
+
+Review:
+
+- duplicate order creation
+- concurrent cart conversion
+- concurrent vendor status updates
+- stale lifecycle actions
+
+Verify existing locks are correctly used.
+
+Do not introduce Redis or external infrastructure.
+
+Do not redesign the transaction architecture unless a concrete defect is found.
+
+==================================================
+16. CART SECURITY
+==================================================
+
+Verify:
+
+- one-store cart rule
+- customer ownership
+- active cart lifecycle
+- cart switching behavior
+- abandoned carts
+- converted carts
+- item ownership
+- quantity validation
+- availability validation
+- stock validation
+- server-side prices
+
+Ensure a customer cannot manipulate another customer's cart through IDs.
+
+==================================================
+17. PRODUCT / CATALOG SECURITY
+==================================================
+
+Verify vendor catalog isolation.
+
+Vendor A cannot modify:
+
+- Vendor B category
+- Vendor B product
+- Vendor B price
+- Vendor B stock
+- Vendor B availability
+
+Verify inactive products/categories cannot unexpectedly appear in customer marketplace APIs.
+
+Verify customer projections do not expose internal vendor fields.
+
+==================================================
+18. FINANCIAL SECURITY
+==================================================
+
+Review all monetary calculations.
+
+Verify:
+
+- integer/bigint cents
+- no floating-point money calculations
+- server-derived subtotal
+- server-derived delivery fee
+- server-derived total
+- commission calculation
+- deterministic rounding
+- historical snapshots
+- no client override
+
+Test:
+
+very small values
+large reasonable values
+decimal commission rates
+rounding boundaries
+
+Do not introduce payment processing.
+
+==================================================
+19. COMMISSION SECURITY
+==================================================
+
+Verify:
+
+- vendor cannot modify commission rate
+- customer cannot modify commission rate
+- customer cannot submit commission
+- vendor cannot modify commission snapshots
+- historical order commission remains immutable
+- admin commission management remains protected
+
+Remember:
+
+store-specific commission rate affects future orders only.
+
+Do not implement settlement/payout logic.
+
+==================================================
+20. ADDRESS SECURITY
+==================================================
+
+Verify:
+
+- address belongs to authenticated customer
+- another customer cannot read it
+- another customer cannot modify it
+- order address snapshot is immutable
+- deleting/editing reusable address does not alter historical order
+
+Check default-address logic for ownership violations.
+
+==================================================
+21. ORDER HISTORY SECURITY
+==================================================
+
+Verify:
+
+- history is append-only
+- customers cannot insert arbitrary history
+- vendors cannot insert arbitrary history
+- customers cannot modify history
+- vendors cannot modify history
+- history cannot be deleted
+- lifecycle actions generate history transactionally
+
+==================================================
+22. DELIVERY SECURITY
+==================================================
+
+Verify:
+
+- only owning vendor can mark own orders out for delivery
+- only owning vendor can mark own orders delivered
+- customer cannot perform vendor actions
+- wrong-store vendor cannot perform delivery actions
+- terminal DELIVERED cannot reopen
+
+Do not add delivery partner functionality.
+
+==================================================
+23. ERROR HANDLING
+==================================================
+
+Review backend errors.
+
+Ensure responses do not expose:
+
+- database connection strings
+- secrets
+- JWT contents
+- stack traces
+- SQL queries
+- internal file paths
+- environment variables
+- Supabase service credentials
+
+Production-facing errors should be safe and understandable.
+
+Do not expose sensitive debugging information.
+
+==================================================
+24. LOGGING REVIEW
+==================================================
+
+Inspect server logging.
+
+Ensure logs do not contain:
+
+- passwords
+- access tokens
+- refresh tokens
+- service role keys
+- database passwords
+- full authentication headers
+- unnecessary customer sensitive information
+
+Keep useful operational logging.
+
+Do not introduce a full observability platform.
+
+==================================================
+25. ENVIRONMENT / SECRET REVIEW
+==================================================
+
+Inspect:
+
+- .env.example
+- environment loading
+- frontend environment variables
+- backend environment variables
+- Replit configuration
+
+Verify:
+
+- server-only secrets are not imported into frontend code
+- Supabase service-role key is never exposed to customer/dashboard bundles
+- JWT secrets remain server-side
+- database connection credentials remain server-side
+- no hardcoded secrets
+- no credentials committed to source
+
+Do not create production credentials.
+
+==================================================
+26. DEPENDENCY SECURITY
+==================================================
+
+Inspect package manifests and lockfile.
+
+Run the safest available dependency audit supported by the existing package manager.
+
+Use:
+
+pnpm audit
+
+or the appropriate supported equivalent.
+
+Do not blindly upgrade packages.
+
+If vulnerabilities are found:
+
+- classify them
+- determine whether they affect the application
+- fix only appropriate actionable vulnerabilities
+- avoid breaking major upgrades unless necessary
+
+Do not add unnecessary dependencies.
+
+==================================================
+27. FRONTEND SECURITY
+==================================================
+
+Review:
+
+- customer app
+- vendor dashboard
+- admin dashboard
+
+Verify:
+
+- no secrets embedded in UI
+- no privileged API calls based solely on UI role state
+- protected screens enforce auth
+- API errors handled safely
+- no unsafe HTML injection
+- no dangerous eval/dynamic code
+- user-provided text is rendered safely
+- buttons cannot bypass backend authorization
+
+Remember:
+
+frontend is NOT a security boundary.
+
+==================================================
+28. API RESPONSE SECURITY
+==================================================
+
+Review response projections.
+
+Customer must not receive internal fields such as:
+
+- owner_user_id
+- commission
+- internal store fields
+- internal stock
+- unnecessary timestamps
+- internal auth information
+
+Vendor must not receive:
+
+- unrelated customer data
+- commission snapshots unless explicitly required
+- other store information
+- internal system fields
+
+Admin receives only information appropriate for admin operations.
+
+==================================================
+29. RATE LIMITING / ABUSE REVIEW
+==================================================
+
+Inspect existing rate limiting.
+
+Identify sensitive endpoints that may need protection, especially:
+
+- authentication-related APIs if proxied by backend
+- order creation
+- cart mutation
+- vendor lifecycle actions
+- admin operations
+
+Do not build a complex anti-abuse platform.
+
+Use existing rate-limit infrastructure where already present.
+
+If a concrete missing protection is found, implement a minimal appropriate limit.
+
+==================================================
+30. PAGINATION / RESOURCE EXHAUSTION
+==================================================
+
+Verify list APIs cannot be abused with unlimited:
+
+- page size
+- result size
+- query size
+
+Check:
+
+- customer orders
+- vendor orders
+- admin orders
+- stores
+- products
+- categories
+
+Ensure sensible maximum page sizes.
+
+==================================================
+31. STRING / INPUT LIMITS
+==================================================
+
+Review maximum lengths for user-controlled strings:
+
+- names
+- addresses
+- notes
+- rejection reasons
+- search/filter parameters
+
+Prevent obviously unreasonable payload sizes.
+
+Do not over-engineer validation.
+
+==================================================
+32. CUSTOMER EXPERIENCE REGRESSION
+==================================================
+
+Verify all existing customer flows still work:
+
+- signup
+- login
+- logout
+- session restoration
+- addresses
+- store discovery
+- catalog
+- product detail
+- cart
+- checkout
+- order placement
+- order history
+- order detail
+- cancellation
+- delivery status
+
+==================================================
+33. VENDOR EXPERIENCE REGRESSION
+==================================================
+
+Verify:
+
+- vendor login
+- store management
+- service pincodes
+- operating hours
+- categories
+- products
+- product availability
+- product pricing
+- stock
+- order list
+- order detail
+- accept
+- reject
+- preparing
+- ready
+- out for delivery
+- delivered
+
+==================================================
+34. ADMIN EXPERIENCE REGRESSION
+==================================================
+
+Verify:
+
+- admin access
+- store list
+- store approval
+- rejection
+- suspension
+- reactivation
+- commission management
+- order visibility
+- order filters
+- order detail
+
+Admin order operations remain read-only.
+
+==================================================
+35. CROSS-PLATFORM REGRESSION
+==================================================
+
+Verify customer application:
+
+- Expo Web
+- Metro web bundle
+
+Continue preserving at least one native target configuration.
+
+Do not publish the app.
+
+If native runtime cannot be tested in Replit, report that honestly.
+
+==================================================
+36. ACCESSIBILITY / UI QUALITY
+==================================================
+
+Perform a lightweight UI quality review.
+
+Check:
+
+- readable labels
+- action clarity
+- loading states
+- empty states
+- error states
+- disabled states
+- form validation
+- keyboard navigation where applicable
+- reasonable mobile layout
+- no obvious overflow
+- no broken buttons
+
+Do not redesign the application.
+
+==================================================
+37. PERFORMANCE REVIEW
+==================================================
+
+Perform a lightweight review for:
+
+- obvious N+1 database queries
+- unbounded queries
+- unnecessary repeated API calls
+- large payloads
+- unnecessary frontend rendering
+- missing pagination
+
+Do not introduce caching infrastructure.
+
+Do not introduce Redis.
+
+Fix only concrete obvious issues.
+
+==================================================
+38. DATABASE INDEX REVIEW
+==================================================
+
+Review indexes required for existing operational queries:
+
+- customer order lookup
+- vendor store order lookup
+- order status
+- order created_at
+- cart ownership
+- cart items
+- store pincode
+- product store/category relationships
+
+If an obvious missing index causes an existing Phase 8–10 query to be inefficient, add a minimal migration.
+
+Do not add speculative indexes everywhere.
+
+==================================================
+39. SECURITY TEST SUITE
+==================================================
+
+Add focused tests for concrete security boundaries.
+
+At minimum:
+
+Authentication:
+- unauthenticated protected endpoint → 401
+
+Authorization:
+- customer → vendor endpoint → denied
+- customer → admin endpoint → denied
+- vendor → admin endpoint → denied
+
+IDOR:
+- customer A → customer B order → denied
+- customer A → customer B address → denied
+- vendor A → vendor B order → denied
+- vendor A → vendor B product → denied
+- vendor A → vendor B category → denied
+
+Protected fields:
+- client customer_id rejected/ignored
+- client store_id cannot change ownership
+- client status cannot arbitrarily set lifecycle
+- client financial fields cannot override server values
+- client commission cannot override server values
+
+Lifecycle:
+- illegal transitions denied
+- terminal transitions denied
+- stale actions denied
+
+==================================================
+40. DATABASE-BACKED TESTING
+==================================================
+
+If development Supabase credentials and authenticated test fixtures are NOT available:
+
+DO NOT fabricate live test results.
+
+Instead:
+
+- perform static/schema/migration/RLS review
+- report the exact tests that require live Supabase
+- keep local structural tests
+
+If development Supabase credentials ARE available:
+
+perform a controlled development-only integration test covering:
+
+- authenticated customer
+- authenticated vendor
+- authenticated admin
+- RLS
+- ownership
+- order creation
+- lifecycle
+- delivery
+- rollback
+- concurrency where practical
+
+Never use production credentials.
+
+==================================================
+41. SECURITY SCAN
+==================================================
+
+Search the repository for likely secrets and dangerous patterns.
+
+Check for:
+
+- service-role keys
+- JWT secrets
+- database passwords
+- API keys
+- hardcoded tokens
+- private keys
+- Authorization headers
+- unsafe eval
+- unsafe HTML injection
+- raw SQL interpolation
+
+Do not print discovered secrets in the final report.
+
+If a real secret is found in source, report that a secret was detected without exposing its value and remove it only if safe to do so.
+
+==================================================
+42. BUILD / TEST VERIFICATION
+==================================================
+
+Run:
+
+pnpm install --frozen-lockfile
+
+pnpm run typecheck
+
+pnpm --filter @workspace/api run test
+
+pnpm --filter @workspace/api run build
+
+pnpm --filter @workspace/db run check
+
+pnpm --filter @workspace/dashboard run build
+
+Customer Expo Web export
+
+Customer Metro web bundle
+
+Backend startup
+
+GET /health
+
+git diff --check
+
+Run dependency audit where supported.
+
+Run the complete existing Phase 3–10 test suite.
+
+No existing test should regress.
+
+==================================================
+43. NO PRODUCTION DEPLOYMENT
+==================================================
+
+DO NOT:
+
+- create production Supabase
+- create production database
+- apply production migrations
+- create production secrets
+- configure Vercel
+- configure Railway
+- push GitHub
+- publish Replit application
+- publish mobile application
+
+Phase 12 owns deployment.
+
+==================================================
+44. NO NEW PRODUCT FEATURES
+==================================================
+
+Do NOT implement:
+
+- online payments
+- Razorpay
+- delivery partners
+- driver app
+- GPS
+- maps
+- live tracking
+- realtime
+- notifications
+- advanced inventory
+- stock reservation
+- stock deduction
+- substitutions
+- partial fulfillment
+- weighted products
+- coupons
+- loyalty
+- referrals
+- recommendations
+- multi-city
+- automated settlements
+- vendor payouts
+
+This phase is hardening only.
+
+==================================================
+45. FIX POLICY
+==================================================
+
+When you find a concrete defect:
+
+1. Explain the defect internally.
+2. Determine the smallest safe fix.
+3. Implement the fix.
+4. Add a regression test.
+5. Re-run affected tests.
+6. Re-run the complete suite.
+7. Verify no scope creep.
+
+Do NOT make changes merely because a different architecture might be possible.
+
+Prefer minimal safe corrections.
+
+==================================================
+46. DOCUMENTATION
+==================================================
+
+Update:
+
+docs/API_SPECIFICATION.md
+docs/ARCHITECTURE.md
+docs/BUSINESS_RULES.md
+docs/SECURITY.md
+docs/DEVELOPMENT_STATUS.md
+docs/CHANGELOG.md
+
+Document only actual Phase 11 changes/findings.
+
+Clearly record:
+
+- security review results
+- vulnerabilities found/fixed
+- RLS review
+- authorization review
+- dependency audit
+- remaining limitations
+- live Supabase testing limitations
+
+==================================================
+47. FINAL READINESS REVIEW
+==================================================
+
+At the end classify each area as:
+
+PASS
+PASS WITH LIMITATION
+FIXED
+BLOCKED
+
+Review:
+
+- authentication
+- authorization
+- IDOR
+- RLS
+- database migrations
+- request validation
+- financial calculations
+- order lifecycle
+- delivery lifecycle
+- catalog isolation
+- cart isolation
+- address isolation
+- historical snapshots
+- frontend security
+- backend security
+- secrets
+- dependencies
+- pagination/resource limits
+- builds
+- tests
+- cross-platform
+
+Do not provide an overall "production ready" claim if live Supabase integration has not been tested.
+
+==================================================
+48. FINAL REPORT
+==================================================
+
+Return a complete Phase 11 report containing:
+
+A. Security review summary
+B. Authentication review
+C. Authorization review
+D. IDOR review
+E. RLS review
+F. Database/migration review
+G. Input-validation review
+H. Financial-security review
+I. Order/lifecycle review
+J. Delivery-security review
+K. Frontend security review
+L. Secret/environment review
+M. Dependency audit
+N. Performance/resource review
+O. Accessibility/UI review
+P. Issues found
+Q. Issues fixed
+R. Tests added
+S. Complete test results
+T. Build/typecheck results
+U. Security scan results
+V. Live Supabase tests performed, if any
+W. Tests that remain blocked due to unavailable credentials
+X. Files created
+Y. Files modified
+Z. Dependencies changed
+AA. Database/migration changes
+AB. Remaining limitations
+AC. Phase 12 prerequisites
+AD. Explicit confirmation that Phase 12 deployment was NOT performed
+
+IMPORTANT:
+
+Do not start Phase 12.
+
+STOP after the final report.

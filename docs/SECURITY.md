@@ -184,3 +184,50 @@ customer addresses.
 public delivery writes, partner/agent accounts, GPS/maps/location tracking,
 realtime channels, notifications, payment capture, or stock changes. Phase 10
 requires no migration and does not weaken RLS.
+
+## Phase 11 security review and hardening
+
+The API uses a dependency-free trusted-proxy rate limiter keyed by client IP:
+300 reads/minute, 60 mutations/minute, and 10 customer order creations/minute.
+The JSON parser rejects bodies over 100 KB with 413, and the limiter returns
+safe 429 responses with `Retry-After`. Centralized unhandled-error handling
+keeps production responses generic and does not expose stack traces, SQL,
+paths, tokens, credentials, or environment values.
+
+Supabase verification is backed by a singleton verifier. Authentication and
+`requireRole` propagate verifier/database failures to centralized error
+handling rather than silently treating service failures as invalid roles.
+All formerly unbounded list inputs are capped at 100; admin date windows are
+bounded to 366 days. Customer order sorting is deterministic. Marketplace
+hours no longer issue an N+1 query. Frontend duplicate/stale request guards
+and accessibility labels were reviewed as defense-in-depth; the frontend is
+not an authorization boundary.
+
+Forward-only migration 0004 revokes unnecessary execution privileges from
+security-definer/trigger functions, grants RLS helper execution only to
+authenticated sessions, protects store identity columns, removes vendor cart
+and cart-item visibility, and adds order lookup indexes. Approved migration
+0003 was not modified. API ownership predicates, role boundaries, protected
+fields, RLS design, immutable snapshots, and transactional lifecycle controls
+remain in force.
+
+### Phase 11 scan and test results
+
+SAST reported **0** findings and HoundDog reported **0** findings. Repository
+review found no hardcoded secrets or committed credentials. Dependency scans
+report the same seven transitive Expo/Metro build-tool findings involving
+`image-size`, `postcss`, and `uuid`: Replit's scanner classifies them as **5
+high and 2 moderate**, while `pnpm audit` classifies them as **4 high and 3
+moderate**.
+There is no untrusted CSS or image-upload processing in this application.
+Major-version or toolchain overrides were not applied without compatibility
+evidence, so these findings remain a documented limitation rather than an
+unverified breaking upgrade.
+
+The local Phase 11 suite contains **33 tests**. Authenticated role, IDOR/RLS,
+migration-application, and database-backed concurrency tests are **blocked**
+without development Supabase credentials and authenticated fixtures. Static,
+structural, validation, migration-content, and unauthenticated boundary
+checks must not be represented as live integration results. Accordingly,
+Phase 11 does not claim production readiness; Phase 12/deployment and
+production changes were not performed.

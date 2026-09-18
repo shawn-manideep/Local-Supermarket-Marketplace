@@ -5,6 +5,18 @@ import type { AppRole } from "@workspace/shared-types";
 import { getSupabasePublicConfig } from "./config.js";
 import type { AuthContext, AuthenticatedRequest } from "./types.js";
 
+let supabase: ReturnType<typeof createClient> | undefined;
+
+function getVerifier() {
+  if (!supabase) {
+    const config = getSupabasePublicConfig();
+    supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+      auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
+    });
+  }
+  return supabase;
+}
+
 function getBearerToken(request: Request) {
   const header = request.header("authorization");
   if (!header?.startsWith("Bearer ")) {
@@ -16,19 +28,10 @@ function getBearerToken(request: Request) {
 }
 
 async function resolveAuthContext(token: string): Promise<AuthContext | null> {
-  const config = getSupabasePublicConfig();
-  const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-    auth: {
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-      persistSession: false,
-    },
-  });
-
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(token);
+  } = await getVerifier().auth.getUser(token);
 
   if (error || !user) {
     return null;
@@ -95,7 +98,11 @@ export function requireRole(...roles: AppRole[]): RequestHandler {
   const authenticate = requireAuth();
 
   return (request, response, next) => {
-    authenticate(request, response, () => {
+    authenticate(request, response, (error?: unknown) => {
+      if (error) {
+        next(error);
+        return;
+      }
       const authenticatedRequest = request as AuthenticatedRequest;
       if (!authenticatedRequest.auth || !roles.includes(authenticatedRequest.auth.role)) {
         response.status(403).json({ error: "Insufficient permissions" });

@@ -46,7 +46,7 @@ function AuthScreen() {
       if (result.error) throw result.error;
       if (mode === "signup" && !result.data.session) setMessage("Check your email to confirm your account, then sign in.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Authentication failed.");
+      setMessage("Unable to authenticate. Check your details and try again.");
     } finally { setBusy(false); }
   };
 
@@ -92,7 +92,7 @@ function AddressesScreen() {
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
-  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View style={styles.nav}>{(["home","cart","orders","addresses","account"] as Screen[]).map((item) => <Pressable key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
+  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View accessibilityLabel="Primary navigation" style={styles.nav}>{(["home","cart","orders","addresses","account"] as Screen[]).map((item) => <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item }} key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
 }
 
 export default function App() {

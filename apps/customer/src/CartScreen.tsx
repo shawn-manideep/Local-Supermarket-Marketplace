@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api";
 
@@ -10,6 +10,8 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   const [addressId, setAddressId] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const quantityQueues = useRef<Record<string, { target: number; running: boolean }>>({});
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
 
   const load = async () => {
     setLoading(true); setMessage("");
@@ -26,23 +28,43 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   };
   useEffect(() => { void load(); }, []);
 
-  const quantity = async (itemId: string, next: number) => {
+  const quantity = (itemId: string, next: number) => {
+    const current = cart?.items.find((item) => item.id === itemId)?.quantity ?? next;
+    const queue = quantityQueues.current[itemId] ?? { target: current, running: false };
+    if (queue.target === 0) return;
+    queue.target = next === 0 ? 0 : Math.max(1, queue.target + (next - current));
+    quantityQueues.current[itemId] = queue;
+    if (!queue.running) void flushQuantity(itemId);
+  };
+  const flushQuantity = async (itemId: string) => {
+    const queue = quantityQueues.current[itemId];
+    if (!queue || queue.running) return;
+    queue.running = true;
     try {
-      const result = await customerApi<{ cart: CustomerCart }>(`/api/customer/cart/items/${itemId}`, { method:"PATCH", body:JSON.stringify({ quantity:next }) });
-      setCart(result.cart);
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to update cart."); }
+      while (true) {
+        const sentTarget = queue.target;
+        const result = await customerApi<{ cart: CustomerCart }>(`/api/customer/cart/items/${itemId}`, { method:"PATCH", body:JSON.stringify({ quantity:sentTarget }) });
+        setCart(result.cart);
+        if (queue.target === sentTarget) break;
+      }
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Unable to update cart.");
+    } finally {
+      delete quantityQueues.current[itemId];
+    }
   };
   const clear = () => Alert.alert("Clear cart?", "The cart record will be preserved as abandoned.", [
     { text:"Cancel" }, { text:"Clear", style:"destructive", onPress:() => void customerApi("/api/customer/cart", { method:"DELETE" }).then(() => setCart(null)).catch((reason) => setMessage(reason.message)) },
   ]);
   const validate = async () => {
-    if (!addressId) { setMessage("Select or add a delivery address."); return; }
+    if (checkoutBusy || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
+    setCheckoutBusy(true);
     setLoading(true); setMessage("");
     try {
       const result = await customerApi<{ order: { id: string } }>("/api/customer/orders", { method:"POST", body:JSON.stringify({ addressId, paymentMethod:"COD" }) });
       onOrderPlaced(result.order.id);
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to place order."); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setCheckoutBusy(false); }
   };
 
   if (loading) return <View style={styles.center}><ActivityIndicator color={colors.accent}/></View>;
@@ -51,8 +73,8 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
     <Text style={styles.eyebrow}>CART</Text><Text style={styles.hero}>{cart.storeName}</Text>
     {cart.items.map((item) => <View key={item.id} style={styles.card}>
       <View style={styles.between}><View style={{flex:1}}><Text style={styles.title}>{item.name}</Text><Text style={styles.body}>₹{item.unitPrice} each · ₹{item.lineSubtotal}</Text>{!item.purchasable && <Text style={styles.error}>Unavailable or out of stock</Text>}</View>
-      <View style={styles.controls}><Pressable onPress={() => void quantity(item.id, item.quantity - 1)} style={styles.step}><Text>−</Text></Pressable><Text style={styles.title}>{item.quantity}</Text><Pressable onPress={() => void quantity(item.id, item.quantity + 1)} style={styles.step}><Text>+</Text></Pressable></View></View>
-      <Pressable onPress={() => void quantity(item.id, 0)}><Text style={styles.remove}>Remove</Text></Pressable>
+       <View style={styles.controls}><Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${item.name} quantity`} disabled={item.quantity <= 1} onPress={() => void quantity(item.id, item.quantity - 1)} style={[styles.step,item.quantity <= 1 && styles.disabled]}><Text>−</Text></Pressable><Text style={styles.title}>{item.quantity}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Increase ${item.name} quantity`} onPress={() => void quantity(item.id, item.quantity + 1)} style={styles.step}><Text>+</Text></Pressable></View></View>
+       <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.name} from cart`} onPress={() => void quantity(item.id, 0)}><Text style={styles.remove}>Remove</Text></Pressable>
     </View>)}
     <View style={styles.card}><Line label="Subtotal" value={cart.subtotal}/><Line label="Delivery fee" value={cart.deliveryFee}/><Line label="Minimum order" value={cart.minimumOrderValue}/><Line label="Total" value={cart.total} strong/></View>
     <Text style={styles.title}>Delivery address</Text>
@@ -60,7 +82,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
     <View style={styles.card}><Text style={styles.title}>Payment method</Text><Text style={styles.body}>Cash on Delivery (COD)</Text></View>
     {!cart.checkoutReady && <Text style={styles.error}>Resolve unavailable items or meet the minimum order value before checkout.</Text>}
     {!!message && <Text style={styles.body}>{message}</Text>}
-     <Pressable disabled={!cart.checkoutReady || !addressId} onPress={() => void validate()} style={[styles.primary,(!cart.checkoutReady||!addressId)&&styles.disabled]}><Text style={styles.primaryText}>Place order · COD</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Place order with cash on delivery" disabled={!cart.checkoutReady || !addressId || checkoutBusy} onPress={() => void validate()} style={[styles.primary,(!cart.checkoutReady||!addressId||checkoutBusy)&&styles.disabled]}><Text style={styles.primaryText}>{checkoutBusy ? "Placing order…" : "Place order · COD"}</Text></Pressable>
     <Pressable onPress={clear}><Text style={styles.remove}>Clear cart</Text></Pressable>
   </ScrollView>;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   apiRequest,
   type OrderDetail,
@@ -102,6 +102,8 @@ export function OrderOperations({ token, vendor, stores = [], storeId, onMessage
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const listGeneration = useRef(0);
+  const detailGeneration = useRef(0);
   const query = useMemo(() => {
     const params = new URLSearchParams({ page: String(page), pageSize: "10" });
     if (status !== "ALL") params.set("status", status);
@@ -111,25 +113,33 @@ export function OrderOperations({ token, vendor, stores = [], storeId, onMessage
     return params.toString();
   }, [adminStore, from, page, status, to, vendor]);
   const load = async () => {
+    const requestGeneration = ++listGeneration.current;
     setLoading(true); setError("");
     try {
       const response = await apiRequest<OrderListEnvelope>(`${vendor ? "/api/vendor/orders" : "/api/admin/orders"}?${query}`, token);
-      setOrders(response.orders); setCounts(response.counts); setPagination(response.pagination);
-    } catch (cause) { const message = cause instanceof Error ? cause.message : "Unable to load orders."; setError(message); onMessage(message, "error"); }
-    finally { setLoading(false); }
+      if (requestGeneration === listGeneration.current) {
+        setOrders(response.orders); setCounts(response.counts); setPagination(response.pagination);
+      }
+    } catch (cause) { if (requestGeneration === listGeneration.current) { const message = cause instanceof Error ? cause.message : "Unable to load orders."; setError(message); onMessage(message, "error"); } }
+    finally { if (requestGeneration === listGeneration.current) setLoading(false); }
   };
-  useEffect(() => { setPage(1); setSelected(null); setDetailTargetId(""); setDetailError(""); }, [token, vendor, storeId]);
+  useEffect(() => { ++listGeneration.current; ++detailGeneration.current; setPage(1); setSelected(null); setDetailTargetId(""); setDetailError(""); }, [token, vendor, storeId]);
+  useEffect(() => { ++detailGeneration.current; }, [query]);
   useEffect(() => { void load(); }, [query, token, vendor, storeId]);
   const openDetail = async (id: string) => {
+    if (!id.trim()) return;
+    const requestGeneration = ++detailGeneration.current;
     setDetailTargetId(id); setDetailLoading(true); setDetailError("");
-    try { const response = await apiRequest<{ order: OrderDetail }>(`${vendor ? "/api/vendor/orders" : "/api/admin/orders"}/${id}`, token); setSelected(response.order); }
+    try { const response = await apiRequest<{ order: OrderDetail }>(`${vendor ? "/api/vendor/orders" : "/api/admin/orders"}/${id}`, token); if (requestGeneration === detailGeneration.current) setSelected(response.order); }
     catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Unable to load order detail.";
-      setSelected(null); setDetailError(message); onMessage(message, "error");
-    } finally { setDetailLoading(false); }
+      if (requestGeneration === detailGeneration.current) {
+        const message = cause instanceof Error ? cause.message : "Unable to load order detail.";
+        setSelected(null); setDetailError(message); onMessage(message, "error");
+      }
+    } finally { if (requestGeneration === detailGeneration.current) setDetailLoading(false); }
   };
   const action = async (name: string, note?: string) => {
-    if (!selected || busy) return;
+    if (!vendor || !selected || busy) return;
     setBusy(true);
     try { await apiRequest(`${`/api/vendor/orders/${selected.id}/actions`}`, token, { method: "POST", body: JSON.stringify({ action: name, ...(note ? { note } : {}) }) }); onMessage("Order status updated."); await openDetail(selected.id); await load(); }
     catch (cause) { onMessage(cause instanceof Error ? cause.message : "This order changed elsewhere. Refreshing detail.", "error"); await openDetail(selected.id); }
@@ -157,8 +167,8 @@ export function OrderOperations({ token, vendor, stores = [], storeId, onMessage
         <div className="order-pagination"><button className="secondary-button" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>Previous</button><span className="muted">Page {page} of {Math.max(1, Math.ceil(pagination.total / pagination.pageSize))}</span><button className="secondary-button" disabled={loading || page >= Math.ceil(pagination.total / pagination.pageSize)} onClick={() => setPage((current) => current + 1)}>Next</button></div>
       </div>
       {detailLoading && <div className="card empty-state"><strong>Loading order detail…</strong><span>Retrieving the latest status and historical snapshots.</span></div>}
-      {!detailLoading && detailError && <div className="card order-error" role="alert"><span>{detailError}</span><button className="secondary-button" onClick={() => void openDetail(detailTargetId)}>Retry detail</button></div>}
-      {!detailLoading && selected && <Detail detail={selected} vendor={vendor} busy={busy} onAction={action} onClose={() => { setSelected(null); setDetailTargetId(""); setDetailError(""); }} />}
+      {!detailLoading && detailError && <div className="card order-error" role="alert"><span>{detailError}</span><button className="secondary-button" disabled={!detailTargetId} onClick={() => { if (detailTargetId) void openDetail(detailTargetId); }}>Retry detail</button></div>}
+      {!detailLoading && selected && <Detail detail={selected} vendor={vendor} busy={busy} onAction={action} onClose={() => { ++detailGeneration.current; setSelected(null); setDetailTargetId(""); setDetailError(""); }} />}
     </section>
   );
 }

@@ -140,3 +140,31 @@ No schema migration is required. There are no GPS/maps, location tracking,
 delivery partners or agents, separate delivery application, realtime,
 notifications, payment processing, or stock changes in Phase 10. The
 `platform_partner` value remains future extensibility only.
+
+## Phase 11 security and reliability hardening
+
+Phase 11 keeps the existing architecture dependency-free for request
+throttling: the API trusts its configured proxy boundary and applies per-client
+IP one-minute buckets of 300 reads, 60 mutations, and 10 customer order
+creations. Express JSON parsing is capped at 100 KB, with safe 413/429
+responses and production-safe unhandled-error responses. No Redis, hosted
+rate-limit service, or new runtime dependency was added.
+
+Supabase token verification uses one lazily initialized singleton verifier.
+Authentication and `requireRole` preserve and propagate verifier/database
+errors to the centralized error handler rather than converting infrastructure
+failures into misleading authorization results. List queries are bounded at
+100 rows per page; admin date filtering is bounded to 366 days. Customer
+order reads have deterministic `(created_at DESC, id DESC)` ordering.
+
+The marketplace hours read path was consolidated to remove its N+1 query
+pattern. Frontend screens add duplicate/stale request guards and accessibility
+labels without moving authorization into the client.
+
+Forward-only migration `0004_phase11_security_hardening.sql` revokes default
+function privileges while retaining only the intended authenticated execution
+of RLS helpers, makes store identities immutable, removes vendor visibility of
+customer carts/cart items, and adds customer-newest and store/status-newest
+order indexes. Approved migration 0003 was not changed. Phase 11 introduces
+no deployment or production infrastructure and does not claim production
+readiness.
