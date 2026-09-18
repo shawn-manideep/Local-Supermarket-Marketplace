@@ -45,3 +45,22 @@ trust client-provided role or store fields.
 `SUPABASE_URL` and `SUPABASE_ANON_KEY` are the public/client-safe configuration
 pair. No credentials are committed to the repository, and the service-role key
 is not used by customer or dashboard code.
+
+## Phase 3 management authorization
+
+Vendor store routes require the `vendor` role. The backend uses the
+authenticated request context to scope every store, pincode, and operating
+hours query. Store identifiers in admin resource paths are validated as UUIDs
+and are protected by the admin role middleware.
+
+Vendor store updates are allowlisted. Ownership, status, commission, and
+timestamps cannot be supplied by the client. Database triggers provide a
+second enforcement layer for vendor commission, status, and ownership
+protection.
+
+Admin status changes use explicit endpoints and the backend transition map.
+The database RLS policies continue to require the admin role for admin store
+management access.
+
+The dashboard token field is held only in React page state and is not written
+to local storage. A complete authentication UI remains outside this phase.

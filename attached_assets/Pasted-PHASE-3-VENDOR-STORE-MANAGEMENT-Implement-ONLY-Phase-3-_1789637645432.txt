@@ -1,0 +1,600 @@
+PHASE 3 — VENDOR / STORE MANAGEMENT
+
+Implement ONLY Phase 3: Vendor / Store Management.
+
+The locked Master Product & Architecture Blueprint v1.1, the approved Phase 2 implementation, and all previously established architecture decisions are the source of truth.
+
+IMPORTANT WORKFLOW:
+- Continue development entirely in Replit.
+- Do NOT push to GitHub yet.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT configure production Supabase.
+- Production setup remains deferred to Phase 12.
+- Inspect the existing codebase before making changes.
+- Preserve all Phase 1 and Phase 2 functionality.
+- Do not rewrite the architecture.
+- Do not introduce microservices.
+- Do not replace Supabase Auth, PostgreSQL, Drizzle, Express, Zod, Expo, or the existing workspace structure.
+- Do not add unnecessary dependencies.
+- Implement only the requested Phase 3 scope.
+- Do not implement future phases.
+- Do not create marketplace functionality prematurely.
+
+==================================================
+1. PHASE 3 OBJECTIVE
+==================================================
+
+Build the backend and minimal management foundation required for:
+
+A. Vendor store management
+B. Admin store management
+C. Store service-pincode management
+D. Store operating-hours management
+
+The goal is to make the store-management foundation functional while preserving the security model established in Phase 2.
+
+==================================================
+2. EXISTING ARCHITECTURE — MUST PRESERVE
+==================================================
+
+The application has:
+
+Customer:
+- Expo + React Native + TypeScript
+
+Dashboard:
+- React + TypeScript + Vite
+
+Backend:
+- Node.js + Express + TypeScript
+
+Database:
+- Supabase PostgreSQL
+
+ORM:
+- Drizzle
+
+Validation:
+- Zod
+
+Authentication:
+- Supabase Auth
+
+Authorization:
+- application roles:
+  - customer
+  - vendor
+  - admin
+
+Existing vendor relationship:
+
+authenticated user
+        ↓
+user_profiles
+        ↓
+vendor role
+        ↓
+stores.owner_user_id
+        ↓
+vendor's store
+
+A vendor user may own at most one store.
+
+NEVER trust a client-provided store_id as the authorization source.
+
+==================================================
+3. STORE MANAGEMENT — VENDOR
+==================================================
+
+Create the required backend functionality for an authenticated vendor to access and manage their own store.
+
+Vendor must be able to:
+
+GET their own store.
+
+UPDATE permitted store information.
+
+Permitted vendor-editable fields should be limited to appropriate operational/profile information such as:
+
+- name
+- description
+- logo_url/image_url if already represented in schema
+- phone
+- delivery_fee
+- min_order_value
+
+Do NOT allow the vendor to update:
+
+- id
+- owner_user_id
+- status
+- commission_rate
+- created_at
+- updated_at through arbitrary client control
+
+The backend must derive the vendor's store from the authenticated identity.
+
+Do not accept store_id as an authorization mechanism.
+
+If a route includes a store identifier for resource addressing, it must still verify ownership server-side. Prefer deriving the store from the authenticated vendor identity where practical.
+
+==================================================
+4. STORE STATUS
+==================================================
+
+Existing store statuses:
+
+- PENDING_APPROVAL
+- ACTIVE
+- SUSPENDED
+- REJECTED
+
+Vendor must be able to view their current store status.
+
+Vendor must NOT be able to change:
+
+- approval status
+- suspension status
+- rejection status
+
+Only authorized admin functionality may change store status.
+
+Do not introduce additional statuses.
+
+==================================================
+5. VENDOR SERVICE PINCODES
+==================================================
+
+Implement vendor management for:
+
+store_service_pincodes
+
+Vendor must be able to:
+
+- list their service pincodes
+- add a service pincode
+- remove a service pincode
+
+All operations must be scoped to the authenticated vendor's own store.
+
+Validate pincode format appropriately for the application's India-first MVP.
+
+Do not introduce maps, GPS, geolocation, delivery-radius calculations, or location services.
+
+Do not allow one vendor to manipulate another store's pincodes.
+
+Do not create duplicate pincodes for the same store.
+
+==================================================
+6. STORE OPERATING HOURS
+==================================================
+
+Implement vendor management for:
+
+store_operating_hours
+
+Vendor must be able to:
+
+- view operating hours
+- create/update operating hours
+- configure the store's weekly schedule
+
+Preserve the existing schema.
+
+If the schema supports day-of-week and opening/closing times, validate:
+
+- valid day
+- valid time format
+- opening time
+- closing time
+- closed-day representation if supported by the existing schema
+
+Do not implement customer store discovery yet.
+
+Do not build complex holiday/calendar management.
+
+Do not introduce timezone complexity beyond the existing architecture.
+
+==================================================
+7. ADMIN STORE MANAGEMENT
+==================================================
+
+Implement protected admin functionality for store management.
+
+Admin must be able to:
+
+- list stores
+- view store details
+- approve a pending store
+- reject a pending store
+- suspend an active store
+- change a suspended store back to ACTIVE when appropriate
+- manage the store commission rate
+
+Admin-only actions must require:
+
+1. authenticated Supabase user
+2. application role = admin
+3. backend authorization
+4. database/RLS authorization
+
+Do NOT expose admin functionality to customers or vendors.
+
+==================================================
+8. COMMISSION MANAGEMENT
+==================================================
+
+The Phase 2 architecture established:
+
+stores.commission_rate
+
+Requirements:
+
+- nullable
+- range validated according to existing schema
+- vendor cannot modify it
+- admin may set/update it
+- order commission snapshots remain historical and immutable
+
+For Phase 3, implement only the ability for an authorized admin to manage the store-specific commission rate.
+
+Do NOT implement:
+
+- automated settlements
+- payouts
+- payment processing
+- invoices
+- financial reconciliation
+- commission reports
+
+The effective-rate calculation for future orders must remain compatible with:
+
+store-specific commission_rate
+OR platform default when store commission is null.
+
+Do not create a platform settlement system.
+
+==================================================
+9. STORE STATUS TRANSITIONS
+==================================================
+
+Enforce reasonable backend state transitions.
+
+At minimum:
+
+PENDING_APPROVAL → ACTIVE
+PENDING_APPROVAL → REJECTED
+ACTIVE → SUSPENDED
+SUSPENDED → ACTIVE
+
+Do not allow vendors to perform these transitions.
+
+Do not silently permit arbitrary status changes through generic update endpoints.
+
+If the existing architecture does not yet include a status-history table, do not invent a large new audit subsystem in this phase unless required for correctness.
+
+==================================================
+10. VALIDATION
+==================================================
+
+Use Zod for request validation where appropriate.
+
+Validate:
+
+- store update fields
+- phone where appropriate
+- delivery_fee
+- min_order_value
+- commission_rate
+- service pincode
+- operating hours
+
+Reject malformed or unauthorized requests.
+
+Do not trust client-provided role, owner_user_id, or authorization identifiers.
+
+==================================================
+11. API DESIGN
+==================================================
+
+Follow the existing API conventions.
+
+Create only the Phase 3 APIs necessary for:
+
+Vendor:
+- get own store
+- update own store
+- manage own service pincodes
+- manage own operating hours
+
+Admin:
+- list stores
+- get store
+- approve store
+- reject store
+- suspend store
+- reactivate store
+- update store commission rate
+
+Use:
+
+- authentication middleware
+- role middleware
+- backend authorization
+- Zod validation
+- Drizzle persistence
+
+Do not create:
+
+- product APIs
+- category APIs
+- customer discovery APIs
+- cart APIs
+- checkout APIs
+- order APIs
+- payment APIs
+- delivery APIs
+
+==================================================
+12. SECURITY
+==================================================
+
+Security is a primary requirement.
+
+Vendor isolation must remain:
+
+authenticated vendor
+→ resolve own store
+→ scope query by store_id
+→ verify ownership
+→ database/RLS enforcement
+
+Never:
+
+authenticated vendor
+→ trust request.body.store_id
+
+Prevent:
+
+- cross-store reads
+- cross-store updates
+- cross-store deletes
+- vendor commission modification
+- vendor status modification
+- owner reassignment
+- role escalation
+
+Admin endpoints must require admin role.
+
+Customer users must not access vendor/admin management endpoints.
+
+Do not expose service-role credentials to client code.
+
+==================================================
+13. DASHBOARD UI
+==================================================
+
+Phase 3 may add the minimal dashboard UI required to make vendor/admin store management usable.
+
+Vendor UI may include:
+
+- My Store
+- Store information form
+- Service pincodes
+- Operating hours
+- Store status display
+
+Admin UI may include:
+
+- Store list
+- Store details
+- Approval/rejection controls
+- Suspend/reactivate controls
+- Commission-rate management
+
+Keep the UI simple and functional.
+
+Do NOT build product/catalog UI.
+
+Do NOT build customer marketplace UI.
+
+Do NOT redesign the entire dashboard.
+
+If authentication screens are not yet implemented, do not build a complete authentication system in this phase. Keep protected management functionality compatible with the Phase 2 auth foundation.
+
+==================================================
+14. DATABASE
+==================================================
+
+Do not create unnecessary new tables.
+
+Reuse the Phase 2 tables:
+
+- stores
+- store_service_pincodes
+- store_operating_hours
+- user_profiles
+
+Only add a migration if Phase 3 genuinely requires a schema change.
+
+Do not modify the product/order architecture.
+
+Do not add:
+
+- global_products
+- store_products
+- delivery partner tables
+- payment tables
+- coupon tables
+- loyalty tables
+- referral tables
+- POS tables
+- inventory synchronization tables
+
+==================================================
+15. RLS
+==================================================
+
+Preserve existing RLS.
+
+If Phase 3 requires policy changes, make only the minimum required changes.
+
+Verify:
+
+Vendor:
+- can access only their store
+- can access only their own service pincodes
+- can access only their own operating hours
+- cannot change protected store fields
+
+Admin:
+- can perform authorized store-management operations
+
+Customer:
+- cannot access vendor/admin management resources
+
+Do not weaken RLS to make APIs work.
+
+==================================================
+16. DOCUMENTATION
+==================================================
+
+Update only the relevant documentation:
+
+- docs/API_SPECIFICATION.md
+- docs/DATABASE_SCHEMA.md if necessary
+- docs/ARCHITECTURE.md if necessary
+- docs/BUSINESS_RULES.md
+- docs/SECURITY.md
+- docs/DEVELOPMENT_STATUS.md
+- docs/CHANGELOG.md
+
+Document:
+
+- Phase 3 APIs
+- vendor store-management rules
+- admin store-management rules
+- status transitions
+- commission management
+- service-pincode rules
+- operating-hours rules
+- authorization model
+
+Do not rewrite unrelated documentation.
+
+==================================================
+17. DEPENDENCY CONTROL
+==================================================
+
+Before adding any package:
+
+- check whether existing dependencies already solve the problem
+- avoid adding packages for simple validation or utilities
+- do not replace existing packages
+
+If no new dependency is necessary, add none.
+
+==================================================
+18. TESTING
+==================================================
+
+Add focused tests for Phase 3 behavior where the existing project structure supports them.
+
+At minimum verify:
+
+Vendor:
+- can access own store
+- cannot access another store
+- cannot change commission_rate
+- cannot change status
+- cannot change owner_user_id
+- can manage own pincodes
+- cannot manage another store's pincodes
+- can manage own operating hours
+- cannot manage another store's operating hours
+
+Admin:
+- can access stores
+- can approve
+- can reject
+- can suspend
+- can reactivate
+- can update commission_rate
+
+Customer:
+- cannot access admin/vendor management endpoints
+
+Validation:
+- malformed pincode rejected
+- invalid commission rate rejected
+- invalid store values rejected
+- invalid operating hours rejected
+
+If full authenticated integration tests require real Supabase credentials and cannot run, create appropriate testable authorization/service logic without inventing credentials and clearly report the limitation.
+
+==================================================
+19. REGRESSION TESTING
+==================================================
+
+After implementation run relevant checks including:
+
+pnpm install
+
+pnpm typecheck
+
+pnpm --filter @workspace/api run build
+
+pnpm --filter @workspace/db run check
+
+pnpm --filter @workspace/dashboard run build
+
+Customer Expo web startup/check
+
+Backend startup/check
+
+GET /health
+
+Run any Phase 3 tests created.
+
+==================================================
+20. NO PRODUCTION SETUP
+==================================================
+
+Do NOT:
+
+- create a production Supabase project
+- apply migrations to production
+- configure Vercel
+- configure Railway
+- push to GitHub
+- create production secrets
+- configure payment providers
+- configure Twilio
+- configure maps
+- configure delivery providers
+
+All deployment work is reserved for Phase 12.
+
+==================================================
+21. FINAL REPORT
+==================================================
+
+At the end provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. APIs created
+E. Database/migration changes
+F. RLS/security changes
+G. UI changes
+H. Tests created
+I. Verification commands and results
+J. Known limitations
+K. Explicit confirmation that no Phase 4+ functionality was implemented
+L. Explicit confirmation that GitHub/Vercel/Railway/production Supabase were NOT configured
+
+STOP after the report.
+
+Do not automatically begin Phase 4.

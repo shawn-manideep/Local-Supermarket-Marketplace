@@ -15,3 +15,15 @@ contains the database objects Drizzle cannot model completely, including the
 The backend auth foundation verifies Supabase Auth access tokens through
 Supabase Auth and resolves the application role and vendor store relationship
 from the database. No marketplace endpoints are registered in this phase.
+
+## Phase 3 management layer
+
+The Express API now exposes a focused store-management router. Vendor routes
+derive the store from `AuthenticatedRequest.auth.storeId` and only update
+vendor-editable fields. Admin routes use explicit status-action endpoints and a
+separate commission-rate endpoint; there is no generic status mutation route.
+
+The dashboard remains a simple React/Vite management surface. It does not
+implement authentication screens; it accepts a current Supabase access token in
+page state so the existing Auth foundation can be connected without creating a
+second identity system.
