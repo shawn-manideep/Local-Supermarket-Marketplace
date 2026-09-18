@@ -1,0 +1,971 @@
+PHASE 6 — STORE DISCOVERY + CUSTOMER CATALOG
+
+Implement ONLY Phase 6: Store Discovery + Catalog.
+
+The locked Master Product & Architecture Blueprint v1.1, the approved Phase 2 implementation, approved Phase 3 implementation, approved Phase 4 implementation, and approved Phase 5 implementation are the source of truth.
+
+IMPORTANT WORKFLOW:
+- Continue development entirely in Replit.
+- Do NOT push to GitHub yet.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT configure production Supabase.
+- Production setup remains deferred to Phase 12.
+- Inspect the existing codebase before making changes.
+- Preserve all Phase 1–5 functionality.
+- Do not rewrite the architecture.
+- Do not replace Expo, React Native, TypeScript, Supabase Auth, Express, PostgreSQL, Drizzle, Zod, or the existing workspace structure.
+- Do not add unnecessary dependencies.
+- Implement ONLY Phase 6.
+- Do not implement Phase 7+ functionality.
+- Do not create cart, checkout, order, payment, or delivery functionality.
+
+==================================================
+1. PHASE 6 OBJECTIVE
+==================================================
+
+Build the first real customer marketplace experience:
+
+Customer
+   ↓
+Customer pincode
+   ↓
+Eligible ACTIVE supermarkets
+   ↓
+Select ONE supermarket
+   ↓
+Selected supermarket categories
+   ↓
+Selected supermarket products
+
+Phase 6 must provide:
+
+A. Store discovery by customer pincode
+B. Customer-visible supermarket listing
+C. Store detail/selection
+D. Store operating-status display
+E. Store catalog browsing
+F. Category browsing/filtering within the selected store
+G. Product browsing within the selected store
+H. Product detail view where appropriate
+
+This phase establishes the customer marketplace browsing experience.
+
+==================================================
+2. CRITICAL PRODUCT ARCHITECTURE
+==================================================
+
+The locked product architecture is:
+
+Store
+  ├── Category
+  │     ├── Product
+  │     └── Product
+  └── Category
+        └── Product
+
+There is:
+
+NO global product master.
+
+NO `store_products` table.
+
+Each store owns independent product records.
+
+If two stores sell the same product, they remain separate records.
+
+Never attempt to merge products between stores.
+
+Do not create a global product identity layer.
+
+==================================================
+3. CUSTOMER STORE DISCOVERY
+==================================================
+
+Authenticated customers should be able to discover supermarkets serving their pincode.
+
+Use the customer's saved address pincode.
+
+The customer may also be allowed to select/change the pincode used for discovery if this fits the existing UX, but do not create a separate location/GPS system.
+
+Store eligibility is based on:
+
+1. Store status = ACTIVE
+2. Customer pincode exists in store_service_pincodes
+
+Only eligible ACTIVE stores should be customer-visible.
+
+PENDING_APPROVAL stores must NOT appear.
+
+SUSPENDED stores must NOT appear.
+
+REJECTED stores must NOT appear.
+
+Do not expose inactive stores through normal customer discovery APIs.
+
+==================================================
+4. PINCODE-BASED MATCHING
+==================================================
+
+The MVP uses pincode matching only.
+
+Do NOT implement:
+
+- GPS
+- maps
+- geolocation
+- live location
+- delivery radius
+- distance calculation
+- route calculation
+- latitude/longitude
+- delivery partner location
+- location tracking
+
+A customer's six-digit Indian pincode is the geographic matching key.
+
+Example:
+
+Customer pincode:
+500072
+
+Store A:
+500072
+500073
+
+Store A is eligible.
+
+Store B:
+500081
+
+Store B is not eligible.
+
+==================================================
+5. STORE DISCOVERY API
+==================================================
+
+Create the minimum customer APIs required for Phase 6.
+
+For example, APIs may include:
+
+- GET /api/customer/stores?pincode=:pincode
+- GET /api/customer/stores/:storeId
+- GET /api/customer/stores/:storeId/categories
+- GET /api/customer/stores/:storeId/products
+- GET /api/customer/stores/:storeId/products/:productId
+
+Follow the existing API conventions.
+
+Do not blindly use these exact paths if the existing project has a better established convention, but preserve the same semantics.
+
+Every customer marketplace endpoint must:
+
+- require customer authentication where appropriate
+- validate inputs
+- enforce store visibility rules
+- return only customer-visible data
+- prevent cross-store product/category access
+- respect RLS
+
+Do not trust the client to determine whether a store is customer-visible.
+
+The backend must enforce:
+
+store.status = ACTIVE
+
+and service-pincode eligibility.
+
+==================================================
+6. STORE DISCOVERY RESPONSE
+==================================================
+
+Customer-facing store results should contain only appropriate public store information.
+
+Possible fields, depending on the existing schema:
+
+- store id
+- name
+- description
+- logo/image
+- phone if appropriate for customer use
+- delivery fee
+- minimum order value
+- operating status
+- relevant operating-hours information
+
+Do NOT expose:
+
+- owner_user_id
+- commission_rate
+- internal approval information
+- admin-only fields
+- internal security data
+- service-role credentials
+- database connection information
+
+Do not expose vendor-only management information.
+
+==================================================
+7. OPERATING STATUS
+==================================================
+
+Use the existing store operating-hours data.
+
+Customer-facing store status should distinguish:
+
+OPEN
+
+and
+
+CLOSED
+
+based on the store's configured weekly operating hours.
+
+Store approval status remains separate:
+
+ACTIVE
+SUSPENDED
+etc.
+
+An ACTIVE store may currently be:
+
+OPEN
+or
+CLOSED
+
+depending on operating hours.
+
+Do not modify the store's database approval status merely because the store is outside operating hours.
+
+Do not add a persistent `is_open` field unless the existing architecture already requires it.
+
+Operating status should be computed from the configured schedule.
+
+Use the appropriate application timezone already established by the project.
+
+If timezone behavior is not yet explicitly configured, do not invent a complicated timezone system. Document the limitation.
+
+==================================================
+8. CUSTOMER STORE LIST UI
+==================================================
+
+Replace the Phase 5 Home placeholder with the real Phase 6 store discovery experience.
+
+Customer Home should provide:
+
+- pincode context
+- supermarket list
+- store name
+- store image/logo where available
+- delivery fee
+- minimum order value where appropriate
+- OPEN/CLOSED status
+- empty-state when no stores serve the pincode
+- loading state
+- error state
+
+Keep the design clean and mobile-first.
+
+Do not over-design.
+
+Do not add fake store data.
+
+Use real API responses.
+
+==================================================
+9. CUSTOMER PINCODE SOURCE
+==================================================
+
+Prefer the customer's existing saved address data.
+
+If the customer has multiple addresses:
+
+- provide a clear way to choose which saved address/pincode is being used for discovery
+- or provide a simple pincode selection mechanism tied to the existing address model
+
+Do not create a new location database.
+
+Do not automatically request GPS permission.
+
+Do not use device geolocation.
+
+If there are no saved addresses, show a useful prompt to add an address before discovering stores.
+
+Do not create checkout functionality here.
+
+==================================================
+10. STORE SELECTION
+==================================================
+
+When the customer selects a supermarket:
+
+- open that store's catalog
+- establish that store as the current browsing context
+- show the selected store identity clearly
+
+The selected store context must remain explicit.
+
+Do NOT create a cart yet.
+
+Do NOT persist a cart.
+
+Do NOT implement one-cart enforcement yet.
+
+That belongs to Phase 7.
+
+==================================================
+11. STORE CATALOG
+==================================================
+
+For the selected store, display only:
+
+- that store's active categories
+- that store's active products
+
+Do NOT display:
+
+- products from other stores
+- categories from other stores
+- inactive categories
+- inactive products
+
+The customer catalog must be scoped to the selected store.
+
+==================================================
+12. CATEGORY VISIBILITY
+==================================================
+
+Customer-facing categories should respect:
+
+is_active = true
+
+Inactive categories must not appear in normal customer catalog browsing.
+
+Category ordering should use the existing ordering/display-position field if available.
+
+If no ordering field exists, use a stable deterministic ordering without introducing unnecessary schema changes.
+
+Do not allow customers to modify categories.
+
+==================================================
+13. PRODUCT VISIBILITY
+==================================================
+
+Customer-facing products should respect:
+
+is_active = true
+
+Products with:
+
+is_active = false
+
+must not appear in the normal customer catalog.
+
+Products with:
+
+is_active = true
+availability = false
+
+remain catalog products but are temporarily unavailable.
+
+Do NOT treat unavailable products as deleted.
+
+Do NOT automatically hide unavailable products unless the existing business rules explicitly require it.
+
+Prefer showing the product with a clear:
+
+"Unavailable"
+
+state.
+
+The customer must not be able to treat an unavailable product as available for ordering.
+
+Actual ordering/cart enforcement belongs to later phases.
+
+==================================================
+14. PRODUCT DATA SHOWN TO CUSTOMER
+==================================================
+
+Customer product responses may include appropriate public fields such as:
+
+- id
+- name
+- description
+- price
+- availability
+- image_url
+- category_id
+- stock information only if the business rules require it
+
+Do NOT expose unnecessary internal information.
+
+Do NOT expose:
+
+- supplier information
+- vendor commission
+- internal audit data
+- owner IDs
+- database internals
+- internal stock-management metadata
+
+Do not expose stock quantity unless there is a clear existing customer-facing requirement for it.
+
+Prefer a simple availability state.
+
+==================================================
+15. PRODUCT DETAIL
+==================================================
+
+Implement a simple product detail view if appropriate.
+
+It may show:
+
+- product name
+- image
+- description
+- current price
+- availability
+- category/store context
+
+Do NOT add:
+
+- Add to Cart functionality
+- quantity selector tied to cart
+- checkout
+- ordering
+- payment
+
+A simple disabled/unavailable state is acceptable.
+
+==================================================
+16. PRODUCT PRICE
+==================================================
+
+Customer sees the current store-owned product price.
+
+Do not modify product prices in this phase.
+
+Historical order snapshots remain unchanged.
+
+Do not add:
+
+- discounts
+- coupons
+- promotional pricing
+- tax engine
+- dynamic pricing
+
+==================================================
+17. SEARCH
+==================================================
+
+Do NOT build a global marketplace search engine.
+
+A simple catalog filter/search within the currently selected store MAY be implemented only if it is trivial and clearly scoped to Phase 6.
+
+If implemented:
+
+Customer
+  ↓
+Selected Store
+  ↓
+Search that store's products only
+
+Never search across all stores in a way that bypasses store selection.
+
+If adding search would expand scope unnecessarily, omit it.
+
+==================================================
+18. STORE/CATALOG SECURITY
+==================================================
+
+Security is mandatory.
+
+Customer A must not be able to access:
+
+- inactive store
+- suspended store
+- rejected store
+- another store's product through an unrelated store ID
+- another store's category through a manipulated category ID
+
+For requests such as:
+
+GET /api/customer/stores/STORE_A/products/PRODUCT_B
+
+the backend must verify:
+
+PRODUCT_B belongs to STORE_A.
+
+If not, return an appropriate not-found/authorization response.
+
+Do not trust client-provided store/category relationships.
+
+==================================================
+19. RLS
+==================================================
+
+Preserve the Phase 2 RLS model.
+
+If customer catalog access requires RLS policy updates, make only the minimum necessary changes.
+
+Do not weaken RLS globally.
+
+Customer read access should be limited to appropriate customer-visible resources.
+
+Vendor/admin management policies must remain intact.
+
+Do not use service-role credentials in customer code.
+
+==================================================
+20. BACKEND AUTHORIZATION
+==================================================
+
+Customer marketplace endpoints must:
+
+1. Authenticate the customer.
+2. Resolve customer identity from the authenticated session.
+3. Validate the request.
+4. Enforce store visibility.
+5. Enforce pincode eligibility where required.
+6. Enforce category/product store relationships.
+7. Return only permitted customer-facing fields.
+
+Never accept:
+
+- customer_id
+- role
+- owner_user_id
+
+from the client as an authorization source.
+
+==================================================
+21. STORE SERVICE PINCODE
+==================================================
+
+Use the Phase 3-managed:
+
+store_service_pincodes
+
+data.
+
+Do not allow customers to modify store service pincodes.
+
+Do not duplicate this data into a new table.
+
+Do not create a new store-location model.
+
+==================================================
+22. CUSTOMER ADDRESS INTERACTION
+==================================================
+
+Reuse Phase 5 customer address functionality.
+
+If a customer changes the selected discovery pincode:
+
+- use the existing address model where practical
+- do not modify historical orders
+- do not modify vendor service pincodes
+
+If no address exists:
+
+show:
+
+"Add an address to find supermarkets near you."
+
+Link to the existing address management screen.
+
+Do not create checkout address behavior yet.
+
+==================================================
+23. NAVIGATION
+==================================================
+
+Update the customer navigation appropriately.
+
+Suggested flow:
+
+Home
+  ↓
+Supermarket List
+  ↓
+Store
+  ↓
+Categories
+  ↓
+Products
+  ↓
+Product Detail
+
+Account
+  ↓
+Profile
+  ↓
+Addresses
+
+Do not add:
+
+- Cart tab
+- Checkout
+- Orders
+- Delivery tracking
+
+Those are future phases.
+
+==================================================
+24. STATE MANAGEMENT
+==================================================
+
+Use the existing customer application state approach.
+
+Do not introduce another state-management library.
+
+Store only the minimum temporary UI context necessary, such as:
+
+- selected store
+- selected category
+- discovery pincode
+
+Do not create cart state yet.
+
+Do not persist unnecessary marketplace state.
+
+==================================================
+25. RESPONSIVE / CROSS-PLATFORM
+==================================================
+
+The customer app must remain compatible with:
+
+- Android
+- iOS
+- Web
+
+Verify Expo Web.
+
+Avoid unnecessary platform-specific implementations.
+
+Do not publish mobile apps.
+
+==================================================
+26. LOADING / EMPTY / ERROR STATES
+==================================================
+
+Implement clear states for:
+
+Store discovery:
+- loading
+- no pincode
+- no saved addresses
+- no stores found
+- API failure
+
+Catalog:
+- loading
+- empty category
+- no products
+- API failure
+
+Product:
+- loading
+- unavailable
+- not found
+- API failure
+
+Do not show blank screens.
+
+Do not expose raw server errors.
+
+==================================================
+27. VALIDATION
+==================================================
+
+Use the existing Zod validation package.
+
+Validate:
+
+- pincode
+- UUID store IDs
+- UUID category IDs
+- UUID product IDs
+- optional search/filter values if implemented
+
+Reject malformed input.
+
+Backend validation remains authoritative.
+
+==================================================
+28. PERFORMANCE
+==================================================
+
+Keep Phase 6 implementation simple.
+
+Avoid:
+
+- premature caching systems
+- search engines
+- Redis
+- complex state synchronization
+- infinite background polling
+
+Use straightforward API requests.
+
+Do not introduce infrastructure for problems we do not yet have.
+
+==================================================
+29. DATABASE CHANGES
+==================================================
+
+First inspect the existing Phase 2 schema.
+
+Prefer NO migration.
+
+Reuse:
+
+- stores
+- store_service_pincodes
+- store_operating_hours
+- categories
+- products
+- customers
+- customer_addresses
+
+Only create a migration if genuinely required.
+
+Do NOT add:
+
+- global products
+- store_products
+- store discovery tables
+- GPS tables
+- location tracking tables
+- cart tables
+- checkout tables
+- payment tables
+- delivery tables
+- search infrastructure
+
+==================================================
+30. ADMIN/VENDOR REGRESSION
+==================================================
+
+Do not redesign vendor/admin catalog management.
+
+Verify:
+
+- Phase 3 store management still works
+- Phase 4 category management still works
+- Phase 4 product management still works
+- Vendor cannot access another store
+- Admin controls remain intact
+
+Customer read-only marketplace access must not weaken vendor/admin security.
+
+==================================================
+31. TESTING
+==================================================
+
+Create focused Phase 6 tests where the existing project structure supports them.
+
+At minimum test:
+
+STORE DISCOVERY:
+
+- customer can request stores for a valid pincode
+- only ACTIVE stores are returned
+- PENDING_APPROVAL stores are excluded
+- SUSPENDED stores are excluded
+- REJECTED stores are excluded
+- stores not serving the pincode are excluded
+- malformed pincode is rejected
+- inactive store data is not exposed
+
+CATALOG:
+
+- customer can access an eligible store catalog
+- inactive categories are excluded
+- active categories are returned
+- inactive products are excluded
+- active available products are returned
+- active unavailable products remain distinguishable as unavailable
+- products from another store cannot be accessed through a manipulated store ID
+- categories from another store cannot be accessed through a manipulated store ID
+
+PRODUCT:
+
+- customer can view an eligible store product
+- wrong store/product relationship is rejected
+- inactive product is not customer-visible
+- unavailable product is clearly represented as unavailable
+- product price is returned correctly
+
+SECURITY:
+
+- unauthenticated marketplace access is protected according to the existing auth design
+- customer cannot access vendor/admin management endpoints
+- customer cannot manipulate customer identity to gain access
+- vendor/admin Phase 3/4 authorization remains intact
+
+UI:
+
+- customer home loads
+- store list loads
+- empty store state works
+- store catalog loads
+- category filtering works
+- product detail does not crash
+- unavailable product state renders
+- no fake store/product data is used
+
+If authenticated integration testing requires real Supabase credentials and cannot run, clearly report the limitation.
+
+Do not invent credentials.
+
+==================================================
+32. REGRESSION VERIFICATION
+==================================================
+
+Run:
+
+- pnpm install
+- pnpm run typecheck
+- pnpm --filter @workspace/api run test
+- pnpm --filter @workspace/api run build
+- pnpm --filter @workspace/db run check
+- pnpm --filter @workspace/dashboard run build
+- Customer Expo Web startup/check
+- Backend startup/check
+- GET /health
+- git diff --check
+
+Run all Phase 3 and Phase 4 tests.
+
+Run Phase 6 tests.
+
+Ensure no Phase 1–5 regression.
+
+==================================================
+33. DOCUMENTATION
+==================================================
+
+Update only relevant documentation:
+
+- docs/API_SPECIFICATION.md
+- docs/ARCHITECTURE.md if required
+- docs/DATABASE_SCHEMA.md if required
+- docs/BUSINESS_RULES.md
+- docs/SECURITY.md
+- docs/DEVELOPMENT_STATUS.md
+- docs/CHANGELOG.md
+
+Document:
+
+- pincode-based store discovery
+- ACTIVE-store visibility
+- operating status
+- customer catalog visibility
+- category visibility
+- product visibility
+- is_active vs availability
+- store-specific catalog isolation
+- customer authorization
+- Phase 6 APIs
+
+Do not document future functionality as implemented.
+
+==================================================
+34. DEPENDENCY CONTROL
+==================================================
+
+Before adding any dependency:
+
+- inspect existing dependencies
+- reuse existing packages
+- add nothing unless genuinely necessary
+
+Do NOT add:
+
+- maps SDK
+- GPS SDK
+- search engine
+- Redis
+- payment SDK
+- delivery SDK
+- analytics SDK
+- alternate auth provider
+
+Do not introduce another state-management library.
+
+==================================================
+35. PRODUCTION / DEPLOYMENT
+==================================================
+
+Do NOT:
+
+- create production Supabase project
+- apply production migrations
+- configure Vercel
+- configure Railway
+- push GitHub
+- create production secrets
+- configure payments
+- configure delivery
+- configure maps/GPS
+- publish mobile apps
+
+All deployment work remains Phase 12.
+
+==================================================
+36. STRICT PHASE BOUNDARY
+==================================================
+
+DO NOT implement:
+
+- cart
+- cart persistence
+- one-cart-per-store enforcement
+- checkout
+- order creation
+- order status
+- payment
+- COD checkout
+- delivery
+- delivery tracking
+- delivery partners
+- coupons
+- loyalty
+- referrals
+- recommendations
+- POS
+- advanced inventory
+- substitutions
+- partial fulfillment
+- weighted products
+- automated settlements
+- multi-city support
+
+Those belong to later phases.
+
+==================================================
+37. FINAL REPORT
+==================================================
+
+At the end provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. APIs created
+E. Store discovery functionality
+F. Catalog functionality
+G. Customer UI/navigation changes
+H. Database/migration changes
+I. RLS/security changes
+J. Tests created
+K. Verification commands and results
+L. Known limitations
+M. Explicit confirmation that Phase 7+ functionality was NOT implemented
+N. Explicit confirmation that GitHub/Vercel/Railway/production Supabase were NOT configured
+
+STOP after the report.
+
+Do not automatically begin Phase 7.

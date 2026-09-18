@@ -87,3 +87,12 @@ customer identifier. Address detail, update, and delete predicates combine that
 identifier with the address ID. Strict schemas reject `customerId`, role, and
 other protected fields. The Expo bundle uses only public Supabase configuration
 and never receives database or service-role credentials.
+
+## Phase 6 marketplace authorization
+
+Every marketplace request verifies the customer role, saved-address pincode,
+ACTIVE store status, service-pincode eligibility, and store/category/product
+relationships. Public projections omit owner IDs, commission, SKU, external
+codes, stock quantity, approval internals, and timestamps. New SELECT-only RLS
+policies mirror ACTIVE-store and saved-address pincode visibility without
+changing vendor/admin mutation policies.

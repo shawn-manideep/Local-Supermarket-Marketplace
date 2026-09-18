@@ -89,3 +89,14 @@ Arbitrary status updates are not exposed.
 - Customers may manage only their own reusable addresses.
 - Setting one address as default clears the previous default transactionally.
 - Deleting a reusable address does not alter historical order snapshots.
+
+## Customer marketplace visibility
+
+- Customers discover only ACTIVE stores serving a pincode from their saved
+  addresses.
+- OPEN/CLOSED is computed from weekly hours and is separate from approval
+  status.
+- Customers see only active categories and active products from the selected
+  store.
+- Active unavailable products remain visible and clearly unavailable.
+- Catalog browsing never merges products between stores.

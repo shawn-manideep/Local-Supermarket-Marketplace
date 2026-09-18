@@ -19,6 +19,7 @@ import {
   type CustomerProfile,
 } from "./src/lib/api";
 import { supabase, supabaseConfigured } from "./src/lib/supabase";
+import { MarketplaceScreen } from "./src/MarketplaceScreen";
 
 type Screen = "home" | "account" | "addresses";
 const colors = { bg: "#F8F6EF", card: "#FFFFFF", ink: "#17352B", muted: "#61736C", accent: "#E85D3F", soft: "#E8F1EA", line: "#DDE5DF", danger: "#A53D31" };
@@ -62,10 +63,6 @@ function AuthScreen() {
   </ScrollView>;
 }
 
-function HomeScreen() {
-  return <View style={styles.page}><Text style={styles.eyebrow}>CUSTOMER HOME</Text><Text style={styles.hero}>Your local shops, soon.</Text><Text style={styles.body}>Store discovery will be added in the next phase. For now, complete your profile and save your delivery addresses.</Text></View>;
-}
-
 function AccountScreen() {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [name, setName] = useState(""); const [phone, setPhone] = useState("");
@@ -92,7 +89,7 @@ function AddressesScreen() {
 
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
-  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <HomeScreen /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View style={styles.nav}>{(["home","addresses","account"] as Screen[]).map((item) => <Pressable key={item} onPress={() => setScreen(item)} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
+  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View style={styles.nav}>{(["home","addresses","account"] as Screen[]).map((item) => <Pressable key={item} onPress={() => setScreen(item)} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
 }
 
 export default function App() {

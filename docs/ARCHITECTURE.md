@@ -46,3 +46,10 @@ restoration, and session-change handling. Protected Home, Account, and Addresses
 views share the authenticated session. The Express API derives customer
 ownership from the verified Supabase user and persists profile/address data
 through Drizzle.
+
+## Phase 6 discovery and catalog
+
+Discovery follows saved customer address pincode → ACTIVE store service pincode
+→ selected store → that store's active categories/products. Store context and
+pincode remain explicit in every catalog request. Operating status is computed
+from weekly hours in the India MVP timezone; it never changes approval status.

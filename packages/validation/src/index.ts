@@ -275,3 +275,20 @@ export const customerAddressUpdateSchema = z
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one permitted address field is required",
   });
+
+export const customerStoreIdParamSchema = z.object({
+  storeId: z.string().uuid(),
+}).strict();
+
+export const customerStoreProductParamSchema = z.object({
+  storeId: z.string().uuid(),
+  productId: z.string().uuid(),
+}).strict();
+
+export const customerDiscoveryQuerySchema = z.object({
+  pincode: z.string().trim().regex(/^[1-9]\d{5}$/, "Use a valid six-digit Indian pincode"),
+}).strict();
+
+export const customerCatalogQuerySchema = customerDiscoveryQuerySchema.extend({
+  categoryId: z.string().uuid().optional(),
+}).strict();

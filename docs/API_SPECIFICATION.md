@@ -170,3 +170,19 @@ authenticated Supabase user:
 Profile updates accept only `fullName` and `phone`. Address requests use the
 existing recipient, phone, address-line, city, state, pincode, label, and
 default fields. Clients cannot supply `customerId`.
+
+## Phase 6 customer marketplace
+
+All marketplace routes require the `customer` role and a `pincode` matching one
+of the authenticated customer's saved addresses:
+
+- `GET /api/customer/stores?pincode=:pincode`
+- `GET /api/customer/stores/:storeId?pincode=:pincode`
+- `GET /api/customer/stores/:storeId/categories?pincode=:pincode`
+- `GET /api/customer/stores/:storeId/products?pincode=:pincode`
+- `GET /api/customer/stores/:storeId/products?categoryId=:categoryId&pincode=:pincode`
+- `GET /api/customer/stores/:storeId/products/:productId?pincode=:pincode`
+
+Discovery returns only ACTIVE stores serving that pincode. Catalog responses
+contain only public fields, active categories, and active products. Active but
+temporarily unavailable products remain visible with `availability: false`.

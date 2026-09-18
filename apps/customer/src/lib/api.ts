@@ -21,7 +21,47 @@ export interface CustomerAddress {
 
 export type AddressInput = Omit<CustomerAddress, "id">;
 
-const apiUrl = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+export interface OperatingHour {
+  dayOfWeek: number;
+  opensAt: string | null;
+  closesAt: string | null;
+  isClosed: boolean;
+}
+
+export interface CustomerStore {
+  id: string;
+  name: string;
+  description: string | null;
+  logoImageUrl: string | null;
+  phone: string | null;
+  deliveryFee: string;
+  minimumOrderValue: string;
+  operatingStatus: "OPEN" | "CLOSED";
+  operatingHours: OperatingHour[];
+}
+
+export interface CustomerCategory {
+  id: string;
+  storeId: string;
+  name: string;
+}
+
+export interface CustomerProduct {
+  id: string;
+  storeId: string;
+  categoryId: string | null;
+  name: string;
+  description: string | null;
+  price: string;
+  availability: boolean;
+  imageUrl: string | null;
+}
+
+const domain = process.env.EXPO_PUBLIC_DOMAIN;
+const apiUrl = (
+  process.env.EXPO_PUBLIC_API_URL ??
+  (domain ? `https://${domain}` : "")
+).replace(/\/+$/, "");
 
 export async function customerApi<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession();

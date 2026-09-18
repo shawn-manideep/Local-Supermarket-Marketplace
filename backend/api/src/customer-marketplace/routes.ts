@@ -1,0 +1,126 @@
+import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { Router, type Request } from "express";
+import {
+  customerCatalogQuerySchema,
+  customerStoreIdParamSchema,
+  customerStoreProductParamSchema,
+} from "@workspace/validation";
+import {
+  categories,
+  customerAddresses,
+  getDb,
+  products,
+  storeOperatingHours,
+  storeServicePincodes,
+  stores,
+} from "@workspace/db";
+import { requireRole } from "../auth/index.js";
+import type { AuthenticatedRequest } from "../auth/types.js";
+import { asyncHandler, HttpError, validationDetails } from "../http.js";
+import { operatingStatus } from "./operating-status.js";
+
+export const customerMarketplaceRouter = Router();
+const publicStore = {
+  id: stores.id, name: stores.name, description: stores.description,
+  logoImageUrl: stores.logoImageUrl, phone: stores.phone,
+  deliveryFee: stores.deliveryFee, minimumOrderValue: stores.minimumOrderValue,
+};
+const publicProduct = {
+  id: products.id, storeId: products.storeId, categoryId: products.categoryId,
+  name: products.name, description: products.description, price: products.price,
+  availability: products.availability, imageUrl: products.imageUrl,
+};
+
+function customerId(request: Request) {
+  const id = (request as AuthenticatedRequest).auth?.userId;
+  if (!id) throw new HttpError(401, "Authentication required");
+  return id;
+}
+
+async function discoveryContext(request: Request) {
+  const parsed = customerCatalogQuerySchema.safeParse(request.query);
+  if (!parsed.success) throw new HttpError(400, "Invalid discovery query", validationDetails(parsed.error));
+  const [address] = await getDb().select({ id: customerAddresses.id }).from(customerAddresses)
+    .where(and(eq(customerAddresses.customerId, customerId(request)), eq(customerAddresses.pincode, parsed.data.pincode))).limit(1);
+  if (!address) throw new HttpError(404, "No saved customer address uses this pincode");
+  return parsed.data;
+}
+
+async function visibleStore(storeId: string, pincode: string) {
+  const [store] = await getDb().select(publicStore).from(stores)
+    .innerJoin(storeServicePincodes, and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, pincode)))
+    .where(and(eq(stores.id, storeId), eq(stores.status, "ACTIVE"))).limit(1);
+  if (!store) throw new HttpError(404, "Store not available for this pincode");
+  return store;
+}
+
+async function hoursFor(storeId: string) {
+  return getDb().select({
+    dayOfWeek: storeOperatingHours.dayOfWeek, opensAt: storeOperatingHours.opensAt,
+    closesAt: storeOperatingHours.closesAt, isClosed: storeOperatingHours.isClosed,
+  }).from(storeOperatingHours).where(eq(storeOperatingHours.storeId, storeId)).orderBy(asc(storeOperatingHours.dayOfWeek));
+}
+
+customerMarketplaceRouter.get("/api/customer/stores", requireRole("customer"), asyncHandler(async (request, response) => {
+  const { pincode } = await discoveryContext(request);
+  const rows = await getDb().select(publicStore).from(stores)
+    .innerJoin(storeServicePincodes, and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, pincode)))
+    .where(eq(stores.status, "ACTIVE")).orderBy(asc(stores.name));
+  const results = await Promise.all(rows.map(async (store) => {
+    const hours = await hoursFor(store.id);
+    return { ...store, operatingStatus: operatingStatus(hours), operatingHours: hours };
+  }));
+  response.json({ stores: results });
+}));
+
+customerMarketplaceRouter.get("/api/customer/stores/:storeId", requireRole("customer"), asyncHandler(async (request, response) => {
+  const parsed = customerStoreIdParamSchema.safeParse(request.params);
+  if (!parsed.success) throw new HttpError(400, "Invalid store ID", validationDetails(parsed.error));
+  const { pincode } = await discoveryContext(request);
+  const store = await visibleStore(parsed.data.storeId, pincode);
+  const hours = await hoursFor(store.id);
+  response.json({ store: { ...store, operatingStatus: operatingStatus(hours), operatingHours: hours } });
+}));
+
+customerMarketplaceRouter.get("/api/customer/stores/:storeId/categories", requireRole("customer"), asyncHandler(async (request, response) => {
+  const parsed = customerStoreIdParamSchema.safeParse(request.params);
+  if (!parsed.success) throw new HttpError(400, "Invalid store ID", validationDetails(parsed.error));
+  const { pincode } = await discoveryContext(request);
+  await visibleStore(parsed.data.storeId, pincode);
+  const list = await getDb().select({ id: categories.id, storeId: categories.storeId, name: categories.name })
+    .from(categories).where(and(eq(categories.storeId, parsed.data.storeId), eq(categories.isActive, true))).orderBy(asc(categories.name));
+  response.json({ categories: list });
+}));
+
+customerMarketplaceRouter.get("/api/customer/stores/:storeId/products", requireRole("customer"), asyncHandler(async (request, response) => {
+  const parsed = customerStoreIdParamSchema.safeParse(request.params);
+  if (!parsed.success) throw new HttpError(400, "Invalid store ID", validationDetails(parsed.error));
+  const query = await discoveryContext(request);
+  await visibleStore(parsed.data.storeId, query.pincode);
+  if (query.categoryId) {
+    const [category] = await getDb().select({ id: categories.id }).from(categories)
+      .where(and(eq(categories.id, query.categoryId), eq(categories.storeId, parsed.data.storeId), eq(categories.isActive, true))).limit(1);
+    if (!category) throw new HttpError(404, "Category not available in this store");
+  }
+  const conditions = [
+    eq(products.storeId, parsed.data.storeId), eq(products.isActive, true),
+    or(isNull(products.categoryId), eq(categories.isActive, true))!,
+  ];
+  if (query.categoryId) conditions.push(eq(products.categoryId, query.categoryId));
+  const list = await getDb().select(publicProduct).from(products)
+    .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
+    .where(and(...conditions)).orderBy(asc(products.name));
+  response.json({ products: list });
+}));
+
+customerMarketplaceRouter.get("/api/customer/stores/:storeId/products/:productId", requireRole("customer"), asyncHandler(async (request, response) => {
+  const parsed = customerStoreProductParamSchema.safeParse(request.params);
+  if (!parsed.success) throw new HttpError(400, "Invalid store or product ID", validationDetails(parsed.error));
+  const { pincode } = await discoveryContext(request);
+  await visibleStore(parsed.data.storeId, pincode);
+  const [product] = await getDb().select(publicProduct).from(products)
+    .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
+    .where(and(eq(products.id, parsed.data.productId), eq(products.storeId, parsed.data.storeId), eq(products.isActive, true), or(isNull(products.categoryId), eq(categories.isActive, true))!)).limit(1);
+  if (!product) throw new HttpError(404, "Product not available in this store");
+  response.json({ product });
+}));
