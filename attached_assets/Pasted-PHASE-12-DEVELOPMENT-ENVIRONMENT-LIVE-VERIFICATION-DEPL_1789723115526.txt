@@ -1,0 +1,958 @@
+PHASE 12 — DEVELOPMENT ENVIRONMENT, LIVE VERIFICATION, DEPLOYMENT & PILOT
+
+Implement Phase 12 only.
+
+All Phase 1–11 work is approved.
+
+The locked Master Product & Architecture Blueprint v1.1 remains the source of truth.
+
+IMPORTANT:
+
+Phase 12 must be executed in controlled stages.
+
+DO NOT jump directly to production.
+
+FIRST establish and verify a controlled DEVELOPMENT Supabase environment.
+
+ONLY after live development verification passes should production deployment be performed.
+
+The user wants GitHub pushed only after the application is fully completed and verified.
+
+==================================================
+STAGE 0 — PRE-DEPLOYMENT SAFETY
+==================================================
+
+Before doing anything:
+
+Inspect:
+
+- repository
+- environment configuration
+- package manifests
+- migrations
+- documentation
+- current deployment-related files
+- Phase 11 report
+- current Git status
+
+Confirm:
+
+- Phase 1–11 functionality exists
+- no production credentials are currently committed
+- no secrets are committed
+- production deployment has not already been configured
+- migration journal contains migrations 0000 through 0004
+
+DO NOT delete existing work.
+
+DO NOT rewrite the project.
+
+DO NOT upgrade the Expo/Metro toolchain merely to eliminate the seven advisories.
+
+==================================================
+STAGE 1 — DEVELOPMENT SUPABASE
+==================================================
+
+Create/configure a CONTROLLED DEVELOPMENT Supabase environment.
+
+This is NOT production.
+
+Use development/test credentials only.
+
+Required services:
+
+- Supabase PostgreSQL
+- Supabase Auth
+- Supabase Storage only if already required by the existing application
+
+Do not add unnecessary Supabase services.
+
+==================================================
+STAGE 2 — DEVELOPMENT ENVIRONMENT VARIABLES
+==================================================
+
+Configure the development environment using the existing variable architecture.
+
+Frontend/public:
+
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+
+Backend/server:
+
+- SUPABASE_URL
+- SUPABASE_ANON_KEY if required by existing implementation
+- SUPABASE_DB_URL
+- SUPABASE_SERVICE_ROLE_KEY only where genuinely required by existing architecture
+
+Never expose:
+
+- database credentials
+- service role key
+- JWT secret
+- server secrets
+
+to customer or dashboard bundles.
+
+Do not hardcode secrets.
+
+Do not commit secrets to Git.
+
+==================================================
+STAGE 3 — APPLY DEVELOPMENT MIGRATIONS
+==================================================
+
+Apply migrations IN ORDER:
+
+0000
+0001
+0002
+0003
+0004
+
+Do not skip migrations.
+
+Do not manually recreate schema objects that migrations already create.
+
+Verify:
+
+- all tables exist
+- all required indexes exist
+- all RLS policies exist
+- all triggers exist
+- all SECURITY DEFINER functions exist
+- grants/revokes are correct
+- migration history is consistent
+
+If a migration fails:
+
+STOP.
+
+Diagnose the exact migration issue.
+
+Do not bypass the migration.
+
+Do not manually change the production database.
+
+==================================================
+STAGE 4 — DEVELOPMENT AUTH FIXTURES
+==================================================
+
+Create controlled development-only test identities.
+
+At minimum:
+
+CUSTOMER A
+CUSTOMER B
+
+VENDOR A
+VENDOR B
+
+ADMIN
+
+Use clearly identifiable development/test accounts.
+
+Configure:
+
+- customer profiles
+- customer addresses
+- vendor users
+- vendor stores
+- vendor service pincodes
+- operating hours
+- categories
+- products
+- stock
+- commission rates
+
+Create at least:
+
+Store A
+Store B
+
+Customer A address served by Store A.
+
+Customer B address served by Store B.
+
+Ensure the test data is intentionally separated for IDOR/RLS testing.
+
+Do not use real customer personal information.
+
+==================================================
+STAGE 5 — LIVE AUTHENTICATION TESTS
+==================================================
+
+Using the development Supabase environment, verify:
+
+- customer signup/login
+- vendor authentication
+- admin authentication
+- session/token validation
+- invalid token rejection
+- expired token rejection if practical
+- role resolution from user_profiles
+- vendor store resolution
+
+Verify users cannot self-promote roles.
+
+Verify customer cannot become vendor/admin through request fields.
+
+Verify vendor cannot become admin.
+
+==================================================
+STAGE 6 — LIVE CUSTOMER ISOLATION TESTS
+==================================================
+
+Using real development tokens:
+
+Customer A must NOT access:
+
+- Customer B profile
+- Customer B address
+- Customer B cart
+- Customer B order
+- Customer B order items
+- Customer B order history
+- Customer B delivery information
+
+Expected behavior:
+
+401/403/404 according to existing API convention.
+
+Verify Customer A can access its own resources.
+
+==================================================
+STAGE 7 — LIVE VENDOR ISOLATION TESTS
+==================================================
+
+Using real development vendor tokens:
+
+Vendor A must NOT access or modify:
+
+- Store B
+- Store B service pincodes
+- Store B operating hours
+- Store B categories
+- Store B products
+- Store B orders
+- Store B order items
+- Store B history
+
+Vendor B must similarly be isolated from Store A.
+
+Explicitly test ID substitution.
+
+Example:
+
+Vendor A submits Store B product ID.
+
+Expected:
+
+denied.
+
+Vendor A submits Store B order ID.
+
+Expected:
+
+denied.
+
+==================================================
+STAGE 8 — LIVE ADMIN BOUNDARY TESTS
+==================================================
+
+Verify:
+
+Customer → admin endpoint = denied
+
+Vendor → admin endpoint = denied
+
+Unauthenticated → admin endpoint = denied
+
+Admin → authorized read operations = allowed
+
+Verify admin cannot bypass lifecycle restrictions through a generic mutation endpoint.
+
+==================================================
+STAGE 9 — LIVE RLS TESTS
+==================================================
+
+Test RLS directly through the appropriate Supabase-authenticated context.
+
+Verify every major table:
+
+- user_profiles
+- customers
+- customer_addresses
+- stores
+- store_service_pincodes
+- store_operating_hours
+- categories
+- products
+- carts
+- cart_items
+- orders
+- order_items
+- order_status_history
+
+Test:
+
+customer isolation
+vendor isolation
+admin access
+public/anonymous restrictions
+direct mutation restrictions
+
+Pay particular attention to migration 0004:
+
+- SECURITY DEFINER function privileges
+- RLS helper execution
+- vendor cart privacy
+- owner immutability
+- child store_id immutability
+
+==================================================
+STAGE 10 — LIVE CATALOG TEST
+==================================================
+
+Using development users:
+
+Vendor A:
+
+- create/update own category
+- create/update own product
+- change availability
+- change price
+- change stock
+
+Verify Vendor B cannot modify those resources.
+
+Verify customer sees only:
+
+- ACTIVE store
+- ACTIVE categories
+- ACTIVE products
+
+Verify inactive products/categories remain excluded from customer marketplace responses.
+
+==================================================
+STAGE 11 — LIVE CART TEST
+==================================================
+
+Customer A:
+
+- browse Store A
+- add Store A product
+- update quantity
+- remove item
+- switch store
+- verify previous cart becomes ABANDONED
+- create/use Store B cart
+
+Verify Customer B cannot access Customer A cart.
+
+Verify vendor cannot see customer carts unless explicitly intended by the existing admin policy.
+
+==================================================
+STAGE 12 — LIVE CHECKOUT TEST
+==================================================
+
+Create realistic development products.
+
+Test:
+
+- valid checkout
+- invalid address
+- unsupported pincode
+- unavailable product
+- inactive product
+- insufficient stock
+- below minimum order
+- changed price
+- changed delivery fee
+- changed store status
+- invalid payment method
+
+Verify all validation happens server-side.
+
+==================================================
+STAGE 13 — LIVE ORDER CREATION
+==================================================
+
+Create a valid development order.
+
+Verify:
+
+- order created
+- status = PLACED
+- order items created
+- historical product snapshots created
+- address snapshot created
+- delivery contact snapshot created
+- delivery type = vendor_staff
+- subtotal correct
+- delivery fee correct
+- total correct
+- commission snapshot correct
+- initial status history created
+- cart = CONVERTED
+
+Verify financial values match server calculations.
+
+==================================================
+STAGE 14 — LIVE HISTORICAL SNAPSHOT TEST
+==================================================
+
+After creating an order:
+
+Change:
+
+- current product name
+- current product price
+- store delivery fee
+- store commission rate
+- reusable customer address
+
+Verify historical order remains unchanged.
+
+This is mandatory.
+
+Do not report structural verification as a substitute for this live test.
+
+==================================================
+STAGE 15 — LIVE ORDER LIFECYCLE
+==================================================
+
+Using Vendor A:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Verify every transition.
+
+Verify every transition creates status history.
+
+Verify illegal transitions are rejected.
+
+Verify Customer A can cancel only while PLACED.
+
+==================================================
+STAGE 16 — LIVE DELIVERY TEST
+==================================================
+
+Verify:
+
+READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Verify:
+
+- vendor ownership
+- delivery address
+- delivery contact
+- delivery type
+- immutable financial snapshots
+- immutable address snapshot
+- status history
+
+Verify customer sees the correct delivery status.
+
+==================================================
+STAGE 17 — LIVE CONCURRENCY TESTING
+==================================================
+
+Where practical, perform controlled concurrent development tests.
+
+Test:
+
+1. Two simultaneous order-placement requests against the same cart.
+
+Expected:
+
+- exactly one order
+- cart converted once
+- no duplicate order items
+- no duplicate initial history
+
+2. Two simultaneous vendor lifecycle actions against the same order.
+
+Expected:
+
+- exactly one legal transition
+- no duplicate status transition
+- stale request receives conflict
+
+3. Concurrent cart mutation where practical.
+
+Do not introduce new infrastructure.
+
+==================================================
+STAGE 18 — LIVE ROLLBACK TEST
+==================================================
+
+Where practical in development:
+
+force a controlled failure during order creation after transaction work has begun.
+
+Verify rollback:
+
+- no order
+- no order items
+- no history
+- cart remains ACTIVE
+
+Do NOT perform destructive testing against production.
+
+==================================================
+STAGE 19 — DEPENDENCY REVIEW
+==================================================
+
+Reassess the seven existing transitive Expo/Metro advisories.
+
+Do not blindly upgrade.
+
+Determine:
+
+- whether compatible patched versions exist
+- whether upgrading is safe
+- whether the issue affects runtime production
+- whether the advisory affects only development/build tooling
+
+If a safe compatible upgrade exists:
+
+propose or implement the minimal safe update.
+
+If not:
+
+document the advisory and compatibility limitation.
+
+Do not destabilize the application simply to reach zero advisory count.
+
+==================================================
+STAGE 20 — NATIVE TEST
+==================================================
+
+Before production:
+
+test at least one native customer-app target.
+
+Preferred:
+
+Android development runtime.
+
+Verify:
+
+- authentication
+- marketplace
+- cart
+- checkout
+- order placement
+- order history
+- order detail
+
+Do not publish to app stores yet.
+
+If Replit cannot run a native runtime, report exactly what is blocked and provide the required local/native verification steps.
+
+==================================================
+STAGE 21 — FINAL DEVELOPMENT GATE
+==================================================
+
+Do NOT proceed to production if any of these fail:
+
+- migration application
+- authentication
+- customer isolation
+- vendor isolation
+- admin protection
+- RLS
+- order creation
+- historical snapshots
+- lifecycle
+- delivery
+- rollback
+- critical security test
+
+Fix concrete defects first.
+
+Then rerun affected tests.
+
+Then rerun the complete suite.
+
+==================================================
+STAGE 22 — GITHUB
+==================================================
+
+ONLY after the development environment passes:
+
+Prepare the completed application for source-control handoff.
+
+Inspect:
+
+- git status
+- git diff
+- secrets
+- .gitignore
+- environment files
+
+Ensure:
+
+- no secrets
+- no production credentials
+- no development passwords
+- no generated sensitive files
+
+Then create the final project commit.
+
+Push the complete application to GitHub.
+
+Do not push secrets.
+
+Use the existing intended repository if already configured.
+
+Do not create multiple unnecessary repositories.
+
+==================================================
+STAGE 23 — PRODUCTION SUPABASE
+==================================================
+
+Only after development verification and GitHub handoff succeeds:
+
+Create/configure the production Supabase environment.
+
+Do NOT copy development users into production.
+
+Create production configuration separately.
+
+Apply migrations:
+
+0000
+0001
+0002
+0003
+0004
+
+Verify migration success.
+
+Configure production:
+
+- Auth
+- database
+- RLS
+- required storage if applicable
+
+Do not disable RLS.
+
+Do not bypass migrations.
+
+==================================================
+STAGE 24 — PRODUCTION SECRETS
+==================================================
+
+Configure production secrets securely.
+
+Never commit them to GitHub.
+
+Backend secrets belong only in Railway.
+
+Frontend receives only intended public Supabase configuration.
+
+Never expose:
+
+- SUPABASE_SERVICE_ROLE_KEY
+- SUPABASE_DB_URL
+- JWT secret
+- database password
+
+to frontend.
+
+==================================================
+STAGE 25 — RAILWAY BACKEND
+==================================================
+
+Deploy backend to Railway.
+
+Use the existing backend package.
+
+Do not rewrite backend architecture.
+
+Configure:
+
+- production environment variables
+- correct PORT behavior
+- Supabase production connection
+- health endpoint
+
+Verify:
+
+GET /health
+
+returns:
+
+HTTP 200
+{"status":"ok"}
+
+Verify production logs do not expose secrets.
+
+Keep deployment single-instance initially.
+
+Do NOT introduce Redis unless a concrete deployment requirement appears.
+
+==================================================
+STAGE 26 — VERCEL DASHBOARD
+==================================================
+
+Deploy dashboard to Vercel.
+
+Use existing dashboard package.
+
+Configure:
+
+- production API URL
+- public Supabase configuration only if required
+- correct build command
+- correct output configuration
+
+Verify:
+
+- login
+- vendor dashboard
+- admin dashboard
+- order operations
+- catalog
+- store management
+
+==================================================
+STAGE 27 — CUSTOMER APP PRODUCTION CONFIGURATION
+==================================================
+
+Configure the Expo customer app for the production backend/Supabase environment.
+
+Do not publish app stores yet.
+
+Verify:
+
+- production authentication
+- store discovery
+- catalog
+- cart
+- checkout
+- order placement
+- orders
+- delivery status
+
+==================================================
+STAGE 28 — PRODUCTION SMOKE TEST
+==================================================
+
+Use controlled pilot accounts.
+
+Do NOT use real customer data initially.
+
+Test:
+
+CUSTOMER
+→ STORE
+→ PRODUCT
+→ CART
+→ CHECKOUT
+→ ORDER
+→ VENDOR ACCEPT
+→ PREPARING
+→ READY
+→ OUT FOR DELIVERY
+→ DELIVERED
+
+Verify end-to-end.
+
+==================================================
+STAGE 29 — PILOT SAFETY
+==================================================
+
+Pilot should initially remain controlled.
+
+Recommended initial setup:
+
+- 3–5 supermarkets
+- limited customer group
+- COD only
+- vendor-owned delivery
+- limited service pincodes
+- real operational orders only after smoke test passes
+
+Do not add new features during this deployment phase.
+
+==================================================
+STAGE 30 — MONITORING
+==================================================
+
+Use existing logs/runtime visibility.
+
+Monitor:
+
+- API errors
+- failed order placement
+- failed lifecycle actions
+- authentication failures
+- database errors
+- deployment failures
+
+Do not add a full observability platform unless required.
+
+==================================================
+STAGE 31 — BUSINESS PILOT METRICS
+==================================================
+
+Prepare basic measurement for:
+
+- completed orders
+- repeat orders
+- average order value
+- delivery time
+- unavailable item rate
+- cart abandonment
+- vendor responsiveness
+- catalog accuracy
+- customer acquisition cost where measurable
+- delivery cost
+- gross margin/order
+- commission revenue
+
+Do not build advanced analytics dashboards in this phase unless already available with minimal effort.
+
+==================================================
+STAGE 32 — DEPENDENCY / SINGLE INSTANCE NOTE
+==================================================
+
+Keep the initial backend deployment single-instance.
+
+The Phase 11 rate limiter is process-local.
+
+Document that:
+
+- this is intentional for initial pilot
+- horizontal scaling would require shared rate-limit enforcement
+
+Do not add Redis now.
+
+==================================================
+STAGE 33 — FINAL VERIFICATION
+==================================================
+
+After deployment rerun the appropriate verification suite:
+
+- typecheck
+- API tests
+- DB checks
+- dashboard build
+- Expo Web export
+- native test where available
+- health endpoint
+- production authentication
+- production customer flow
+- production vendor flow
+- production admin flow
+- production RLS smoke tests
+- production order lifecycle smoke test
+- production delivery smoke test
+- git diff --check
+
+==================================================
+STAGE 34 — DEPLOYMENT SAFETY
+==================================================
+
+Never expose:
+
+- passwords
+- service-role keys
+- database credentials
+- JWT secrets
+- access tokens
+- refresh tokens
+
+in:
+
+- GitHub
+- frontend bundles
+- logs
+- screenshots
+- documentation
+
+==================================================
+STAGE 35 — STOP CONDITIONS
+==================================================
+
+STOP and report instead of proceeding if:
+
+- development Supabase cannot be configured
+- migrations fail
+- RLS fails
+- IDOR test fails
+- authentication fails
+- order creation fails
+- historical snapshots fail
+- lifecycle fails
+- rollback fails
+- critical security issue is found
+- production secrets cannot be configured safely
+
+Do not bypass failures.
+
+==================================================
+STAGE 36 — FINAL REPORT
+==================================================
+
+Return a comprehensive Phase 12 report containing:
+
+A. Development Supabase setup
+B. Development migrations 0000–0004
+C. Development Auth configuration
+D. Development test accounts/fixtures
+E. Live authentication results
+F. Live customer isolation results
+G. Live vendor isolation results
+H. Live admin results
+I. Live RLS results
+J. Live catalog tests
+K. Live cart tests
+L. Live checkout tests
+M. Live order creation
+N. Live historical snapshot tests
+O. Live lifecycle tests
+P. Live delivery tests
+Q. Concurrency tests
+R. Rollback tests
+S. Dependency advisory assessment
+T. Native testing
+U. GitHub repository/handoff
+V. Production Supabase setup
+W. Production migrations
+X. Railway deployment
+Y. Vercel deployment
+Z. Customer production configuration
+AA. Production smoke tests
+AB. Pilot setup
+AC. Monitoring
+AD. Known limitations
+AE. Security findings
+AF. Issues found and fixed
+AG. Remaining blockers
+AH. Exact production URLs where applicable
+AI. Exact GitHub repository reference where applicable
+AJ. Final verification results
+
+IMPORTANT:
+
+Do not claim a live test passed unless it was actually executed.
+
+Do not expose secrets in the report.
+
+Do not invent deployment URLs.
+
+Do not start post-MVP feature development.
+
+STOP after the Phase 12 report.
