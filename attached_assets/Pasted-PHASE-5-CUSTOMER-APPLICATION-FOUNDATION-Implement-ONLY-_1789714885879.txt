@@ -1,0 +1,836 @@
+PHASE 5 — CUSTOMER APPLICATION FOUNDATION
+
+Implement ONLY Phase 5: Customer Application Foundation.
+
+The locked Master Product & Architecture Blueprint v1.1, the approved Phase 2 implementation, approved Phase 3 implementation, and approved Phase 4 implementation are the source of truth.
+
+IMPORTANT WORKFLOW:
+- Continue development entirely in Replit.
+- Do NOT push to GitHub yet.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT configure production Supabase.
+- Production setup remains deferred to Phase 12.
+- Inspect the existing codebase before making changes.
+- Preserve all Phase 1, Phase 2, Phase 3, and Phase 4 functionality.
+- Do not rewrite the existing architecture.
+- Do not replace Expo, React Native, TypeScript, Supabase Auth, Express, PostgreSQL, Drizzle, Zod, or the existing workspace structure.
+- Do not add unnecessary dependencies.
+- Implement ONLY Phase 5.
+- Do not implement Phase 6+ functionality.
+- Do not create store discovery/catalog browsing yet.
+
+==================================================
+1. PHASE 5 OBJECTIVE
+==================================================
+
+Build the foundation of the customer-facing Expo application.
+
+Phase 5 establishes:
+
+- customer application shell
+- customer authentication integration
+- customer profile foundation
+- customer address foundation
+- authenticated customer session handling
+- protected customer navigation
+- basic customer account/profile screens
+- basic customer address management
+
+The application must remain ready for the later store-discovery and catalog phases.
+
+IMPORTANT:
+
+Phase 5 is NOT the customer marketplace browsing phase.
+
+Do NOT implement:
+
+- store discovery
+- store search
+- store filtering
+- customer catalog browsing
+- product search
+- cart
+- checkout
+- orders
+- delivery tracking
+- payments
+
+Those belong to later phases.
+
+==================================================
+2. EXISTING CUSTOMER APP
+==================================================
+
+Inspect the existing:
+
+apps/customer/
+
+before making changes.
+
+Preserve the existing Expo + React Native + TypeScript foundation.
+
+The customer application must continue to support the intended cross-platform architecture:
+
+- Android
+- iOS
+- Web
+
+Do not replace Expo with another framework.
+
+Do not create a separate web application for customers.
+
+Use the existing Expo application.
+
+==================================================
+3. AUTHENTICATION
+==================================================
+
+Integrate the customer app with the existing Supabase Auth foundation.
+
+Use Supabase Auth.
+
+Do NOT implement custom:
+
+- password hashing
+- JWT generation
+- JWT signing
+- session token generation
+- authentication provider
+- password storage
+
+Use Supabase Auth as the authentication authority.
+
+The customer application should support:
+
+- sign up
+- sign in
+- sign out
+- authenticated session restoration
+- session-aware navigation
+- authentication error handling
+
+New public Auth users default to the application role:
+
+customer
+
+Do NOT create any customer-side role assignment mechanism.
+
+Do NOT allow the customer client to choose:
+
+- vendor
+- admin
+
+as a role.
+
+The client must never be able to elevate its own role.
+
+==================================================
+4. AUTH UI
+==================================================
+
+Create a simple, clean customer authentication experience.
+
+Screens/components may include:
+
+- Welcome / entry screen
+- Sign In
+- Sign Up
+- Forgot Password / password recovery if supported cleanly by the existing Supabase Auth configuration
+- Auth loading state
+- Authentication error state
+
+Keep the UI simple.
+
+Do not spend excessive effort on branding or visual polish.
+
+Do not build the entire marketplace UI yet.
+
+Use accessible:
+
+- labels
+- inputs
+- buttons
+- validation messages
+- loading states
+
+Do not expose technical errors or secrets to customers.
+
+==================================================
+5. SESSION MANAGEMENT
+==================================================
+
+Implement a reliable customer session foundation.
+
+The app should:
+
+- restore an existing Supabase Auth session when launched
+- show an appropriate loading state while determining session state
+- route unauthenticated users to authentication screens
+- route authenticated users to the protected customer application
+- support sign out
+- react appropriately when the Auth session changes
+
+Avoid unnecessary repeated session lookups.
+
+Do not store passwords locally.
+
+Do not implement custom token persistence.
+
+Use the Supabase Auth session mechanism.
+
+==================================================
+6. CUSTOMER ROLE VERIFICATION
+==================================================
+
+The customer app may know that an authenticated user is expected to be a customer, but security must remain server-side.
+
+Do NOT treat client-side role information as an authorization boundary.
+
+The backend and database remain responsible for authorization.
+
+Do not add a client-side role assignment API.
+
+If the existing customer API foundation needs a minimal authenticated identity/profile call, implement only what is necessary for Phase 5.
+
+Do not create marketplace APIs.
+
+==================================================
+7. CUSTOMER PROFILE
+==================================================
+
+Reuse the existing Phase 2 customer/profile schema.
+
+The application has:
+
+user_profiles
+customers
+
+The customer identity must remain tied to the authenticated Supabase user.
+
+Create the minimal customer profile functionality required for the customer app.
+
+Depending on the existing schema, support appropriate fields such as:
+
+- name
+- phone
+- profile information already represented by the existing database schema
+
+Do NOT invent large profile models.
+
+Do NOT add:
+
+- loyalty profile
+- referral profile
+- wallet
+- rewards
+- subscription
+- marketing profile
+
+Those are future features.
+
+==================================================
+8. CUSTOMER PROFILE UI
+==================================================
+
+Create a basic customer account/profile screen.
+
+It should allow the authenticated customer to:
+
+- view their profile
+- edit permitted profile information
+- sign out
+
+Use a simple mobile-first design.
+
+The profile screen must not expose:
+
+- database IDs unnecessarily
+- authentication tokens
+- internal roles
+- server credentials
+- internal security information
+
+Do not expose vendor/admin functionality.
+
+==================================================
+9. CUSTOMER ADDRESSES
+==================================================
+
+Reuse:
+
+customer_addresses
+
+from Phase 2.
+
+Implement basic customer address management.
+
+Customer must be able to:
+
+- list their own addresses
+- add an address
+- edit an address
+- delete an address only if safe under the existing architecture
+
+If historical order requirements later require address preservation, ensure deletion does not alter historical order address snapshots.
+
+Customer addresses are reusable customer data.
+
+Order address snapshots are historical data and must remain independent.
+
+Do NOT modify historical orders.
+
+==================================================
+10. ADDRESS FIELDS
+==================================================
+
+Inspect the existing schema and use its actual fields.
+
+Do not create duplicate address tables.
+
+Support the existing address information such as applicable:
+
+- address line
+- locality
+- city
+- state
+- pincode
+- landmark
+- contact information if already represented
+
+Do not invent fields that duplicate other entities.
+
+==================================================
+11. PINCODE
+==================================================
+
+The MVP is India-first.
+
+Validate customer address pincodes appropriately for the existing architecture.
+
+Do not implement:
+
+- GPS
+- maps
+- geolocation
+- live location
+- delivery radius
+- route calculation
+
+Pincode-based store matching belongs to Phase 6.
+
+Phase 5 only needs to establish reliable customer address data.
+
+==================================================
+12. DEFAULT ADDRESS
+==================================================
+
+If the existing schema supports a default-address concept, implement it correctly.
+
+Only one address for a customer should be the default at a time.
+
+If the schema does NOT currently support default addresses, do not create a large redesign just for this.
+
+Only add a minimal schema change if it is genuinely necessary for the Phase 5 architecture.
+
+==================================================
+13. CUSTOMER API
+==================================================
+
+Create only the backend APIs necessary for Phase 5.
+
+Potential API capabilities:
+
+Customer profile:
+- GET own profile
+- PATCH own profile
+
+Customer addresses:
+- GET own addresses
+- GET own address
+- POST own address
+- PATCH own address
+- DELETE own address if safe and supported
+
+Every customer endpoint must:
+
+1. Require authentication.
+2. Resolve the authenticated customer identity.
+3. Scope access to that customer.
+4. Reject attempts to access another customer's resources.
+5. Validate input using Zod.
+6. Persist using Drizzle.
+7. Respect RLS.
+
+Do NOT accept customer_id from the client as the authorization source.
+
+Do NOT allow:
+
+GET /api/customers/:arbitraryCustomerId
+
+to become a way to access another customer.
+
+Prefer authenticated-user-derived identity.
+
+==================================================
+14. CUSTOMER ADDRESS SECURITY
+==================================================
+
+A customer must only access their own addresses.
+
+Example:
+
+Customer A
+  ↓
+authenticated Supabase user
+  ↓
+customer A profile
+  ↓
+customer A addresses
+
+Customer A must never be able to access:
+
+Customer B's addresses
+
+by changing an ID in the request.
+
+The backend must verify ownership.
+
+RLS must remain enabled.
+
+Do not weaken RLS to simplify development.
+
+==================================================
+15. DELETE ADDRESS RULE
+==================================================
+
+If address deletion is implemented:
+
+- it must delete/deactivate only the customer's reusable address
+- it must NOT affect historical order snapshots
+- it must NOT cascade into orders
+- it must NOT remove historical delivery information
+
+Historical order data is immutable.
+
+If the existing schema makes hard deletion unsafe, use the safest minimal approach compatible with the current architecture.
+
+Do not redesign the order system in Phase 5.
+
+==================================================
+16. CUSTOMER NAVIGATION
+==================================================
+
+Create a simple protected customer navigation structure.
+
+At minimum provide a foundation for:
+
+- Home
+- Account/Profile
+- Addresses
+
+However:
+
+IMPORTANT:
+
+The Home screen must NOT implement Phase 6 store discovery yet.
+
+It may contain a simple placeholder indicating that supermarket discovery/catalog functionality will be available in the next phase.
+
+Do not build fake store data.
+
+Do not create mock supermarkets as permanent application functionality.
+
+==================================================
+17. CROSS-PLATFORM REQUIREMENT
+==================================================
+
+The customer app must remain compatible with:
+
+- Expo Web
+- native Expo targets
+
+Avoid platform-specific code unless necessary.
+
+If platform-specific Supabase session storage is required, implement it using the appropriate Expo-compatible mechanism already available or a minimal required dependency.
+
+Do not introduce unnecessary native libraries.
+
+After implementation verify that the customer application can start in Web mode.
+
+If possible within the existing Replit environment, verify the native project configuration remains valid as well.
+
+Do not publish to app stores.
+
+==================================================
+18. ERROR / LOADING STATES
+==================================================
+
+Customer-facing screens must handle:
+
+- initial auth loading
+- API loading
+- save/update loading
+- authentication failure
+- validation failure
+- network/API failure
+- empty address list
+- sign-out state
+
+Avoid blank screens.
+
+Show simple understandable messages.
+
+Do not expose raw stack traces or internal server errors.
+
+==================================================
+19. FORM VALIDATION
+==================================================
+
+Use Zod through the existing validation package where appropriate.
+
+Validate:
+
+Authentication:
+- email format
+- required password rules consistent with Supabase Auth
+
+Profile:
+- required fields
+- appropriate string lengths
+- phone if represented
+
+Address:
+- required address fields
+- pincode
+- reasonable field lengths
+
+Do not duplicate complicated validation rules unnecessarily between client and server.
+
+The backend remains authoritative.
+
+==================================================
+20. API CLIENT
+==================================================
+
+Use the existing shared API-client architecture if available.
+
+Do not create multiple competing HTTP clients.
+
+Authenticated API requests should include the Supabase Auth access token through the established mechanism.
+
+Do not place:
+
+- service-role key
+- database URL
+- JWT secret
+
+in customer client code.
+
+The customer app must never receive server-only secrets.
+
+==================================================
+21. SUPABASE CONFIGURATION
+==================================================
+
+Production Supabase is NOT being configured yet.
+
+If the customer app requires Supabase configuration:
+
+- use environment variables
+- use client-safe public values only
+- document required variables
+- update `.env.example` if necessary
+- do not hardcode credentials
+- do not invent credentials
+
+Client-side configuration may use:
+
+SUPABASE_URL
+SUPABASE_ANON_KEY
+
+Server-only values must NEVER be included in the customer bundle:
+
+SUPABASE_DB_URL
+SUPABASE_SERVICE_ROLE_KEY
+
+Do not expose service-role credentials.
+
+==================================================
+22. DATABASE CHANGES
+==================================================
+
+First inspect the existing Phase 2 schema.
+
+Prefer NO migration if the existing schema already supports Phase 5.
+
+Only create a migration if genuinely required.
+
+Do NOT add:
+
+- marketplace tables
+- store discovery tables
+- product tables
+- cart tables
+- order tables
+- payment tables
+- delivery tables
+- loyalty tables
+- coupon tables
+- referral tables
+
+Those already exist where required or belong to future phases.
+
+Do not redesign existing tables unnecessarily.
+
+==================================================
+23. RLS
+==================================================
+
+Preserve the Phase 2 RLS model.
+
+Verify customer access is restricted to the authenticated customer.
+
+Customer must be able to access only:
+
+- their own customer profile
+- their own addresses
+
+Customer must NOT be able to access:
+
+- vendor stores through management APIs
+- other customers
+- admin resources
+- other customers' addresses
+- vendor catalog management
+
+Do not weaken existing vendor/admin policies.
+
+Do not use service-role access from the customer client.
+
+==================================================
+24. DASHBOARD REGRESSION
+==================================================
+
+Phase 5 is customer-focused.
+
+Do NOT redesign the vendor/admin dashboard.
+
+Verify Phase 3 and Phase 4 dashboard functionality remains intact.
+
+No vendor/admin catalog changes should be introduced unless necessary for regression compatibility.
+
+==================================================
+25. TESTING
+==================================================
+
+Create focused tests where the existing project structure supports them.
+
+At minimum test:
+
+AUTH FOUNDATION:
+
+- unauthenticated customer routes are protected
+- authenticated customer session is recognized
+- sign-out clears customer session
+- invalid authentication input is rejected
+
+PROFILE:
+
+- customer can access own profile
+- customer can update own profile
+- customer cannot access another customer's profile
+- invalid profile input is rejected
+
+ADDRESSES:
+
+- customer can list own addresses
+- customer can create own address
+- customer can update own address
+- customer can delete own reusable address if supported
+- customer cannot access another customer's address
+- malformed address data is rejected
+- invalid pincode is rejected
+
+SECURITY:
+
+- vendor cannot access customer resources unless explicitly authorized by future architecture
+- customer cannot access vendor/admin management endpoints
+- customer cannot manipulate customer_id to access another customer
+- no server-only secrets appear in customer code
+
+REGRESSION:
+
+- Phase 3 vendor functionality remains available
+- Phase 4 catalog functionality remains available
+- `/health` continues to work
+
+If full authenticated integration tests require real Supabase credentials and cannot run, clearly report the limitation.
+
+Do not invent credentials.
+
+==================================================
+26. TEST CUSTOMER APP ON WEB
+==================================================
+
+Run the customer Expo web application.
+
+Verify:
+
+- application starts
+- authentication screens render
+- navigation does not crash
+- protected routing does not crash
+- profile/address screens do not crash
+
+Do not use a raw HTML text check that assumes React-rendered text exists in the initial Vite/Expo HTML shell.
+
+Use an appropriate readiness check.
+
+==================================================
+27. REGRESSION VERIFICATION
+==================================================
+
+Run:
+
+- pnpm install
+- pnpm typecheck
+- pnpm --filter @workspace/api run build
+- pnpm --filter @workspace/db run check
+- pnpm --filter @workspace/dashboard run build
+- customer Expo web startup/check
+- backend startup/check
+- GET /health
+- Phase 3 tests
+- Phase 4 tests
+- Phase 5 tests
+- git diff --check
+
+Ensure no regression in existing phases.
+
+==================================================
+28. DOCUMENTATION
+==================================================
+
+Update only relevant documentation:
+
+- docs/API_SPECIFICATION.md
+- docs/ARCHITECTURE.md if required
+- docs/DATABASE_SCHEMA.md if required
+- docs/BUSINESS_RULES.md
+- docs/SECURITY.md
+- docs/DEVELOPMENT_STATUS.md
+- docs/CHANGELOG.md
+
+Document:
+
+- customer authentication
+- customer session model
+- customer profile
+- customer address management
+- customer resource ownership
+- API authorization
+- customer navigation foundation
+
+Do NOT document future functionality as if already implemented.
+
+==================================================
+29. DEPENDENCY CONTROL
+==================================================
+
+Before adding any dependency:
+
+- inspect existing dependencies
+- reuse existing packages
+- add a dependency only if genuinely necessary
+
+Do not add:
+
+- payment SDKs
+- maps/GPS SDKs
+- delivery SDKs
+- analytics SDKs
+- search engines
+- alternate auth providers
+- unnecessary state-management libraries
+
+If the project already contains an appropriate state-management solution, reuse it.
+
+==================================================
+30. PRODUCTION / DEPLOYMENT
+==================================================
+
+Do NOT:
+
+- create production Supabase project
+- apply production migrations
+- configure Vercel
+- configure Railway
+- push GitHub
+- create production secrets
+- configure payments
+- configure maps
+- configure delivery services
+- publish mobile apps
+
+All production/deployment work remains Phase 12.
+
+==================================================
+31. STRICT PHASE BOUNDARY
+==================================================
+
+DO NOT implement:
+
+- store discovery
+- pincode-based store matching
+- supermarket listing
+- supermarket search
+- catalog browsing
+- product search
+- product detail marketplace pages
+- cart
+- checkout
+- order placement
+- order tracking
+- delivery tracking
+- payments
+- coupons
+- loyalty
+- referrals
+- recommendations
+- POS
+- advanced inventory
+- weighted products
+- substitutions
+- partial fulfillment
+- delivery partner system
+
+Those belong to later phases.
+
+The Phase 5 Home screen may contain only a simple placeholder for future store discovery.
+
+==================================================
+32. FINAL REPORT
+==================================================
+
+At the end provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. Customer authentication functionality implemented
+E. Customer profile functionality implemented
+F. Customer address functionality implemented
+G. APIs created
+H. Database/migration changes
+I. RLS/security changes
+J. Customer UI/navigation changes
+K. Tests created
+L. Verification commands and results
+M. Known limitations
+N. Explicit confirmation that Phase 6+ functionality was NOT implemented
+O. Explicit confirmation that GitHub/Vercel/Railway/production Supabase were NOT configured
+
+STOP after the report.
+
+Do not automatically begin Phase 6.

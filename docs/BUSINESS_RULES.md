@@ -81,3 +81,11 @@ Arbitrary status updates are not exposed.
   ledger, automatic deductions, warehouse management, or synchronization.
 - Image references use the existing optional URL field. No storage or
   image-processing provider is introduced.
+
+## Customer accounts and addresses
+
+- Public signup creates only customer accounts; clients cannot choose roles.
+- Customers may update only their own name and phone.
+- Customers may manage only their own reusable addresses.
+- Setting one address as default clears the previous default transactionally.
+- Deleting a reusable address does not alter historical order snapshots.

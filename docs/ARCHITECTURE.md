@@ -38,3 +38,11 @@ API and by the existing composite database foreign key.
 Products are independent store records; there is no global product entity or
 join-style `store_products` model. The dashboard adds vendor-only catalog
 management while the customer app and admin ownership model remain unchanged.
+
+## Phase 5 customer application
+
+The Expo application uses Supabase Auth for signup, signin, signout, session
+restoration, and session-change handling. Protected Home, Account, and Addresses
+views share the authenticated session. The Express API derives customer
+ownership from the verified Supabase user and persists profile/address data
+through Drizzle.

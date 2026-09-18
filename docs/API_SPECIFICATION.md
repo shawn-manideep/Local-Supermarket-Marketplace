@@ -153,3 +153,20 @@ hard-deletes a product.
 
 There are no customer discovery/catalog, search, cart, checkout, order, payment,
 delivery-partner, settlement, recommendation, or reporting APIs.
+
+## Phase 5 customer account
+
+All routes require the `customer` role and derive customer ownership from the
+authenticated Supabase user:
+
+- `GET /api/customer/profile`
+- `PATCH /api/customer/profile`
+- `GET /api/customer/addresses`
+- `GET /api/customer/addresses/:addressId`
+- `POST /api/customer/addresses`
+- `PATCH /api/customer/addresses/:addressId`
+- `DELETE /api/customer/addresses/:addressId`
+
+Profile updates accept only `fullName` and `phone`. Address requests use the
+existing recipient, phone, address-line, city, state, pincode, label, and
+default fields. Clients cannot supply `customerId`.

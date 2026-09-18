@@ -1,0 +1,1 @@
+export { customerManagementRouter } from "./routes.js";

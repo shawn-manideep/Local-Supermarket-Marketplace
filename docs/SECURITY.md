@@ -79,3 +79,11 @@ RLS policies provide additional database enforcement.
 Category/product hard-delete routes do not exist, and database triggers reject
 direct hard-delete attempts. Malformed JSON is returned as a `400` client
 error rather than an internal server error.
+
+## Phase 5 customer isolation
+
+Customer APIs require the `customer` role and use authenticated `userId` as the
+customer identifier. Address detail, update, and delete predicates combine that
+identifier with the address ID. Strict schemas reject `customerId`, role, and
+other protected fields. The Expo bundle uses only public Supabase configuration
+and never receives database or service-role credentials.

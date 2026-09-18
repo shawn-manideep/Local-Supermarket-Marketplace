@@ -35,6 +35,10 @@ const phoneSchema = z
     /^(?:(?:\+|00)91[- ]?|91[- ]?)?[6-9]\d{9}$/,
     "Use a valid Indian phone number",
   );
+const nullablePhoneSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  phoneSchema.nullable(),
+);
 
 export const storeUpdateSchema = z
   .object({
@@ -214,3 +218,60 @@ export const productStockQuantitySchema = z.object({
 export const productCategorySchema = z.object({
   categoryId: catalogUuidSchema.nullable(),
 }).strict();
+
+const customerText = (maximum: number) => z.string().trim().min(1).max(maximum);
+
+export const customerProfileUpdateSchema = z
+  .object({
+    fullName: customerText(120).nullable().optional(),
+    phone: nullablePhoneSchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one permitted profile field is required",
+  });
+
+export const customerAddressIdParamSchema = z.object({
+  addressId: z.string().uuid(),
+}).strict();
+
+const customerAddressFields = {
+  label: customerText(60).nullable().optional(),
+  recipientName: customerText(120),
+  phone: phoneSchema,
+  line1: customerText(240),
+  line2: customerText(240).nullable().optional(),
+  city: customerText(120),
+  state: customerText(120),
+  pincode: z.string().trim().regex(/^[1-9]\d{5}$/, "Use a valid six-digit Indian pincode"),
+  isDefault: z.boolean(),
+} as const;
+
+export const customerAddressCreateSchema = z.object({
+  label: customerAddressFields.label,
+  recipientName: customerAddressFields.recipientName,
+  phone: customerAddressFields.phone,
+  line1: customerAddressFields.line1,
+  line2: customerAddressFields.line2,
+  city: customerAddressFields.city,
+  state: customerAddressFields.state,
+  pincode: customerAddressFields.pincode,
+  isDefault: customerAddressFields.isDefault.optional(),
+}).strict();
+
+export const customerAddressUpdateSchema = z
+  .object({
+    label: customerAddressFields.label,
+    recipientName: customerAddressFields.recipientName.optional(),
+    phone: customerAddressFields.phone.optional(),
+    line1: customerAddressFields.line1.optional(),
+    line2: customerAddressFields.line2,
+    city: customerAddressFields.city.optional(),
+    state: customerAddressFields.state.optional(),
+    pincode: customerAddressFields.pincode.optional(),
+    isDefault: customerAddressFields.isDefault.optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one permitted address field is required",
+  });
