@@ -292,3 +292,24 @@ export const customerDiscoveryQuerySchema = z.object({
 export const customerCatalogQuerySchema = customerDiscoveryQuerySchema.extend({
   categoryId: z.string().uuid().optional(),
 }).strict();
+
+const cartQuantitySchema = z.coerce.number().int().min(1).max(999);
+
+export const customerCartItemCreateSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: cartQuantitySchema,
+  confirmStoreSwitch: z.boolean().optional(),
+}).strict();
+
+export const customerCartItemIdParamSchema = z.object({
+  itemId: z.string().uuid(),
+}).strict();
+
+export const customerCartItemUpdateSchema = z.object({
+  quantity: z.coerce.number().int().min(0).max(999),
+}).strict();
+
+export const customerCheckoutValidationSchema = z.object({
+  addressId: z.string().uuid(),
+  paymentMethod: z.literal("COD"),
+}).strict();

@@ -96,3 +96,15 @@ relationships. Public projections omit owner IDs, commission, SKU, external
 codes, stock quantity, approval internals, and timestamps. New SELECT-only RLS
 policies mirror ACTIVE-store and saved-address pincode visibility without
 changing vendor/admin mutation policies.
+
+## Phase 7 cart authorization
+
+Cart endpoints derive the customer from the verified session and scope every
+cart/item lookup by that owner. Product store, lifecycle, availability, and
+stock are read from PostgreSQL. Client prices, totals, fees, minimums, store
+IDs, customer IDs, and arbitrary address data are rejected. Checkout accepts
+only an owned saved-address ID and COD, then revalidates the ACTIVE store and
+service pincode. Direct customer cart mutations are removed from RLS; writes
+must pass through the API so lifecycle, store, stock, and financial invariants
+cannot be bypassed with the public Supabase client. Existing read policies for
+customers, vendors, and admins remain unchanged.

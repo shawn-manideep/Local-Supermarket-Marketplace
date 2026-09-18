@@ -53,3 +53,11 @@ Discovery follows saved customer address pincode → ACTIVE store service pincod
 → selected store → that store's active categories/products. Store context and
 pincode remain explicit in every catalog request. Operating status is computed
 from weekly hours in the India MVP timezone; it never changes approval status.
+
+## Phase 7 cart boundary
+
+The server is the cart and financial source of truth. An ACTIVE cart belongs to
+one customer and one supermarket; item products must belong to that store.
+Cross-store adds require confirmation and preserve the previous cart as
+ABANDONED. Checkout is validation-only: it prepares current COD totals and an
+owned saved-address snapshot candidate, without writing any order table.

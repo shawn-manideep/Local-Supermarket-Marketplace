@@ -100,3 +100,21 @@ Arbitrary status updates are not exposed.
   store.
 - Active unavailable products remain visible and clearly unavailable.
 - Catalog browsing never merges products between stores.
+
+## Cart and checkout preparation
+
+- One cart contains products from one supermarket only.
+- A confirmed store switch marks prior ACTIVE carts ABANDONED; carts are not
+  hard-deleted or merged.
+- Empty carts may remain ACTIVE. Explicit cart clearing marks the cart
+  ABANDONED and preserves its items as historical cart data.
+- Add and quantity updates require active, available products and cannot exceed
+  current stock. Phase 7 does not deduct stock.
+- Prices, line subtotals, subtotal, current delivery fee, and total are computed
+  server-side with integer cents. There are no discounts or taxes.
+- Checkout requires an owned saved address served by the ACTIVE store and a
+  subtotal meeting its current minimum order value.
+- COD is the only accepted payment method.
+- Checkout preparation is allowed outside store operating hours; OPEN/CLOSED is
+  shown for discovery but is not a newly invented checkout restriction.
+- Validation does not create an order or convert the cart.

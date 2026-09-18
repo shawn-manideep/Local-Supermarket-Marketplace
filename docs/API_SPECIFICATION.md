@@ -186,3 +186,27 @@ of the authenticated customer's saved addresses:
 Discovery returns only ACTIVE stores serving that pincode. Catalog responses
 contain only public fields, active categories, and active products. Active but
 temporarily unavailable products remain visible with `availability: false`.
+
+## Phase 7 customer cart and checkout validation
+
+All routes require the `customer` role:
+
+- `GET /api/customer/cart`
+- `POST /api/customer/cart/items`
+- `PATCH /api/customer/cart/items/:itemId`
+- `DELETE /api/customer/cart/items/:itemId`
+- `DELETE /api/customer/cart`
+- `POST /api/customer/checkout/validate`
+
+Add-item payloads contain `productId`, positive `quantity`, and optional
+`confirmStoreSwitch`. Quantity updates accept `0` to remove the item. The server
+derives product/store ownership, prices, fees, minimums, and totals.
+
+A cross-store add returns `409 Store switch required`. Repeating it with
+`confirmStoreSwitch: true` abandons the previous cart and creates or reuses the
+requested store's ACTIVE cart. Carts are never merged or hard-deleted.
+
+Checkout validation accepts only `{ "addressId": "<uuid>", "paymentMethod":
+"COD" }`. It revalidates ownership, store status/service area, products, stock,
+minimum order, fee, and totals. It returns prepared checkout data but does not
+create an order or mark the cart CONVERTED.

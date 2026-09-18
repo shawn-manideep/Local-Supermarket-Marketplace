@@ -1,0 +1,1192 @@
+PHASE 7 — CART + CHECKOUT
+
+Implement ONLY Phase 7: Cart + Checkout.
+
+The locked Master Product & Architecture Blueprint v1.1, the approved Phase 2 implementation, approved Phase 3 implementation, approved Phase 4 implementation, approved Phase 5 implementation, and approved Phase 6 implementation are the source of truth.
+
+IMPORTANT WORKFLOW:
+- Continue development entirely in Replit.
+- Do NOT push to GitHub yet.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT configure production Supabase.
+- Production setup remains deferred to Phase 12.
+- Inspect the existing codebase before making changes.
+- Preserve all Phase 1–6 functionality.
+- Do not rewrite the architecture.
+- Do not replace Expo, React Native, TypeScript, Supabase Auth, Express, PostgreSQL, Drizzle, Zod, or the existing workspace structure.
+- Do not add unnecessary dependencies.
+- Implement ONLY Phase 7.
+- Do not implement Phase 8+ functionality.
+
+==================================================
+1. PHASE 7 OBJECTIVE
+==================================================
+
+Build the customer cart and checkout foundation.
+
+Phase 7 must provide:
+
+A. One active cart per customer/store
+B. Add products to cart
+C. Update cart item quantities
+D. Remove cart items
+E. Clear cart where appropriate
+F. Cart totals
+G. Store-specific cart enforcement
+H. Product availability validation
+I. Minimum-order-value validation
+J. Delivery-fee calculation/snapshot preparation
+K. Customer address selection for checkout
+L. COD-only checkout preparation
+M. Checkout validation
+N. A safe transition from active cart toward order creation
+
+IMPORTANT:
+
+DO NOT create the actual order in Phase 7.
+
+Order creation and order lifecycle belong to Phase 8.
+
+Phase 7 may validate and prepare checkout data, but it must NOT insert an order into the `orders` table.
+
+==================================================
+2. LOCKED ONE-CART RULE
+==================================================
+
+The architecture requires:
+
+ONE CART = ONE SUPERMARKET
+
+A customer can have an ACTIVE cart for a store.
+
+A cart contains products from exactly one store.
+
+Example:
+
+Customer A
+  ↓
+Store A
+  ↓
+ACTIVE cart
+  ├── Product A
+  └── Product B
+
+The cart must never contain:
+
+Product A from Store A
++
+Product B from Store B
+
+Reject any cross-store cart manipulation.
+
+==================================================
+3. CART LIFECYCLE
+==================================================
+
+Existing cart statuses:
+
+- ACTIVE
+- ABANDONED
+- CONVERTED
+
+Preserve these statuses.
+
+Do not invent additional cart statuses.
+
+When the customer changes supermarket:
+
+Existing Store A ACTIVE cart
+        ↓
+Customer chooses Store B
+        ↓
+Store A cart becomes ABANDONED
+        ↓
+Store B cart becomes ACTIVE when an item is added
+
+Do NOT delete the old cart.
+
+Historical cart records should remain available according to the existing architecture.
+
+Do not physically delete carts merely because the customer changes stores.
+
+==================================================
+4. ONE ACTIVE CART PER STORE
+==================================================
+
+The Phase 2 schema contains the rule for one active cart per customer/store.
+
+Preserve the existing database constraint.
+
+Do not create multiple active carts for the same:
+
+customer + store
+
+If concurrent requests could create duplicate active carts, use a safe database transaction/upsert/constraint-driven approach.
+
+Do not rely only on frontend state.
+
+==================================================
+5. CUSTOMER CART OWNERSHIP
+==================================================
+
+Every cart operation must derive the customer identity from the authenticated Supabase session.
+
+NEVER trust:
+
+- customer_id
+- owner ID
+- arbitrary cart owner
+- role
+
+from the request body.
+
+Example:
+
+Authenticated Customer A
+       ↓
+Customer A identity
+       ↓
+Customer A carts
+
+Customer A must never be able to access Customer B's cart by changing:
+
+cartId
+customerId
+storeId
+
+in a request.
+
+Return appropriate not-found/authorization responses without leaking another customer's cart.
+
+==================================================
+6. CART STORE OWNERSHIP
+==================================================
+
+A cart belongs to exactly one store.
+
+Every cart item must belong to a product from the same store.
+
+When adding a product:
+
+1. Authenticate customer.
+2. Resolve customer identity.
+3. Verify product exists.
+4. Verify product belongs to an eligible store.
+5. Verify product is active.
+6. Verify product is available.
+7. Resolve product's store.
+8. Locate/create the customer's active cart for that store.
+9. Add/increment the cart item.
+
+Never accept a client-provided store_id as the source of truth.
+
+The product's database relationship determines its store.
+
+==================================================
+7. ADD TO CART
+==================================================
+
+Implement the backend operation to add a product to the cart.
+
+Input should be minimal, for example:
+
+- productId
+- quantity
+
+Do not accept client-supplied:
+
+- price
+- subtotal
+- total
+- store_id
+- product name
+- commission
+- delivery fee
+
+The backend derives these values.
+
+Validate:
+
+- productId is a valid UUID
+- quantity is a positive integer
+- quantity is within a reasonable safe bound
+- product is active
+- product is available
+- product belongs to an eligible store
+- customer has access to that store
+
+Do not implement negative quantities.
+
+Do not allow zero quantity as an add-to-cart operation.
+
+==================================================
+8. PRODUCT AVAILABILITY
+==================================================
+
+Respect Phase 4/6 product lifecycle:
+
+is_active
+and
+availability
+
+For adding to cart:
+
+is_active MUST be true.
+
+availability MUST be true.
+
+If:
+
+is_active = false
+
+reject the add-to-cart request.
+
+If:
+
+availability = false
+
+reject the add-to-cart request with a clear unavailable-product response.
+
+Do not modify the product record.
+
+Do not automatically reactivate products.
+
+==================================================
+9. STOCK QUANTITY
+==================================================
+
+The existing product has:
+
+stock_quantity
+
+For Phase 7:
+
+- prevent adding more than available stock if stock_quantity is used as an enforceable stock limit
+- prevent cart quantity from exceeding valid available quantity
+- never allow negative stock
+- never trust a client-provided stock quantity
+
+However:
+
+IMPORTANT:
+
+Do NOT implement stock deduction yet.
+
+Actual stock mutation/order fulfillment behavior belongs to the order phase.
+
+At checkout, validate current availability/stock again.
+
+==================================================
+10. CART ITEM QUANTITY
+==================================================
+
+Implement:
+
+- increment quantity
+- decrement quantity
+- set quantity
+- remove item
+
+Rules:
+
+- quantity must be a positive integer when item exists
+- setting quantity to 0 should remove the item
+- negative quantities are invalid
+- enforce stock constraints where applicable
+
+All calculations must occur server-side.
+
+Do not trust totals calculated by the client.
+
+==================================================
+11. CART PRICE
+==================================================
+
+The cart must derive price from the current product record.
+
+The client must NEVER be allowed to submit a price.
+
+Example malicious request:
+
+{
+  "productId": "...",
+  "quantity": 2,
+  "price": 1
+}
+
+The backend must ignore/reject the client price.
+
+The server calculates:
+
+line subtotal =
+current product price × quantity
+
+Cart subtotal =
+sum of line subtotals
+
+Do not introduce discounts.
+
+==================================================
+12. MONEY CALCULATIONS
+==================================================
+
+Use the existing PostgreSQL numeric/decimal representation appropriately.
+
+Avoid JavaScript floating-point errors.
+
+Do not perform financial calculations using unsafe floating-point assumptions.
+
+The API should return money in a predictable representation consistent with the existing project.
+
+Do not introduce:
+
+- tax calculations
+- coupons
+- discounts
+- promotional pricing
+- loyalty discounts
+- payment gateway fees
+
+Those are future functionality.
+
+==================================================
+13. DELIVERY FEE
+==================================================
+
+Use the store's existing:
+
+delivery_fee
+
+for checkout calculation.
+
+The customer must not be allowed to submit a delivery fee.
+
+The backend derives it from the selected store.
+
+At checkout, prepare the delivery fee as the value that will later become:
+
+delivery_fee_snapshot
+
+when the order is actually created in Phase 8.
+
+Do NOT create an order yet.
+
+==================================================
+14. MINIMUM ORDER VALUE
+==================================================
+
+Use:
+
+stores.min_order_value
+
+if configured.
+
+At checkout validate:
+
+cart subtotal >= store minimum order value
+
+If below minimum:
+
+- reject checkout
+- clearly tell customer the minimum order value
+- do not create an order
+
+Do not allow customer to bypass the rule by submitting a different minimum value.
+
+If the existing schema represents no minimum value/null, preserve that behavior.
+
+==================================================
+15. CART TOTAL
+==================================================
+
+The backend must calculate:
+
+subtotal
++
+delivery fee
+=
+total
+
+There are currently no:
+
+- discounts
+- coupons
+- taxes
+- payment gateway fees
+
+Therefore:
+
+total_amount = subtotal + delivery_fee
+
+This is the amount that Phase 8 will snapshot into the order.
+
+Do not insert into orders during Phase 7.
+
+==================================================
+16. CART API
+==================================================
+
+Create only the cart APIs required for Phase 7.
+
+Possible API structure:
+
+- GET /api/customer/cart
+- POST /api/customer/cart/items
+- PATCH /api/customer/cart/items/:itemId
+- DELETE /api/customer/cart/items/:itemId
+- DELETE /api/customer/cart
+- POST /api/customer/cart/select-store if genuinely required
+
+Use the existing API conventions.
+
+Do not blindly create duplicate functionality.
+
+The cart response should provide enough information for the UI, such as:
+
+- cart ID
+- store ID
+- store name
+- cart status
+- items
+- product information
+- quantity
+- unit price
+- line subtotal
+- subtotal
+- delivery fee
+- minimum order value
+- total
+- checkout readiness
+
+Do not expose unnecessary internal fields.
+
+==================================================
+17. GET ACTIVE CART
+==================================================
+
+The customer should be able to retrieve their current ACTIVE cart.
+
+Because a customer may browse different stores, define the behavior carefully.
+
+Preferred behavior:
+
+- return the active cart relevant to the current selected store, or
+- return the customer's active cart context if the existing application architecture has one.
+
+Do not create multiple active carts for the same customer/store.
+
+Do not invent a complex multi-cart system.
+
+The business rule remains:
+
+one active cart per customer/store,
+and one cart contains one store's products.
+
+==================================================
+18. STORE SWITCHING
+==================================================
+
+When the customer attempts to add an item from Store B while they have an ACTIVE cart for Store A:
+
+Do NOT mix the carts.
+
+Implement a clear workflow.
+
+Preferred behavior:
+
+Backend detects existing active cart for another store.
+
+Return a structured response indicating:
+
+- existing cart store
+- requested store
+- store switch required
+
+The UI should then ask for confirmation:
+
+"Your cart contains items from another supermarket. Start a new cart for this supermarket?"
+
+If the customer confirms:
+
+1. Mark existing Store A cart as ABANDONED.
+2. Create/reuse an ACTIVE Store B cart.
+3. Add the requested Store B item.
+
+Do not silently destroy the old cart.
+
+Do not delete it.
+
+Do not merge products from two stores.
+
+==================================================
+19. CHECKOUT ADDRESS
+==================================================
+
+Reuse Phase 5 customer addresses.
+
+At checkout the customer must select a valid saved address.
+
+The selected address must belong to the authenticated customer.
+
+Do not accept arbitrary address data as the authorization source.
+
+Do not yet create the order.
+
+Checkout validation should prepare the address information that Phase 8 will later snapshot.
+
+The future order must preserve an independent:
+
+delivery_address_snapshot
+
+Do not modify historical order architecture.
+
+==================================================
+20. ADDRESS PINCODE REVALIDATION
+==================================================
+
+At checkout, verify that the selected address's pincode is still served by the selected store.
+
+Example:
+
+Customer address:
+500072
+
+Selected Store:
+service pincodes = 500073 only
+
+Checkout must fail.
+
+The customer should be instructed to choose an address with a supported pincode or select another supermarket.
+
+Do not use GPS or distance calculation.
+
+==================================================
+21. STORE STATUS REVALIDATION
+==================================================
+
+At checkout validate the selected store again.
+
+The store must still be:
+
+ACTIVE
+
+Do not rely on the store being ACTIVE when it was first discovered.
+
+If the store has become:
+
+SUSPENDED
+REJECTED
+or otherwise non-customer-visible
+
+checkout must fail.
+
+Do not modify the store status.
+
+==================================================
+22. OPERATING HOURS AT CHECKOUT
+==================================================
+
+Do NOT invent a complicated scheduling system.
+
+At minimum preserve the Phase 6 store operating-status rules.
+
+If the existing business rules require orders only while the store is OPEN, enforce that during checkout.
+
+If the current architecture allows checkout preparation outside operating hours, preserve that behavior and document it.
+
+Do not silently create a new business rule without checking the existing architecture.
+
+==================================================
+23. CHECKOUT VALIDATION ENDPOINT
+==================================================
+
+Create a checkout validation/preparation endpoint if needed.
+
+Example:
+
+POST /api/customer/checkout/validate
+
+It should verify:
+
+- authenticated customer
+- active cart
+- cart has at least one item
+- products still exist
+- products remain active
+- products remain available
+- stock constraints are valid
+- selected store is ACTIVE
+- store still serves selected address pincode
+- minimum order value is satisfied
+- delivery fee is current
+- totals are recalculated server-side
+- selected address belongs to customer
+- COD is the only payment mode
+
+IMPORTANT:
+
+This endpoint MUST NOT create an order.
+
+It only validates and returns checkout-ready data for Phase 8.
+
+==================================================
+24. COD ONLY
+==================================================
+
+Phase 7 checkout payment mode is:
+
+COD
+
+Only.
+
+Do not implement:
+
+- Razorpay
+- UPI payment gateway
+- cards
+- net banking
+- wallets
+- payment intents
+- payment callbacks
+- payment webhooks
+
+The checkout UI may display:
+
+Payment method: Cash on Delivery
+
+Do not allow the customer to select unsupported online payment modes.
+
+==================================================
+25. ORDER CREATION BOUNDARY
+==================================================
+
+This is critical.
+
+DO NOT INSERT INTO:
+
+orders
+
+DO NOT INSERT INTO:
+
+order_items
+
+DO NOT INSERT INTO:
+
+order_status_history
+
+Phase 8 owns order creation.
+
+Phase 7 only prepares/validates checkout.
+
+If a cart status needs to represent conversion, do not mark it CONVERTED in Phase 7 because no order exists yet.
+
+The cart should remain ACTIVE until Phase 8 creates the order.
+
+==================================================
+26. CART CONVERSION
+==================================================
+
+The existing cart statuses include:
+
+ACTIVE
+ABANDONED
+CONVERTED
+
+Do NOT mark a cart CONVERTED in Phase 7.
+
+Conversion happens only when an order is successfully created in Phase 8.
+
+Do not implement fake conversion.
+
+==================================================
+27. CART CLEARING
+==================================================
+
+If the customer removes all cart items:
+
+- the cart may remain ACTIVE but empty if consistent with existing architecture
+- or be handled using the existing lifecycle design
+
+Do not invent a new status.
+
+Do not hard-delete the cart.
+
+Prefer preserving the cart record.
+
+Document the chosen behavior.
+
+==================================================
+28. CART UI
+==================================================
+
+Build the customer cart experience.
+
+The customer should be able to:
+
+- view cart
+- see selected supermarket
+- see products
+- change quantities
+- remove products
+- see unit prices
+- see line subtotals
+- see subtotal
+- see delivery fee
+- see minimum order requirement
+- see total
+- see unavailable/out-of-stock errors
+- select delivery address
+- proceed to checkout validation
+- see COD as payment method
+
+Do not create the final order confirmation/order-history system yet.
+
+==================================================
+29. PRODUCT CATALOG INTEGRATION
+==================================================
+
+Update the Phase 6 product UI only as necessary to add:
+
+"Add to Cart"
+
+This button must be enabled only when the product is:
+
+- active
+- available
+
+If unavailable:
+
+- show Unavailable
+- do not allow adding
+
+Do not add cart logic directly to product data components if a shared cart service/state layer is more appropriate.
+
+Use the existing application architecture.
+
+==================================================
+30. CUSTOMER NAVIGATION
+==================================================
+
+Add a Cart entry to the customer application.
+
+Suggested navigation:
+
+Home
+Cart
+Account
+
+Within marketplace:
+
+Store
+Categories
+Products
+Product Detail
+  ↓
+Add to Cart
+  ↓
+Cart
+  ↓
+Checkout validation
+
+Do NOT add:
+
+- Orders
+- Order tracking
+- Delivery tracking
+
+Those belong to Phase 8+.
+
+==================================================
+31. CART STATE MANAGEMENT
+==================================================
+
+Use the existing customer application state architecture.
+
+Do not introduce another state-management library.
+
+The server must remain the source of truth for cart persistence and financial calculations.
+
+Client state is only for UI convenience.
+
+Do not trust locally stored totals.
+
+After mutations, refresh or reconcile cart state with server data.
+
+==================================================
+32. CONCURRENCY / DATA INTEGRITY
+==================================================
+
+Protect cart operations against obvious race conditions.
+
+Examples:
+
+Two simultaneous add-item requests must not incorrectly overwrite quantity.
+
+Two requests attempting to create the same active cart must not create duplicate active carts.
+
+Use database constraints and/or transactions where appropriate.
+
+Do not build an elaborate distributed locking system.
+
+Use the existing PostgreSQL capabilities.
+
+==================================================
+33. SECURITY
+==================================================
+
+Every cart endpoint must require authenticated customer access.
+
+Verify:
+
+- customer ownership
+- cart ownership
+- cart/store relationship
+- cart item/cart relationship
+- product/store relationship
+- product/category relationship where relevant
+
+Never trust:
+
+- customer_id
+- store_id
+- price
+- subtotal
+- total
+- delivery_fee
+- minimum_order_value
+- product name
+- product store ownership
+
+from the client.
+
+All sensitive values are derived server-side.
+
+==================================================
+34. RLS
+==================================================
+
+Preserve Phase 2 RLS.
+
+Cart access must be customer-scoped.
+
+A customer must not access another customer's:
+
+- cart
+- cart items
+
+Vendor/admin policies must remain intact.
+
+Do not weaken RLS.
+
+If new RLS policies are required, make only the minimum necessary changes.
+
+Do not use service-role credentials in the customer application.
+
+==================================================
+35. VALIDATION
+==================================================
+
+Use Zod.
+
+Validate:
+
+- UUIDs
+- quantities
+- address IDs
+- payment mode
+- any store/product references
+- checkout requests
+
+Reject:
+
+- negative quantity
+- malformed quantity
+- zero quantity where not intended
+- invalid UUID
+- unsupported payment mode
+- client-provided protected financial fields
+- invalid address ownership
+- invalid store/product relationships
+
+==================================================
+36. TESTING
+==================================================
+
+Create focused Phase 7 tests.
+
+At minimum cover:
+
+CART OWNERSHIP:
+
+- unauthenticated cart access rejected
+- customer can access own cart
+- customer cannot access another customer's cart
+- customer cannot manipulate another customer's cart item
+
+ONE-STORE RULE:
+
+- cart contains products from one store only
+- cross-store product addition is rejected or requires explicit store switch
+- Store A cart is not merged with Store B cart
+- switching stores marks previous active cart ABANDONED
+- new store gets its own ACTIVE cart
+- no duplicate active cart for same customer/store
+
+PRODUCT VALIDATION:
+
+- inactive product cannot be added
+- unavailable product cannot be added
+- invalid product rejected
+- product from wrong store rejected
+- stock constraint enforced if applicable
+
+QUANTITY:
+
+- positive quantity accepted
+- zero removes item where designed
+- negative quantity rejected
+- malformed quantity rejected
+- excessive quantity rejected
+
+FINANCIAL:
+
+- server derives price
+- client cannot override price
+- server calculates line subtotal
+- server calculates cart subtotal
+- server calculates delivery fee
+- server calculates total
+- minimum order value enforced
+- client cannot override totals
+
+ADDRESS:
+
+- customer can select own address
+- another customer's address rejected
+- unsupported pincode rejected
+- selected address must be served by selected store
+
+STORE:
+
+- inactive store rejected at checkout
+- service-pincode mismatch rejected
+- current store information revalidated
+
+CHECKOUT:
+
+- empty cart rejected
+- unavailable product detected during checkout
+- changed product price is recalculated
+- COD accepted
+- online payment modes rejected
+- checkout validation does NOT create an order
+
+CRITICAL ORDER BOUNDARY:
+
+Verify Phase 7 does NOT create:
+
+- orders
+- order_items
+- order_status_history
+
+==================================================
+37. UI TESTING
+==================================================
+
+Verify:
+
+- Add to Cart works
+- cart displays correct items
+- quantity changes work
+- remove works
+- store-switch confirmation works
+- unavailable product cannot be added
+- totals update correctly
+- delivery fee displays correctly
+- minimum order message works
+- address selection works
+- checkout validation works
+- COD is displayed
+- no Orders screen was introduced
+
+Do not rely only on visual checks.
+
+==================================================
+38. DATABASE CHANGES
+==================================================
+
+Inspect existing Phase 2 cart schema before changing anything.
+
+Prefer NO migration because Phase 2 already created:
+
+- carts
+- cart_items
+
+Only add a migration if genuinely necessary.
+
+Do not add:
+
+- order tables
+- payment tables
+- delivery tables
+- checkout tables
+- coupon tables
+- discount tables
+
+The existing order tables belong to Phase 8.
+
+==================================================
+39. DOCUMENTATION
+==================================================
+
+Update only relevant documentation:
+
+- docs/API_SPECIFICATION.md
+- docs/ARCHITECTURE.md if required
+- docs/DATABASE_SCHEMA.md if required
+- docs/BUSINESS_RULES.md
+- docs/SECURITY.md
+- docs/DEVELOPMENT_STATUS.md
+- docs/CHANGELOG.md
+
+Document:
+
+- one-cart-per-store rule
+- cart lifecycle
+- store switching
+- cart ownership
+- product validation
+- availability rules
+- stock validation
+- financial calculation rules
+- minimum order value
+- delivery fee
+- address validation
+- COD-only checkout
+- checkout validation
+- Phase 8 order-creation boundary
+
+Do not document order creation as implemented.
+
+==================================================
+40. DEPENDENCY CONTROL
+==================================================
+
+Before adding any dependency:
+
+- inspect existing dependencies
+- reuse existing packages
+- add nothing unless genuinely necessary
+
+Do NOT add:
+
+- payment SDK
+- Razorpay
+- maps
+- GPS
+- delivery SDK
+- search engine
+- Redis
+- analytics
+- alternate state-management library
+
+==================================================
+41. REGRESSION TESTING
+==================================================
+
+Run:
+
+- pnpm install
+- pnpm run typecheck
+- pnpm --filter @workspace/api run test
+- pnpm --filter @workspace/api run build
+- pnpm --filter @workspace/db run check
+- pnpm --filter @workspace/dashboard run build
+- Customer Expo Web startup/check
+- Backend startup/check
+- GET /health
+- git diff --check
+
+Ensure all existing Phase 3, Phase 4, Phase 5, and Phase 6 tests continue to pass.
+
+Run all Phase 7 tests.
+
+==================================================
+42. PRODUCTION / DEPLOYMENT
+==================================================
+
+Do NOT:
+
+- configure production Supabase
+- apply production migrations
+- configure Vercel
+- configure Railway
+- push GitHub
+- create production secrets
+- configure Razorpay
+- configure payment gateways
+- configure maps
+- configure delivery services
+- publish mobile apps
+
+Production/deployment remains Phase 12.
+
+==================================================
+43. STRICT PHASE BOUNDARY
+==================================================
+
+DO NOT implement:
+
+- order creation
+- order confirmation persistence
+- order status
+- order history
+- vendor order processing
+- delivery
+- delivery tracking
+- payment processing
+- payment gateway
+- refunds
+- coupons
+- discounts
+- loyalty
+- referrals
+- recommendations
+- POS
+- advanced inventory
+- substitutions
+- partial fulfillment
+- weighted products
+- automated settlement
+
+Those belong to later phases.
+
+==================================================
+44. FINAL REPORT
+==================================================
+
+At the end provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. APIs created
+E. Cart functionality implemented
+F. Checkout validation implemented
+G. Store-switching behavior
+H. Financial calculation behavior
+I. Address validation behavior
+J. Database/migration changes
+K. RLS/security changes
+L. Customer UI/navigation changes
+M. Tests created
+N. Verification commands and results
+O. Known limitations
+P. Explicit confirmation that NO order was created by Phase 7
+Q. Explicit confirmation that Phase 8+ functionality was NOT implemented
+R. Explicit confirmation that GitHub/Vercel/Railway/production Supabase were NOT configured
+
+STOP after the report.
+
+Do not automatically begin Phase 8.

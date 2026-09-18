@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { catalogManagementRouter } from "./catalog-management/index.js";
 import { customerManagementRouter } from "./customer-management/index.js";
 import { customerMarketplaceRouter } from "./customer-marketplace/index.js";
+import { customerCartRouter } from "./customer-cart/index.js";
 import { HttpError } from "./http.js";
 import { storeManagementRouter } from "./store-management/index.js";
 
@@ -30,6 +31,7 @@ export function createApp() {
   app.use(catalogManagementRouter);
   app.use(customerManagementRouter);
   app.use(customerMarketplaceRouter);
+  app.use(customerCartRouter);
 
   app.use(
     (

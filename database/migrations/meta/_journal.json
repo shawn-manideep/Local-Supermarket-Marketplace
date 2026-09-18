@@ -15,6 +15,13 @@
       "when": 1789717000000,
       "tag": "0001_customer_marketplace_read_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789717600000,
+      "tag": "0002_secure_customer_cart_writes",
+      "breakpoints": true
     }
   ]
 }

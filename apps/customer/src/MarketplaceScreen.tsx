@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   customerApi,
   type CustomerAddress,
@@ -10,7 +10,7 @@ import {
 
 const colors = { bg: "#F8F6EF", card: "#FFFFFF", ink: "#17352B", muted: "#61736C", accent: "#E85D3F", line: "#DDE5DF", danger: "#A53D31" };
 
-export function MarketplaceScreen({ openAddresses }: { openAddresses: () => void }) {
+export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: () => void; openCart: () => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [pincode, setPincode] = useState("");
   const [stores, setStores] = useState<CustomerStore[]>([]);
@@ -112,12 +112,27 @@ export function MarketplaceScreen({ openAddresses }: { openAddresses: () => void
     finally { if (generation === catalogGeneration.current) setLoading(false); }
   };
 
+  const addToCart = async (selected: CustomerProduct, confirmStoreSwitch = false) => {
+    try {
+      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId:selected.id, quantity:1, confirmStoreSwitch }) });
+      openCart();
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "Unable to add product.";
+      if (message === "Store switch required") {
+        Alert.alert("Start a new cart?", "Your cart contains items from another supermarket. Start a new cart for this supermarket?", [
+          { text:"Cancel" }, { text:"Start new cart", style:"destructive", onPress:() => void addToCart(selected, true) },
+        ]);
+      } else setError(message);
+    }
+  };
+
   if (product && store) return <ScrollView contentContainerStyle={styles.page}>
     <Pressable onPress={() => { ++catalogGeneration.current; setProduct(null); }}><Text style={styles.link}>← Back to {store.name}</Text></Pressable>
     {product.imageUrl && <Image source={{ uri: product.imageUrl }} style={styles.heroImage} />}
     <Text style={styles.hero}>{product.name}</Text><Text style={styles.price}>₹{product.price}</Text>
     <Text style={styles.body}>{product.description ?? "No description provided."}</Text>
     <Text style={[styles.badge, !product.availability && styles.closed]}>{product.availability ? "Available" : "Unavailable"}</Text>
+    <Pressable disabled={!product.availability} onPress={() => void addToCart(product)} style={[styles.primary,!product.availability&&{opacity:.4}]}><Text style={styles.primaryText}>{product.availability?"Add to Cart":"Unavailable"}</Text></Pressable>
   </ScrollView>;
 
   if (store) return <ScrollView contentContainerStyle={styles.page}>

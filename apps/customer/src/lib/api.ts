@@ -57,6 +57,31 @@ export interface CustomerProduct {
   imageUrl: string | null;
 }
 
+export interface CustomerCartItem {
+  id: string;
+  productId: string;
+  name: string;
+  imageUrl: string | null;
+  quantity: number;
+  unitPrice: string;
+  lineSubtotal: string;
+  availability: boolean;
+  purchasable: boolean;
+}
+
+export interface CustomerCart {
+  id: string;
+  storeId: string;
+  storeName: string;
+  status: "ACTIVE";
+  items: CustomerCartItem[];
+  subtotal: string;
+  deliveryFee: string;
+  minimumOrderValue: string;
+  total: string;
+  checkoutReady: boolean;
+}
+
 const domain = process.env.EXPO_PUBLIC_DOMAIN;
 const apiUrl = (
   process.env.EXPO_PUBLIC_API_URL ??

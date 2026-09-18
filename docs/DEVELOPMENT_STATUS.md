@@ -11,6 +11,10 @@ Phase 6 complete — saved-address pincode discovery, ACTIVE supermarket listing
 weekly OPEN/CLOSED status, selected-store category/product browsing, and
 read-only product detail are implemented. Cart and ordering remain deferred.
 
+Phase 7 complete — one-store persistent carts, explicit store switching,
+server-derived totals, saved-address selection, and COD checkout validation are
+implemented. Order creation and lifecycle remain deferred to Phase 8.
+
 Supabase credentials were not available in the environment, so the live
 Supabase connection, authenticated integration tests, and migration
 application were not run. Local typechecks, builds, route startup, protected
