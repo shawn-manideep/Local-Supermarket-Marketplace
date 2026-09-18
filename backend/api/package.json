@@ -8,7 +8,7 @@
     "build": "pnpm --filter @workspace/validation run build && pnpm --filter @workspace/db run build && tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm --filter @workspace/validation run build && tsx --test src/store-management/*.test.ts src/catalog-management/*.test.ts src/customer-management/*.test.ts src/customer-marketplace/*.test.ts src/customer-cart/*.test.ts"
+    "test": "pnpm --filter @workspace/validation run build && tsx --test src/store-management/*.test.ts src/catalog-management/*.test.ts src/customer-management/*.test.ts src/customer-marketplace/*.test.ts src/customer-cart/*.test.ts src/orders/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

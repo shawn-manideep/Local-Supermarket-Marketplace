@@ -61,3 +61,26 @@ one customer and one supermarket; item products must belong to that store.
 Cross-store adds require confirmation and preserve the previous cart as
 ABANDONED. Checkout is validation-only: it prepares current COD totals and an
 owned saved-address snapshot candidate, without writing any order table.
+
+## Phase 8 order boundary
+
+Order creation is a cart-to-order conversion boundary. The API revalidates all
+customer, address, store, catalog, stock, minimum-order, and financial values
+against current rows rather than trusting the Phase 7 cart's earlier values.
+Creation, order-item insertion, initial `PLACED` history, and `CONVERTED` cart
+update run in one PostgreSQL `SERIALIZABLE` transaction. A per-customer
+advisory transaction lock and row locks serialize competing checkout requests.
+The implementation intentionally does not reserve or deduct stock.
+
+Orders own immutable-at-creation financial, delivery-address/contact, and
+product identity/name/price snapshots. Their customer and store ownership
+identity cannot be changed. Status changes are a legal state machine and every
+change appends a status-history row. Vendor actions derive store ownership from
+the authenticated vendor. The initial delivery foundation is `vendor_staff`;
+COD is recorded as unpaid at placement. Commission is calculated over bigint
+cents with half-up rounding, using an explicit `0.00%` fallback when no
+previous platform default exists.
+
+Phase 8 does not add payment, settlement, inventory, delivery-partner,
+notification, reporting, or production deployment architecture. Those remain
+future work.

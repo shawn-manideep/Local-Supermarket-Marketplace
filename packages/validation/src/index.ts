@@ -313,3 +313,17 @@ export const customerCheckoutValidationSchema = z.object({
   addressId: z.string().uuid(),
   paymentMethod: z.literal("COD"),
 }).strict();
+
+export const customerOrderCreateSchema = z.object({
+  addressId: z.string().uuid(),
+  paymentMethod: z.literal("COD"),
+}).strict();
+
+export const customerOrderIdParamSchema = z.object({
+  orderId: z.string().uuid(),
+}).strict();
+
+export const vendorOrderActionSchema = z.object({
+  action: z.enum(["ACCEPT", "PREPARE", "READY", "OUT_FOR_DELIVERY", "DELIVER", "REJECT"]),
+  note: z.string().trim().max(500).optional(),
+}).strict();

@@ -4,7 +4,7 @@ import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api"
 
 const colors = { bg:"#F8F6EF", card:"#FFFFFF", ink:"#17352B", muted:"#61736C", accent:"#E85D3F", line:"#DDE5DF", danger:"#A53D31" };
 
-export function CartScreen({ openAddresses }: { openAddresses: () => void }) {
+export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void }) {
   const [cart, setCart] = useState<CustomerCart | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
@@ -39,10 +39,9 @@ export function CartScreen({ openAddresses }: { openAddresses: () => void }) {
     if (!addressId) { setMessage("Select or add a delivery address."); return; }
     setLoading(true); setMessage("");
     try {
-      await customerApi("/api/customer/checkout/validate", { method:"POST", body:JSON.stringify({ addressId, paymentMethod:"COD" }) });
-      setMessage("Checkout validated. Your cart is ready for order creation in the next phase.");
-      await load();
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Checkout validation failed."); }
+      const result = await customerApi<{ order: { id: string } }>("/api/customer/orders", { method:"POST", body:JSON.stringify({ addressId, paymentMethod:"COD" }) });
+      onOrderPlaced(result.order.id);
+    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to place order."); }
     finally { setLoading(false); }
   };
 
@@ -61,7 +60,7 @@ export function CartScreen({ openAddresses }: { openAddresses: () => void }) {
     <View style={styles.card}><Text style={styles.title}>Payment method</Text><Text style={styles.body}>Cash on Delivery (COD)</Text></View>
     {!cart.checkoutReady && <Text style={styles.error}>Resolve unavailable items or meet the minimum order value before checkout.</Text>}
     {!!message && <Text style={styles.body}>{message}</Text>}
-    <Pressable disabled={!cart.checkoutReady || !addressId} onPress={() => void validate()} style={[styles.primary,(!cart.checkoutReady||!addressId)&&styles.disabled]}><Text style={styles.primaryText}>Validate checkout</Text></Pressable>
+     <Pressable disabled={!cart.checkoutReady || !addressId} onPress={() => void validate()} style={[styles.primary,(!cart.checkoutReady||!addressId)&&styles.disabled]}><Text style={styles.primaryText}>Place order · COD</Text></Pressable>
     <Pressable onPress={clear}><Text style={styles.remove}>Clear cart</Text></Pressable>
   </ScrollView>;
 }

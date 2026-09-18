@@ -210,3 +210,78 @@ Checkout validation accepts only `{ "addressId": "<uuid>", "paymentMethod":
 "COD" }`. It revalidates ownership, store status/service area, products, stock,
 minimum order, fee, and totals. It returns prepared checkout data but does not
 create an order or mark the cart CONVERTED.
+
+## Phase 8 customer orders
+
+All order routes require the `customer` role. Customer ownership is always
+derived from the authenticated user; a client cannot provide `customerId`,
+`storeId`, prices, totals, fees, commission, or delivery snapshots.
+
+- `POST /api/customer/orders`
+- `GET /api/customer/orders`
+- `GET /api/customer/orders/:orderId`
+- `POST /api/customer/orders/:orderId/cancel`
+
+Order creation accepts the same strict body as checkout validation:
+
+```json
+{ "addressId": "<uuid>", "paymentMethod": "COD" }
+```
+
+Creation performs current-value revalidation inside one READ COMMITTED
+transaction after taking the per-customer advisory lock. It then locks the
+customer's active cart, address, store, cart items,
+and products; verifies address ownership and service coverage, ACTIVE store
+status, product/store/category relationships, active and available products,
+stock, and the current minimum order value; then computes subtotal, delivery
+fee, and total from current database values. The address, contact details,
+product names/prices, fee, and commission are stored as order-time snapshots.
+Successful creation returns `201` with the order, items, and status history.
+The active cart is converted to `CONVERTED` only in that same transaction.
+There is no stock deduction or reservation.
+
+The list endpoint returns customer-owned order summaries. The detail endpoint
+returns only a customer-owned order and its immutable item and status-history
+records. A customer may cancel only an order in `PLACED`; cancellation returns
+the updated order and appends a `CANCELLED` history entry. Missing orders return
+`404`; stale or illegal operations return `409`.
+
+## Phase 8 vendor orders
+
+Both routes require the `vendor` role and derive the store from the
+authenticated vendor (never from a client-supplied store ID):
+
+- `GET /api/vendor/orders`
+- `POST /api/vendor/orders/:orderId/actions`
+
+The list is scoped to the vendor's store. The action body is:
+
+```json
+{ "action": "ACCEPT", "note": "Optional note, up to 500 characters" }
+```
+
+`action` must be one of `ACCEPT`, `PREPARE`, `READY`, `OUT_FOR_DELIVERY`,
+`DELIVER`, or `REJECT`. Legal transitions are respectively
+`PLACED→ACCEPTED`, `ACCEPTED→PREPARING`, `PREPARING→READY`,
+`READY→OUT_FOR_DELIVERY`, `OUT_FOR_DELIVERY→DELIVERED`, and
+`PLACED→REJECTED`. Each action is ownership-checked, serialized, and appends
+history; an illegal transition returns `409`.
+
+Orders currently use `vendor_staff` delivery and `COD`. COD remains unpaid at
+placement; payment capture, settlement, delivery-partner integration, and
+other payment methods are not implemented. Orders may be created outside
+operating hours; operating hours remain a discovery signal rather than a new
+checkout restriction.
+
+All money is represented in API responses as decimal strings from database
+numeric values, but calculations use bigint integer cents. Commission uses
+half-up rounding. When a store has no commission rate, the explicit fallback
+is `0.00%` because no prior platform-default configuration exists; both the
+effective rate and calculated amount are snapshotted.
+
+## Phase 9+ and production exclusions
+
+Inventory reservation/deduction, payments, refunds, settlement, invoices,
+delivery partners, notifications, scheduled jobs, promotions, taxes,
+multi-store orders, order editing, ratings, analytics, and production
+deployment are not part of Phase 8.

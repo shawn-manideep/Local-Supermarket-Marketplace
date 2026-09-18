@@ -66,3 +66,39 @@ migration:
 
 There is no global product/category master and no `store_products` table. Two
 stores selling the same item retain separate product records.
+
+## Phase 8 order data and integrity
+
+`orders` belongs to exactly one customer and store and stores:
+
+- `status`, `delivery_type` (currently `vendor_staff`), and `payment_method`
+  (currently `COD`);
+- bigint-cent-derived `subtotal`, `delivery_fee_snapshot`, and `total_amount`;
+- `commission_rate_snapshot` and `commission_amount_snapshot`;
+- delivery address JSON plus contact snapshots and timestamps.
+
+`order_items` retains product identity (where available), product name and
+price snapshots, quantity, and line subtotal. `order_status_history` is an
+append-only event stream with status, optional note, actor, and timestamp.
+Orders start `PLACED`; the legal lifecycle is
+`PLACED→ACCEPTED→PREPARING→READY→OUT_FOR_DELIVERY→DELIVERED`, with
+`PLACED→REJECTED` and customer `PLACED→CANCELLED` terminal branches.
+
+Order creation converts the source `ACTIVE` cart to `CONVERTED` in the same
+READ COMMITTED transaction, after a per-customer advisory lock, as order and
+history insertion. Current product
+prices, availability, stock, store status/service coverage, address
+ownership, and minimum order are revalidated at that boundary. No stock
+deduction or reservation columns/ledger are introduced. COD has no payment
+capture at placement. Commission calculations use integer cents and half-up
+rounding; a missing store rate snapshots the explicit `0.00%` fallback because
+no previous platform default configuration exists.
+
+Migration `0003_harden_order_history.sql` hardens these invariants by making
+status history update/delete-protected and revoking direct history writes from
+`anon` and `authenticated`. It also revokes direct public order/order-item
+writes and removes the broad admin mutation policy while preserving authorized
+reads. It
+prevents changing order customer/store identity or order-item order/product
+identity. Historical snapshots and history are therefore not rewritten as
+current catalog, address, ownership, or status data changes.

@@ -5,6 +5,7 @@ import { customerMarketplaceRouter } from "./customer-marketplace/index.js";
 import { customerCartRouter } from "./customer-cart/index.js";
 import { HttpError } from "./http.js";
 import { storeManagementRouter } from "./store-management/index.js";
+import { ordersRouter } from "./orders/index.js";
 
 function isMalformedJsonError(error: unknown) {
   return (
@@ -32,6 +33,7 @@ export function createApp() {
   app.use(customerManagementRouter);
   app.use(customerMarketplaceRouter);
   app.use(customerCartRouter);
+  app.use(ordersRouter);
 
   app.use(
     (

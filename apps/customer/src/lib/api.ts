@@ -82,6 +82,51 @@ export interface CustomerCart {
   checkoutReady: boolean;
 }
 
+export type CustomerOrderStatus = "PLACED" | "ACCEPTED" | "PREPARING" | "READY" | "OUT_FOR_DELIVERY" | "DELIVERED" | "REJECTED" | "CANCELLED";
+export interface CustomerOrderSummary {
+  id: string;
+  storeId: string;
+  storeName: string;
+  status: CustomerOrderStatus;
+  totalAmount: string;
+  createdAt: string;
+}
+export interface CustomerOrderItem {
+  id: string;
+  productNameSnapshot: string;
+  productPriceSnapshot: string;
+  quantity: number;
+  subtotal: string;
+}
+export interface CustomerOrderStatusHistory {
+  id: string;
+  status: CustomerOrderStatus;
+  note: string | null;
+  createdAt: string;
+}
+export interface CustomerOrderAddressSnapshot {
+  label: string | null;
+  recipientName: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+}
+export interface CustomerOrderDetail extends CustomerOrderSummary {
+  items: CustomerOrderItem[];
+  subtotal: string;
+  deliveryFeeSnapshot: string;
+  deliveryAddressSnapshot: CustomerOrderAddressSnapshot;
+  paymentMethod: "COD";
+  deliveryType: string;
+  deliveryContactName: string;
+  deliveryContactPhone: string;
+  statusHistory: CustomerOrderStatusHistory[];
+  updatedAt: string;
+}
+
 const domain = process.env.EXPO_PUBLIC_DOMAIN;
 const apiUrl = (
   process.env.EXPO_PUBLIC_API_URL ??

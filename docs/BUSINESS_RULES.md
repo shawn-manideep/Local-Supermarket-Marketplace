@@ -118,3 +118,45 @@ Arbitrary status updates are not exposed.
 - Checkout preparation is allowed outside store operating hours; OPEN/CLOSED is
   shown for discovery but is not a newly invented checkout restriction.
 - Validation does not create an order or convert the cart.
+
+## Phase 8 order creation and conversion
+
+- Order creation accepts only an owned saved address and `COD`; customer and
+  store ownership are derived from authentication and cart rows.
+- The server revalidates current store ACTIVE status and address service area,
+  product ownership/category relationships, active/available state, stock,
+  minimum order, prices, delivery fee, and totals during creation.
+- Creation is one READ COMMITTED transaction: it first takes the per-customer
+  advisory transaction lock, then locks the customer's active
+  cart and relevant rows, inserts the order, items, and initial history, and
+  converts the cart. Concurrent checkout attempts cannot create duplicate
+  conversions. Stock is neither deducted nor reserved.
+- Orders preserve delivery address/contact, product name/price, fee, subtotal,
+  total, and commission snapshots. Later edits to reusable addresses,
+  catalog values, store values, or commission cannot rewrite history.
+- Financial calculations use bigint integer cents. Commission is half-up
+  rounded. If no store commission exists, the effective rate is explicitly
+  `0.00%`: there is no prior platform default configuration to consult.
+- COD is unpaid at placement. The current delivery foundation is
+  `vendor_staff`; payment capture, refunds, settlement, and external delivery
+  partners are excluded.
+- Order creation is allowed outside store operating hours. Hours affect
+  discovery status but do not add an order-time restriction.
+
+## Order lifecycle, ownership, and history
+
+- Customers may list and view only their own orders and may cancel only
+  `PLACED` orders.
+- Vendors may list and mutate only orders belonging to their authenticated
+  store. Vendor actions are `ACCEPT`, `PREPARE`, `READY`, `OUT_FOR_DELIVERY`,
+  `DELIVER`, and `REJECT`, with only the legal transitions documented in the
+  API specification.
+- Every transition appends history; arbitrary status writes are not exposed.
+  History is append-only, and order/customer/store and order-item identity are
+  immutable.
+
+## Phase 9+ and production exclusions
+
+Inventory reservation/deduction, payment processing, refunds, settlement,
+invoicing, partner delivery, notifications, promotions, taxes, order editing,
+ratings, analytics, and production deployment are not Phase 8 behavior.

@@ -1,0 +1,1451 @@
+PHASE 8 — ORDER LIFECYCLE
+
+Implement ONLY Phase 8: Order Lifecycle.
+
+The locked Master Product & Architecture Blueprint v1.1, the approved Phase 2 implementation, approved Phase 3 implementation, approved Phase 4 implementation, approved Phase 5 implementation, approved Phase 6 implementation, and approved Phase 7 implementation are the source of truth.
+
+IMPORTANT WORKFLOW:
+- Continue development entirely in Replit.
+- Do NOT push to GitHub yet.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT configure production Supabase.
+- Production setup remains deferred to Phase 12.
+- Inspect the existing codebase before making changes.
+- Preserve all Phase 1–7 functionality.
+- Do not rewrite the architecture.
+- Do not replace Expo, React Native, TypeScript, Supabase Auth, Express, PostgreSQL, Drizzle, Zod, or the existing workspace structure.
+- Do not add unnecessary dependencies.
+- Implement ONLY Phase 8.
+- Do not implement Phase 9+ functionality.
+- Do not build delivery operations yet.
+- Do not implement payment processing.
+
+==================================================
+1. PHASE 8 OBJECTIVE
+==================================================
+
+Implement the actual customer order creation and order lifecycle foundation.
+
+Phase 7 stopped at:
+
+Customer
+  ↓
+ACTIVE CART
+  ↓
+Checkout Validation
+  ↓
+READY TO PLACE ORDER
+
+Phase 8 now implements:
+
+Customer
+  ↓
+Checkout
+  ↓
+PLACE ORDER
+  ↓
+Order Created
+  ↓
+PLACED
+
+Then establish the order lifecycle:
+
+PLACED
+  ↓
+ACCEPTED
+  ↓
+PREPARING
+  ↓
+READY
+  ↓
+OUT_FOR_DELIVERY
+  ↓
+DELIVERED
+
+Exception transitions:
+
+PLACED → REJECTED
+PLACED → CANCELLED
+
+The backend must enforce all legal transitions.
+
+==================================================
+2. EXISTING ORDER MODEL
+==================================================
+
+Reuse the existing Phase 2 tables:
+
+- orders
+- order_items
+- order_status_history
+
+Do not create duplicate order tables.
+
+Preserve the existing architecture.
+
+Orders belong to:
+
+- exactly one customer
+- exactly one store
+
+Order items belong to:
+
+- exactly one order
+- exactly one product
+
+Historical order data must remain independent of current catalog values.
+
+==================================================
+3. ORDER CREATION BOUNDARY
+==================================================
+
+Phase 8 owns order creation.
+
+Phase 8 may insert into:
+
+- orders
+- order_items
+- order_status_history
+
+Phase 8 may transition the cart:
+
+ACTIVE → CONVERTED
+
+ONLY when the order is successfully created.
+
+The entire operation must be atomic.
+
+If order creation fails:
+
+- no partial order
+- no orphan order items
+- cart must remain ACTIVE
+- no incorrect CONVERTED status
+
+Use a PostgreSQL transaction.
+
+==================================================
+4. ORDER CREATION TRANSACTION
+==================================================
+
+Order creation must happen inside a database transaction.
+
+The transaction must revalidate ALL critical values immediately before creating the order.
+
+Do NOT trust the Phase 7 checkout validation result as permanently valid.
+
+Inside the final order-creation transaction revalidate:
+
+1. Authenticated customer identity
+2. Active cart ownership
+3. Cart status
+4. Cart contains at least one item
+5. Cart/store relationship
+6. Store status
+7. Store service-pincode eligibility
+8. Selected customer address ownership
+9. Product existence
+10. Product active state
+11. Product availability
+12. Product/store relationship
+13. Category/store relationship where relevant
+14. Current product prices
+15. Current stock constraints
+16. Current delivery fee
+17. Current minimum order value
+18. Current subtotal
+19. Current total
+20. COD payment mode
+
+Only after all validations pass may the order be inserted.
+
+==================================================
+5. CART LOCKING
+==================================================
+
+Prevent duplicate orders from the same cart caused by concurrent requests.
+
+When placing an order:
+
+- lock the relevant cart row
+- verify it is still ACTIVE
+- lock/revalidate relevant cart items/products as appropriate
+- prevent a second concurrent order from converting the same cart
+
+If one request successfully converts the cart:
+
+ACTIVE → CONVERTED
+
+a second request must fail safely.
+
+Do not create duplicate orders.
+
+Do not use an elaborate distributed locking system.
+
+Use PostgreSQL transactions/row locks appropriately.
+
+==================================================
+6. ORDER STATUS
+==================================================
+
+Existing order statuses:
+
+- PLACED
+- ACCEPTED
+- PREPARING
+- READY
+- OUT_FOR_DELIVERY
+- DELIVERED
+- REJECTED
+- CANCELLED
+
+Do not add additional order statuses unless the existing architecture genuinely requires one.
+
+The initial status when an order is created is:
+
+PLACED
+
+==================================================
+7. STATUS TRANSITIONS
+==================================================
+
+Enforce these transitions:
+
+PLACED → ACCEPTED
+PLACED → REJECTED
+PLACED → CANCELLED
+
+ACCEPTED → PREPARING
+
+PREPARING → READY
+
+READY → OUT_FOR_DELIVERY
+
+OUT_FOR_DELIVERY → DELIVERED
+
+No arbitrary status updates.
+
+Examples that MUST be rejected:
+
+PLACED → DELIVERED
+
+PLACED → PREPARING
+
+ACCEPTED → DELIVERED
+
+DELIVERED → PREPARING
+
+REJECTED → ACCEPTED
+
+CANCELLED → ACCEPTED
+
+DELIVERED → CANCELLED
+
+REJECT any illegal transition.
+
+==================================================
+8. CUSTOMER CANCELLATION
+==================================================
+
+Customer cancellation is allowed ONLY from:
+
+PLACED
+
+A customer cannot cancel:
+
+ACCEPTED
+PREPARING
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+REJECTED
+CANCELLED
+
+When customer cancellation occurs:
+
+PLACED → CANCELLED
+
+Create an order_status_history record.
+
+Do not delete the order.
+
+Do not delete order items.
+
+Do not alter historical snapshots.
+
+==================================================
+9. VENDOR STATUS ACTIONS
+==================================================
+
+Vendor order-processing actions are primarily Phase 9.
+
+However, Phase 8 must establish the backend lifecycle foundation needed for vendor status transitions.
+
+If vendor status transition APIs are implemented in this phase, limit them strictly to:
+
+- ACCEPTED
+- PREPARING
+- READY
+- OUT_FOR_DELIVERY
+- DELIVERED
+- REJECTED
+
+Vendor must only act on orders belonging to the vendor's own store.
+
+Vendor must never update an order belonging to another store.
+
+Do not build the full Phase 9 vendor order-management UI yet.
+
+If possible, keep vendor UI minimal or defer vendor-facing lifecycle UI to Phase 9 while providing the secure backend transition service required by the order lifecycle.
+
+==================================================
+10. WHO CAN PERFORM WHICH ACTION
+==================================================
+
+Customer:
+
+- place own order
+- view own orders
+- view own order details
+- cancel own order only while PLACED
+
+Vendor:
+
+- access orders belonging to own store
+- perform permitted order status transitions
+- reject an order only while PLACED
+
+Admin:
+
+- retain appropriate administrative visibility/control according to existing architecture
+
+Customer MUST NOT:
+
+- change order status
+- accept order
+- reject order
+- mark order prepared
+- mark order ready
+- mark order out for delivery
+- mark order delivered
+
+Vendor MUST NOT:
+
+- access another store's orders
+- change customer identity
+- change order financial snapshots
+- change historical product/price snapshots
+
+==================================================
+11. ORDER OWNERSHIP
+==================================================
+
+Customer order access must derive customer identity from the authenticated Supabase session.
+
+Never trust client-provided:
+
+- customer_id
+- owner ID
+- role
+
+Vendor order access must derive store ownership from authenticated vendor identity.
+
+Never trust client-provided:
+
+- store_id
+- owner_user_id
+
+Admin access must require:
+
+- authenticated user
+- admin role
+- authorized backend operation
+
+==================================================
+12. ORDER CREATION INPUT
+==================================================
+
+The client should submit only the minimum necessary information.
+
+For example:
+
+- cart ID if required
+- selected address ID
+- payment mode = COD
+
+Do NOT accept:
+
+- product prices
+- line subtotals
+- cart subtotal
+- delivery fee
+- total
+- commission
+- product names
+- store ID as an authorization source
+- customer ID
+- order status
+- order timestamps
+- commission rate
+
+All financial and identity values must be derived server-side.
+
+==================================================
+13. PAYMENT
+==================================================
+
+Phase 8 remains COD-only.
+
+The order should record the appropriate COD payment mode/value according to the existing schema.
+
+Do NOT implement:
+
+- Razorpay
+- online payments
+- payment gateway
+- payment intent
+- payment callbacks
+- payment webhooks
+- UPI processing
+- card processing
+- wallet processing
+
+COD means payment processing is deferred.
+
+Do not pretend payment has been collected when an order is placed.
+
+==================================================
+14. ORDER FINANCIAL SNAPSHOTS
+==================================================
+
+At order creation calculate and snapshot:
+
+- subtotal
+- delivery_fee_snapshot
+- total_amount
+- commission_rate_snapshot
+- commission_amount_snapshot
+
+The values must be derived from current authoritative data.
+
+The customer cannot override them.
+
+The vendor cannot modify them after creation.
+
+Historical order financial snapshots must remain immutable.
+
+==================================================
+15. COMMISSION CALCULATION
+==================================================
+
+Use the existing architecture:
+
+stores.commission_rate
+
+If store-specific commission rate is:
+
+NOT NULL
+
+use it.
+
+If store-specific commission rate is:
+
+NULL
+
+use the platform default commission rate according to the existing architecture/configuration.
+
+Snapshot the effective rate into:
+
+commission_rate_snapshot
+
+Calculate:
+
+commission_amount_snapshot
+
+from the order subtotal/appropriate defined commission base according to the existing business rules.
+
+Do NOT implement:
+
+- settlements
+- payouts
+- vendor invoices
+- automated reconciliation
+- payment transfers
+
+Those are future functionality.
+
+==================================================
+16. PRODUCT PRICE SNAPSHOTS
+==================================================
+
+For every order item snapshot:
+
+- product_id where appropriate
+- product name
+- unit price
+- quantity
+- line subtotal
+
+The historical order item must preserve what the customer ordered at order time.
+
+If the product's current name or price later changes:
+
+the historical order must NOT change.
+
+Do not reference current product price to display historical financial meaning.
+
+==================================================
+17. DELIVERY ADDRESS SNAPSHOT
+==================================================
+
+At order creation:
+
+1. Validate selected address belongs to customer.
+2. Validate pincode is served by the store.
+3. Read current address.
+4. Create immutable delivery address snapshot.
+
+The order must preserve its own address snapshot.
+
+If the customer later edits/deletes the reusable address:
+
+the historical order must remain unchanged.
+
+Do not store only a foreign-key reference and assume that is sufficient for historical meaning.
+
+==================================================
+18. DELIVERY FOUNDATION
+==================================================
+
+Preserve the existing order delivery foundation:
+
+delivery_type:
+- vendor_staff
+- platform_partner
+
+MVP:
+
+vendor_staff
+
+Also preserve:
+
+- delivery_contact_name
+- delivery_contact_phone
+
+At order creation:
+
+- default delivery_type to vendor_staff according to existing architecture
+- snapshot relevant delivery contact information where the existing schema supports it
+
+Do NOT build:
+
+- delivery partner system
+- delivery fleet
+- GPS
+- maps
+- live tracking
+- route optimization
+
+Those belong to later phases.
+
+==================================================
+19. ORDER STATUS HISTORY
+==================================================
+
+Every order status transition must create an entry in:
+
+order_status_history
+
+At minimum record:
+
+- order ID
+- previous status where supported
+- new status
+- actor identity where supported
+- timestamp
+- relevant reason/note if supported
+
+When an order is created:
+
+create the initial:
+
+PLACED
+
+history record.
+
+Do not allow a status change without the corresponding history record.
+
+The status history must be append-only.
+
+Do not delete historical status records.
+
+==================================================
+20. REJECTION
+==================================================
+
+Vendor may reject an order ONLY while:
+
+PLACED
+
+Transition:
+
+PLACED → REJECTED
+
+Record status history.
+
+If the existing schema supports a rejection reason/note, validate and store it.
+
+Do not invent an elaborate rejection workflow.
+
+Do not automatically refund because this phase is COD-only.
+
+==================================================
+21. CUSTOMER ORDER HISTORY
+==================================================
+
+Phase 8 should provide the customer with access to their own orders.
+
+Implement:
+
+- list own orders
+- get own order details
+
+Orders should be ordered in a useful deterministic manner, normally newest first.
+
+Customer must never see another customer's order.
+
+Order detail should include appropriate historical information:
+
+- order identifier
+- store identity
+- status
+- status history
+- items
+- item quantities
+- historical item prices
+- subtotal
+- delivery fee
+- total
+- delivery address snapshot
+- payment mode
+- order timestamps
+- delivery information where applicable
+
+Do not expose internal commission information to customers unless the existing architecture explicitly requires it.
+
+==================================================
+22. CUSTOMER ORDER UI
+==================================================
+
+Add a basic customer Orders section.
+
+Customer navigation may now include:
+
+Home
+Cart
+Orders
+Account
+
+Orders screen:
+
+- order list
+- order status
+- store name
+- date/time
+- total
+- empty state
+- loading state
+- error state
+
+Order detail:
+
+- items
+- historical prices
+- quantities
+- subtotal
+- delivery fee
+- total
+- delivery address
+- COD
+- status
+- status history/timeline
+
+Customer cancellation should be available only when status is:
+
+PLACED
+
+Do not add delivery tracking maps.
+
+Do not add live location.
+
+==================================================
+23. ORDER STATUS UI
+==================================================
+
+Display statuses clearly.
+
+Customer-facing labels may be:
+
+PLACED
+ACCEPTED
+PREPARING
+READY
+OUT FOR DELIVERY
+DELIVERED
+REJECTED
+CANCELLED
+
+Do not invent misleading statuses such as:
+
+"Payment Successful"
+
+because payment is COD.
+
+==================================================
+24. ORDER API
+==================================================
+
+Create only Phase 8 order APIs.
+
+Customer:
+
+- POST /api/customer/orders
+- GET /api/customer/orders
+- GET /api/customer/orders/:orderId
+- POST /api/customer/orders/:orderId/cancel
+
+Vendor/admin lifecycle APIs should follow the established API conventions.
+
+Potential vendor actions:
+
+- POST /api/vendor/orders/:orderId/accept
+- POST /api/vendor/orders/:orderId/reject
+- POST /api/vendor/orders/:orderId/preparing
+- POST /api/vendor/orders/:orderId/ready
+- POST /api/vendor/orders/:orderId/out-for-delivery
+- POST /api/vendor/orders/:orderId/delivered
+
+If the project architecture is better served by a single validated status-transition endpoint, use that instead.
+
+Regardless of API shape:
+
+- legal transitions only
+- authenticated actor
+- ownership checks
+- server-side authorization
+- status history
+- transactional update
+
+Do not expose arbitrary status assignment.
+
+==================================================
+25. ORDER CREATION + CART CONVERSION
+==================================================
+
+When order creation succeeds:
+
+Within ONE database transaction:
+
+1. Lock cart.
+2. Revalidate cart.
+3. Revalidate store.
+4. Revalidate address.
+5. Revalidate products.
+6. Recalculate prices.
+7. Recalculate subtotal.
+8. Recalculate delivery fee.
+9. Recalculate total.
+10. Calculate commission.
+11. Insert order.
+12. Insert order items.
+13. Insert initial PLACED status history.
+14. Mark cart CONVERTED.
+15. Commit.
+
+If ANY step fails:
+
+- rollback everything
+- cart remains ACTIVE
+- no partial order exists
+- no partial order items exist
+- no misleading status history exists
+
+==================================================
+26. STOCK HANDLING
+==================================================
+
+Phase 7 validated stock.
+
+Phase 8 must revalidate stock immediately before order creation.
+
+Do NOT silently invent a stock deduction strategy if the existing architecture has not defined one.
+
+However, the order creation transaction must prevent an order from being created when the requested quantity exceeds the current enforceable stock limit.
+
+If stock deduction is implemented because it is necessary for correctness:
+
+- do it atomically
+- never allow negative stock
+- prevent concurrent orders from overselling
+
+Clearly document the chosen behavior.
+
+Do not implement a full inventory system.
+
+==================================================
+27. PRICE CHANGES BETWEEN CHECKOUT AND ORDER
+==================================================
+
+This is critical.
+
+Suppose:
+
+Checkout validation:
+₹100
+
+Then product price changes to:
+₹110
+
+before order creation.
+
+Phase 8 must use the authoritative current price during the final order transaction.
+
+The order should snapshot:
+
+₹110
+
+not trust the old client/checkout value.
+
+The final response must clearly reflect the authoritative order totals.
+
+Do not trust the customer client.
+
+==================================================
+28. DELIVERY FEE CHANGES
+==================================================
+
+Same principle.
+
+If store delivery fee changes after Phase 7 validation:
+
+Phase 8 must use the current authoritative delivery fee when creating the order.
+
+Do not accept a client-supplied delivery fee.
+
+Snapshot the actual fee used.
+
+==================================================
+29. MINIMUM ORDER VALUE
+==================================================
+
+Revalidate:
+
+cart subtotal >= current store min_order_value
+
+immediately before order creation.
+
+If the minimum order requirement has changed:
+
+reject order creation if the cart is now below the current minimum.
+
+Do not trust Phase 7's previous result.
+
+==================================================
+30. STORE STATUS
+==================================================
+
+Revalidate store status during order creation.
+
+Store must still be:
+
+ACTIVE
+
+If store becomes:
+
+SUSPENDED
+REJECTED
+
+before order creation:
+
+reject the order.
+
+Do not create an order against a non-customer-visible store.
+
+==================================================
+31. SERVICE PINCODE
+==================================================
+
+Revalidate selected address pincode against:
+
+store_service_pincodes
+
+during order creation.
+
+If the store no longer serves the address:
+
+reject order creation.
+
+Do not use GPS.
+
+Do not calculate geographic distance.
+
+==================================================
+32. OPERATING HOURS
+==================================================
+
+Preserve the Phase 7 decision:
+
+Checkout preparation was allowed outside operating hours.
+
+Do NOT invent a new restriction in Phase 8 unless the existing business rules explicitly require orders to be placed only while OPEN.
+
+If orders are allowed outside operating hours, preserve that behavior.
+
+Document the behavior.
+
+==================================================
+33. ORDER IDENTIFIER
+==================================================
+
+Use the existing order identifier architecture.
+
+If the database uses UUIDs, preserve that.
+
+If a human-readable order number already exists, preserve/use it.
+
+Do not redesign identifiers unnecessarily.
+
+Customers should have a clear order reference in the UI.
+
+==================================================
+34. ADMIN ACCESS
+==================================================
+
+Admin access should remain protected.
+
+If admin order visibility is implemented:
+
+- require admin role
+- do not allow customer access
+- do not weaken RLS
+
+Do not build a full admin order-management dashboard in Phase 8.
+
+That belongs primarily to Phase 9.
+
+==================================================
+35. VENDOR UI SCOPE
+==================================================
+
+Do NOT build the full vendor order-management dashboard yet.
+
+Phase 9 will handle vendor/admin operational workflows.
+
+Phase 8 may expose secure backend transition services required for the lifecycle.
+
+If minimal vendor UI is necessary to test lifecycle behavior, keep it minimal and clearly document it.
+
+Do not redesign the vendor dashboard.
+
+==================================================
+36. SECURITY
+==================================================
+
+Order security must enforce:
+
+Customer:
+- own orders only
+- own cancellation only
+- cancellation only from PLACED
+
+Vendor:
+- own store orders only
+- valid lifecycle transitions only
+
+Admin:
+- admin-only access
+
+Never trust client-provided:
+
+- customer_id
+- store_id
+- owner_user_id
+- order status
+- prices
+- totals
+- commission
+- delivery fee
+- payment result
+
+All sensitive data is server-derived.
+
+==================================================
+37. RLS
+==================================================
+
+Preserve and extend RLS only where necessary.
+
+Customer:
+
+- SELECT own orders
+- SELECT own order items through own orders
+- SELECT own order status history through own orders
+- permitted cancellation path must remain securely controlled
+
+Vendor:
+
+- access only own-store orders
+- access related order items/history only for own-store orders
+- status mutation must remain authorization-controlled
+
+Admin:
+
+- explicit admin policies
+
+Do not weaken RLS.
+
+If mutation policies are insufficient for lifecycle enforcement, use the backend transaction/service architecture rather than broad unrestricted client writes.
+
+==================================================
+38. HISTORICAL IMMUTABILITY
+==================================================
+
+Preserve Phase 2 protections.
+
+After order creation, customer/vendor clients must NOT be able to change:
+
+- product name snapshot
+- product price snapshot
+- quantity if the architecture treats it as immutable
+- delivery address snapshot
+- delivery fee snapshot
+- subtotal
+- total
+- commission rate snapshot
+- commission amount snapshot
+- order creation timestamp
+- status history records
+
+Only legitimate lifecycle state changes should modify the current order status.
+
+Do not expose generic PATCH /orders/:id.
+
+==================================================
+39. VALIDATION
+==================================================
+
+Use Zod for request validation.
+
+Validate:
+
+- cart ID if submitted
+- address ID
+- payment mode
+- order IDs
+- status action
+- rejection reason if supported
+- UUIDs
+
+Reject:
+
+- unsupported payment mode
+- malformed IDs
+- client financial fields
+- illegal status transitions
+- unauthorized ownership
+- invalid address
+- invalid product state
+
+==================================================
+40. TESTING — ORDER CREATION
+==================================================
+
+Create focused Phase 8 tests.
+
+At minimum test:
+
+ORDER CREATION:
+
+- unauthenticated order creation rejected
+- customer can create order from valid ACTIVE cart
+- empty cart rejected
+- inactive product rejected
+- unavailable product rejected
+- insufficient stock rejected
+- inactive store rejected
+- unsupported pincode rejected
+- invalid address ownership rejected
+- below-minimum cart rejected
+- unsupported payment method rejected
+
+FINANCIAL:
+
+- price is derived server-side
+- client cannot override price
+- subtotal calculated server-side
+- delivery fee calculated server-side
+- total calculated server-side
+- commission calculated server-side
+- commission snapshot stored
+- delivery fee snapshot stored
+- total snapshot stored
+
+SNAPSHOTS:
+
+- product name snapshot created
+- product price snapshot created
+- quantity stored
+- line subtotal stored
+- delivery address snapshot created
+- historical snapshots remain independent
+
+CART CONVERSION:
+
+- successful order converts cart to CONVERTED
+- failed order leaves cart ACTIVE
+- duplicate order attempt cannot create two orders
+- order + order items + history + cart conversion are atomic
+
+==================================================
+41. TESTING — STATUS TRANSITIONS
+==================================================
+
+Test every legal transition:
+
+PLACED → ACCEPTED
+PLACED → REJECTED
+PLACED → CANCELLED
+ACCEPTED → PREPARING
+PREPARING → READY
+READY → OUT_FOR_DELIVERY
+OUT_FOR_DELIVERY → DELIVERED
+
+Test illegal transitions including:
+
+PLACED → DELIVERED
+PLACED → PREPARING
+ACCEPTED → DELIVERED
+DELIVERED → PREPARING
+REJECTED → ACCEPTED
+CANCELLED → ACCEPTED
+DELIVERED → CANCELLED
+
+Illegal transitions must be rejected.
+
+==================================================
+42. TESTING — ACTOR AUTHORIZATION
+==================================================
+
+Test:
+
+Customer:
+- can see own orders
+- cannot see another customer's orders
+- can cancel own PLACED order
+- cannot cancel ACCEPTED order
+- cannot change lifecycle status
+
+Vendor:
+- can access own-store orders
+- cannot access another store's orders
+- can perform legal transitions
+- cannot perform illegal transitions
+- cannot modify financial snapshots
+- cannot change customer ownership
+
+Admin:
+- admin protection remains intact
+
+==================================================
+43. TESTING — HISTORICAL IMMUTABILITY
+==================================================
+
+Verify that after order creation:
+
+- changing product price does not change order item price
+- changing product name does not change order item name
+- changing store delivery fee does not change order delivery fee
+- changing customer address does not change order address snapshot
+- changing store commission rate does not change order commission snapshot
+- status history remains append-only
+
+==================================================
+44. CONCURRENCY TESTING
+==================================================
+
+Where practical, test or structurally verify:
+
+- two simultaneous order attempts from one cart cannot create duplicate orders
+- cart conversion is atomic
+- product stock cannot be oversold if stock is enforced
+- simultaneous status updates do not bypass legal transitions
+
+Do not create an elaborate load-testing system.
+
+==================================================
+45. CUSTOMER UI
+==================================================
+
+Implement only the customer order experience required for Phase 8:
+
+- Orders navigation
+- Order list
+- Order detail
+- Place Order action from cart/checkout
+- Order success state
+- Order status display
+- Status history
+- Cancel Order when PLACED
+- Loading states
+- Error states
+- Empty order state
+
+Do NOT implement:
+
+- vendor order dashboard
+- admin order dashboard
+- delivery tracking
+- live maps
+- payment processing
+
+==================================================
+46. ORDER SUCCESS
+==================================================
+
+After successful order creation:
+
+Show:
+
+- order reference
+- store name
+- order status = PLACED
+- total
+- delivery address
+- COD payment method
+
+The cart should no longer appear as the active order cart after successful conversion.
+
+Do not mark payment as completed.
+
+==================================================
+47. FAILURE HANDLING
+==================================================
+
+If order creation fails because:
+
+- product became unavailable
+- price changed
+- stock changed
+- store status changed
+- minimum order changed
+- address no longer served
+- another order already converted the cart
+
+show an understandable customer message.
+
+Do not expose raw database errors.
+
+Do not lose the cart.
+
+The customer should be able to return to the cart and correct the problem.
+
+==================================================
+48. DATABASE CHANGES
+==================================================
+
+First inspect the existing Phase 2 order schema.
+
+Prefer minimal or NO migration.
+
+Only add a migration if genuinely required.
+
+Do not create duplicate order tables.
+
+Do not create:
+
+- payment tables
+- delivery partner tables
+- tracking tables
+- refund tables
+- settlement tables
+- coupon tables
+- loyalty tables
+
+The existing:
+
+- orders
+- order_items
+- order_status_history
+
+must remain the core order model.
+
+==================================================
+49. DOCUMENTATION
+==================================================
+
+Update:
+
+- docs/API_SPECIFICATION.md
+- docs/ARCHITECTURE.md if necessary
+- docs/DATABASE_SCHEMA.md if necessary
+- docs/BUSINESS_RULES.md
+- docs/SECURITY.md
+- docs/DEVELOPMENT_STATUS.md
+- docs/CHANGELOG.md
+
+Document:
+
+- order creation
+- cart conversion
+- transaction requirements
+- snapshots
+- financial calculation
+- commission snapshot
+- delivery snapshot
+- address snapshot
+- order status lifecycle
+- customer cancellation
+- vendor transition authorization
+- historical immutability
+- COD behavior
+- concurrency protections
+
+Do not document Phase 9 operational dashboards as implemented.
+
+==================================================
+50. DEPENDENCY CONTROL
+==================================================
+
+Before adding any dependency:
+
+- inspect existing dependencies
+- reuse existing packages
+- add nothing unless genuinely necessary
+
+Do NOT add:
+
+- payment SDK
+- Razorpay
+- maps
+- GPS
+- delivery SDK
+- Redis
+- search engine
+- analytics
+- alternate auth
+- another state-management library
+
+==================================================
+51. REGRESSION TESTING
+==================================================
+
+Run:
+
+- pnpm install
+- pnpm run typecheck
+- pnpm --filter @workspace/api run test
+- pnpm --filter @workspace/api run build
+- pnpm --filter @workspace/db run check
+- pnpm --filter @workspace/dashboard run build
+- Customer Expo Web startup/check
+- Backend startup/check
+- GET /health
+- git diff --check
+
+Run ALL existing Phase 3–7 tests.
+
+Run all Phase 8 tests.
+
+Ensure no regression in:
+
+- vendor store management
+- category management
+- product management
+- customer authentication
+- customer addresses
+- store discovery
+- catalog
+- cart
+- checkout validation
+
+==================================================
+52. PRODUCTION / DEPLOYMENT
+==================================================
+
+Do NOT:
+
+- configure production Supabase
+- apply production migrations
+- configure Vercel
+- configure Railway
+- push GitHub
+- create production secrets
+- configure Razorpay
+- configure payment gateway
+- configure maps
+- configure delivery services
+- publish mobile apps
+
+Production/deployment remains Phase 12.
+
+==================================================
+53. STRICT PHASE BOUNDARY
+==================================================
+
+DO NOT implement:
+
+- full vendor order-management dashboard
+- full admin order-management dashboard
+- delivery operations
+- delivery partner system
+- GPS
+- live tracking
+- maps
+- online payment
+- refunds
+- coupons
+- discounts
+- loyalty
+- referrals
+- recommendations
+- POS
+- advanced inventory
+- substitutions
+- partial fulfillment
+- weighted products
+- automated settlements
+- multi-city
+
+Those belong to later phases.
+
+==================================================
+54. FINAL REPORT
+==================================================
+
+At the end provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. APIs created
+E. Order creation implementation
+F. Transaction/concurrency behavior
+G. Cart conversion behavior
+H. Order snapshot behavior
+I. Financial/commission behavior
+J. Address/delivery behavior
+K. Status transition implementation
+L. Customer UI changes
+M. Vendor/admin backend changes, if any
+N. Database/migration changes
+O. RLS/security changes
+P. Tests created
+Q. Verification commands and results
+R. Known limitations
+S. Explicit confirmation that Phase 9+ functionality was NOT implemented
+T. Explicit confirmation that NO production Supabase/GitHub/Vercel/Railway setup was performed
+
+STOP after the report.
+
+Do not automatically begin Phase 9.

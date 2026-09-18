@@ -21,8 +21,9 @@ import {
 import { supabase, supabaseConfigured } from "./src/lib/supabase";
 import { MarketplaceScreen } from "./src/MarketplaceScreen";
 import { CartScreen } from "./src/CartScreen";
+import { OrdersScreen } from "./src/OrdersScreen";
 
-type Screen = "home" | "cart" | "account" | "addresses";
+type Screen = "home" | "cart" | "orders" | "account" | "addresses";
 const colors = { bg: "#F8F6EF", card: "#FFFFFF", ink: "#17352B", muted: "#61736C", accent: "#E85D3F", soft: "#E8F1EA", line: "#DDE5DF", danger: "#A53D31" };
 
 function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
@@ -90,7 +91,8 @@ function AddressesScreen() {
 
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
-  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View style={styles.nav}>{(["home","cart","addresses","account"] as Screen[]).map((item) => <Pressable key={item} onPress={() => setScreen(item)} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
+  const [orderId, setOrderId] = useState<string | undefined>();
+  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View style={styles.nav}>{(["home","cart","orders","addresses","account"] as Screen[]).map((item) => <Pressable key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
 }
 
 export default function App() {

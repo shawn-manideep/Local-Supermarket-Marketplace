@@ -108,3 +108,32 @@ service pincode. Direct customer cart mutations are removed from RLS; writes
 must pass through the API so lifecycle, store, stock, and financial invariants
 cannot be bypassed with the public Supabase client. Existing read policies for
 customers, vendors, and admins remain unchanged.
+
+## Phase 8 order authorization and integrity
+
+Customer order creation, listing, detail, and cancellation require the
+`customer` role and scope every query to the authenticated customer. Vendor
+listing and lifecycle actions require `vendor` and derive `storeId` from the
+authenticated vendor context. Client-supplied ownership, prices, totals,
+commission, snapshots, status, and actor fields are not trusted.
+
+Creation revalidates current database values in a READ COMMITTED transaction
+whose first statement takes the same per-customer advisory lock used by cart
+mutations, with row locks covering the cart, address, store, products, and
+relevant relationships. This protects conversion and
+prevents concurrent stale-value orders; it does not reserve or deduct stock.
+Vendor lifecycle actions lock the owned order and accept only the explicit
+legal transition map. Operating hours are not used as an authorization or
+creation gate.
+
+Order delivery/address, contact, item, financial, and commission values are
+snapshotted at creation. Migration 0003 adds database enforcement for
+append-only status history, revokes direct authenticated/anonymous history
+writes, removes broad direct admin order mutation, revokes direct public order
+and order-item writes, preserves authorized SELECT visibility, and blocks
+changes to order and order-item ownership identity. These controls protect
+historical immutability even if current catalog or account data changes.
+
+COD is recorded without payment capture and `vendor_staff` is the current
+delivery type. Payment credentials, settlement, inventory, external delivery,
+notifications, and production deployment are excluded from this phase.
