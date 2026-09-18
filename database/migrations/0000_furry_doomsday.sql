@@ -166,6 +166,7 @@ ALTER TABLE "order_status_history" ADD CONSTRAINT "order_status_history_changed_
 ALTER TABLE "orders" ADD CONSTRAINT "orders_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "categories_store_id_uidx" ON "categories" USING btree ("store_id","id");--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_store_category_fk" FOREIGN KEY ("store_id","category_id") REFERENCES "public"."categories"("store_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "store_operating_hours" ADD CONSTRAINT "store_operating_hours_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "store_service_pincodes" ADD CONSTRAINT "store_service_pincodes_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -175,7 +176,6 @@ CREATE INDEX "cart_items_product_id_idx" ON "cart_items" USING btree ("product_i
 CREATE INDEX "carts_customer_id_idx" ON "carts" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "carts_store_id_idx" ON "carts" USING btree ("store_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "categories_store_name_uidx" ON "categories" USING btree ("store_id","name");--> statement-breakpoint
-CREATE UNIQUE INDEX "categories_store_id_uidx" ON "categories" USING btree ("store_id","id");--> statement-breakpoint
 CREATE INDEX "categories_store_id_idx" ON "categories" USING btree ("store_id");--> statement-breakpoint
 CREATE INDEX "customer_addresses_customer_id_idx" ON "customer_addresses" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "order_items_order_id_idx" ON "order_items" USING btree ("order_id");--> statement-breakpoint

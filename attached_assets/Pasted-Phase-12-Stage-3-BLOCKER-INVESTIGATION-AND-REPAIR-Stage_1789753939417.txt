@@ -1,0 +1,58 @@
+Phase 12 — Stage 3 BLOCKER INVESTIGATION AND REPAIR
+
+Stage 3 is currently BLOCKED at migration 0000_furry_doomsday.sql with PostgreSQL error 42830:
+
+"There is no unique constraint matching given keys for referenced table categories."
+
+Do NOT apply any migrations yet.
+
+Investigate the exact root cause by inspecting:
+
+- database/migrations/0000_furry_doomsday.sql
+- the current Drizzle database schema
+- the intended Phase 0/architecture model for store-owned categories and store-owned products
+
+The locked MVP architecture must remain:
+
+- categories are store-owned
+- products are store-owned
+- there is NO global/shared product entity
+- there is NO store_products table
+- a product's category must belong to the same store
+- vendor/store isolation must remain intact
+
+Determine exactly which foreign-key definition in migration 0000 is causing PostgreSQL 42830 and why the referenced columns do not currently have a matching UNIQUE/PRIMARY KEY constraint.
+
+Then:
+
+1. Propose the smallest correct migration/schema repair that makes the intended relationship valid.
+2. Prefer preserving the existing relational design and store/category ownership enforcement rather than weakening the foreign key.
+3. Do NOT remove the store ownership relationship merely to make the migration pass.
+4. Do NOT create unrelated tables, columns, indexes, policies, or features.
+5. Do NOT change application source code unless the existing schema definition itself is inconsistent with the migration and a synchronized schema correction is genuinely required.
+6. Do NOT apply any migrations yet.
+7. Do NOT create test users, fixtures, or business data.
+8. Do NOT touch production Supabase, GitHub, Vercel, Railway, or publishing.
+9. Do NOT modify migrations 0001–0004.
+10. Since 0000 has never successfully applied remotely, it may be corrected if necessary, but preserve its intended meaning and make the minimum safe change.
+11. Before changing anything, report the exact offending FOREIGN KEY definition and the exact referenced columns.
+12. After determining the repair, update only the necessary local migration/schema files and run static/schema validation.
+13. Do not run the repaired migration against Supabase yet.
+
+Stop after the repair and validation.
+
+Return a report containing:
+
+- exact root cause
+- offending FK definition
+- why PostgreSQL rejected it
+- exact files changed
+- exact minimal repair
+- confirmation that store/category/product ownership semantics remain intact
+- validation results
+- confirmation that remote migration history is still empty
+- confirmation that no database/data write occurred
+- confirmation that 0001–0004 remain unchanged
+- confirmation that production/GitHub/Vercel/Railway remain untouched
+
+Do not proceed to migration execution until I explicitly approve the repair.
