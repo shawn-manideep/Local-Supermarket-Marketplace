@@ -107,5 +107,36 @@ financial, and commission values as immutable historical snapshots. Strict
 request schemas and authenticated context, rather than client store, customer,
 or status fields, determine authority. Phase 9 adds no migration, realtime
 channel, or stock deduction and does not alter customer or catalog flows.
-Phase 10+ features, payments, delivery-partner integration, and deployment
-remain outside the implementation.
+Phase 10 delivery is documented below. Phase 11+ features, payments,
+delivery-partner integration, and deployment remain outside the
+implementation.
+
+## Phase 10 vendor-owned delivery
+
+Phase 10 operationalizes the existing order lifecycle rather than creating a
+delivery subsystem. The MVP delivery model is `vendor_staff`: the supermarket
+uses its own staff, and the authoritative transitions remain `READY` →
+`OUT_FOR_DELIVERY` → `DELIVERED`. Vendor actions continue through
+`POST /api/vendor/orders/:orderId/actions`; no parallel delivery endpoint,
+delivery order, or delivery state machine exists.
+
+The vendor dashboard adds a focused queue/filter for `READY`,
+`OUT_FOR_DELIVERY`, and `DELIVERED`. Vendor detail uses immutable order
+snapshots for recipient/contact, full address (including city, state, and
+pincode), delivery type, reference, item count, totals, status, and history.
+Customer detail presents a customer-friendly Vendor Delivery label and the
+existing append-only status timeline. Admin order oversight remains read-only
+and can see delivery fields and history.
+
+Delivery actions use the existing order lock and legal transition map:
+`OUT_FOR_DELIVERY` moves `READY` to `OUT_FOR_DELIVERY`, and `DELIVER` moves
+`OUT_FOR_DELIVERY` to `DELIVERED`. Stale or duplicate actions are rejected
+with the existing conflict behavior, preventing duplicate history; delivered
+orders cannot reopen. Delivery does not mutate address/contact snapshots,
+delivery fee, subtotal, total, catalog data, or payment state. COD remains
+unpaid at placement.
+
+No schema migration is required. There are no GPS/maps, location tracking,
+delivery partners or agents, separate delivery application, realtime,
+notifications, payment processing, or stock changes in Phase 10. The
+`platform_partner` value remains future extensibility only.

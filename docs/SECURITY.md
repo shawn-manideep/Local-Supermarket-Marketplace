@@ -159,3 +159,28 @@ the dashboard refreshes detail/list state rather than trusting stale client
 state. Order and history protections continue to preserve immutable historical
 values. Phase 9 requires no migration and adds no realtime channel or stock
 deduction; existing customer/catalog isolation remains in force.
+
+## Phase 10 delivery authorization and privacy
+
+Vendor delivery actions reuse `POST /api/vendor/orders/:orderId/actions` and
+the existing authenticated vendor store scope. The backend never trusts a
+client-supplied store ID, status, actor, recipient, address, fee, or total.
+Only the owning vendor may move its order from `READY` to
+`OUT_FOR_DELIVERY`, or from `OUT_FOR_DELIVERY` to `DELIVERED`; customers have
+no action authority and admins have no lifecycle bypass. The existing
+transactional order lock rejects stale, duplicate, illegal, and concurrent
+actions with the established `409 Conflict` behavior, so history cannot be
+duplicated or silently overwritten.
+
+Vendor reads expose only delivery information necessary for orders belonging
+to the vendor's own store. Customer reads remain scoped to that customer's
+orders, while admin reads retain authorized platform visibility. Recipient,
+contact, full address, delivery type, delivery fee, subtotal, total, item, and
+commission values are order-time snapshots protected by the existing
+immutability controls; delivery actions do not update them or consult mutable
+customer addresses.
+
+`vendor_staff` and COD are the only operational MVP assumptions. There are no
+public delivery writes, partner/agent accounts, GPS/maps/location tracking,
+realtime channels, notifications, payment capture, or stock changes. Phase 10
+requires no migration and does not weaken RLS.

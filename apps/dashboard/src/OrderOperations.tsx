@@ -12,6 +12,7 @@ const statuses: Array<OrderStatus | "ALL"> = ["ALL", "PLACED", "ACCEPTED", "PREP
 const money = (value: string | number) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 const statusLabel = (value: string) => value.replaceAll("_", " ");
+const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor delivery" : "Platform partner";
 
 function SummaryTiles({ counts }: { counts: Record<string, number> }) {
   return (
@@ -52,8 +53,9 @@ function Detail({ detail, vendor, busy, onAction, onClose }: {
             <div><dt>Status</dt><dd><span className={`status status-${detail.status.toLowerCase()}`}>{statusLabel(detail.status)}</span></dd></div>
             <div><dt>Store</dt><dd>{detail.storeName}</dd></div>
             <div><dt>Customer</dt><dd>{detail.deliveryContactName}</dd></div>
-            <div><dt>Contact</dt><dd>{detail.deliveryContactPhone}</dd></div>
+            <div><dt>Contact</dt><dd><a href={`tel:${detail.deliveryContactPhone}`}>{detail.deliveryContactPhone}</a></dd></div>
             <div><dt>Payment</dt><dd>{detail.paymentMethod}</dd></div>
+            <div><dt>Delivery type</dt><dd>{deliveryLabel(detail.deliveryType)}</dd></div>
             <div><dt>Delivery address</dt><dd>{detail.deliveryAddressSnapshot.line1}{detail.deliveryAddressSnapshot.line2 ? `, ${detail.deliveryAddressSnapshot.line2}` : ""}, {detail.deliveryAddressSnapshot.city}, {detail.deliveryAddressSnapshot.state} {detail.deliveryAddressSnapshot.pincode}</dd></div>
             <div><dt>Items</dt><dd>{detail.items.reduce((sum, item) => sum + item.quantity, 0)}</dd></div>
           </dl>
@@ -137,6 +139,13 @@ export function OrderOperations({ token, vendor, stores = [], storeId, onMessage
     <section className="order-section">
       <div className="section-heading"><div><p className="eyebrow">{vendor ? "Vendor operations" : "Platform operations"}</p><h2>{vendor ? "Orders in motion" : "Order oversight"}</h2><p className="muted">{vendor ? "Review the newest orders and move each one forward with confidence." : "Read-only platform visibility across every store and order."}</p></div><button className="secondary-button" data-testid="button-refresh-orders" disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders"}</button></div>
       <SummaryTiles counts={counts} />
+      {vendor && <div className="delivery-queue" aria-label="Delivery queue">
+        <div><p className="eyebrow">Delivery queue</p><strong>Vendor-owned delivery</strong></div>
+        {(["READY", "OUT_FOR_DELIVERY", "DELIVERED"] as const).map((deliveryStatus) =>
+          <button className={status === deliveryStatus ? "active" : ""} key={deliveryStatus} onClick={() => { setStatus(deliveryStatus); setPage(1); }}>
+            <span>{statusLabel(deliveryStatus)}</span><strong>{counts[deliveryStatus] ?? 0}</strong>
+          </button>)}
+      </div>}
       <div className="card">
         <div className="order-toolbar"><div className="order-filters">
           <label>Status<select data-testid="select-order-status" onChange={(event) => { setStatus(event.target.value); setPage(1); }} value={status}>{statuses.map((item) => <option key={item} value={item}>{item === "ALL" ? "All statuses" : statusLabel(item)}</option>)}</select></label>

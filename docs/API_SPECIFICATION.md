@@ -327,6 +327,49 @@ Phase 9 adds no schema migration, realtime transport, or stock deduction.
 Inventory reservation/deduction, payments, refunds, settlement, invoices,
 delivery partners, notifications, scheduled jobs, promotions, taxes,
 multi-store orders, order editing, ratings, analytics, and production
-deployment are not part of Phase 9. Phase 10 and later functionality is not
-implemented. Existing customer and catalog behavior is preserved; realtime
-updates are not implemented.
+deployment are not part of Phase 9. Phase 10 delivery is documented below;
+other later functionality is not implemented. Existing customer and catalog
+behavior is preserved; realtime updates are not implemented.
+
+## Phase 10 vendor-owned delivery
+
+Phase 10 reuses the existing vendor lifecycle API; no delivery-specific
+endpoint is introduced:
+
+- `POST /api/vendor/orders/:orderId/actions`
+
+The action body continues to use the existing `action` and optional `note`
+fields. For delivery, the supported actions and transitions are:
+
+- `{"action":"OUT_FOR_DELIVERY"}`: `READY` → `OUT_FOR_DELIVERY`
+- `{"action":"DELIVER"}`: `OUT_FOR_DELIVERY` → `DELIVERED`
+
+The route requires the `vendor` role, derives the store from the authenticated
+vendor, and permits actions only for orders belonging to that store. It uses
+the existing locked lifecycle transaction and append-only status history.
+Illegal, duplicate, or stale actions return `409 Conflict`; clients must
+refresh the current detail and queue rather than treating a stale action as
+successful. `DELIVERED` is terminal. Customers have no delivery-action route,
+and admins retain read-only order access.
+
+Vendor order list/detail responses expose the delivery information needed for
+fulfilment from immutable order-time snapshots: recipient/contact name and
+phone, full address including city, state, and pincode, `deliveryType`,
+order reference, item count, totals, current status, and status history.
+Vendor filtering supports the delivery queue statuses `READY`,
+`OUT_FOR_DELIVERY`, and `DELIVERED` alongside existing filters. Customer order
+detail exposes the same order-owned delivery/contact/address information and
+history, with `vendor_staff` presented as the customer-friendly **Vendor
+Delivery** label. Admin order list/detail remains platform-wide, read-only
+visibility of delivery type, status, contact, address, and history.
+
+For this MVP, orders use `delivery_type: vendor_staff` and COD. The
+`delivery_fee_snapshot`, subtotal, total, delivery contact, and address
+snapshots are not recalculated or changed during delivery. There is no
+payment capture or payment-success state. `platform_partner` remains future
+extensibility only and has no operational API.
+
+Phase 10 adds no migration, new delivery table, separate delivery order,
+delivery lifecycle, GPS/maps/location service, partner/agent system, realtime
+transport, notifications, payment integration, or stock
+reservation/deduction. Simple refresh/refetch remains sufficient.

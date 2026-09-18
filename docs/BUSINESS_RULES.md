@@ -183,4 +183,41 @@ Arbitrary status updates are not exposed.
 Inventory reservation/deduction, payment processing, refunds, settlement,
 invoicing, partner delivery, notifications, promotions, taxes, order editing,
 ratings, analytics, and production deployment are not Phase 9 behavior.
-Phase 10+ functionality is not implemented.
+Phase 10 delivery is documented below. Phase 11+ functionality is not
+implemented.
+
+## Phase 10 vendor-owned delivery
+
+- The MVP delivery type is `vendor_staff`; the vendor is responsible for
+  delivery with its own staff. `platform_partner` remains future
+  extensibility and is not operational.
+- Delivery is part of the existing order lifecycle, not a separate delivery
+  lifecycle or order. The legal delivery transitions are `READY` →
+  `OUT_FOR_DELIVERY` and `OUT_FOR_DELIVERY` → `DELIVERED`.
+- Vendors may perform those transitions only on orders belonging to their
+  authenticated store. Customers cannot perform delivery actions, and admins
+  retain read-only oversight rather than bypassing lifecycle rules.
+- Both delivery transitions use `POST /api/vendor/orders/:orderId/actions`,
+  the existing lifecycle service, order locking, and append-only status
+  history. Illegal, duplicate, or stale actions are rejected safely; the
+  delivered state is terminal and cannot reopen.
+- The vendor delivery queue makes `READY`, `OUT_FOR_DELIVERY`, and `DELIVERED`
+  orders easy to filter. Vendor fulfilment views show only information needed
+  for the vendor's own orders: recipient/contact, immutable full address,
+  pincode, reference, item count, delivery type, total, current status, and
+  history.
+- Customers see only their own delivery information and status history.
+  `vendor_staff` is presented as **Vendor Delivery**, not unexplained internal
+  terminology. Admins may see delivery type, status, contact, address, and
+  history platform-wide under the existing admin role.
+- Recipient/contact/address values and delivery fee, subtotal, and total are
+  immutable order-time snapshots. Delivery actions never read mutable address
+  data for historical fulfilment, recalculate fees, change financial values,
+  or alter catalog data.
+- Delivery remains COD and unpaid at placement. Phase 10 adds no payment
+  capture, payment-success state, surcharge, distance pricing, or stock
+  reservation/deduction.
+- Pincode and the stored address are the only delivery-location mechanisms.
+  GPS, maps, live location, route calculation, delivery partners/agents,
+  proof of delivery, realtime, and notifications are out of scope.
+- No new delivery table, endpoint, migration, or dependency is needed.

@@ -73,6 +73,21 @@ test("Phase 9 routes use bounded deterministic reads and no generic order patch"
   assert.doesNotMatch(vendorAction, /commissionRateSnapshot|commissionAmountSnapshot|customerId/);
 });
 
+test("Phase 10 reuses lifecycle delivery actions and immutable delivery UI fields", async () => {
+  const [dashboard, customer] = await Promise.all([
+    readFile(new URL("../../../../apps/dashboard/src/OrderOperations.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../../../../apps/customer/src/OrdersScreen.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.deepEqual(LEGAL_ORDER_TRANSITIONS.OUT_FOR_DELIVERY, { READY: "OUT_FOR_DELIVERY" });
+  assert.deepEqual(LEGAL_ORDER_TRANSITIONS.DELIVER, { OUT_FOR_DELIVERY: "DELIVERED" });
+  assert.match(dashboard, /\["READY", "OUT_FOR_DELIVERY", "DELIVERED"\]/);
+  assert.match(dashboard, /deliveryAddressSnapshot\.line1/);
+  assert.match(dashboard, /deliveryContactPhone/);
+  assert.match(dashboard, /Vendor delivery/);
+  assert.match(customer, /Vendor Delivery/);
+  assert.doesNotMatch(`${dashboard}\n${customer}`, /Google Maps|Mapbox|navigator\.geolocation|WebSocket|delivery agent/i);
+});
+
 test("order inputs reject client-owned and unsupported values", () => {
   const addressId = crypto.randomUUID();
   assert.equal(

@@ -32,9 +32,25 @@ exposes commission rate and amount snapshots only to admins. Historical order
 values remain immutable; no migration, realtime behavior, or stock deduction
 was added, and customer/catalog behavior is preserved.
 
-Phase 10+ and production exclusions remain: payment capture, refunds,
+Phase 11+ and production exclusions remain: payment capture, refunds,
 settlement, inventory reservation/deduction, delivery partners, notifications,
 promotions/taxes, reporting, and deployment. These are not implemented.
+
+Phase 10 complete — vendor-owned delivery is operationalized through the
+existing order lifecycle and `POST /api/vendor/orders/:orderId/actions`.
+Owning vendors can move `READY` orders to `OUT_FOR_DELIVERY` and
+`OUT_FOR_DELIVERY` orders to terminal `DELIVERED`, with existing locking,
+stale/duplicate conflict handling, and append-only history. The vendor
+dashboard provides a READY/out-for-delivery/delivered queue; customer detail
+shows a Vendor Delivery label and delivery status history; admin order
+oversight includes delivery visibility. Recipient/contact/address, delivery
+fee, subtotal, and total remain immutable snapshots. No migration or new
+endpoint was added.
+
+Phase 10 intentionally does not add GPS/maps, live tracking, delivery
+partners/agents, realtime, notifications, payment processing, or stock
+reservation/deduction. Delivery remains `vendor_staff` and COD unpaid at
+placement. No Phase 11 or later functionality was implemented.
 
 Supabase credentials were not available in the environment. Consequently,
 credential-backed live integration tests, migration application, and deployment

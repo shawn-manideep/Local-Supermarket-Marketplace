@@ -1,0 +1,910 @@
+PHASE 10 — VENDOR-OWNED DELIVERY
+
+Implement ONLY Phase 10: Vendor-Owned Delivery.
+
+The locked Master Product & Architecture Blueprint v1.1 and all approved Phase 1–9 implementations are the source of truth.
+
+PHASE 9 IS APPROVED AND COMPLETE.
+
+IMPORTANT:
+- Do NOT redo Phase 8.
+- Do NOT redo Phase 9.
+- Do NOT redesign the order lifecycle.
+- Do NOT change the locked product architecture.
+- Do NOT introduce global products.
+- Do NOT create store_products.
+- Do NOT change authentication architecture.
+- Do NOT configure production Supabase.
+- Do NOT push to GitHub.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT implement online payments.
+- Do NOT implement Razorpay.
+- Do NOT implement delivery partners.
+- Do NOT implement GPS.
+- Do NOT implement maps.
+- Do NOT implement live location tracking.
+- Do NOT implement route optimization.
+- Do NOT implement a separate delivery application.
+- Do NOT implement advanced inventory.
+- Do NOT implement stock reservation/deduction.
+- Do NOT start Phase 11.
+- Do NOT start Phase 12.
+
+Continue entirely in Replit.
+
+Inspect the existing codebase before making changes.
+
+Preserve all Phase 1–9 functionality.
+
+==================================================
+1. PHASE 10 OBJECTIVE
+==================================================
+
+Operationalize the MVP vendor-owned delivery model.
+
+The MVP delivery model is:
+
+delivery_type = vendor_staff
+
+The supermarket/vendor is responsible for delivery using its own staff.
+
+The existing order lifecycle remains authoritative:
+
+READY
+  ↓
+OUT_FOR_DELIVERY
+  ↓
+DELIVERED
+
+Do not create a separate delivery lifecycle.
+
+Do not create a separate delivery order.
+
+Do not create a delivery partner system.
+
+==================================================
+2. EXISTING DELIVERY MODEL
+==================================================
+
+Preserve the existing fields:
+
+- delivery_type
+- delivery_contact_name
+- delivery_contact_phone
+
+Supported delivery types remain:
+
+- vendor_staff
+- platform_partner
+
+For MVP:
+
+vendor_staff
+
+platform_partner remains future extensibility only.
+
+Do not implement platform_partner operational functionality.
+
+==================================================
+3. VENDOR DELIVERY WORKFLOW
+==================================================
+
+The vendor workflow is:
+
+ORDER READY
+    ↓
+Vendor prepares delivery
+    ↓
+Vendor marks OUT_FOR_DELIVERY
+    ↓
+Vendor delivers order
+    ↓
+Vendor marks DELIVERED
+
+Use the existing Phase 9 lifecycle action mechanism.
+
+Do not create a second status mechanism.
+
+Do not directly modify order status from the UI.
+
+==================================================
+4. DELIVERY ACTION
+==================================================
+
+When an order is:
+
+READY
+
+the vendor may perform:
+
+OUT_FOR_DELIVERY
+
+When an order is:
+
+OUT_FOR_DELIVERY
+
+the vendor may perform:
+
+DELIVERED
+
+These are already valid Phase 8/9 transitions.
+
+Do not change the transition rules.
+
+==================================================
+5. VENDOR DELIVERY INFORMATION
+==================================================
+
+Vendor order detail should clearly display the information required to deliver:
+
+- recipient name
+- delivery contact phone
+- full delivery address snapshot
+- city
+- state
+- pincode
+- delivery type
+- order reference
+- item count
+- total
+- current status
+
+Use the immutable order snapshot.
+
+Do not read mutable customer-address data for historical order delivery information.
+
+==================================================
+6. CUSTOMER DELIVERY INFORMATION
+==================================================
+
+Customer order detail should clearly show:
+
+- delivery type
+- recipient name
+- delivery phone
+- delivery address
+- current order status
+
+For MVP:
+
+delivery type should display as:
+
+Vendor Delivery
+
+or another clear customer-friendly equivalent.
+
+Do not display internal enum terminology if a better customer-facing label already exists.
+
+==================================================
+7. NO GPS / MAPS
+==================================================
+
+DO NOT implement:
+
+- Google Maps
+- Mapbox
+- location permissions
+- GPS
+- customer live location
+- vendor live location
+- route calculation
+- navigation SDK
+- geocoding
+- distance calculation
+
+Pincode/address is the only delivery-location mechanism in MVP.
+
+==================================================
+8. NO DELIVERY PARTNER
+==================================================
+
+DO NOT create:
+
+- delivery partners
+- delivery agents
+- delivery-agent accounts
+- delivery fleet
+- driver profiles
+- driver assignment
+- partner onboarding
+- partner commission
+- delivery partner payouts
+- partner tracking
+
+platform_partner remains future extensibility only.
+
+==================================================
+9. VENDOR DELIVERY QUEUE
+==================================================
+
+Enhance the vendor order operations UI to make delivery work easy.
+
+Provide a useful delivery-focused view/filter for:
+
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+
+The vendor should be able to quickly identify:
+
+- orders ready for delivery
+- orders currently out for delivery
+- completed deliveries
+
+Do not create an unnecessarily complex logistics dashboard.
+
+==================================================
+10. READY FOR DELIVERY
+==================================================
+
+For READY orders:
+
+show a clear:
+
+OUT FOR DELIVERY
+
+action.
+
+Before action:
+
+- verify authenticated vendor
+- verify own store
+- verify order ownership
+- verify current status
+- use existing lifecycle service
+
+Do not trust client store_id.
+
+==================================================
+11. OUT FOR DELIVERY
+==================================================
+
+For OUT_FOR_DELIVERY orders:
+
+display:
+
+- recipient
+- phone
+- address
+- pincode
+- order reference
+- total
+- delivery type
+
+Provide:
+
+MARK DELIVERED
+
+action.
+
+Again, use the existing lifecycle service.
+
+==================================================
+12. DELIVERED
+==================================================
+
+When marked DELIVERED:
+
+- update order status through existing lifecycle service
+- append status history
+- preserve all order snapshots
+- do not alter financial values
+- do not alter customer/address snapshots
+- do not modify catalog data
+
+Delivered is terminal.
+
+Do not allow:
+
+DELIVERED → any other status
+
+==================================================
+13. CUSTOMER STATUS EXPERIENCE
+==================================================
+
+Customer should be able to understand delivery progress.
+
+For example:
+
+PLACED
+Accepted
+Preparing
+Ready
+Out for delivery
+Delivered
+
+Use the existing status history.
+
+Do not create fake progress.
+
+Do not show:
+
+"Driver is 5 minutes away"
+
+or similar information because there is no live delivery tracking.
+
+==================================================
+14. DELIVERY CONTACT
+==================================================
+
+Use the existing delivery contact fields/snapshot.
+
+The vendor should have a clear way to access the recipient phone number needed for delivery.
+
+Do not introduce unnecessary contact-management functionality.
+
+Do not expose unrelated customer account information.
+
+==================================================
+15. PRIVACY
+==================================================
+
+Vendor may see only delivery information necessary to fulfill orders belonging to the vendor's own store.
+
+Vendor must NOT see:
+
+- unrelated customer orders
+- customer account internals
+- other stores' customer data
+- internal platform commission data unless already explicitly authorized
+
+Customer may see only their own delivery information.
+
+Admin access remains governed by the existing admin role.
+
+==================================================
+16. DELIVERY TYPE
+==================================================
+
+At MVP order creation:
+
+delivery_type remains:
+
+vendor_staff
+
+Do not allow customers to select:
+
+platform_partner
+
+because platform delivery partners do not exist in MVP.
+
+Do not add customer-facing delivery-method selection.
+
+==================================================
+17. DELIVERY FEE
+==================================================
+
+Preserve the existing Phase 8 delivery fee snapshot.
+
+Do not recalculate delivery fee during delivery.
+
+Do not change:
+
+delivery_fee_snapshot
+subtotal
+total_amount
+
+after order creation.
+
+Do not implement delivery surcharges.
+
+Do not implement distance-based pricing.
+
+Do not implement surge pricing.
+
+==================================================
+18. COD
+==================================================
+
+Delivery remains COD.
+
+Do not introduce payment processing.
+
+Do not mark:
+
+payment collected
+
+unless the existing data model already has an explicit payment collection field and the current architecture requires it.
+
+Do not add a fake payment-success state.
+
+Do not integrate Razorpay.
+
+==================================================
+19. DELIVERY COMPLETION
+==================================================
+
+The MVP completion action is:
+
+OUT_FOR_DELIVERY → DELIVERED
+
+Do not add:
+
+- OTP delivery verification
+- digital signature
+- photo proof
+- biometric verification
+- GPS verification
+
+unless already explicitly required by the locked architecture.
+
+Keep the MVP simple.
+
+==================================================
+20. STATUS HISTORY
+==================================================
+
+Every delivery status transition must continue using the existing Phase 8/9 lifecycle service.
+
+For:
+
+READY → OUT_FOR_DELIVERY
+
+append history.
+
+For:
+
+OUT_FOR_DELIVERY → DELIVERED
+
+append history.
+
+History must remain append-only.
+
+Do not create a separate delivery-history table.
+
+==================================================
+21. DELIVERY OPERATIONS API
+==================================================
+
+Reuse existing vendor lifecycle APIs.
+
+Do NOT create duplicate status APIs if the existing:
+
+POST /api/vendor/orders/:orderId/actions
+
+already supports:
+
+out-for-delivery
+delivered
+
+Only add a dedicated delivery endpoint if the current architecture genuinely requires it.
+
+Prefer reuse.
+
+==================================================
+22. DELIVERY UI
+==================================================
+
+Update the existing vendor dashboard rather than creating a separate delivery application.
+
+The vendor should have a clear operational path:
+
+Orders
+  ↓
+READY
+  ↓
+OUT FOR DELIVERY
+  ↓
+DELIVERED
+
+Use the existing dashboard design.
+
+Do not redesign unrelated vendor screens.
+
+==================================================
+23. CUSTOMER UI
+==================================================
+
+Improve the existing order detail where necessary so delivery information is clearly visible.
+
+Show:
+
+- delivery type
+- recipient
+- contact
+- address
+- pincode
+- status timeline
+
+Do not create maps.
+
+Do not create live tracking.
+
+Do not create delivery-agent information.
+
+==================================================
+24. ADMIN UI
+==================================================
+
+Admin may see:
+
+- delivery type
+- delivery status
+- delivery contact
+- delivery address
+- delivery history
+
+Do not add admin delivery assignment.
+
+Do not add delivery partner management.
+
+==================================================
+25. DELIVERY STATUS FILTERS
+==================================================
+
+Vendor order filtering should support useful delivery statuses.
+
+At minimum:
+
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+
+Existing status filters must continue working.
+
+Do not remove existing order filters.
+
+==================================================
+26. ERROR HANDLING
+==================================================
+
+Handle:
+
+- unauthorized vendor
+- wrong store
+- invalid order ID
+- stale order status
+- illegal transition
+- duplicate action
+- order not found
+
+Use existing API error conventions.
+
+If another action changes the order first:
+
+- return appropriate conflict
+- refresh current order
+- display current state
+
+Never silently overwrite.
+
+==================================================
+27. CONCURRENCY
+==================================================
+
+Preserve Phase 8/9 locking behavior.
+
+Example:
+
+Vendor A sees:
+
+READY
+
+Vendor B changes:
+
+READY → OUT_FOR_DELIVERY
+
+Vendor A then attempts:
+
+READY → OUT_FOR_DELIVERY
+
+The second action must not create duplicate history or corrupt state.
+
+Likewise:
+
+OUT_FOR_DELIVERY → DELIVERED
+
+must be protected against duplicate concurrent actions.
+
+Do not introduce a new locking mechanism.
+
+Reuse the existing lifecycle transaction.
+
+==================================================
+28. DATABASE
+==================================================
+
+Do not create a new delivery table unless the locked architecture explicitly requires one.
+
+Do not create:
+
+- delivery_agents
+- delivery_assignments
+- delivery_tracking
+- delivery_locations
+- delivery_routes
+- delivery_partners
+
+The existing orders delivery fields remain the MVP delivery model.
+
+Only create a migration if genuinely required.
+
+==================================================
+29. RLS / SECURITY
+==================================================
+
+Do not weaken RLS.
+
+Verify:
+
+Vendor:
+- own-store orders only
+- own-store delivery information only
+- lifecycle actions only on own-store orders
+
+Customer:
+- own delivery information only
+
+Admin:
+- authorized platform visibility
+
+No public delivery writes.
+
+No client-supplied store ownership.
+
+No arbitrary status assignment.
+
+==================================================
+30. TESTING — DELIVERY
+==================================================
+
+Add focused tests for:
+
+- READY → OUT_FOR_DELIVERY succeeds for owning vendor
+- OUT_FOR_DELIVERY → DELIVERED succeeds for owning vendor
+- wrong vendor cannot perform delivery action
+- customer cannot perform delivery action
+- admin cannot bypass lifecycle rules
+- illegal delivery transition rejected
+- terminal DELIVERED cannot reopen
+- duplicate delivery action rejected safely
+- stale delivery action rejected safely
+- status history created for delivery transitions
+- delivery snapshots remain unchanged
+- delivery fee remains unchanged
+- total remains unchanged
+
+==================================================
+31. TESTING — CUSTOMER
+==================================================
+
+Verify customer can see:
+
+- delivery type
+- delivery contact
+- delivery address
+- delivery status
+- status history
+
+Verify customer cannot see:
+
+- another customer's delivery information
+- vendor internal data
+- commission information
+
+==================================================
+32. TESTING — REGRESSION
+==================================================
+
+Run all existing Phase 3–9 tests.
+
+Verify:
+
+- customer authentication
+- addresses
+- store discovery
+- catalog
+- cart
+- checkout
+- order placement
+- order cancellation
+- vendor store management
+- vendor categories
+- vendor products
+- vendor order operations
+- admin store operations
+- admin order visibility
+
+No regression is acceptable.
+
+==================================================
+33. NO REALTIME
+==================================================
+
+Do NOT introduce:
+
+- WebSockets
+- Socket.IO
+- Supabase Realtime
+- push notifications
+
+Simple refresh/refetch remains sufficient.
+
+A future phase may introduce real-time notifications.
+
+==================================================
+34. NO NOTIFICATION SYSTEM
+==================================================
+
+Do NOT implement:
+
+- SMS
+- WhatsApp notifications
+- email notifications
+- push notifications
+
+Those are not required for Phase 10.
+
+==================================================
+35. NO ADVANCED DELIVERY
+==================================================
+
+Do NOT implement:
+
+- delivery partner system
+- driver app
+- GPS
+- maps
+- live tracking
+- route optimization
+- delivery zones
+- distance-based delivery fee
+- delivery-slot system
+- scheduled delivery
+- OTP
+- proof of delivery
+
+Keep delivery intentionally simple.
+
+==================================================
+36. DOCUMENTATION
+==================================================
+
+Update:
+
+docs/API_SPECIFICATION.md
+docs/ARCHITECTURE.md
+docs/BUSINESS_RULES.md
+docs/SECURITY.md
+docs/DEVELOPMENT_STATUS.md
+docs/CHANGELOG.md
+
+Document:
+
+- vendor-owned delivery
+- vendor_staff delivery type
+- READY → OUT_FOR_DELIVERY
+- OUT_FOR_DELIVERY → DELIVERED
+- delivery snapshot behavior
+- delivery contact behavior
+- no GPS/maps
+- no delivery partner
+- no realtime
+- COD behavior
+
+Do not document future delivery functionality as implemented.
+
+==================================================
+37. DEPENDENCY CONTROL
+==================================================
+
+Do not add dependencies unless genuinely necessary.
+
+Reuse existing:
+
+- React
+- TypeScript
+- Express
+- Drizzle
+- Zod
+- API client
+- authentication
+- UI components
+
+Do not add delivery SDKs.
+
+Do not add maps SDKs.
+
+Do not add realtime infrastructure.
+
+Do not add notification infrastructure.
+
+==================================================
+38. BUILD / VERIFICATION
+==================================================
+
+Run:
+
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm --filter @workspace/api run test
+pnpm --filter @workspace/api run build
+pnpm --filter @workspace/db run check
+pnpm --filter @workspace/dashboard run build
+Customer Expo Web export
+Customer Metro web bundle
+Backend startup
+GET /health
+git diff --check
+
+Run the complete existing Phase 3–9 test suite.
+
+Report exact results.
+
+==================================================
+39. PRODUCTION
+==================================================
+
+Do NOT:
+
+- configure production Supabase
+- apply production migrations
+- create production secrets
+- configure Vercel
+- configure Railway
+- push GitHub
+- publish mobile apps
+
+Production remains Phase 12.
+
+==================================================
+40. STRICT PHASE BOUNDARY
+==================================================
+
+Do NOT implement:
+
+- Phase 11 hardening/security program beyond necessary Phase 10 tests
+- Phase 12 deployment
+- online payments
+- payment gateway
+- refunds
+- settlements
+- payouts
+- delivery partners
+- delivery app
+- GPS
+- maps
+- live tracking
+- realtime
+- notifications
+- advanced inventory
+- stock reservation
+- stock deduction
+- substitutions
+- partial fulfillment
+- weighted products
+- coupons
+- loyalty
+- referrals
+- recommendations
+- multi-city
+
+==================================================
+41. FINAL REPORT
+==================================================
+
+After implementation provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. Delivery APIs reused/created
+E. Vendor delivery UI changes
+F. Customer delivery UI changes
+G. Admin delivery visibility changes
+H. Delivery lifecycle integration
+I. Authorization/ownership
+J. RLS/security
+K. Database/migration changes
+L. Tests created
+M. Complete test results
+N. Build/typecheck results
+O. Regression verification
+P. Known limitations
+Q. Explicit confirmation that Phase 11+ was NOT implemented
+R. Explicit confirmation that production/deployment was NOT performed
+
+STOP after the report.
+
+DO NOT START PHASE 11.

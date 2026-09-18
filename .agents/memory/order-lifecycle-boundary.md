@@ -21,3 +21,7 @@ Vendor operational reads must remain scoped to the authenticated vendor's
 single store and must never expose commission or customer ownership internals,
 including action responses. Admin order operations remain read-only unless a
 future approved phase explicitly grants lifecycle actions.
+MVP delivery remains vendor-owned: use the same order lifecycle for
+READY→OUT_FOR_DELIVERY→DELIVERED, show immutable delivery snapshots, and do
+not add delivery agents, assignment, tracking, location, or a second delivery
+status model.
