@@ -279,9 +279,54 @@ half-up rounding. When a store has no commission rate, the explicit fallback
 is `0.00%` because no prior platform-default configuration exists; both the
 effective rate and calculated amount are snapshotted.
 
+## Phase 9 vendor/admin order operations
+
+### Vendor order operations
+
+Both routes require the `vendor` role. The backend derives the vendor store from
+the authenticated request context; a client-supplied store ID is never an
+authorization source.
+
+- `GET /api/vendor/orders`
+- `GET /api/vendor/orders/:orderId`
+- `POST /api/vendor/orders/:orderId/actions`
+
+The vendor list is bounded and paginated. It accepts `status`, `page`, and
+`pageSize` filters and returns only orders belonging to the vendor's own store.
+The response includes `pagination`, per-status `counts` for all order statuses,
+item counts, and delivery pincode summaries. The detail response includes the
+vendor-owned order, immutable item and status-history records, and current
+operational fields. Vendor actions are `ACCEPT`, `PREPARE`, `READY`,
+`OUT_FOR_DELIVERY`, `DELIVER`, and `REJECT`, with only the legal transitions
+listed above. Actions are serialized against the order and append status
+history; illegal or stale operations return `409 Conflict`. Clients should
+refresh the detail and list after a `409`.
+
+### Admin order oversight
+
+Both routes require the `admin` role:
+
+- `GET /api/admin/orders`
+- `GET /api/admin/orders/:orderId`
+
+Admin order access is read-only; there are no admin status-action endpoints.
+The bounded, paginated platform list accepts optional `status`, `storeId`,
+`from`, `to`, `page`, and `pageSize` filters. It returns filtered pagination
+totals and status counts (the counts are scoped to the store/date filters but
+not to the selected status). Admin detail includes the immutable order,
+item, and status-history records plus the commission rate and commission
+amount snapshots. Commission snapshots are visible only to admins.
+
+Order responses never accept or trust client-provided store, customer, status,
+financial, or snapshot values. Historical address/contact, item identity/name/
+price, fee, total, and commission values remain immutable after creation.
+Phase 9 adds no schema migration, realtime transport, or stock deduction.
+
 ## Phase 9+ and production exclusions
 
 Inventory reservation/deduction, payments, refunds, settlement, invoices,
 delivery partners, notifications, scheduled jobs, promotions, taxes,
 multi-store orders, order editing, ratings, analytics, and production
-deployment are not part of Phase 8.
+deployment are not part of Phase 9. Phase 10 and later functionality is not
+implemented. Existing customer and catalog behavior is preserved; realtime
+updates are not implemented.

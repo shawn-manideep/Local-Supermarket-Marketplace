@@ -1,0 +1,930 @@
+PHASE 9 — VENDOR & ADMIN OPERATIONS
+
+Implement ONLY Phase 9: Vendor & Admin Operations.
+
+The locked Master Product & Architecture Blueprint v1.1 and all approved Phase 1–8 implementations are the source of truth.
+
+PHASE 8 IS APPROVED AND COMPLETE.
+
+IMPORTANT:
+- Do NOT redo Phase 8.
+- Do NOT redesign the order lifecycle.
+- Do NOT modify the locked product architecture.
+- Do NOT introduce global products.
+- Do NOT create store_products.
+- Do NOT change the authentication architecture.
+- Do NOT configure production Supabase.
+- Do NOT push to GitHub.
+- Do NOT configure Vercel.
+- Do NOT configure Railway.
+- Do NOT implement online payments.
+- Do NOT implement delivery partners/GPS/maps.
+- Do NOT implement advanced inventory.
+- Do NOT start Phase 10.
+- Do NOT start Phase 11.
+- Do NOT start Phase 12.
+
+Continue working entirely in Replit.
+
+Inspect the existing codebase before making any changes.
+
+Preserve all Phase 1–8 functionality and existing API conventions.
+
+==================================================
+1. PHASE 9 OBJECTIVE
+==================================================
+
+Build the operational dashboards/workflows required for:
+
+1. Vendor
+2. Admin
+
+The vendor must be able to operate orders for their own supermarket.
+
+The admin must be able to monitor/manage platform stores and orders according to the existing architecture.
+
+The customer application from Phase 8 must continue working without regression.
+
+==================================================
+2. VENDOR SCOPE
+==================================================
+
+Vendor is authenticated using the existing Supabase Auth architecture.
+
+Vendor identity must resolve to exactly one store in the MVP.
+
+Never trust a client-provided store_id for authorization.
+
+Every vendor operation must derive:
+
+authenticated vendor
+    ↓
+vendor user identity
+    ↓
+owned store
+    ↓
+store_id
+    ↓
+authorized query
+
+Vendor must NEVER access another store's data.
+
+==================================================
+3. VENDOR ORDER DASHBOARD
+==================================================
+
+Implement the vendor order-management dashboard.
+
+The vendor should be able to:
+
+- view incoming orders
+- view order details
+- see current order status
+- accept PLACED orders
+- reject PLACED orders
+- move accepted orders to PREPARING
+- move preparing orders to READY
+- move ready orders to OUT_FOR_DELIVERY
+- mark out-for-delivery orders as DELIVERED
+
+Use the existing Phase 8 lifecycle rules.
+
+Do NOT create arbitrary status editing.
+
+==================================================
+4. LEGAL STATUS TRANSITIONS
+==================================================
+
+Preserve exactly:
+
+PLACED → ACCEPTED
+PLACED → REJECTED
+ACCEPTED → PREPARING
+PREPARING → READY
+READY → OUT_FOR_DELIVERY
+OUT_FOR_DELIVERY → DELIVERED
+
+Customer cancellation remains:
+
+PLACED → CANCELLED
+
+Do not modify these rules.
+
+Do not allow:
+
+PLACED → PREPARING
+PLACED → READY
+PLACED → DELIVERED
+ACCEPTED → DELIVERED
+DELIVERED → PREPARING
+REJECTED → ACCEPTED
+CANCELLED → ACCEPTED
+etc.
+
+The existing lifecycle service should remain the authoritative state machine.
+
+==================================================
+5. VENDOR ORDER LIST
+==================================================
+
+Vendor order list should provide useful operational information:
+
+- order reference
+- order date/time
+- customer/recipient name where appropriate
+- delivery pincode/address summary where appropriate
+- item count
+- total amount
+- payment mode
+- current status
+- relevant action
+
+Default ordering:
+
+newest orders first.
+
+Provide useful status filtering:
+
+- ALL
+- PLACED
+- ACCEPTED
+- PREPARING
+- READY
+- OUT_FOR_DELIVERY
+- DELIVERED
+- REJECTED
+- CANCELLED
+
+Do not build advanced analytics in this phase.
+
+==================================================
+6. VENDOR ORDER DETAIL
+==================================================
+
+Order detail should show:
+
+- order reference
+- customer/recipient information
+- delivery address snapshot
+- delivery contact
+- items
+- quantities
+- historical unit prices
+- line totals
+- subtotal
+- delivery fee
+- total
+- payment mode
+- current status
+- status history
+
+Do NOT expose internal commission information to vendors unless existing architecture explicitly requires it.
+
+The vendor should see the information necessary to fulfill the order.
+
+==================================================
+7. VENDOR ACTION UX
+==================================================
+
+Actions must be status-aware.
+
+Example:
+
+PLACED:
+
+[Accept]
+[Reject]
+
+ACCEPTED:
+
+[Start Preparing]
+
+PREPARING:
+
+[Mark Ready]
+
+READY:
+
+[Out for Delivery]
+
+OUT_FOR_DELIVERY:
+
+[Mark Delivered]
+
+Terminal states:
+
+No further action.
+
+Disable unavailable actions rather than allowing an invalid API call.
+
+The backend remains authoritative even if the UI disables buttons.
+
+==================================================
+8. REJECTION
+==================================================
+
+Vendor can reject ONLY:
+
+PLACED
+
+If the existing Phase 8 API supports a rejection reason/note:
+
+- provide a simple reason input
+- validate it
+- send it through the existing lifecycle API
+
+Do not create a complex rejection workflow.
+
+Do not add refunds or payment processing.
+
+COD orders do not require payment refunds.
+
+==================================================
+9. STATUS HISTORY
+==================================================
+
+Every vendor action must continue using the existing Phase 8 lifecycle service.
+
+Do NOT directly update order status from the dashboard.
+
+The lifecycle service must:
+
+- verify ownership
+- lock the order
+- verify current status
+- verify legal transition
+- update status
+- append status history
+- commit transactionally
+
+Do not duplicate this logic in the frontend.
+
+==================================================
+10. CONCURRENCY
+==================================================
+
+The dashboard must handle concurrent changes safely.
+
+Example:
+
+Vendor A opens an order showing:
+
+PLACED
+
+Another valid actor changes it to:
+
+ACCEPTED
+
+Vendor A then clicks Reject.
+
+The backend must reject the stale/illegal transition.
+
+The frontend should refresh the order and display the current status.
+
+Never let stale UI state bypass backend lifecycle protection.
+
+==================================================
+11. VENDOR STORE CONTEXT
+==================================================
+
+Vendor dashboard should show the vendor's own store context.
+
+Display:
+
+- store name
+- store status
+- basic store information
+
+Do not allow the vendor to switch into another store.
+
+Do not add multi-store vendor support.
+
+MVP remains:
+
+one vendor user → one store
+
+==================================================
+12. VENDOR DASHBOARD NAVIGATION
+==================================================
+
+Extend the existing vendor dashboard without redesigning the whole application.
+
+Suggested navigation:
+
+Dashboard
+Orders
+Categories
+Products
+Store
+Settings
+
+Use the existing visual conventions.
+
+Orders should become the primary operational module introduced in this phase.
+
+Do not create unrelated pages.
+
+==================================================
+13. VENDOR DASHBOARD SUMMARY
+==================================================
+
+A basic dashboard summary may show:
+
+- pending orders
+- accepted orders
+- preparing orders
+- ready orders
+- out-for-delivery orders
+- completed orders
+
+Keep this lightweight.
+
+Do NOT implement advanced BI/analytics.
+
+Do NOT create charts unless the existing dashboard architecture already supports them naturally.
+
+==================================================
+14. ADMIN OPERATIONS
+==================================================
+
+Admin already has protected access.
+
+Build a basic admin operational area.
+
+Admin should be able to:
+
+- view stores
+- view store status
+- view orders across the platform
+- inspect order details
+- inspect order status/history
+- view basic operational counts
+
+Admin access must remain protected by the existing admin role.
+
+Never expose admin functionality to customer/vendor users.
+
+==================================================
+15. ADMIN STORE MANAGEMENT
+==================================================
+
+Preserve Phase 3 store-management capabilities.
+
+Admin must be able to inspect stores and their status:
+
+PENDING_APPROVAL
+ACTIVE
+SUSPENDED
+REJECTED
+
+Existing approved store-management actions must continue working.
+
+Do not rewrite Phase 3 store management.
+
+Do not add new store lifecycle states.
+
+==================================================
+16. ADMIN ORDER VISIBILITY
+==================================================
+
+Admin should be able to view platform orders.
+
+Admin order list may include:
+
+- order reference
+- store
+- customer/recipient
+- order date
+- total
+- payment mode
+- current status
+
+Provide basic filters where practical:
+
+- store
+- status
+- date
+
+Do not build advanced reporting.
+
+Do not expose sensitive information unnecessarily.
+
+==================================================
+17. ADMIN ORDER DETAIL
+==================================================
+
+Admin order detail should include:
+
+- store
+- order reference
+- customer
+- delivery address snapshot
+- items
+- historical prices
+- quantities
+- subtotal
+- delivery fee
+- total
+- payment mode
+- current status
+- status history
+
+Admin may see commission information if the existing platform architecture requires it for operational administration.
+
+Do not build settlements/payouts.
+
+==================================================
+18. ADMIN ORDER MUTATION
+==================================================
+
+Do NOT create broad unrestricted admin PATCH access.
+
+Admin actions must use the same lifecycle rules/service wherever status mutation is permitted.
+
+Never create:
+
+PATCH /orders/:id
+{
+  "status": "DELIVERED"
+}
+
+with arbitrary status values.
+
+The existing lifecycle state machine remains authoritative.
+
+If admin status actions are not required for MVP operations, keep admin order access read-only.
+
+Do not invent admin powers unnecessarily.
+
+==================================================
+19. ADMIN STORE COMMISSION
+==================================================
+
+Preserve the Phase 3 commission functionality.
+
+Admin must be able to view/set the store-specific commission rate according to the existing implementation.
+
+Do not alter historical order commission snapshots.
+
+Changing:
+
+stores.commission_rate
+
+must affect future orders only.
+
+Existing orders retain:
+
+commission_rate_snapshot
+commission_amount_snapshot
+
+Do not implement settlements or payouts.
+
+==================================================
+20. VENDOR CATALOG REGRESSION
+==================================================
+
+Existing vendor functionality must remain intact:
+
+- categories
+- products
+- activation/deactivation
+- availability
+- price
+- stock
+- SKU/external code
+- category assignment
+
+Do not redesign the catalog.
+
+Do not introduce global products.
+
+Do not create store_products.
+
+==================================================
+21. CUSTOMER REGRESSION
+==================================================
+
+Verify that customers can still:
+
+- sign in
+- sign up
+- manage addresses
+- discover stores
+- browse catalog
+- add products to cart
+- switch stores
+- validate checkout
+- place COD orders
+- view orders
+- cancel PLACED orders
+
+Do not modify customer order lifecycle rules.
+
+==================================================
+22. ORDER DATA IS HISTORICAL
+==================================================
+
+Vendor/admin screens must use historical order snapshots.
+
+For historical orders:
+
+- item name comes from order_item snapshot
+- item price comes from order_item snapshot
+- delivery address comes from order snapshot
+- delivery fee comes from order snapshot
+- total comes from order snapshot
+
+Do not recalculate historical order totals from current catalog data.
+
+==================================================
+23. SECURITY
+==================================================
+
+Strictly enforce:
+
+CUSTOMER:
+- own orders only
+
+VENDOR:
+- own store's orders only
+
+ADMIN:
+- platform-level access according to role
+
+Never trust:
+
+- client store_id
+- client customer_id
+- client owner_user_id
+- client role
+- arbitrary status
+
+Backend derives authorization from authentication context.
+
+==================================================
+24. RLS
+==================================================
+
+Preserve existing RLS.
+
+Do not weaken existing customer/vendor isolation.
+
+Verify vendor order SELECT policies are correctly scoped through the authenticated vendor's store.
+
+Verify admin visibility remains protected.
+
+Do not add public policies.
+
+Do not grant broad authenticated mutation permissions.
+
+==================================================
+25. API DESIGN
+==================================================
+
+Reuse existing Phase 8 APIs where possible.
+
+Do not duplicate lifecycle endpoints unnecessarily.
+
+Vendor:
+
+GET /api/vendor/orders
+
+Existing lifecycle action endpoint should remain the authoritative mechanism for status actions.
+
+Admin APIs should follow existing project naming conventions.
+
+Potential examples:
+
+GET /api/admin/orders
+GET /api/admin/orders/:orderId
+
+Only implement endpoints genuinely needed by the UI.
+
+Do not create redundant endpoints.
+
+==================================================
+26. VALIDATION
+==================================================
+
+Use existing Zod validation.
+
+Validate:
+
+- order ID
+- action
+- rejection note/reason if supported
+- filters
+- pagination parameters if implemented
+
+Reject malformed input.
+
+Never accept client financial values.
+
+==================================================
+27. PAGINATION
+==================================================
+
+If the existing order list architecture does not already provide pagination, implement a simple server-side pagination strategy if it can be done cleanly without unnecessary dependencies.
+
+Do not implement infinite-scroll infrastructure unless already supported.
+
+Use deterministic ordering.
+
+Avoid loading an unbounded number of orders.
+
+==================================================
+28. ERROR HANDLING
+==================================================
+
+Provide clear operational errors.
+
+Examples:
+
+- order no longer available for this action
+- order already changed by another user
+- unauthorized order
+- invalid lifecycle transition
+- store access denied
+
+Do not expose raw database errors.
+
+==================================================
+29. LOADING / EMPTY / ERROR STATES
+==================================================
+
+Vendor/admin screens must have:
+
+- loading state
+- empty state
+- error state
+- retry
+- action success feedback
+- action failure feedback
+
+Prevent accidental duplicate action submissions while an action is processing.
+
+==================================================
+30. NO REAL-TIME SYSTEM
+==================================================
+
+Do NOT add:
+
+- WebSockets
+- Socket.IO
+- Supabase Realtime
+- push notification infrastructure
+
+unless an existing project capability already requires it.
+
+For Phase 9, simple refresh/refetch behavior is sufficient.
+
+A future phase can add real-time operational updates if needed.
+
+==================================================
+31. TESTING — VENDOR
+==================================================
+
+Add focused tests for:
+
+- vendor authentication
+- vendor own-store order access
+- vendor cannot access another store's orders
+- vendor can accept PLACED order
+- vendor can reject PLACED order
+- vendor can move ACCEPTED → PREPARING
+- vendor can move PREPARING → READY
+- vendor can move READY → OUT_FOR_DELIVERY
+- vendor can move OUT_FOR_DELIVERY → DELIVERED
+- illegal transitions rejected
+- stale status transition rejected
+- rejection note validation
+- terminal orders cannot be reopened
+
+==================================================
+32. TESTING — ADMIN
+==================================================
+
+Test:
+
+- non-admin cannot access admin order APIs
+- admin can view authorized platform orders
+- admin cannot bypass lifecycle rules through generic mutation
+- store commission changes do not modify historical order snapshots
+- admin store visibility remains protected
+
+==================================================
+33. TESTING — CUSTOMER REGRESSION
+==================================================
+
+Run existing customer tests and verify:
+
+- customer sees own orders
+- customer cannot see vendor/admin data
+- customer cancellation still works only from PLACED
+- customer cannot perform vendor lifecycle actions
+
+==================================================
+34. TESTING — SECURITY
+==================================================
+
+Test for IDOR-style failures:
+
+Vendor A attempts to access Vendor B's order ID.
+
+Expected:
+
+403/404 according to existing API convention.
+
+Customer A attempts to access Customer B's order.
+
+Expected:
+
+403/404 according to existing convention.
+
+Customer attempts vendor lifecycle action.
+
+Expected:
+
+401/403.
+
+Vendor attempts admin endpoint.
+
+Expected:
+
+401/403.
+
+Unauthenticated user attempts vendor/admin endpoint.
+
+Expected:
+
+401.
+
+==================================================
+35. DATABASE
+==================================================
+
+Do not create unnecessary migrations.
+
+Do not create new order tables.
+
+Do not create delivery tables.
+
+Do not create payment tables.
+
+Do not create settlement tables.
+
+Do not create inventory tables.
+
+Only modify database schema if genuinely required for Phase 9.
+
+==================================================
+36. DEPENDENCY CONTROL
+==================================================
+
+Do not add dependencies unless absolutely necessary.
+
+Reuse:
+
+- React
+- TypeScript
+- Express
+- Drizzle
+- Zod
+- existing UI components
+- existing authentication
+- existing API client
+
+Do not add:
+
+- payment SDK
+- maps SDK
+- delivery SDK
+- Redis
+- WebSocket framework
+- analytics platform
+- alternate auth
+- new state-management library
+
+==================================================
+37. DOCUMENTATION
+==================================================
+
+Update:
+
+docs/API_SPECIFICATION.md
+docs/ARCHITECTURE.md
+docs/BUSINESS_RULES.md
+docs/SECURITY.md
+docs/DEVELOPMENT_STATUS.md
+docs/CHANGELOG.md
+
+Document:
+
+- vendor order operations
+- vendor store isolation
+- admin order visibility
+- lifecycle action authorization
+- stale-action behavior
+- role boundaries
+
+Do not document future Phase 10 functionality as implemented.
+
+==================================================
+38. REGRESSION VERIFICATION
+==================================================
+
+Run:
+
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm --filter @workspace/api run test
+pnpm --filter @workspace/api run build
+pnpm --filter @workspace/db run check
+pnpm --filter @workspace/dashboard run build
+Customer Expo Web export
+Customer Metro web bundle
+Backend startup
+GET /health
+git diff --check
+
+Run the complete existing Phase 3–8 test suite.
+
+All existing tests must continue passing.
+
+==================================================
+39. SCOPE CONTROL
+==================================================
+
+DO NOT implement:
+
+- delivery partner system
+- delivery app
+- GPS
+- maps
+- live delivery tracking
+- online payments
+- Razorpay
+- payment webhooks
+- refunds
+- automated settlements
+- vendor payouts
+- advanced inventory
+- stock reservation
+- stock deduction
+- substitutions
+- partial fulfillment
+- weighted products
+- coupons
+- loyalty
+- referrals
+- recommendations
+- multi-city
+- mobile app publishing
+- production deployment
+
+Those remain future phases.
+
+==================================================
+40. PRODUCTION
+==================================================
+
+Do NOT:
+
+- create production Supabase
+- apply production migrations
+- create production secrets
+- configure Vercel
+- configure Railway
+- push GitHub
+- publish mobile applications
+
+Deployment remains Phase 12.
+
+==================================================
+41. FINAL REPORT
+==================================================
+
+After implementation provide:
+
+A. Files created
+B. Files modified
+C. Dependencies added/changed
+D. Vendor APIs
+E. Admin APIs
+F. Vendor UI changes
+G. Admin UI changes
+H. Lifecycle integration
+I. Authorization/ownership implementation
+J. RLS/security changes
+K. Database/migration changes
+L. Tests created
+M. Full test results
+N. Build/typecheck results
+O. Regression verification
+P. Known limitations
+Q. Explicit confirmation that Phase 10+ functionality was NOT implemented
+R. Explicit confirmation that production/deployment setup was NOT performed
+
+STOP after the report.
+
+Do NOT start Phase 10.

@@ -137,3 +137,25 @@ historical immutability even if current catalog or account data changes.
 COD is recorded without payment capture and `vendor_staff` is the current
 delivery type. Payment credentials, settlement, inventory, external delivery,
 notifications, and production deployment are excluded from this phase.
+
+## Phase 9 order operations authorization
+
+Vendor order list, detail, and action endpoints require `vendor` and derive
+`storeId` from the verified authenticated request context. Every vendor order
+lookup and mutation combines the order ID with that store scope. Strict
+validation accepts only the defined filters and lifecycle action/note fields;
+client store, customer, status, actor, financial, and historical snapshot
+fields are not trusted.
+
+Admin order list and detail endpoints require `admin`. They are read-only,
+support bounded status/store/date-filtered platform reads, and expose
+commission snapshots only in admin detail. Admin routes do not provide order
+status mutation or a general-purpose write path. Status counts are computed
+server-side within the requested filter scope.
+
+Vendor action transactions lock the owned order and accept only the explicit
+legal transition map. A race or illegal transition returns `409 Conflict`;
+the dashboard refreshes detail/list state rather than trusting stale client
+state. Order and history protections continue to preserve immutable historical
+values. Phase 9 requires no migration and adds no realtime channel or stock
+deduction; existing customer/catalog isolation remains in force.

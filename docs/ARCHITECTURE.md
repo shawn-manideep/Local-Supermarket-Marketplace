@@ -84,3 +84,28 @@ previous platform default exists.
 Phase 8 does not add payment, settlement, inventory, delivery-partner,
 notification, reporting, or production deployment architecture. Those remain
 future work.
+
+## Phase 9 vendor/admin order operations
+
+Phase 9 extends the existing order boundary with two read models. Vendor order
+list and detail queries derive the store from authenticated vendor context and
+are therefore bounded to that vendor's own store. The vendor list is paginated
+and can filter by status; it returns total pagination data and counts for every
+status. Vendor lifecycle actions use the existing locked order state machine,
+append history, and return `409 Conflict` for illegal or stale transitions so
+the dashboard can refresh its detail and queue.
+
+Admin order list and detail queries are protected by the `admin` role and span
+the platform without mutation capability. The list is paginated and supports
+status, store, and creation-date filters, with filtered totals and status
+counts. Admin detail adds commission rate and amount snapshots for oversight;
+these snapshots are not exposed to vendors or customers. No admin order action
+or generic status write is introduced.
+
+The architecture continues to treat order-time address, contact, item,
+financial, and commission values as immutable historical snapshots. Strict
+request schemas and authenticated context, rather than client store, customer,
+or status fields, determine authority. Phase 9 adds no migration, realtime
+channel, or stock deduction and does not alter customer or catalog flows.
+Phase 10+ features, payments, delivery-partner integration, and deployment
+remain outside the implementation.

@@ -7,6 +7,7 @@ import {
   type Store,
 } from "./api";
 import { CatalogManagementPanel } from "./CatalogManagementPanel";
+import { OrderOperations } from "./OrderOperations";
 
 const dayNames = [
   "Sunday",
@@ -316,6 +317,14 @@ export function VendorStorePanel({ token, onMessage }: VendorStorePanelProps) {
           onMessage={onMessage}
           storeId={store.id}
           token={token}
+        />
+      )}
+      {store && (
+        <OrderOperations
+          onMessage={onMessage}
+          storeId={store.id}
+          token={token}
+          vendor
         />
       )}
     </section>

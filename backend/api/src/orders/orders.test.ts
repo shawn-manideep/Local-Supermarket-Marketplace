@@ -5,7 +5,9 @@ import test from "node:test";
 import {
   customerOrderCreateSchema,
   customerOrderIdParamSchema,
+  adminOrderQuerySchema,
   vendorOrderActionSchema,
+  vendorOrderQuerySchema,
 } from "@workspace/validation";
 import { createApp } from "../app.js";
 import {
@@ -26,7 +28,10 @@ test("customer and vendor order routes require authentication", async () => {
       ["GET", `/api/customer/orders/${id}`],
       ["POST", `/api/customer/orders/${id}/cancel`],
       ["GET", "/api/vendor/orders"],
+      ["GET", `/api/vendor/orders/${id}`],
       ["POST", `/api/vendor/orders/${id}/actions`],
+      ["GET", "/api/admin/orders"],
+      ["GET", `/api/admin/orders/${id}`],
     ] as const) {
       assert.equal(
         (await fetch(`http://127.0.0.1:${port}${path}`, { method })).status,
@@ -38,6 +43,34 @@ test("customer and vendor order routes require authentication", async () => {
       server.close((error) => (error ? reject(error) : resolve())),
     );
   }
+});
+
+test("Phase 9 order list queries are strict and bounded", () => {
+  assert.equal(vendorOrderQuerySchema.safeParse({ page: "1", pageSize: "100", status: "READY" }).success, true);
+  assert.equal(vendorOrderQuerySchema.safeParse({ pageSize: "101" }).success, false);
+  assert.equal(vendorOrderQuerySchema.safeParse({ storeId: crypto.randomUUID() }).success, false);
+  assert.equal(adminOrderQuerySchema.safeParse({
+    storeId: crypto.randomUUID(), from: "2025-01-01T00:00:00.000Z",
+    to: "2025-01-02T00:00:00.000Z",
+  }).success, true);
+  assert.equal(adminOrderQuerySchema.safeParse({ from: "not-a-date" }).success, false);
+});
+
+test("Phase 9 routes use bounded deterministic reads and no generic order patch", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  assert.match(routes, /ordersRouter\.get\("\/api\/vendor\/orders\/:orderId"/);
+  assert.match(routes, /ordersRouter\.get\("\/api\/admin\/orders"/);
+  assert.match(routes, /orderBy\(desc\(orders\.createdAt\), desc\(orders\.id\)\)/);
+  assert.doesNotMatch(routes, /ordersRouter\.patch\("\/api\/admin\/orders/);
+  assert.doesNotMatch(routes.slice(routes.indexOf('ordersRouter.get("/api/vendor/orders/:orderId"'),
+    routes.indexOf('ordersRouter.post("/api/vendor/orders/:orderId/actions"')), /customerId|commission/);
+  const vendorAction = routes.slice(
+    routes.indexOf('ordersRouter.post("/api/vendor/orders/:orderId/actions"'),
+    routes.indexOf("const adminOrderListFields"),
+  );
+  assert.match(vendorAction, /safeOrderFields/);
+  assert.doesNotMatch(vendorAction, /res\.json\(\{ order: updated \}\)/);
+  assert.doesNotMatch(vendorAction, /commissionRateSnapshot|commissionAmountSnapshot|customerId/);
 });
 
 test("order inputs reject client-owned and unsupported values", () => {

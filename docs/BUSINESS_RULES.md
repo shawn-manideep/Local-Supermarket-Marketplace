@@ -155,8 +155,32 @@ Arbitrary status updates are not exposed.
   History is append-only, and order/customer/store and order-item identity are
   immutable.
 
+## Phase 9 vendor/admin order operations
+
+- Vendor order queues contain only orders for the vendor's authenticated store.
+- Vendor lists are bounded and paginated, may filter by status, and expose
+  total pagination data plus counts for each order status.
+- Vendors may view their store's order detail and may perform only the legal
+  `ACCEPT`, `PREPARE`, `READY`, `OUT_FOR_DELIVERY`, `DELIVER`, and `REJECT`
+  actions.
+- Vendor actions are serialized against the order. Illegal or stale actions
+  return `409`; the client refreshes the affected detail and queue rather than
+  treating stale state as success.
+- Admins may read a platform-wide bounded, paginated order list and detail.
+  Admin filters include status, store, and creation-date range, and counts
+  respect the store/date scope. Admin order access is read-only.
+- Commission rate and amount snapshots are admin-only oversight values. They
+  are historical and immutable, like the delivery/contact, item, price, fee,
+  subtotal, and total snapshots.
+- Store, customer, status, financial, actor, and snapshot authority comes from
+  authenticated roles and server/database state; clients cannot choose these
+  values. Vendor store scope is never taken from a client-provided store ID.
+- Phase 9 does not add realtime behavior, stock deduction or reservation, or a
+  database migration. Existing customer and catalog rules remain unchanged.
+
 ## Phase 9+ and production exclusions
 
 Inventory reservation/deduction, payment processing, refunds, settlement,
 invoicing, partner delivery, notifications, promotions, taxes, order editing,
-ratings, analytics, and production deployment are not Phase 8 behavior.
+ratings, analytics, and production deployment are not Phase 9 behavior.
+Phase 10+ functionality is not implemented.

@@ -17,3 +17,7 @@ winner's committed cart state rather than an earlier transaction snapshot.
 Use row locks for status changes and append history in the same transaction.
 Do not deduct or reserve stock until a future inventory rule explicitly
 defines that behavior; always revalidate the current enforceable stock limit.
+Vendor operational reads must remain scoped to the authenticated vendor's
+single store and must never expose commission or customer ownership internals,
+including action responses. Admin order operations remain read-only unless a
+future approved phase explicitly grants lifecycle actions.

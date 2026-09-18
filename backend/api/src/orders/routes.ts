@@ -1,11 +1,13 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { Router, type Request } from "express";
+import { z } from "zod";
 import {
   carts, cartItems, categories, customerAddresses, getDb, orderItems,
   orderStatusHistory, orders, products, storeServicePincodes, stores,
 } from "@workspace/db";
 import {
-  customerOrderCreateSchema, customerOrderIdParamSchema, vendorOrderActionSchema,
+  adminOrderQuerySchema, customerOrderCreateSchema, customerOrderIdParamSchema,
+  vendorOrderActionSchema, vendorOrderQuerySchema,
 } from "@workspace/validation";
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
@@ -35,6 +37,11 @@ const safeOrderSummaryFields = {
   id: orders.id, storeId: orders.storeId, status: orders.status,
   totalAmount: orders.totalAmount, createdAt: orders.createdAt,
 };
+const vendorOrderSummaryFields = {
+  ...safeOrderSummaryFields, deliveryType: orders.deliveryType,
+  paymentMethod: orders.paymentMethod, deliveryAddressSnapshot: orders.deliveryAddressSnapshot,
+  deliveryContactName: orders.deliveryContactName,
+};
 const safeItemFields = {
   id: orderItems.id, productNameSnapshot: orderItems.productNameSnapshot,
   productPriceSnapshot: orderItems.productPriceSnapshot, quantity: orderItems.quantity, subtotal: orderItems.subtotal,
@@ -43,6 +50,10 @@ const safeHistoryFields = {
   id: orderStatusHistory.id, status: orderStatusHistory.status,
   note: orderStatusHistory.note, createdAt: orderStatusHistory.createdAt,
 };
+const ORDER_STATUSES = [
+  "PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY",
+  "DELIVERED", "REJECTED", "CANCELLED",
+] as const;
 function addressSnapshot(address: typeof customerAddresses.$inferSelect) {
   return {
     label: address.label, recipientName: address.recipientName, phone: address.phone,
@@ -163,7 +174,50 @@ ordersRouter.post("/api/customer/orders/:orderId/cancel", requireRole("customer"
 ordersRouter.get("/api/vendor/orders", requireRole("vendor"), asyncHandler(async (req, res) => {
   const storeId = (req as AuthenticatedRequest).auth?.storeId;
   if (!storeId) throw new HttpError(404, "Vendor store not found");
-  res.json({ orders: await getDb().select().from(orders).where(eq(orders.storeId, storeId)).orderBy(desc(orders.createdAt)) });
+  const parsed = vendorOrderQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw new HttpError(400, "Invalid order filters", validationDetails(parsed.error));
+  const { page, pageSize, status } = parsed.data;
+  const where = and(eq(orders.storeId, storeId), ...(status && status !== "ALL" ? [eq(orders.status, status)] : []));
+  const db = getDb();
+  const [rows, totals, statusRows] = await Promise.all([
+    db.select({ ...vendorOrderSummaryFields, storeName: stores.name }).from(orders)
+      .innerJoin(stores, eq(stores.id, orders.storeId)).where(where)
+      .orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),
+    db.select({ count: sql<number>`count(*)::int` }).from(orders).where(where),
+    db.select({ status: orders.status, count: sql<number>`count(*)::int` }).from(orders)
+      .where(eq(orders.storeId, storeId)).groupBy(orders.status),
+  ]);
+  const ids = rows.map(row => row.id);
+  const itemCounts = ids.length
+    ? await db.select({ orderId: orderItems.orderId, count: sql<number>`sum(${orderItems.quantity})::int` })
+      .from(orderItems).where(inArray(orderItems.orderId, ids)).groupBy(orderItems.orderId)
+    : [];
+  const countMap = new Map(itemCounts.map(row => [row.orderId, row.count]));
+  const countByStatus = Object.fromEntries(ORDER_STATUSES.map(value => [
+    value, statusRows.find(row => row.status === value)?.count ?? 0,
+  ]));
+  res.json({
+    orders: rows.map(row => ({
+      ...row, itemCount: countMap.get(row.id) ?? 0,
+      deliveryPincode: (row.deliveryAddressSnapshot as { pincode?: string }).pincode ?? null,
+    })),
+    pagination: { page, pageSize, total: totals[0]?.count ?? 0 },
+    counts: countByStatus,
+  });
+}));
+ordersRouter.get("/api/vendor/orders/:orderId", requireRole("vendor"), asyncHandler(async (req, res) => {
+  const id = orderId(req);
+  const storeId = (req as AuthenticatedRequest).auth?.storeId;
+  if (!storeId) throw new HttpError(404, "Vendor store not found");
+  const [order] = await getDb().select({ ...safeOrderFields, storeName: stores.name })
+    .from(orders).innerJoin(stores, eq(stores.id, orders.storeId))
+    .where(and(eq(orders.id, id), eq(orders.storeId, storeId))).limit(1);
+  if (!order) throw new HttpError(404, "Order not found");
+  const [items, statusHistory] = await Promise.all([
+    getDb().select(safeItemFields).from(orderItems).where(eq(orderItems.orderId, id)).orderBy(asc(orderItems.createdAt)),
+    getDb().select(safeHistoryFields).from(orderStatusHistory).where(eq(orderStatusHistory.orderId, id)).orderBy(asc(orderStatusHistory.createdAt)),
+  ]);
+  res.json({ order: { ...order, items, statusHistory } });
 }));
 ordersRouter.post("/api/vendor/orders/:orderId/actions", requireRole("vendor"), asyncHandler(async (req, res) => {
   const parsed = vendorOrderActionSchema.safeParse(req.body);
@@ -179,5 +233,73 @@ ordersRouter.post("/api/vendor/orders/:orderId/actions", requireRole("vendor"), 
     await tx.insert(orderStatusHistory).values({ orderId: id, status: next as typeof order.status, note: parsed.data.note, changedBy: userId(req) });
     return value;
   }, { isolationLevel: "read committed" });
-  res.json({ order: updated });
+  const [safe] = await getDb().select({ ...safeOrderFields, storeName: stores.name })
+    .from(orders).innerJoin(stores, eq(stores.id, orders.storeId))
+    .where(and(eq(orders.id, updated.id), eq(orders.storeId, storeId))).limit(1);
+  if (!safe) throw new HttpError(404, "Order not found");
+  const [items, statusHistory] = await Promise.all([
+    getDb().select(safeItemFields).from(orderItems).where(eq(orderItems.orderId, updated.id)).orderBy(asc(orderItems.createdAt)),
+    getDb().select(safeHistoryFields).from(orderStatusHistory).where(eq(orderStatusHistory.orderId, updated.id)).orderBy(asc(orderStatusHistory.createdAt)),
+  ]);
+  res.json({ order: { ...safe, items, statusHistory } });
+}));
+
+const adminOrderListFields = {
+  ...safeOrderSummaryFields, deliveryType: orders.deliveryType, paymentMethod: orders.paymentMethod,
+  deliveryContactName: orders.deliveryContactName, deliveryAddressSnapshot: orders.deliveryAddressSnapshot,
+};
+function adminOrderWhere(query: z.infer<typeof adminOrderQuerySchema>, includeStatus = true) {
+  return and(
+    ...(includeStatus && query.status && query.status !== "ALL" ? [eq(orders.status, query.status)] : []),
+    ...(query.storeId ? [eq(orders.storeId, query.storeId)] : []),
+    ...(query.from ? [gte(orders.createdAt, new Date(query.from))] : []),
+    ...(query.to ? [lte(orders.createdAt, new Date(query.to))] : []),
+  );
+}
+
+ordersRouter.get("/api/admin/orders", requireRole("admin"), asyncHandler(async (req, res) => {
+  const parsed = adminOrderQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw new HttpError(400, "Invalid order filters", validationDetails(parsed.error));
+  const query = parsed.data;
+  const where = adminOrderWhere(query);
+  const countWhere = adminOrderWhere(query, false);
+  const db = getDb();
+  const [rows, totals, statusRows] = await Promise.all([
+    db.select({ ...adminOrderListFields, storeName: stores.name }).from(orders)
+      .innerJoin(stores, eq(stores.id, orders.storeId)).where(where)
+      .orderBy(desc(orders.createdAt), desc(orders.id)).limit(query.pageSize).offset((query.page - 1) * query.pageSize),
+    db.select({ count: sql<number>`count(*)::int` }).from(orders).where(where),
+    db.select({ status: orders.status, count: sql<number>`count(*)::int` }).from(orders)
+      .where(countWhere).groupBy(orders.status),
+  ]);
+  const ids = rows.map(row => row.id);
+  const itemCounts = ids.length
+    ? await db.select({ orderId: orderItems.orderId, count: sql<number>`sum(${orderItems.quantity})::int` })
+      .from(orderItems).where(inArray(orderItems.orderId, ids)).groupBy(orderItems.orderId)
+    : [];
+  const countMap = new Map(itemCounts.map(row => [row.orderId, row.count]));
+  res.json({
+    orders: rows.map(row => ({ ...row, itemCount: countMap.get(row.id) ?? 0,
+      deliveryPincode: (row.deliveryAddressSnapshot as { pincode?: string }).pincode ?? null })),
+    pagination: { page: query.page, pageSize: query.pageSize, total: totals[0]?.count ?? 0 },
+    counts: Object.fromEntries(ORDER_STATUSES.map(value => [
+      value, statusRows.find(row => row.status === value)?.count ?? 0,
+    ])),
+  });
+}));
+
+ordersRouter.get("/api/admin/orders/:orderId", requireRole("admin"), asyncHandler(async (req, res) => {
+  const id = orderId(req);
+  const [order] = await getDb().select({
+    ...safeOrderFields, storeName: stores.name,
+    commissionRateSnapshot: orders.commissionRateSnapshot,
+    commissionAmountSnapshot: orders.commissionAmountSnapshot,
+  }).from(orders).innerJoin(stores, eq(stores.id, orders.storeId))
+    .where(eq(orders.id, id)).limit(1);
+  if (!order) throw new HttpError(404, "Order not found");
+  const [items, statusHistory] = await Promise.all([
+    getDb().select(safeItemFields).from(orderItems).where(eq(orderItems.orderId, id)).orderBy(asc(orderItems.createdAt)),
+    getDb().select(safeHistoryFields).from(orderStatusHistory).where(eq(orderStatusHistory.orderId, id)).orderBy(asc(orderStatusHistory.createdAt)),
+  ]);
+  res.json({ order: { ...order, items, statusHistory } });
 }));

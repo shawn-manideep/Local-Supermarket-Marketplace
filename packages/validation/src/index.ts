@@ -327,3 +327,27 @@ export const vendorOrderActionSchema = z.object({
   action: z.enum(["ACCEPT", "PREPARE", "READY", "OUT_FOR_DELIVERY", "DELIVER", "REJECT"]),
   note: z.string().trim().max(500).optional(),
 }).strict();
+
+const orderStatusFilterSchema = z.enum([
+  "ALL", "PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY",
+  "DELIVERED", "REJECTED", "CANCELLED",
+]);
+const orderListQueryBase = {
+  status: orderStatusFilterSchema.optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  from: z.string().datetime({ offset: true }).optional(),
+  to: z.string().datetime({ offset: true }).optional(),
+};
+export const vendorOrderQuerySchema = z.object({
+  status: orderStatusFilterSchema.optional(),
+  page: orderListQueryBase.page,
+  pageSize: orderListQueryBase.pageSize,
+}).strict();
+export const adminOrderQuerySchema = z.object({
+  ...orderListQueryBase,
+  storeId: z.string().uuid().optional(),
+}).strict().refine(
+  (value) => !value.from || !value.to || Date.parse(value.from) <= Date.parse(value.to),
+  { message: "from must be before to", path: ["to"] },
+);

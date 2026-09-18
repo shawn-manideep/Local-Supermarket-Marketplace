@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiRequest, type Store, type StoreStatus } from "./api";
+import { OrderOperations } from "./OrderOperations";
 
 interface AdminStorePanelProps {
   token: string;
@@ -166,6 +167,7 @@ export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
           )}
         </div>
       </div>
+      <OrderOperations onMessage={onMessage} stores={stores} token={token} vendor={false} />
     </section>
   );
 }

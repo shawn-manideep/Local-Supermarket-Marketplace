@@ -63,6 +63,73 @@ export interface Product {
   updatedAt: string;
 }
 
+export type OrderStatus =
+  | "PLACED"
+  | "ACCEPTED"
+  | "PREPARING"
+  | "READY"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "REJECTED"
+  | "CANCELLED";
+
+export interface OrderSummary {
+  id: string;
+  storeId: string;
+  storeName: string;
+  status: OrderStatus;
+  paymentMethod: string;
+  totalAmount: string | number;
+  deliveryContactName: string;
+  deliveryAddressSnapshot: {
+    label: string | null;
+    recipientName: string;
+    phone: string;
+    line1: string;
+    line2: string | null;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  itemCount: number;
+  createdAt: string;
+}
+
+export interface OrderItemSnapshot {
+  id: string;
+  productNameSnapshot: string;
+  productPriceSnapshot: string;
+  quantity: number;
+  subtotal: string;
+}
+
+export interface OrderDetail {
+  id: string;
+  storeId: string;
+  storeName: string;
+  status: OrderStatus;
+  deliveryType: string;
+  paymentMethod: string;
+  subtotal: string | number;
+  deliveryFeeSnapshot: string | number;
+  totalAmount: string | number;
+  deliveryAddressSnapshot: OrderSummary["deliveryAddressSnapshot"];
+  deliveryContactName: string;
+  deliveryContactPhone: string;
+  createdAt: string;
+  updatedAt: string;
+  commissionRateSnapshot?: string | number | null;
+  commissionAmountSnapshot?: string | number | null;
+  items: OrderItemSnapshot[];
+  statusHistory: Array<{ status: OrderStatus | string; createdAt: string; note?: string | null }>;
+}
+
+export interface OrderListEnvelope {
+  orders: OrderSummary[];
+  counts: Record<string, number>;
+  pagination: { page: number; pageSize: number; total: number };
+}
+
 interface ApiErrorPayload {
   error?: string;
   details?: Array<{ path?: Array<string | number>; message?: string }>;
