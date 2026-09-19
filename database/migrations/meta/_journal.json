@@ -36,6 +36,13 @@
       "when": 1789718800000,
       "tag": "0004_phase11_security_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789785300000,
+      "tag": "0005_grant_authenticated_customer_reads",
+      "breakpoints": true
     }
   ]
 }

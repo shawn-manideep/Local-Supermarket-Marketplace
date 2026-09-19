@@ -1,0 +1,335 @@
+PHASE 12 — STAGE 6B: MINIMAL DEV DATABASE PRIVILEGE REPAIR
+
+Stage 6A is approved.
+
+The exact root cause of the Stage 6 RLS failure has been established:
+
+- Supabase Data API is reachable.
+- Customer A's valid JWT reaches PostgreSQL.
+- RLS is enabled.
+- Existing RLS policies have the intended ownership logic.
+- `authenticated` has public schema USAGE.
+- `authenticated` lacks SELECT privilege on:
+  - public.customers
+  - public.customer_addresses
+- PostgreSQL therefore returns:
+  42501 permission denied for table
+
+OBJECTIVE
+
+Apply the smallest possible DEV-only database privilege repair so the authenticated Supabase role can perform SELECT against:
+
+- public.customers
+- public.customer_addresses
+
+After the privilege repair, rerun the relevant live RLS verification.
+
+IMPORTANT ARCHITECTURAL RULE
+
+Do NOT weaken RLS.
+
+The required combination must remain:
+
+table SELECT privilege
++
+applicable RLS policy
+
+Do NOT grant broader access than necessary.
+
+Do NOT grant:
+- anon SELECT
+- PUBLIC SELECT
+- service-role changes
+- unrestricted access to other tables
+
+Do NOT modify existing RLS policies.
+
+==================================================
+BEFORE REPAIR
+==================================================
+
+Inspect the existing database/migration privilege conventions.
+
+Determine whether the privilege should be represented in a new migration so the DEV database state remains reproducible.
+
+Do NOT modify migration files that have already been applied.
+
+If a new migration is required, create the smallest forward-only migration necessary.
+
+Do not rewrite or reorder existing migrations.
+
+Use the project's existing migration conventions.
+
+==================================================
+REQUIRED REPAIR
+==================================================
+
+Grant only:
+
+authenticated → SELECT → public.customers
+
+authenticated → SELECT → public.customer_addresses
+
+Do not grant INSERT, UPDATE, or DELETE unless existing application requirements demonstrably require them for this specific Stage 6 test.
+
+Do not grant access to unrelated tables.
+
+Do not change schema ownership.
+
+Do not change RLS policies.
+
+==================================================
+VERIFY PRIVILEGES
+==================================================
+
+After applying the repair, verify:
+
+- authenticated has SELECT on public.customers = YES
+- authenticated has SELECT on public.customer_addresses = YES
+- anon does NOT receive these grants
+- RLS remains enabled on both tables
+- existing RLS policies remain unchanged
+
+==================================================
+LIVE RLS TEST
+==================================================
+
+Use Customer A's real authenticated JWT through the Supabase Data API.
+
+Do NOT use the service-role key for the RLS assertion.
+
+Test:
+
+public.customers
+
+Expected:
+- request succeeds
+- Customer A can see exactly their permitted customer row
+- no Customer B row is visible
+
+Test:
+
+public.customer_addresses
+
+Expected:
+- request succeeds
+- Customer A can see exactly their own address
+- Customer B's address is not visible
+
+Then repeat the corresponding direct RLS checks for Customer B.
+
+Expected:
+
+Customer B sees exactly their own customer row/address.
+
+==================================================
+CROSS-CUSTOMER RLS
+==================================================
+
+Using Customer A's JWT, verify Customer B's customer/address records are not visible.
+
+Using Customer B's JWT, verify Customer A's customer/address records are not visible.
+
+This is direct Data API/RLS testing, NOT merely API middleware testing.
+
+Do not create any additional records.
+
+==================================================
+VENDOR RLS
+==================================================
+
+If existing vendor-owned tables have the required privileges already, perform the equivalent direct RLS verification for the existing Store A / Store B fixture records.
+
+Do not create categories/products/orders.
+
+If there are no suitable vendor-owned records beyond stores, test only existing store records.
+
+Clearly distinguish:
+- table privilege success
+- RLS row filtering success
+
+==================================================
+ADMIN
+==================================================
+
+If the existing RLS design permits admin access to these tables, verify the Admin JWT can see the records that the existing policy intends to permit.
+
+Do not test destructive operations.
+
+==================================================
+NO BROAD GRANTS
+==================================================
+
+Inspect effective grants after repair.
+
+Confirm there is no accidental grant to:
+- anon
+- PUBLIC
+
+Confirm no unrelated table privileges were changed.
+
+==================================================
+DATA INTEGRITY
+==================================================
+
+Verify final counts:
+
+user_profiles = 5
+customers = 2
+customer_addresses = 2
+stores = 2
+store_service_pincodes = 2
+store_operating_hours = 14
+
+categories = 0
+products = 0
+carts = 0
+cart_items = 0
+orders = 0
+order_items = 0
+order_status_history = 0
+
+No business records may be created.
+
+==================================================
+SOURCE / MIGRATION INTEGRITY
+==================================================
+
+If a new migration is required:
+- do not modify migrations 0000–0004
+- record the new migration name/version
+- verify it contains only the necessary privilege repair
+
+Do not modify application source.
+
+Do not modify authentication middleware.
+
+Do not modify authorization logic.
+
+Do not modify Drizzle schema.
+
+Do not modify existing RLS policies.
+
+==================================================
+SECURITY
+==================================================
+
+Never print:
+- passwords
+- JWTs
+- refresh tokens
+- Authorization headers
+- service-role key
+- database password
+- SUPABASE_DB_URL
+
+Use sanitized diagnostics only.
+
+==================================================
+STOP CONDITIONS
+==================================================
+
+If the privilege repair cannot be applied safely:
+
+STOP and report the exact blocker.
+
+If applying the privilege would require weakening RLS:
+
+STOP.
+
+If a broader grant appears necessary:
+
+STOP and report exactly why before making it.
+
+If the live RLS assertion still fails after the minimal privilege repair:
+
+STOP.
+
+Do not modify policies automatically.
+
+==================================================
+REPORT FORMAT
+==================================================
+
+Return:
+
+# Phase 12 — Stage 6B Report
+
+## Status
+PASS / PASS WITH LIMITATION / BLOCKED / FAIL
+
+## Repair
+
+- Target project:
+- New migration required:
+- New migration name/version:
+- Existing migrations modified:
+- Privileges added:
+
+## Effective Privileges
+
+| Role | Table | SELECT | Result |
+|---|---|---|---|
+| authenticated | customers | | |
+| authenticated | customer_addresses | | |
+| anon | customers | | |
+| anon | customer_addresses | | |
+
+## RLS Preservation
+
+- customers RLS enabled:
+- customer_addresses RLS enabled:
+- Existing policies modified:
+- Existing policy intent unchanged:
+
+## Customer A Direct RLS
+
+- Own customer row visible:
+- Foreign customer row visible:
+- Own address visible:
+- Foreign address visible:
+
+## Customer B Direct RLS
+
+- Own customer row visible:
+- Foreign customer row visible:
+- Own address visible:
+- Foreign address visible:
+
+## Vendor RLS
+
+Report only if existing fixture records permit a meaningful test.
+
+## Admin RLS
+
+- Admin access:
+- Result consistent with existing policy:
+
+## Data Integrity
+
+Report final counts only.
+
+## Source Integrity
+
+- Application source:
+- Auth middleware:
+- Authorization:
+- Existing migrations 0000–0004:
+- New migration:
+- Drizzle schema:
+- Existing RLS policies:
+
+## External Systems
+
+- Production Supabase:
+- GitHub:
+- Vercel:
+- Railway:
+- Replit publishing:
+
+## Limitations
+
+Only actual limitations.
+
+STOP AFTER STAGE 6B.
+DO NOT START STAGE 7.
