@@ -1,0 +1,166 @@
+PHASE 12 — STAGE 5: LIVE AUTHENTICATION TESTING ONLY
+
+We have completed and approved Phase 12 Stage 4.
+
+DEV Supabase project:
+supermarket-marketplace-dev
+
+Stage 4 fixtures exist:
+- Customer A → customer
+- Customer B → customer
+- Vendor A → vendor → Store A
+- Vendor B → vendor → Store B
+- Admin → admin
+
+Five development-only passwords are stored in Replit Secrets.
+NEVER print, expose, log, echo, return, or commit any password, access token, refresh token, service-role key, or other credential.
+
+Your task is ONLY Stage 5: live authentication testing.
+
+OBJECTIVE
+
+Use the existing development Supabase project and Stage 4 synthetic identities to verify that the application's real authentication and authorization middleware works against live Supabase Auth and the development database.
+
+DO NOT modify the application architecture.
+
+DO NOT begin later-stage IDOR/RLS isolation testing.
+
+DO NOT test cart/order concurrency.
+
+DO NOT create catalog, cart, checkout, or order fixtures.
+
+DO NOT modify migrations or schema.
+
+TESTS REQUIRED
+
+1. CUSTOMER A AUTHENTICATION
+- Authenticate Customer A using the development-only secret.
+- Verify authentication succeeds.
+- Obtain a valid authenticated session/token internally.
+- Verify the backend accepts the authenticated request.
+- Verify server-side role resolution returns customer.
+- Verify the authenticated customer identity resolves to Customer A.
+- Do not print the token.
+
+2. CUSTOMER B AUTHENTICATION
+- Repeat for Customer B.
+- Verify role = customer.
+- Verify identity resolves to Customer B.
+- Do not print credentials or tokens.
+
+3. VENDOR A AUTHENTICATION
+- Authenticate Vendor A.
+- Verify role = vendor.
+- Verify server-side vendor/store resolution returns Store A.
+- Do not accept or derive ownership from a client-supplied store_id.
+- Do not print credentials or tokens.
+
+4. VENDOR B AUTHENTICATION
+- Authenticate Vendor B.
+- Verify role = vendor.
+- Verify server-side vendor/store resolution returns Store B.
+- Do not print credentials or tokens.
+
+5. ADMIN AUTHENTICATION
+- Authenticate Admin.
+- Verify role = admin.
+- Verify admin authorization is resolved server-side.
+- Do not print credentials or tokens.
+
+6. PROTECTED ROUTE WITHOUT AUTHENTICATION
+- Call representative protected endpoints without an Authorization bearer token.
+- Verify they return the expected authentication failure, normally HTTP 401.
+- Do not modify endpoint behavior merely to make the test pass.
+
+7. INVALID AUTHENTICATION
+- Test a malformed/invalid bearer token against a protected endpoint.
+- Verify it is rejected safely.
+- Verify no internal error details, secrets, tokens, database credentials, or stack traces are returned.
+
+8. ROLE RESOLUTION
+For each authenticated identity verify:
+- Auth user identity is resolved server-side.
+- user_profiles role is resolved server-side.
+- Vendor store ownership is resolved server-side.
+- Client request data cannot assign itself a different role.
+
+9. ROLE SELF-ASSIGNMENT CHECK
+Do NOT modify data.
+Verify that there is no supported public/application path allowing an authenticated customer or vendor to promote itself to vendor/admin.
+Verify role-changing behavior remains controlled by the existing server/database design.
+
+10. AUTH ERROR HANDLING
+Verify authentication failures return safe generic errors and do not expose:
+- Supabase secrets
+- service-role key
+- database URL/password
+- access tokens
+- refresh tokens
+- internal stack traces
+- SQL/database implementation details
+
+TESTING DISCIPLINE
+
+- Use only the existing Stage 4 synthetic identities.
+- Do not create additional users.
+- Do not change passwords.
+- Do not change roles.
+- Do not change store ownership.
+- Do not create categories/products/carts/orders.
+- Do not modify production systems.
+- Do not connect GitHub, Vercel, or Railway.
+- Do not publish Replit.
+- Do not modify migrations.
+- Do not modify Drizzle schema.
+- Do not make unrelated source changes.
+
+If a code defect prevents the test from running, STOP and report the exact defect before making changes.
+
+If a small test-only change is absolutely required, do not silently make it. Report it first.
+
+REPORT FORMAT
+
+Return:
+
+# Phase 12 — Stage 5 Report
+
+## Status
+PASS / PASS WITH LIMITATION / BLOCKED / FAIL
+
+## Authentication Results
+| Identity | Auth | Role Resolution | Store Resolution |
+|---|---|---|---|
+| Customer A | | customer | N/A |
+| Customer B | | customer | N/A |
+| Vendor A | | vendor | Store A |
+| Vendor B | | vendor | Store B |
+| Admin | | admin | N/A |
+
+## Protected Route Results
+- Missing authentication:
+- Invalid authentication:
+- Safe error handling:
+
+## Role Security
+- Server-side role resolution:
+- Vendor store resolution:
+- Role self-assignment prevented:
+
+## Data Integrity
+- Source changes:
+- Migration changes:
+- Schema changes:
+- New business fixtures:
+
+## External Systems
+- Production Supabase:
+- GitHub:
+- Vercel:
+- Railway:
+- Replit publishing:
+
+## Limitations
+List only limitations that actually occurred.
+
+STOP AFTER STAGE 5.
+Do not start Stage 6.
