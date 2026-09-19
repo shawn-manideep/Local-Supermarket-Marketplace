@@ -1,0 +1,324 @@
+PHASE 12 — STAGE 6A: RLS DIAGNOSTIC ONLY
+
+Stage 6 failed during independent live RLS verification.
+
+IMPORTANT:
+The API authorization and IDOR tests passed.
+Do NOT change or "fix" those areas.
+
+The failure occurred when Customer A's authenticated JWT was used directly through the Supabase Data API against:
+
+- public.customers
+- public.customer_addresses
+
+The previous test stopped before emitting enough sanitized diagnostics to distinguish:
+
+1. missing table/schema privileges,
+2. Data API schema exposure/cache behavior, or
+3. incorrect effective RLS behavior.
+
+OBJECTIVE
+
+Diagnose the exact cause of the RLS failure.
+
+This stage is READ-ONLY.
+
+DO NOT modify:
+- application source
+- authentication middleware
+- authorization logic
+- RLS policies
+- migrations
+- Drizzle schema
+- database schema
+- table privileges
+- Supabase settings
+- fixture roles
+- fixture ownership
+- passwords
+
+DO NOT create or modify any records.
+
+DO NOT connect GitHub, Vercel, Railway, or production Supabase.
+
+DO NOT publish Replit.
+
+CREDENTIAL SECURITY
+
+Use Replit Secrets internally.
+
+NEVER print:
+- passwords
+- access tokens
+- refresh tokens
+- Authorization headers
+- service-role key
+- database password
+- SUPABASE_DB_URL
+- any secret value
+
+All diagnostics must be sanitized.
+
+==================================================
+TEST 1 — CUSTOMER A JWT / DATA API
+==================================================
+
+Authenticate Customer A using the existing development-only password.
+
+Use Customer A's real JWT against the Supabase Data API.
+
+Do not use the service-role key for the RLS assertion.
+
+For:
+
+public.customers
+
+run the minimum read needed to determine:
+
+- HTTP status
+- whether the request succeeded
+- sanitized response shape
+- returned row count
+- whether Customer A's own row is visible
+
+Do NOT print row contents containing personal data.
+
+Only report:
+- row count
+- own-row matched: yes/no
+- safe error category/message if applicable
+
+Repeat for:
+
+public.customer_addresses
+
+Again report only:
+- HTTP status
+- row count
+- own-address matched: yes/no
+- sanitized error category/message
+
+==================================================
+TEST 2 — DATA API SCHEMA / EXPOSURE
+==================================================
+
+Determine whether the public schema and the two tables are actually available through the Supabase Data API.
+
+Do not change exposure settings.
+
+Determine, without exposing secrets:
+
+- public schema available: yes/no
+- customers table reachable through Data API: yes/no
+- customer_addresses table reachable through Data API: yes/no
+
+If the response indicates a PostgREST/schema-cache problem, report that explicitly.
+
+Do not refresh/change schema configuration unless already performed automatically by the existing test mechanism.
+
+==================================================
+TEST 3 — DATABASE PRIVILEGE DIAGNOSTIC
+==================================================
+
+Using a safe privileged/read-only database connection ONLY for metadata inspection, inspect whether the intended authenticated database role has the required table/schema privileges for:
+
+- public.customers
+- public.customer_addresses
+
+Do not use the privileged connection to claim that RLS passed.
+
+Report only boolean results such as:
+
+- authenticated role has SELECT on customers: yes/no
+- authenticated role has SELECT on customer_addresses: yes/no
+- authenticated role has USAGE on public schema: yes/no
+
+Do not print SQL credentials.
+
+Do not modify grants.
+
+==================================================
+TEST 4 — RLS ENABLEMENT / POLICY METADATA
+==================================================
+
+Using safe read-only metadata inspection, verify:
+
+- RLS enabled on public.customers
+- RLS enabled on public.customer_addresses
+
+List only sanitized policy metadata:
+
+For each table:
+- policy name
+- command (SELECT/INSERT/UPDATE/DELETE/ALL)
+- role
+- whether it is permissive/restrictive if available
+
+Do not modify policies.
+
+Do not print policy SQL containing secrets.
+
+==================================================
+TEST 5 — POLICY INTENT
+==================================================
+
+Inspect the existing policy definition sufficiently to determine whether Customer A's authenticated identity is intended to see its own row.
+
+Report a sanitized interpretation such as:
+
+"Policy compares authenticated user ID to customer.user_id."
+
+Do not rewrite the policy.
+
+Do not claim effective RLS based on static policy inspection alone.
+
+==================================================
+TEST 6 — AUTHENTICATED IDENTITY CONTEXT
+==================================================
+
+Confirm, without printing the JWT:
+
+- Customer A JWT is valid.
+- The JWT subject matches the Customer A Auth identity.
+- Supabase recognizes the authenticated role appropriately for Data API access.
+- The request is actually being executed as an authenticated user rather than anonymously.
+
+Do not print the subject UUID or token.
+
+A boolean PASS/FAIL is sufficient.
+
+==================================================
+TEST 7 — NO WRITES
+==================================================
+
+Verify that this diagnostic created or modified:
+
+- users: 0
+- roles: 0
+- customers: 0
+- addresses: 0
+- stores: 0
+- categories: 0
+- products: 0
+- carts: 0
+- orders: 0
+
+No writes are permitted.
+
+==================================================
+TEST 8 — DO NOT PATCH
+==================================================
+
+Do NOT make any repair during this stage.
+
+If you identify the likely cause, report it.
+
+Do not:
+- alter grants
+- alter RLS policies
+- change migrations
+- expose tables
+- change Supabase configuration
+- modify code
+
+The purpose is diagnosis only.
+
+==================================================
+REPORT FORMAT
+==================================================
+
+Return exactly:
+
+# Phase 12 — Stage 6A Report
+
+## Status
+PASS / BLOCKED / FAIL
+
+## Customer A Data API
+
+### public.customers
+- Request reached Data API:
+- HTTP status:
+- Returned row count:
+- Customer A own row visible:
+- Sanitized error category:
+
+### public.customer_addresses
+- Request reached Data API:
+- HTTP status:
+- Returned row count:
+- Customer A own address visible:
+- Sanitized error category:
+
+## Data API Exposure
+
+- public schema reachable:
+- customers reachable:
+- customer_addresses reachable:
+- Schema-cache issue detected:
+
+## Database Privileges
+
+- authenticated → public schema USAGE:
+- authenticated → customers SELECT:
+- authenticated → customer_addresses SELECT:
+
+## RLS Metadata
+
+### customers
+- RLS enabled:
+- Applicable SELECT policy:
+- Policy role:
+- Policy command:
+- Policy intent:
+
+### customer_addresses
+- RLS enabled:
+- Applicable SELECT policy:
+- Policy role:
+- Policy command:
+- Policy intent:
+
+## Authenticated Identity Context
+
+- Customer A JWT valid:
+- JWT treated as authenticated:
+- Authenticated identity recognized:
+
+## Data Integrity
+
+Report counts only.
+
+## Changes
+
+- Application source:
+- RLS policies:
+- Migrations:
+- Schema:
+- Grants:
+- Supabase configuration:
+- Database data:
+
+## Diagnosis
+
+State which of these is most likely:
+
+A. Data API exposure/schema cache
+B. Missing database privilege
+C. Effective RLS policy/deployment behavior
+D. Other — explain
+
+Do not claim certainty unless the diagnostics establish it.
+
+## External Systems
+
+- Production Supabase:
+- GitHub:
+- Vercel:
+- Railway:
+- Replit publishing:
+
+STOP AFTER STAGE 6A.
+
+DO NOT REPAIR ANYTHING.
+DO NOT START STAGE 7.
