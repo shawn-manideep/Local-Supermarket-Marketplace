@@ -1,0 +1,78 @@
+STAGE 9A-PREVIEW ONLY — DO NOT MODIFY APPLICATION CODE
+
+The Stage 9A report confirms:
+
+- Backend works on port 5000
+- Dashboard works on port 5173
+- Customer Web works on port 8082
+- Backend tests 33/33 pass
+- Builds pass
+- Security scans pass
+
+The only remaining blocker is Replit public preview routing.
+
+DO NOT:
+- modify application code
+- modify database
+- modify migrations
+- modify RLS
+- modify authentication
+- modify CORS
+- create production resources
+- create Railway
+- create Vercel
+- push GitHub
+- change marketplace logic
+
+GOAL:
+Expose the already-running workflows through usable Replit browser preview URLs.
+
+Required workflows:
+
+1. Phase 12 Backend API
+   Port: 5000
+
+2. Phase 12 Dashboard Preview
+   Port: 5173
+
+3. Phase 12 Customer Web Preview
+   Port: 8082
+
+First inspect the current Replit workflow/preview configuration and determine why the public domains return 404.
+
+Use only Replit-supported preview/workflow configuration.
+
+Do not recreate or replace the applications.
+
+Do not use the obsolete artifacts/api-server or mockup workflows.
+
+After making ONLY preview-routing/configuration changes:
+
+1. Start all three workflows.
+2. Verify each local port responds.
+3. Verify the corresponding public preview URL.
+4. Confirm Dashboard public URL returns the dashboard rather than 404.
+5. Confirm Customer Web public URL returns the customer application rather than 404.
+6. Confirm Backend public URL reaches `/health`.
+
+If Replit cannot expose these workflows through public browser URLs, DO NOT keep experimenting with application code.
+
+Instead report exactly:
+- what Replit preview mechanism is preventing exposure
+- what setting/action is required in the Replit UI
+- which workflow should be selected for the preview
+
+STOP.
+
+Return only:
+
+# Preview Routing Result
+
+## Backend Public URL
+## Dashboard Public URL
+## Customer Web Public URL
+## Local URLs
+## Routing Configuration Changed
+## If Blocked: Exact Replit UI Action Required
+
+No other changes.
