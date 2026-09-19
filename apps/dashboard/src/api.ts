@@ -135,11 +135,22 @@ interface ApiErrorPayload {
   details?: Array<{ path?: Array<string | number>; message?: string }>;
 }
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   token: string,
   init: RequestInit = {},
 ): Promise<T> {
+  const apiOrigin = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -148,7 +159,7 @@ export async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${token.trim()}`);
   }
 
-  const response = await fetch(path, { ...init, headers });
+  const response = await fetch(`${apiOrigin}${path}`, { ...init, headers });
   const payload = response.status === 204
     ? undefined
     : await response.json().catch(() => undefined) as ApiErrorPayload | T | undefined;
@@ -156,7 +167,10 @@ export async function apiRequest<T>(
   if (!response.ok) {
     const errorPayload = payload as ApiErrorPayload | undefined;
     const detail = errorPayload?.details?.[0]?.message;
-    throw new Error(detail ?? errorPayload?.error ?? `Request failed (${response.status})`);
+    throw new ApiRequestError(
+      detail ?? errorPayload?.error ?? `Request failed (${response.status})`,
+      response.status,
+    );
   }
 
   return payload as T;

@@ -1,4 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
+import { authRouter } from "./auth/index.js";
 import { catalogManagementRouter } from "./catalog-management/index.js";
 import { customerManagementRouter } from "./customer-management/index.js";
 import { customerMarketplaceRouter } from "./customer-marketplace/index.js";
@@ -29,10 +30,52 @@ function isBodyTooLargeError(error: unknown) {
   );
 }
 
+function getAllowedOrigins() {
+  return new Set(
+    (process.env.CORS_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+}
+
+function createCorsMiddleware() {
+  const allowedOrigins = getAllowedOrigins();
+
+  return (request: Request, response: Response, next: NextFunction) => {
+    const origin = request.header("origin");
+    if (!origin) {
+      next();
+      return;
+    }
+
+    response.vary("Origin");
+    if (!allowedOrigins.has(origin)) {
+      response.status(403).json({ error: "Origin is not allowed" });
+      return;
+    }
+
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    response.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS",
+    );
+
+    if (request.method === "OPTIONS") {
+      response.sendStatus(204);
+      return;
+    }
+
+    next();
+  };
+}
+
 export function createApp() {
   const app = express();
 
   app.set("trust proxy", 1);
+  app.use(createCorsMiddleware());
   app.use(createApiRateLimit());
   app.use(express.json({ limit: "100kb" }));
 
@@ -40,6 +83,7 @@ export function createApp() {
     response.json({ status: "ok" });
   });
 
+  app.use(authRouter);
   app.use(storeManagementRouter);
   app.use(catalogManagementRouter);
   app.use(customerManagementRouter);

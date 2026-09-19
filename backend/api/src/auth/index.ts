@@ -3,4 +3,5 @@ export {
   getSupabaseServerConfig,
 } from "./config.js";
 export { requireAuth, requireRole } from "./middleware.js";
+export { authRouter } from "./routes.js";
 export type { AuthContext, AuthenticatedRequest } from "./types.js";

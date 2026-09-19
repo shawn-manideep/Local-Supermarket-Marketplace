@@ -1,0 +1,318 @@
+PHASE 12 — STAGE 9A
+PRODUCTION BLOCKER REMEDIATION + FIRST USABLE APP PREVIEW
+
+IMPORTANT:
+Stage 9 audit found real production blockers.
+
+Do NOT create production Supabase.
+Do NOT create Railway deployment.
+Do NOT create Vercel deployment.
+Do NOT push to GitHub.
+Do NOT start Stage 10.
+
+This stage has ONE additional priority:
+
+WE NEED A REAL USABLE MANUAL APP PREVIEW BEFORE CONTINUING
+WITH PRODUCTION DEPLOYMENT.
+
+Do not make unnecessary architectural changes.
+
+==================================================
+1. FIX TRACKED DEV CONFIGURATION
+==================================================
+
+Inspect tracked `.replit`.
+
+Remove development Supabase configuration from tracked source.
+
+The application must continue working in Replit through environment/
+secret configuration rather than committed project-specific values.
+
+Do NOT print any secret.
+
+Do NOT rotate credentials automatically.
+
+After the change run:
+
+- tracked secret scan
+- source scan
+- git diff
+- typecheck
+
+Verify docs/SECURITY.md no longer contradicts the actual repository state.
+
+==================================================
+2. DASHBOARD AUTHENTICATION — REQUIRED
+==================================================
+
+The current dashboard requires manually pasted bearer tokens.
+
+Replace this with the existing Supabase Auth mechanism.
+
+Implement the smallest production-appropriate dashboard authentication
+flow using the existing Supabase Auth setup.
+
+Required behavior:
+
+LOGIN
+- email
+- password
+- sign in
+- clear error state
+
+SESSION
+- restore existing Supabase session
+- keep user signed in after refresh
+- sign out
+
+AUTHORIZATION
+- backend remains the security boundary
+- role must come from server-side user profile
+- vendor store identity must come from authenticated server context
+- client must never assign its own role
+- client must never assign its own store
+
+DASHBOARD
+After authentication, load the authenticated user's role.
+
+Vendor:
+- show vendor dashboard
+- show only their store/order/catalog functionality
+
+Admin:
+- show admin functionality
+
+Customer:
+- do not expose vendor/admin dashboard functionality
+
+Do NOT implement a new authentication system.
+
+Do NOT store passwords.
+
+Do NOT create custom JWT generation.
+
+Do NOT weaken backend authorization.
+
+Remove the manual bearer-token entry flow from the normal dashboard UX.
+
+==================================================
+3. DASHBOARD API CONNECTION
+==================================================
+
+The dashboard currently uses relative `/api` requests.
+
+For Replit preview, configure the smallest clean mechanism that allows
+the dashboard to communicate with the actual backend API.
+
+Do NOT hardcode production URLs.
+
+Do NOT point the application to production.
+
+Development/preview configuration may use the existing Replit backend.
+
+Production configuration must remain environment-configurable.
+
+Do not add unnecessary infrastructure.
+
+==================================================
+4. CORS / PREVIEW CONNECTIVITY
+==================================================
+
+Configure the backend only as much as necessary for the Replit preview
+and future production architecture.
+
+Do NOT use wildcard CORS as a permanent production solution.
+
+Use environment-configurable allowed origins if CORS is required.
+
+Do not introduce credentialed cookie authentication.
+
+Current authentication uses bearer tokens.
+
+Keep Authorization and Content-Type support.
+
+==================================================
+5. CUSTOMER APP PREVIEW
+==================================================
+
+Verify the customer Expo Web app can actually be opened and used in
+Replit preview.
+
+The preview must use the DEV Supabase project and DEV backend only.
+
+Do NOT connect to production.
+
+Verify:
+
+- app starts
+- login screen renders
+- Supabase Auth session works
+- authenticated customer shell renders
+- customer can reach store discovery
+- customer can reach catalog
+- customer can use existing DEV data
+
+Do NOT create new business features.
+
+==================================================
+6. DASHBOARD PREVIEW
+==================================================
+
+Verify the dashboard can actually be opened and used in Replit preview.
+
+Using the existing DEV Auth users:
+
+Vendor:
+- login
+- dashboard loads
+- vendor identity resolves
+- store information loads
+- existing Store A catalog/order data is visible
+
+Admin:
+- login
+- admin dashboard loads
+- existing store/order data is visible according to current permissions
+
+Do not create production users.
+
+Do not modify roles.
+
+==================================================
+7. PREVIEW ROUTING
+==================================================
+
+Determine the correct Replit preview URLs/routes for:
+
+- Customer Web
+- Dashboard
+- Backend API
+
+Make sure the preview does not accidentally use the old
+`artifacts/api-server` health-only workflow.
+
+The real backend is:
+
+backend/api/src/index.ts
+
+Use the real backend workflow already established in Stage 5A.
+
+==================================================
+8. DO NOT CHANGE MARKETPLACE LOGIC
+==================================================
+
+Do NOT modify:
+
+- cart rules
+- checkout rules
+- order lifecycle
+- financial calculations
+- commission calculations
+- RLS
+- migrations
+- database schema
+- product architecture
+- store architecture
+- delivery architecture
+
+Stage 8 already validated these.
+
+==================================================
+9. REGRESSION CHECK
+==================================================
+
+After changes run:
+
+- backend typecheck
+- backend tests
+- dashboard build
+- customer Expo Web export
+- backend health
+- credential scan
+- sensitive logging scan
+- unsafe eval scan
+
+Expected backend tests must remain:
+
+33/33
+
+If a test fails because of the dashboard authentication work,
+investigate it.
+
+Do not modify unrelated code just to obtain a green result.
+
+==================================================
+10. DATABASE SAFETY
+==================================================
+
+Do NOT create migrations.
+
+Do NOT modify migrations 0000–0006.
+
+Do NOT modify RLS.
+
+Do NOT delete Stage 8 DEV data.
+
+Do NOT create additional business fixtures unless required to verify
+the preview.
+
+Existing DEV data should remain available for manual testing.
+
+==================================================
+11. STOP CONDITION
+==================================================
+
+STOP after the following are achieved:
+
+A. Tracked development Supabase configuration removed.
+
+B. Dashboard no longer requires manually pasted bearer tokens for normal
+authentication.
+
+C. Dashboard preview loads.
+
+D. Customer Web preview loads.
+
+E. Both can authenticate against DEV.
+
+F. Vendor and Admin dashboard access remains server-authorized.
+
+G. Backend tests/builds remain passing.
+
+H. DEV database remains intact.
+
+DO NOT:
+
+- create production Supabase
+- create Railway
+- create Vercel
+- push GitHub
+- publish Replit
+- start Stage 10
+
+==================================================
+12. FINAL REPORT
+==================================================
+
+Return:
+
+# Stage 9A Report
+
+## Changes Made
+## Dashboard Authentication
+## Customer Web Preview
+## Dashboard Preview
+## Backend Preview
+## DEV Database Safety
+## Security Checks
+## Build/Test Results
+## Remaining Production Blockers
+## Preview URLs / How to Open Each Preview
+
+IMPORTANT:
+Clearly identify the actual preview URL(s) that I should open manually.
+
+If a preview cannot be exposed because of a Replit limitation,
+state the exact reason and STOP.
+
+Do not continue to production setup.

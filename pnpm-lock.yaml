@@ -121,6 +121,9 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.49.1
+        version: 2.116.0
       react:
         specifier: 'catalog:'
         version: 19.1.0

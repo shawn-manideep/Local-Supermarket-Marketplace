@@ -175,7 +175,7 @@ export function VendorStorePanel({ token, onMessage }: VendorStorePanelProps) {
       {!store ? (
         <div className="empty-state">
           <strong>Store data is not loaded</strong>
-          <span>Enter a Supabase access token above, then load your store.</span>
+          <span>Load your linked store to begin managing its settings.</span>
         </div>
       ) : (
         <div className="panel-grid">

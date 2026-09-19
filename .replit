@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "python-base-3.13"]
 
 [deployment]
 router = "application"
@@ -26,11 +26,35 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm --filter @workspace/api run dev"
+args = "CORS_ALLOWED_ORIGINS=https://$REPLIT_EXPO_DEV_DOMAIN pnpm --filter @workspace/api run dev"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "Phase 12 Dashboard Preview"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/dashboard run dev -- --port 5173"
+waitForPort = 5173
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow]]
+name = "Phase 12 Customer Web Preview"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "rm -rf /tmp/phase12-customer-web && EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/customer exec expo export --platform web --output-dir /tmp/phase12-customer-web && PORT=8082 node scripts/src/customer-web-preview.mjs /tmp/phase12-customer-web"
+waitForPort = 8082
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -39,11 +63,3 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
-
-[userenv]
-
-[userenv.development]
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd2NvbGlwZWF2eG51enFsYW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDQ3NTgsImV4cCI6MjEwNTMyMDc1OH0.zBlScn5VQhHUXrik7vqge848UOcLuRzzDN7DCZ75RjI"
-SUPABASE_URL = "https://gkwcolipeavxnuzqlamb.supabase.co"
-
-[userenv.shared]

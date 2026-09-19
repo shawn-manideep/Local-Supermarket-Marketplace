@@ -3,3 +3,4 @@
 - [Cart write boundary](cart-write-boundary.md) — cart mutations are API-only and serialized per customer; public Supabase access remains read-only.
 - [Order lifecycle boundary](order-lifecycle-boundary.md) — order creation and status changes are API-only, transactionally locked, and snapshot current authoritative values.
 - [Migration repair discipline](migration-repair-discipline.md) — never edit approved migrations; security and policy repairs must be forward-only.
+- [Legacy workflow preview routing](legacy-workflow-preview-routing.md) — non-artifact webview workflows may stay local when artifact-managed domains own preview routing.
