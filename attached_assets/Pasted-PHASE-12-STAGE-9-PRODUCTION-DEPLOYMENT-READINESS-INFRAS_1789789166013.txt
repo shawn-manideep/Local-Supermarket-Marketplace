@@ -1,0 +1,727 @@
+PHASE 12 — STAGE 9
+PRODUCTION DEPLOYMENT READINESS & INFRASTRUCTURE PREPARATION
+
+IMPORTANT:
+Phase 12 Stage 8 is APPROVED WITH LIMITATION.
+
+The live DEV marketplace flow has been validated successfully.
+
+DO NOT deploy the application yet.
+
+DO NOT connect production credentials.
+
+DO NOT create or modify production Supabase data.
+
+DO NOT create GitHub/Vercel/Railway production deployments yet.
+
+Stage 9 is a READINESS AND PREPARATION AUDIT ONLY.
+
+==================================================
+1. OBJECTIVE
+==================================================
+
+Determine whether the application is technically ready for production
+deployment and identify everything required before:
+
+- GitHub source-control publication
+- Production Supabase creation/configuration
+- Railway backend deployment
+- Vercel dashboard deployment
+- Customer web deployment if applicable
+- Production environment-variable configuration
+
+The goal is to produce a precise production deployment checklist.
+
+DO NOT start Stage 10 or perform actual production deployment.
+
+==================================================
+2. ENVIRONMENT SAFETY
+==================================================
+
+The validated DEV environment is:
+
+Project:
+supermarket-marketplace-dev
+
+Project ref:
+gkwcolipeavxnuzqlamb
+
+DO NOT:
+
+- modify DEV database schema
+- modify DEV RLS
+- modify DEV migrations
+- delete DEV fixtures
+- create production credentials
+- connect production credentials to Replit
+- deploy Railway
+- deploy Vercel
+- push to GitHub
+- create production Supabase project
+
+DEV must remain the validated baseline.
+
+==================================================
+3. REPOSITORY AUDIT
+==================================================
+
+Inspect the complete repository structure.
+
+Report:
+
+- root package.json
+- pnpm workspace configuration
+- apps/customer
+- apps/dashboard
+- backend/api
+- packages/*
+- database/migrations
+- docs/*
+- Replit configuration
+- build configuration
+- deployment configuration
+
+Confirm whether the architecture still matches:
+
+apps/
+  customer
+  dashboard
+  delivery future
+
+backend/
+  api
+
+packages/
+  shared-types
+  validation
+  api-client
+  constants
+
+database/
+  migrations
+
+==================================================
+4. SOURCE CONTROL READINESS
+==================================================
+
+Determine whether the repository is ready to be pushed to GitHub.
+
+Inspect:
+
+- .gitignore
+- .env.example
+- Replit files
+- generated files
+- build output
+- node_modules
+- secrets
+- temporary test files
+- local databases
+- logs
+- credentials
+- Supabase credentials
+- service-role keys
+- database URLs
+- JWT secrets
+
+Run credential/source scans.
+
+IMPORTANT:
+
+Do not push anything to GitHub.
+
+Do not initialize or modify a remote repository.
+
+Do not create commits.
+
+Report:
+
+READY / NOT READY
+
+and exact blockers.
+
+==================================================
+5. ENVIRONMENT VARIABLE AUDIT
+==================================================
+
+Create an inventory of required production variables WITHOUT printing
+their values.
+
+Separate:
+
+PUBLIC CLIENT VARIABLES
+
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+
+SERVER-ONLY VARIABLES
+
+- SUPABASE_DB_URL
+- SUPABASE_SERVICE_ROLE_KEY
+- JWT-related secrets if actually required by current implementation
+- any other backend secrets actually required
+
+Also identify:
+
+- Railway variables
+- Vercel variables
+- Expo/customer variables
+- build-time variables
+- runtime variables
+
+For every variable report:
+
+name | application | public/server-only | required | purpose
+
+Do not invent variables.
+
+Do not expose secret values.
+
+==================================================
+6. SUPABASE PRODUCTION READINESS
+==================================================
+
+Inspect all migrations:
+
+0000
+0001
+0002
+0003
+0004
+0005
+0006
+
+Verify:
+
+- deterministic order
+- no DEV-specific hardcoding
+- no test user IDs
+- no test store IDs
+- no development-only assumptions
+- no credentials
+- no environment-specific URLs
+- no accidental seed data
+- no migration referencing DEV project IDs
+
+Verify the repaired composite unique/FK ordering remains intact.
+
+DO NOT apply migrations to a production project.
+
+DO NOT create a production Supabase project yet.
+
+Report whether the migrations are production-deployable.
+
+==================================================
+7. SUPABASE AUTH READINESS
+==================================================
+
+Inspect authentication implementation.
+
+Confirm:
+
+- Supabase Auth is used
+- no custom password authentication
+- backend validates Supabase bearer tokens
+- roles resolved server-side
+- vendor store identity resolved server-side
+- public admin signup does not exist
+- no client-controlled role assignment
+- production Auth configuration requirements are documented
+
+Identify any production settings that must be configured manually.
+
+Do not change Auth settings.
+
+==================================================
+8. DATABASE SECURITY READINESS
+==================================================
+
+Audit production implications of:
+
+- RLS
+- grants
+- SECURITY DEFINER functions
+- triggers
+- search_path protections
+- customer policies
+- vendor isolation
+- admin access
+- service-role usage
+- authenticated privileges
+- anon privileges
+
+Verify no Stage 8 changes weakened security.
+
+Report the expected initial production privilege state.
+
+Do not modify database privileges.
+
+==================================================
+9. BACKEND DEPLOYMENT AUDIT
+==================================================
+
+Inspect backend/API:
+
+- entrypoint
+- start command
+- build command
+- port handling
+- health endpoint
+- CORS
+- request body limits
+- rate limiting
+- logging
+- error handling
+- environment loading
+- database connection
+- Supabase service-role usage
+- graceful startup/shutdown if implemented
+
+Determine whether Railway can run the backend without source changes.
+
+Report exact expected:
+
+BUILD COMMAND
+START COMMAND
+PORT
+HEALTH PATH
+
+Do not deploy Railway.
+
+==================================================
+10. FRONTEND / DASHBOARD DEPLOYMENT AUDIT
+==================================================
+
+Inspect dashboard:
+
+- Vite config
+- base path
+- environment variables
+- API URL configuration
+- build command
+- output directory
+- SPA fallback requirements
+- authentication behavior
+
+Determine whether Vercel can deploy it without source changes.
+
+Report:
+
+BUILD COMMAND
+OUTPUT DIRECTORY
+REQUIRED ENVIRONMENT VARIABLES
+SPA/ROUTING REQUIREMENTS
+
+Do not deploy Vercel.
+
+==================================================
+11. CUSTOMER APP DEPLOYMENT AUDIT
+==================================================
+
+Inspect Expo customer app.
+
+Determine current support status:
+
+- Web
+- Android
+- iOS
+
+Verify current web export.
+
+Do not create an APK/AAB.
+
+Do not publish to app stores.
+
+Do not introduce Expo upgrades.
+
+Identify what remains required before native release.
+
+==================================================
+12. API URL / ENVIRONMENT SEPARATION
+==================================================
+
+Verify there is a clean mechanism for:
+
+DEV API
+vs
+PRODUCTION API
+
+Verify the customer/dashboard clients will not accidentally point to DEV
+when production is deployed.
+
+Verify no hardcoded localhost URLs remain in production paths.
+
+Report all detected URLs/endpoints.
+
+Do not modify source code unless a critical production blocker is
+discovered.
+
+==================================================
+13. CORS AUDIT
+==================================================
+
+Inspect current CORS configuration.
+
+Determine:
+
+- whether wildcard origin is used
+- which origins are currently allowed
+- whether production dashboard/customer origins can be configured
+- whether credentials/cookies require special handling
+
+Do not weaken CORS.
+
+If production origins are not yet known because deployment has not
+occurred, document the exact configuration that will be required later.
+
+==================================================
+14. STORAGE AUDIT
+==================================================
+
+Determine whether Supabase Storage is actually used by the current MVP.
+
+If not used:
+
+report NOT CURRENTLY REQUIRED.
+
+If used:
+
+identify buckets, policies, public/private requirements, and deployment
+configuration.
+
+Do not create buckets.
+
+==================================================
+15. DOMAIN / ROUTING AUDIT
+==================================================
+
+Do not purchase or configure domains.
+
+Determine expected future URLs:
+
+- Dashboard
+- Customer Web if applicable
+- API
+
+Report whether any current code assumes a specific hostname.
+
+==================================================
+16. RATE LIMITING / SCALING
+==================================================
+
+Review current rate limiting.
+
+Document:
+
+- request limits
+- mutation limits
+- order creation limits
+- memory-based limiter behavior
+- limitations under multiple Railway instances
+
+Do not add Redis.
+
+Do not change rate limits.
+
+Determine whether production should initially use a single API instance
+or whether shared rate limiting becomes mandatory.
+
+This is a readiness assessment only.
+
+==================================================
+17. OBSERVABILITY
+==================================================
+
+Inspect current:
+
+- application logging
+- backend errors
+- health checks
+- Sentry or other telemetry if actually present
+- sensitive-data protection
+
+Determine what production monitoring is currently available.
+
+Do not add new paid services.
+
+==================================================
+18. DEPENDENCY READINESS
+==================================================
+
+Run dependency audit.
+
+Expected previously accepted findings:
+
+- image-size 1.2.1 — 2 high transitive Expo/Metro advisories
+- uuid 7.0.3 — 1 moderate transitive tooling advisory
+
+Verify whether status changed.
+
+Do NOT force framework upgrades.
+
+Do NOT upgrade Expo merely to eliminate these findings.
+
+If unchanged, record as an accepted pre-existing limitation.
+
+==================================================
+19. BUILD VERIFICATION
+==================================================
+
+Run:
+
+- backend typecheck
+- backend build
+- backend tests
+- dashboard production build
+- customer Expo Web export
+- migration consistency
+- credential scan
+- unsafe eval scan
+- sensitive logging scan
+- dependency audit
+
+Do not modify source just to make a check pass.
+
+==================================================
+20. PRODUCTION CONFIGURATION GAP ANALYSIS
+==================================================
+
+Create a checklist with:
+
+READY NOW
+
+NEEDS MANUAL CONFIGURATION
+
+NEEDS PRODUCTION RESOURCE
+
+NEEDS CODE CHANGE
+
+NEEDS BUSINESS DECISION
+
+BLOCKER
+
+Examples:
+
+- Production Supabase project
+- Production Auth settings
+- Production migrations
+- Production service-role key
+- Railway API
+- Railway environment variables
+- Vercel dashboard
+- Vercel environment variables
+- Production CORS origins
+- API production URL
+- Frontend production API URL
+- Domain
+- Admin account provisioning
+- Vendor onboarding process
+- Customer signup configuration
+- Monitoring
+- Backup strategy
+
+Do not invent requirements that the current application does not need.
+
+==================================================
+21. GITHUB READINESS
+==================================================
+
+Before any GitHub publication later, verify:
+
+- no secrets
+- no .env files
+- no generated credentials
+- no DEV service-role key
+- no database passwords
+- no personal access tokens
+- no unnecessary Replit secrets
+- no build artifacts
+- no node_modules
+
+Do NOT push.
+
+==================================================
+22. PRODUCTION SUPABASE MIGRATION PLAN
+==================================================
+
+Document the exact later sequence:
+
+1. Create separate production Supabase project.
+2. Configure production Auth.
+3. Apply migrations 0000–0006 in exact order.
+4. Verify RLS.
+5. Verify privileges.
+6. Provision initial admin securely.
+7. Provision vendor accounts through controlled process.
+8. Verify health/auth/API.
+9. Run production smoke tests.
+10. Only then expose application.
+
+Do not execute this sequence now.
+
+==================================================
+23. DEPLOYMENT ORDER RECOMMENDATION
+==================================================
+
+Determine the safest future deployment order among:
+
+GitHub
+Supabase
+Railway
+Vercel
+
+Do not perform the deployment.
+
+Explain dependencies between them.
+
+==================================================
+24. FINAL REPORT
+==================================================
+
+Return exactly:
+
+# Phase 12 — Stage 9 Report
+
+## Status
+
+Choose:
+
+READY FOR PRODUCTION SETUP
+READY WITH LIMITATIONS
+REQUIRES REMEDIATION
+BLOCKED
+
+## Executive Summary
+
+Short factual summary.
+
+## Repository Readiness
+
+PASS / FAIL
+
+## GitHub Readiness
+
+PASS / FAIL
+
+## Environment Variables
+
+Table:
+
+Variable | App | Public/Server | Required | Notes
+
+Never include values.
+
+## Supabase Production Readiness
+
+PASS / FAIL / LIMITATION
+
+## Auth Readiness
+
+PASS / FAIL / LIMITATION
+
+## RLS / Database Security
+
+PASS / FAIL / LIMITATION
+
+## Backend / Railway Readiness
+
+PASS / FAIL / LIMITATION
+
+Include:
+
+Build command
+Start command
+Port
+Health endpoint
+
+## Dashboard / Vercel Readiness
+
+PASS / FAIL / LIMITATION
+
+Include:
+
+Build command
+Output directory
+Required environment variables
+
+## Customer Expo Readiness
+
+Web:
+Android:
+iOS:
+
+## API URL Separation
+
+Result.
+
+## CORS
+
+Result.
+
+## Storage
+
+Result.
+
+## Domain / Routing
+
+Result.
+
+## Rate Limiting
+
+Result.
+
+## Observability
+
+Result.
+
+## Dependency Audit
+
+Exact current findings.
+
+## Build Verification
+
+Table of every check.
+
+## Production Gap Analysis
+
+READY NOW
+MANUAL CONFIGURATION
+PRODUCTION RESOURCE
+CODE CHANGE
+BUSINESS DECISION
+BLOCKER
+
+## Future Production Deployment Order
+
+Numbered list.
+
+## Production Supabase Migration Plan
+
+Numbered list.
+
+## Changes Made
+
+Application source:
+Database:
+Migrations:
+Dependencies:
+External systems:
+
+Expected:
+NO CHANGES
+
+## External Systems
+
+Production Supabase: untouched
+GitHub: untouched
+Vercel: untouched
+Railway: untouched
+DEV Supabase: unchanged except existing Stage 8 data
+
+## Final Recommendation
+
+Do NOT start actual production deployment.
+
+Do NOT start Stage 10.
+
+STOP AFTER THIS REPORT.
