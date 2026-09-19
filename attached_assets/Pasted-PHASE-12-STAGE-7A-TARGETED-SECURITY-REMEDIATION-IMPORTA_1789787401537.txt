@@ -1,0 +1,522 @@
+PHASE 12 — STAGE 7A
+TARGETED SECURITY REMEDIATION
+
+IMPORTANT:
+Stage 7 validation identified two unresolved issues:
+
+1. Excess PostgreSQL privileges:
+   anon and authenticated reportedly have effective
+   TRUNCATE, REFERENCES, TRIGGER, and MAINTAIN
+   privileges on all 13 application tables.
+
+2. Dependency audit:
+   4 high and 3 moderate vulnerabilities were reported,
+   primarily in Expo/Metro-related transitive dependencies.
+
+Stage 7A is ONLY for controlled diagnosis and safe remediation.
+
+DO NOT start Stage 8.
+
+==================================================
+1. CHANGE CONTROL
+==================================================
+
+Do NOT modify application business logic.
+
+Do NOT modify frontend behavior.
+
+Do NOT modify backend authorization logic.
+
+Do NOT modify Drizzle schema unless absolutely required by a proven database compatibility issue.
+
+Do NOT modify migrations 0000–0005.
+
+Do NOT create business fixtures.
+
+Do NOT create categories.
+
+Do NOT create products.
+
+Do NOT create carts.
+
+Do NOT create orders.
+
+Do NOT create order items.
+
+Do NOT touch production.
+
+Do NOT touch GitHub.
+
+Do NOT touch Vercel.
+
+Do NOT touch Railway.
+
+Do NOT publish Replit.
+
+Do not print credentials, passwords, access tokens, service-role keys, DB passwords, or secrets.
+
+==================================================
+2. DATABASE PRIVILEGE DIAGNOSIS
+==================================================
+
+Investigate the reported privileges before changing anything.
+
+For EACH of the 13 application tables:
+
+- user_profiles
+- customers
+- customer_addresses
+- stores
+- store_service_pincodes
+- store_operating_hours
+- categories
+- products
+- carts
+- cart_items
+- orders
+- order_items
+- order_status_history
+
+Inspect:
+
+A. relacl / table ACL
+B. role memberships
+C. effective privileges
+D. explicit grants
+E. inherited privileges
+F. default privileges relevant to these tables
+
+Specifically determine where these privileges originate:
+
+- SELECT
+- INSERT
+- UPDATE
+- DELETE
+- TRUNCATE
+- REFERENCES
+- TRIGGER
+- MAINTAIN
+
+for:
+
+- anon
+- authenticated
+- service_role
+- postgres/owner role where relevant
+
+DO NOT revoke anything yet.
+
+==================================================
+3. DETERMINE REQUIRED PRIVILEGES
+==================================================
+
+Compare the current privilege configuration against the application architecture.
+
+The application uses:
+
+- Supabase Auth
+- RLS
+- backend API
+- server-side database access
+- SECURITY DEFINER helper functions
+- PostgreSQL triggers
+- Supabase Data API
+
+Determine which privileges are actually required for:
+
+A. customer Data API reads
+B. customer RLS
+C. vendor backend operations
+D. admin backend operations
+E. SECURITY DEFINER functions
+F. trigger execution
+G. migration/owner operations
+
+Important:
+
+Do NOT assume authenticated needs TRIGGER merely because trigger functions exist.
+
+Do NOT assume authenticated needs MAINTAIN.
+
+Do NOT grant privileges simply to make tests pass.
+
+==================================================
+4. SAFE PRIVILEGE REMEDIATION
+==================================================
+
+If the diagnosis confirms that the reported
+TRUNCATE / REFERENCES / TRIGGER / MAINTAIN privileges
+are unnecessary for anon/authenticated:
+
+Create ONE new forward-only migration.
+
+Name it:
+
+0006_harden_table_privileges
+
+The migration must:
+
+- revoke only unnecessary privileges
+- preserve required application functionality
+- preserve existing RLS
+- preserve existing SECURITY DEFINER behavior
+- preserve existing triggers
+- preserve existing owner/service-role functionality
+
+At minimum, if confirmed unnecessary:
+
+REVOKE TRUNCATE FROM anon;
+REVOKE TRUNCATE FROM authenticated;
+
+Do NOT revoke SELECT from authenticated on:
+
+- customers
+- customer_addresses
+
+because Stage 6B deliberately added those grants.
+
+Do NOT grant PUBLIC privileges.
+
+Do NOT grant anon privileges.
+
+Do NOT modify existing RLS policies.
+
+Do NOT modify migrations 0000–0005.
+
+For REFERENCES/TRIGGER/MAINTAIN:
+
+ONLY revoke them if diagnosis proves they are unnecessary.
+
+Do not guess.
+
+==================================================
+5. MIGRATION SAFETY
+==================================================
+
+Before applying a new migration:
+
+- verify migration 0005 remains unchanged
+- verify 0000–0004 remain unchanged
+- verify migration naming/order
+- verify the migration contains only the approved privilege changes
+
+Apply ONLY the new migration if a repair is justified.
+
+After applying:
+
+verify migration history contains:
+
+0000
+0001
+0002
+0003
+0004
+0005
+0006
+
+No other migrations.
+
+==================================================
+6. POST-REPAIR DATABASE VERIFICATION
+==================================================
+
+Verify effective privileges again.
+
+Expected:
+
+anon:
+- no TRUNCATE
+- no unnecessary REFERENCES
+- no unnecessary TRIGGER
+- no unnecessary MAINTAIN
+
+authenticated:
+- no TRUNCATE
+- no unnecessary REFERENCES
+- no unnecessary TRIGGER
+- no unnecessary MAINTAIN
+
+But preserve:
+
+authenticated SELECT on:
+- customers
+- customer_addresses
+
+Do not accidentally remove required privileges.
+
+Verify:
+
+- RLS remains enabled on all 13 tables
+- existing policies remain unchanged
+- SECURITY DEFINER functions remain valid
+- trigger functions remain valid
+- store ownership protections remain intact
+
+==================================================
+7. LIVE REGRESSION TEST
+==================================================
+
+Using the existing Stage 4 identities:
+
+Customer A
+Customer B
+Vendor A
+Vendor B
+Admin
+
+Run a focused regression:
+
+- customer own profile
+- customer own address
+- cross-customer address denied
+- customer→vendor denied
+- customer→admin denied
+- vendor store resolution
+- vendor→customer denied
+- vendor→admin denied
+- admin read access
+
+Do not create business records.
+
+Do not create catalog data.
+
+Do not create orders.
+
+Also repeat the direct Customer A/B RLS checks:
+
+Customer A:
+own customer = 1
+foreign customer = 0
+own address = 1
+foreign address = 0
+
+Customer B:
+own customer = 1
+foreign customer = 0
+own address = 1
+foreign address = 0
+
+==================================================
+8. DEPENDENCY AUDIT — DIAGNOSIS FIRST
+==================================================
+
+Do NOT upgrade packages blindly.
+
+Run the dependency audit and identify:
+
+For every vulnerability:
+
+- package name
+- installed version
+- vulnerable range
+- patched version, if available
+- direct vs transitive
+- dependency path
+- whether runtime or build/dev tooling
+- whether the package belongs to Expo/Metro
+- whether upgrading it would require an Expo SDK upgrade
+
+Specifically investigate:
+
+- PostCSS
+- image-size
+- uuid
+- all other reported vulnerable packages
+
+Do NOT modify package.json or lockfiles yet.
+
+==================================================
+9. DEPENDENCY REMEDIATION DECISION
+==================================================
+
+Only after diagnosis:
+
+If a safe compatible patch exists that does NOT require a major Expo SDK upgrade:
+
+- apply the smallest safe dependency update
+- preserve current Expo/React Native compatibility
+- update lockfile normally
+- run all builds afterward
+
+If remediation requires a major Expo SDK or React Native upgrade:
+
+DO NOT perform that upgrade in Stage 7A.
+
+Instead report:
+
+"Deferred — requires broader framework upgrade."
+
+Do not force an incompatible version.
+
+If a vulnerability affects build tooling only and does not affect the production runtime:
+
+report that distinction clearly.
+
+==================================================
+10. BUILD REGRESSION
+==================================================
+
+If dependency changes were made, run:
+
+- backend typecheck
+- dashboard build
+- customer Expo Web export
+- backend health
+- existing tests
+- security scan
+- dependency audit
+
+If no dependency changes are justified:
+
+report that no dependency changes were made.
+
+==================================================
+11. DATA INTEGRITY
+==================================================
+
+Final counts MUST remain:
+
+user_profiles = 5
+customers = 2
+customer_addresses = 2
+stores = 2
+store_service_pincodes = 2
+store_operating_hours = 14
+
+categories = 0
+products = 0
+carts = 0
+cart_items = 0
+orders = 0
+order_items = 0
+order_status_history = 0
+
+No business records may be created.
+
+==================================================
+12. EXTERNAL SYSTEM SAFETY
+==================================================
+
+Production Supabase: untouched
+GitHub: untouched
+Vercel: untouched
+Railway: untouched
+Replit publishing: untouched
+
+==================================================
+13. REQUIRED FINAL REPORT
+==================================================
+
+Return exactly:
+
+# Phase 12 — Stage 7A Report
+
+## Status
+
+PASS
+PASS WITH LIMITATION
+BLOCKED
+FAIL
+
+## Privilege Diagnosis
+
+For each affected privilege:
+
+Privilege | Role | Tables | Origin | Required? | Action
+
+Clearly explain why each privilege was or was not revoked.
+
+## Database Changes
+
+List:
+
+- migration created
+- exact purpose
+- whether 0000–0005 unchanged
+- whether RLS policies unchanged
+
+Do not print secrets.
+
+## Effective Privileges After Repair
+
+Report anon/authenticated privileges relevant to:
+
+SELECT
+INSERT
+UPDATE
+DELETE
+TRUNCATE
+REFERENCES
+TRIGGER
+MAINTAIN
+
+## RLS Regression
+
+Customer A
+Customer B
+Admin
+Vendor
+
+## API Regression
+
+Authentication
+Customer authorization
+Vendor authorization
+Admin authorization
+
+## Dependency Audit
+
+For every vulnerability:
+
+Package
+Severity
+Installed version
+Patched version
+Direct/transitive
+Runtime/build tooling
+Action
+
+## Dependency Changes
+
+State exactly what changed, or explicitly say:
+
+"No dependency changes made."
+
+## Build Validation
+
+Report every check.
+
+## Data Integrity
+
+Report all 13 final counts.
+
+## Migration Integrity
+
+Report complete migration history.
+
+## External Systems
+
+Explicitly confirm:
+
+Production Supabase untouched
+GitHub untouched
+Vercel untouched
+Railway untouched
+Replit publishing untouched
+
+## Remaining Limitations
+
+List anything unresolved.
+
+## Final Recommendation
+
+Choose:
+
+APPROVE STAGE 7
+APPROVE STAGE 7 WITH LIMITATION
+REQUIRES FURTHER REMEDIATION
+BLOCKED
+
+DO NOT START STAGE 8.
+
+STOP.
