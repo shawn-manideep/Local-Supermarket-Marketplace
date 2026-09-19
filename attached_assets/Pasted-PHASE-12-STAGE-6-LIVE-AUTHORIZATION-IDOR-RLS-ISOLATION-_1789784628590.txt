@@ -1,0 +1,446 @@
+PHASE 12 — STAGE 6: LIVE AUTHORIZATION, IDOR & RLS ISOLATION TESTING
+
+Stage 5B is approved.
+
+The real backend authentication flow has been verified live against:
+
+DEV Supabase project:
+supermarket-marketplace-dev
+
+Running backend workflow:
+Phase 12 Backend API
+Port: 5000
+
+Stage 4 synthetic fixtures:
+
+- Customer A → customer → Customer A address → Store A service pincode
+- Customer B → customer → Customer B address → Store B service pincode
+- Vendor A → vendor → Store A
+- Vendor B → vendor → Store B
+- Admin → admin
+
+Current business-data state:
+- Categories: 0
+- Products: 0
+- Carts: 0
+- Orders: 0
+
+OBJECTIVE
+
+Now test the live authorization boundary, IDOR resistance, and effective RLS isolation using ONLY the existing synthetic DEV fixtures.
+
+This stage is specifically for security isolation.
+
+DO NOT create catalog, cart, checkout, or order data.
+
+DO NOT add users.
+
+DO NOT modify roles.
+
+DO NOT modify store ownership.
+
+DO NOT modify fixture addresses.
+
+DO NOT modify migrations.
+
+DO NOT modify schema.
+
+DO NOT weaken or bypass RLS.
+
+DO NOT change application authorization logic merely to make a test pass.
+
+DO NOT connect GitHub, Vercel, Railway, or production Supabase.
+
+DO NOT publish Replit.
+
+CREDENTIAL SECURITY
+
+Use existing Replit Secrets internally.
+
+NEVER print or expose:
+- passwords
+- access tokens
+- refresh tokens
+- Authorization headers
+- service-role key
+- database URL/password
+- other credentials
+
+Redact all credentials from logs and the final report.
+
+==================================================
+PART 1 — CUSTOMER ISOLATION
+==================================================
+
+Use Customer A's authenticated session.
+
+A1. Verify Customer A can access its own profile.
+
+A2. Verify Customer A can access its own address.
+
+A3. Attempt to access Customer B's address using Customer B's address ID.
+
+Expected:
+- access denied / not found according to existing API semantics
+- no Customer B data returned
+
+A4. Attempt to manipulate any customer-owned object ID available through the existing customer API by replacing Customer A's ID with Customer B's ID.
+
+Expected:
+- ownership remains derived from authenticated Customer A
+- Customer B data is not returned
+- no unauthorized modification occurs
+
+Repeat equivalent tests with Customer B attempting to access Customer A's address/profile-owned data.
+
+IMPORTANT:
+Do not create or modify any records merely to perform these tests.
+
+==================================================
+PART 2 — CUSTOMER → VENDOR ISOLATION
+==================================================
+
+Using Customer A's authenticated session, attempt representative vendor-protected endpoints:
+
+GET /api/vendor/store
+
+and any other existing vendor-protected read endpoint that is already implemented and safe to test.
+
+Expected:
+HTTP 403 or the application's established authorization-denied response.
+
+Customer must not receive vendor data.
+
+Repeat with Customer B.
+
+==================================================
+PART 3 — CUSTOMER → ADMIN ISOLATION
+==================================================
+
+Using Customer A's authenticated session:
+
+GET /api/admin/stores
+
+Expected:
+authorization denied, normally HTTP 403.
+
+Repeat with Customer B.
+
+Customer must not receive admin-only data.
+
+==================================================
+PART 4 — VENDOR ISOLATION
+==================================================
+
+Authenticate Vendor A.
+
+A1. Verify Vendor A can access its own Store A.
+
+A2. Attempt to access Store B using Store B's ID wherever an existing vendor endpoint accepts an object/store identifier.
+
+Expected:
+- denied/not found according to existing API semantics
+- Store B data not returned
+- no cross-store data exposed
+
+A3. Attempt equivalent cross-store access using Vendor B against Store A.
+
+Expected:
+- denied/not found
+- no Store A data exposed
+
+A4. If existing vendor category/product/order endpoints are usable with object IDs, perform representative cross-store object-ID tests only where corresponding records already exist.
+
+Because categories/products/orders are currently empty, do NOT create records just for this stage.
+
+==================================================
+PART 5 — VENDOR → CUSTOMER ISOLATION
+==================================================
+
+Using Vendor A:
+
+Attempt representative customer-protected endpoint(s), such as:
+
+GET /api/customer/profile
+
+GET /api/customer/addresses
+
+Expected:
+authorization denied.
+
+Repeat with Vendor B.
+
+Vendor must not receive customer-owned data.
+
+==================================================
+PART 6 — VENDOR → ADMIN ISOLATION
+==================================================
+
+Using Vendor A:
+
+GET /api/admin/stores
+
+Expected:
+authorization denied.
+
+Repeat with Vendor B.
+
+Vendor must not receive admin-only data.
+
+==================================================
+PART 7 — ADMIN BOUNDARY
+==================================================
+
+Authenticate Admin.
+
+Verify the existing admin read endpoints work as intended.
+
+Do not test destructive admin operations.
+
+Do not change stores, roles, commission rates, ownership, or fixture data.
+
+Confirm admin access is based on server-side admin role resolution.
+
+Do not interpret admin access as permission to bypass application rules unless the existing implementation explicitly defines such behavior.
+
+==================================================
+PART 8 — CROSS-IDENTITY IDOR TESTS
+==================================================
+
+Perform safe read-only IDOR tests against existing fixture records.
+
+Customer examples:
+- Customer A session + Customer B address ID
+- Customer B session + Customer A address ID
+
+Vendor examples:
+- Vendor A session + Store B ID
+- Vendor B session + Store A ID
+
+For every test verify:
+- authenticated identity remains the source of ownership
+- client-supplied object ID cannot change ownership
+- unauthorized data is not returned
+
+Do NOT invent endpoints that do not exist.
+
+Do NOT create data to manufacture IDOR targets.
+
+==================================================
+PART 9 — LIVE RLS TESTING
+==================================================
+
+The objective is to verify effective database-level isolation, not merely application middleware.
+
+Use the existing supported application/database test mechanism to exercise RLS under the authenticated customer/vendor identities.
+
+Verify, where the existing policies apply:
+
+Customer A cannot directly read Customer B's protected customer-owned records.
+
+Customer B cannot directly read Customer A's protected customer-owned records.
+
+Vendor A cannot directly read Vendor B's store-owned records.
+
+Vendor B cannot directly read Vendor A's store-owned records.
+
+Admin behavior must remain consistent with the existing RLS design.
+
+IMPORTANT:
+
+Do not use the service-role key as the identity being tested.
+
+The service-role key may only be used for controlled setup/count verification if already required by the existing test infrastructure.
+
+Do not bypass RLS with privileged credentials and then claim RLS passed.
+
+If the current repository does not provide a valid way to exercise a policy under an authenticated user's JWT, STOP and report that limitation rather than inventing a bypass.
+
+==================================================
+PART 10 — RLS / API LAYER DISTINCTION
+==================================================
+
+For every isolation result, distinguish between:
+
+1. API authorization:
+   Backend middleware/route ownership prevented access.
+
+2. Database RLS:
+   Supabase/PostgreSQL policy prevented unauthorized access.
+
+Do not report "RLS PASS" merely because the API returned 403.
+
+If effective RLS cannot be independently exercised, report:
+"RLS live verification blocked/limited" with the exact reason.
+
+==================================================
+PART 11 — SAFE FAILURE BEHAVIOR
+==================================================
+
+For unauthorized requests verify responses do not expose:
+
+- another customer's personal data
+- another vendor's store data
+- internal database information
+- SQL errors
+- stack traces
+- service credentials
+- access tokens
+- refresh tokens
+
+Use the application's existing status/error semantics.
+
+Do not alter error handling during the test.
+
+==================================================
+PART 12 — DATA INTEGRITY
+==================================================
+
+After all tests verify these counts remain exactly:
+
+user_profiles = 5
+customers = 2
+customer_addresses = 2
+stores = 2
+store_service_pincodes = 2
+store_operating_hours = 14
+
+categories = 0
+products = 0
+carts = 0
+cart_items = 0
+orders = 0
+order_items = 0
+order_status_history = 0
+
+No test may create business records.
+
+No fixture ownership or role may change.
+
+==================================================
+PART 13 — SOURCE INTEGRITY
+==================================================
+
+Verify:
+
+- application source unchanged
+- authentication middleware unchanged
+- authorization logic unchanged
+- migrations unchanged
+- Drizzle schema unchanged
+- RLS policies unchanged
+- only previously approved `.replit` workflow change remains
+
+Run git diff/check.
+
+If you discover a security defect:
+STOP.
+
+Do not patch it automatically.
+
+Report:
+- exact failing test
+- expected result
+- actual result
+- likely affected file/module
+- whether the failure appears to be API authorization, RLS, or both
+
+==================================================
+REPORT FORMAT
+==================================================
+
+Return exactly:
+
+# Phase 12 — Stage 6 Report
+
+## Status
+PASS / PASS WITH LIMITATION / BLOCKED / FAIL
+
+## Customer Isolation
+
+| Test | Expected | Actual | Result |
+|---|---|---|---|
+| Customer A → own profile | allowed | | |
+| Customer A → own address | allowed | | |
+| Customer A → Customer B address | denied | | |
+| Customer B → Customer A address | denied | | |
+| Customer A → vendor endpoint | denied | | |
+| Customer B → vendor endpoint | denied | | |
+| Customer A → admin endpoint | denied | | |
+| Customer B → admin endpoint | denied | | |
+
+## Vendor Isolation
+
+| Test | Expected | Actual | Result |
+|---|---|---|---|
+| Vendor A → Store A | allowed | | |
+| Vendor B → Store B | allowed | | |
+| Vendor A → Store B | denied | | |
+| Vendor B → Store A | denied | | |
+| Vendor A → customer endpoint | denied | | |
+| Vendor B → customer endpoint | denied | | |
+| Vendor A → admin endpoint | denied | | |
+| Vendor B → admin endpoint | denied | | |
+
+## Admin Boundary
+
+- Admin authentication:
+- Admin role:
+- Admin read access:
+- Unauthorized privilege escalation observed:
+
+## IDOR
+
+- Customer cross-ID tests:
+- Vendor cross-ID tests:
+- Ownership derived from authenticated identity:
+- Unauthorized object data exposed:
+
+## RLS
+
+- Customer RLS live verification:
+- Vendor RLS live verification:
+- Admin RLS verification:
+- RLS independently exercised using authenticated identity:
+- Any limitation:
+
+IMPORTANT:
+Do not call API 403 responses alone "RLS verification."
+
+## Error Safety
+
+- Cross-user data exposed:
+- Cross-store data exposed:
+- SQL errors exposed:
+- Stack traces exposed:
+- Credentials exposed:
+
+## Data Integrity
+
+Report the final counts only.
+
+## Source Integrity
+
+- Application source:
+- Auth middleware:
+- Authorization logic:
+- Migrations:
+- Schema:
+- RLS:
+- `.replit`:
+
+## External Systems
+
+- Production Supabase:
+- GitHub:
+- Vercel:
+- Railway:
+- Replit publishing:
+
+## Limitations
+
+List only actual limitations.
+
+STOP AFTER STAGE 6.
+
+DO NOT START STAGE 7.
