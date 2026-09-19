@@ -1,0 +1,1074 @@
+PHASE 12 — STAGE 8
+LIVE DEV MARKETPLACE, CART, CHECKOUT & ORDER LIFECYCLE VALIDATION
+
+IMPORTANT:
+Stage 7/7A is approved WITH LIMITATION.
+
+The DEV environment is now security-hardened and ready for controlled
+business-flow validation.
+
+Execute ONLY Phase 12 Stage 8.
+
+==================================================
+1. OBJECTIVE
+==================================================
+
+Validate the complete implemented marketplace flow against the LIVE DEV
+Supabase project:
+
+Customer
+  ↓
+Store discovery
+  ↓
+Categories
+  ↓
+Products
+  ↓
+Cart
+  ↓
+Checkout validation
+  ↓
+Order creation
+  ↓
+Vendor order processing
+  ↓
+Vendor-owned delivery
+  ↓
+Customer/Admin order visibility
+  ↓
+Final DELIVERED state
+
+Also validate:
+
+- historical snapshots
+- financial calculations
+- commission snapshots
+- delivery snapshots
+- cart conversion
+- stock revalidation
+- one-cart-per-store rule
+- customer isolation
+- vendor/store isolation
+- order lifecycle transition rules
+- order history
+- duplicate order protection
+- cancellation/rejection rules
+- transaction integrity
+
+THIS IS A DEV-ONLY TEST.
+
+==================================================
+2. ABSOLUTE ENVIRONMENT SAFETY
+==================================================
+
+TARGET PROJECT:
+
+supermarket-marketplace-dev
+project ref: gkwcolipeavxnuzqlamb
+
+DO NOT TOUCH:
+
+- production Supabase
+- GitHub
+- Vercel
+- Railway
+- Replit publishing
+
+Do not create any production resources.
+
+Do not use production credentials.
+
+Do not print secrets.
+
+==================================================
+3. CHANGE CONTROL
+==================================================
+
+This stage allows controlled DEV BUSINESS FIXTURES.
+
+However:
+
+DO NOT modify application source code unless a real defect is discovered.
+
+DO NOT modify migrations 0000–0006 during validation.
+
+DO NOT create a migration merely to make a test pass.
+
+DO NOT modify RLS policies during this stage.
+
+DO NOT broaden database privileges.
+
+DO NOT change business rules.
+
+If a defect is discovered:
+
+STOP the affected test.
+
+Record:
+
+- exact endpoint/action
+- authenticated identity
+- expected result
+- actual result
+- HTTP status
+- database effect
+- whether defect is frontend/backend/database/RLS/business-rule
+- whether it appears reproducible
+
+Do not automatically repair it.
+
+==================================================
+4. EXISTING FIXTURES
+==================================================
+
+Use existing:
+
+Customer A
+Customer B
+Vendor A → Store A
+Vendor B → Store B
+Admin
+
+Do not create additional Auth users.
+
+Use existing customer addresses.
+
+Customer A address is associated with Store A service pincode.
+
+Customer B address is associated with Store B service pincode.
+
+==================================================
+5. STORE PREPARATION
+==================================================
+
+Inspect Store A and Store B.
+
+Verify:
+
+- ACTIVE status
+- service pincode
+- delivery fee
+- minimum order amount
+- commission rate
+- operating hours
+
+Do not change values unless absolutely necessary for a test and record any change.
+
+Prefer existing values.
+
+If Store A/B are not ACTIVE or cannot support the planned test,
+STOP and report.
+
+==================================================
+6. MINIMUM BUSINESS FIXTURES
+==================================================
+
+Create the smallest safe catalog required for testing.
+
+ONLY in Store A:
+
+Create exactly:
+
+Category:
+- "Test Grocery"
+
+Products:
+1. "Test Rice"
+2. "Test Oil"
+3. "Unavailable Item"
+
+Use sensible development-only values.
+
+IMPORTANT:
+
+- products belong directly to Store A
+- no global product
+- no store_products table
+- no cross-store product reuse
+- all product rows must have Store A store_id
+- category belongs to Store A
+
+Use:
+
+Test Rice:
+- active = true
+- availability = true
+- stock_quantity sufficient for tests
+- price > 0
+
+Test Oil:
+- active = true
+- availability = true
+- stock_quantity sufficient for tests
+- price > 0
+
+Unavailable Item:
+- active = true
+- availability = false
+
+Do NOT create catalog data in Store B unless a specific isolation
+test requires it.
+
+If Store B needs one product to test cross-store isolation,
+create the absolute minimum:
+
+Category:
+- "Store B Test Grocery"
+
+Product:
+- "Store B Test Product"
+
+No additional products.
+
+==================================================
+7. PRODUCT SECURITY VALIDATION
+==================================================
+
+Verify:
+
+- Store A products visible to Store A vendor
+- Store A products visible to customers served by Store A
+- Store B vendor cannot modify Store A product
+- Store A vendor cannot modify Store B product
+- Customer cannot access inactive products
+- Customer cannot purchase unavailable products
+- customer-facing projection does not expose:
+  - stock quantity
+  - SKU
+  - external code
+  - owner IDs
+  - commission
+  - internal timestamps
+
+Verify category ownership.
+
+Verify product-category store relationship.
+
+==================================================
+8. CUSTOMER STORE DISCOVERY
+==================================================
+
+Customer A:
+
+Use Customer A's valid address/pincode.
+
+Verify:
+
+- Store A appears if ACTIVE and serving the pincode
+- Store B appears only if its service pincode matches
+- inactive/suspended/rejected stores are excluded
+- operating status is calculated correctly
+- pincode not belonging to customer's saved addresses is rejected
+
+Customer B:
+
+Perform corresponding Store B checks.
+
+Do not modify store status merely to test exclusion.
+
+Use existing status where possible.
+
+==================================================
+9. CART — CUSTOMER A / STORE A
+==================================================
+
+Using Customer A:
+
+Add:
+
+Test Rice
+Test Oil
+
+Verify:
+
+- cart belongs to Customer A
+- cart belongs to Store A
+- quantities are correct
+- subtotal uses server-side product price
+- no floating-point authoritative calculation
+- integer/bigint money representation is preserved
+
+Test quantity update.
+
+Test quantity removal.
+
+Test empty-cart behavior.
+
+Do not exceed stock.
+
+==================================================
+10. ONE-CART-PER-STORE RULE
+==================================================
+
+While Customer A has an active Store A cart:
+
+Attempt to add Store B product.
+
+Expected:
+
+STORE_SWITCH_REQUIRED
+
+Then confirm switching.
+
+Verify:
+
+- previous Store A cart becomes ABANDONED
+- Store B cart becomes ACTIVE
+- Store A cart is not deleted
+- no cart merge occurs
+- only one ACTIVE cart exists for Customer A
+
+Then clear/abandon the Store B test cart as appropriate.
+
+Do not leave unnecessary active carts.
+
+==================================================
+11. CART ISOLATION
+==================================================
+
+Customer B must not see Customer A's cart.
+
+Customer A must not see Customer B's cart.
+
+Vendor must not gain customer cart visibility.
+
+Admin should not gain customer cart visibility unless existing
+implementation explicitly permits it.
+
+Do not broaden permissions to make this test possible.
+
+==================================================
+12. UNAVAILABLE / INACTIVE PRODUCT TEST
+==================================================
+
+Using Customer A:
+
+Attempt to add:
+
+Unavailable Item
+
+Expected:
+rejected.
+
+If possible through an existing testable route, verify inactive product
+is also rejected.
+
+Do not modify the product during the test unless the implemented API
+requires toggling availability.
+
+If toggling is necessary:
+
+- record original state
+- perform test
+- restore original state
+
+==================================================
+13. CHECKOUT VALIDATION
+==================================================
+
+Using Customer A and Store A:
+
+Create a valid cart.
+
+Run:
+
+POST /api/customer/checkout/validate
+
+Verify server-side:
+
+- customer
+- cart
+- store
+- product active state
+- product availability
+- stock
+- delivery address
+- pincode serviceability
+- minimum order amount
+- delivery fee
+- subtotal
+- total
+- COD payment mode
+
+Do not trust client-provided totals.
+
+Attempt invalid checkout conditions where safely possible:
+
+- invalid address
+- unavailable product
+- insufficient stock
+- invalid/foreign address
+- below minimum order
+- incorrect client-supplied total
+
+Expected behavior must come from server validation.
+
+Do not create orders for invalid checkout tests.
+
+==================================================
+14. ORDER CREATION — CRITICAL
+==================================================
+
+Create ONE valid real DEV order for Customer A / Store A.
+
+Before creation, verify:
+
+- cart ACTIVE
+- product available
+- product active
+- sufficient stock
+- correct address
+- pincode supported
+- minimum order satisfied
+- COD
+- correct delivery fee
+
+Immediately before order creation, revalidate all of the above.
+
+Create the order through the real backend API.
+
+Expected:
+
+- one order
+- order status = PLACED
+- cart status = CONVERTED
+- cart items preserved
+- order items created
+- status history created
+
+==================================================
+15. ORDER SNAPSHOT VALIDATION
+==================================================
+
+Inspect the created order.
+
+Verify snapshots contain:
+
+- delivery address snapshot
+- contact information snapshot
+- delivery type = vendor_staff
+- payment method = COD
+- subtotal
+- delivery fee snapshot
+- total amount
+- commission rate snapshot
+- commission amount snapshot
+
+Verify order items snapshot:
+
+- product name
+- unit price
+- quantity
+- line amount
+
+The order must not depend on the current product row to reconstruct
+historical financial/order information.
+
+==================================================
+16. HISTORICAL SNAPSHOT TEST
+==================================================
+
+AFTER the order is created:
+
+Change the current Store A product price through the legitimate vendor
+product API.
+
+Do NOT change the order.
+
+Then retrieve the order.
+
+Verify:
+
+- current product price changed
+- historical order item unit price DID NOT change
+- historical line amount DID NOT change
+- order subtotal DID NOT change
+- delivery fee snapshot DID NOT change
+- total amount DID NOT change
+- commission snapshot DID NOT change
+
+Restore the product price afterward if needed.
+
+If the current API prevents changing a product referenced by an order,
+record that and inspect the snapshot structurally instead.
+
+==================================================
+17. STOCK REVALIDATION
+==================================================
+
+Verify the implemented behavior:
+
+- order creation checks current stock
+- stock is NOT deducted/reserved as part of MVP
+
+Do not redesign stock handling.
+
+If safe, test an insufficient-stock cart and verify order creation fails.
+
+Do not leave products in a broken state.
+
+==================================================
+18. DUPLICATE ORDER PROTECTION
+==================================================
+
+Test the implemented duplicate-order protection in the safest available
+way.
+
+Do not intentionally create duplicate orders.
+
+If the API prevents replay because the cart becomes CONVERTED:
+
+verify a second order attempt against the same converted cart fails.
+
+Expected:
+
+no second order.
+
+==================================================
+19. CUSTOMER ORDER ACCESS
+==================================================
+
+Customer A:
+
+- own order → allowed
+
+Customer B:
+
+- Customer A order → denied/not exposed
+
+Customer A must not access Store B/vendor/admin resources.
+
+Verify customer order list/detail behavior.
+
+==================================================
+20. VENDOR ORDER ACCESS
+==================================================
+
+Vendor A:
+
+- Store A order → allowed
+
+Vendor B:
+
+- Store A order → denied
+
+Vendor cannot access customer-owned resources outside intended routes.
+
+Verify vendor sees only safe order projection.
+
+Do not expose unnecessary:
+
+- internal auth identifiers
+- customer credentials
+- commission internals where not intended
+- database internals
+
+==================================================
+21. ORDER LIFECYCLE
+==================================================
+
+Using Vendor A, move the created order through:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Verify every transition.
+
+At each step verify:
+
+- correct HTTP response
+- order status updated
+- exactly one corresponding status-history event
+- history contains actor identity/role as implemented
+- timestamps are server-generated
+- invalid transitions are rejected
+
+==================================================
+22. INVALID TRANSITIONS
+==================================================
+
+Test safe invalid transitions.
+
+Examples:
+
+PLACED → PREPARING
+PLACED → READY
+PLACED → OUT_FOR_DELIVERY
+ACCEPTED → READY
+READY → ACCEPTED
+DELIVERED → ACCEPTED
+
+Expected:
+
+rejected.
+
+Do not alter the final order.
+
+==================================================
+23. CUSTOMER CANCELLATION
+==================================================
+
+Create a SECOND minimal valid order only if necessary to test
+customer cancellation.
+
+If created:
+
+Customer attempts cancellation while PLACED.
+
+Expected:
+
+CANCELLED.
+
+Then verify:
+
+- history recorded
+- terminal state
+- vendor cannot continue lifecycle
+
+If creating a second order is not necessary or would complicate cleanup,
+record the cancellation test as NOT TESTABLE.
+
+Do not create unnecessary orders.
+
+==================================================
+24. VENDOR REJECTION
+==================================================
+
+If a separate minimal order is required:
+
+Vendor rejects while PLACED.
+
+Expected:
+
+REJECTED.
+
+Verify terminal state and history.
+
+Do not create unnecessary fixtures.
+
+==================================================
+25. TERMINAL STATE PROTECTION
+==================================================
+
+Verify:
+
+DELIVERED cannot transition further.
+
+CANCELLED cannot transition further.
+
+REJECTED cannot transition further.
+
+No generic arbitrary status endpoint exists that bypasses lifecycle rules.
+
+==================================================
+26. DELIVERY SNAPSHOT
+==================================================
+
+For the delivered order verify:
+
+delivery_type = vendor_staff
+
+Verify delivery contact fields are snapshots as implemented.
+
+No GPS/map/live tracking is expected.
+
+Do not introduce a delivery subsystem.
+
+==================================================
+27. FINANCIAL VALIDATION
+==================================================
+
+Verify:
+
+subtotal = sum(order item line amounts)
+
+total = subtotal + delivery_fee_snapshot
+
+commission_amount_snapshot corresponds to the effective commission rate
+using the implemented deterministic rounding rules.
+
+Verify all authoritative money calculations remain integer/bigint based.
+
+No floating-point calculation should determine persisted totals.
+
+==================================================
+28. ORDER HISTORY IMMUTABILITY
+==================================================
+
+Verify the status history cannot be modified/deleted by normal
+application roles.
+
+If a safe API-level mutation attempt exists:
+
+test it.
+
+Do not directly mutate the database with service-role credentials just
+to manufacture a result.
+
+If not safely testable, report structural protection.
+
+==================================================
+29. ORDER IMMUTABILITY
+==================================================
+
+Verify client/vendor requests cannot overwrite server-controlled:
+
+- customer ownership
+- store ownership
+- status
+- financial totals
+- delivery snapshot
+- commission snapshot
+- payment method
+- order item historical pricing
+
+Attempt only safe API-level protected-field tests.
+
+Expected rejection.
+
+==================================================
+30. CART CONVERSION
+==================================================
+
+After successful order creation verify:
+
+- original cart = CONVERTED
+- cart items remain available as historical cart data
+- no second ACTIVE version of the converted cart
+- order remains independently readable
+
+==================================================
+31. DATABASE COUNTS
+==================================================
+
+At the end report all 13 table counts.
+
+Expected minimum after successful testing:
+
+user_profiles = 5
+customers = 2
+customer_addresses = 2
+stores = 2
+store_service_pincodes = 2
+store_operating_hours = 14
+
+categories >= 1
+products >= 3
+carts >= 1
+cart_items >= 1
+orders >= 1
+order_items >= 1
+order_status_history >= 1
+
+Exact final counts must be reported.
+
+Do not delete historical order data merely to return to zero.
+
+==================================================
+32. RLS AFTER BUSINESS DATA EXISTS
+==================================================
+
+This is IMPORTANT.
+
+Repeat live isolation tests AFTER business records exist.
+
+Customer A:
+- own order visible
+- Customer B orders invisible
+
+Vendor A:
+- Store A order visible
+- Store B order invisible
+
+Vendor B:
+- Store B order visible if created
+- Store A order invisible
+
+Admin:
+- intended platform order visibility
+
+Customer cannot directly access vendor/admin data.
+
+Vendor cannot directly access another store.
+
+==================================================
+33. CONCURRENCY / DUPLICATE PROTECTION
+==================================================
+
+Do NOT perform a destructive stress test.
+
+Perform only a minimal safe concurrency/replay validation if the existing
+test harness supports it.
+
+Focus on:
+
+- duplicate order creation from same cart
+- duplicate lifecycle action
+
+Expected:
+
+only one valid order
+only one valid state transition
+
+If concurrency cannot be safely tested in the current environment,
+report:
+
+NOT TESTABLE IN CURRENT STAGE
+
+Do not add infrastructure such as Redis.
+
+==================================================
+34. BUILD / REGRESSION
+==================================================
+
+Run:
+
+- backend typecheck
+- backend tests
+- dashboard build
+- customer Expo Web export
+- migration/schema consistency
+- backend health
+- security/source scan
+- dependency audit
+
+Do not upgrade Expo just to eliminate the remaining transitive findings.
+
+Report remaining dependency limitation separately.
+
+==================================================
+35. FINAL SECURITY CHECK
+==================================================
+
+Verify:
+
+- no credentials committed
+- no service-role key exposed
+- no database password exposed
+- no auth token logging
+- no unsafe eval
+- no unsafe HTML/data path introduced
+- no new public/anon database privileges
+- no RLS policies modified
+
+==================================================
+36. REQUIRED FINAL REPORT
+==================================================
+
+Return exactly:
+
+# Phase 12 — Stage 8 Report
+
+## Status
+
+PASS
+PASS WITH LIMITATION
+BLOCKED
+FAIL
+
+## Environment
+
+Confirm DEV project only.
+
+## Store Baseline
+
+Store A:
+status
+pincode
+delivery fee
+minimum order
+commission rate
+
+Store B:
+same fields
+
+## Business Fixtures Created
+
+List every category/product created.
+
+Include:
+store
+price
+availability
+stock
+active status
+
+## Customer Discovery
+
+Report Customer A and B results.
+
+## Product Security
+
+Report all tests.
+
+## Cart Validation
+
+Report:
+
+- add
+- update
+- remove
+- store switching
+- cart isolation
+- unavailable product
+- active cart rules
+
+## Checkout Validation
+
+Report valid and invalid cases.
+
+## Order Creation
+
+Report:
+
+- order ID
+- status
+- cart conversion
+- order item count
+
+Do not expose secrets.
+
+## Historical Snapshots
+
+Report every snapshot validated.
+
+## Financial Validation
+
+Report:
+
+subtotal
+delivery fee
+total
+commission rate
+commission amount
+
+Use actual DEV test values.
+
+## Order Lifecycle
+
+Table:
+
+From | To | Result | History
+
+## Invalid Lifecycle Tests
+
+Report each.
+
+## Customer Cancellation
+
+PASS / NOT TESTABLE
+
+## Vendor Rejection
+
+PASS / NOT TESTABLE
+
+## Terminal State Protection
+
+Result.
+
+## Customer Order Isolation
+
+Result.
+
+## Vendor Store Isolation
+
+Result.
+
+## Admin Order Access
+
+Result.
+
+## Database Security
+
+Report RLS and protected fields.
+
+## Immutability
+
+Report:
+
+- order
+- order items
+- financial snapshots
+- delivery snapshots
+- status history
+- cart conversion
+
+## Duplicate Protection
+
+Result.
+
+## Concurrency
+
+Result or NOT TESTABLE.
+
+## Build / Regression
+
+Report every check.
+
+## Dependency Audit
+
+Report current state:
+
+- 2 high image-size
+- 1 moderate uuid
+
+unless the audit has changed legitimately.
+
+Do NOT force framework upgrades.
+
+## Data Integrity
+
+Report exact final counts for all 13 tables.
+
+## Migration Integrity
+
+Must remain:
+
+0000
+0001
+0002
+0003
+0004
+0005
+0006
+
+No additional migration unless explicitly approved.
+
+## External Systems
+
+Production Supabase: untouched
+GitHub: untouched
+Vercel: untouched
+Railway: untouched
+Replit publishing: untouched
+
+## Limitations
+
+Clearly list anything not directly tested.
+
+## Changes Made
+
+Separate:
+
+Application source
+Database schema
+Migrations
+Database data
+Dependencies
+
+## Final Recommendation
+
+Choose:
+
+APPROVE STAGE 8
+APPROVE STAGE 8 WITH LIMITATION
+REQUIRES FURTHER REMEDIATION
+BLOCKED
+
+DO NOT START STAGE 9.
+
+STOP AFTER THE REPORT.
