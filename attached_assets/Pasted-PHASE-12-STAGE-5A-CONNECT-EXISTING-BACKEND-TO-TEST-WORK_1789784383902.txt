@@ -1,0 +1,141 @@
+PHASE 12 — STAGE 5A: CONNECT EXISTING BACKEND TO TEST WORKFLOW
+
+Stage 5 is BLOCKED because the currently running Replit workflow
+`artifacts/api-server: API Server` exposes only the health-check router.
+
+The actual application backend is under:
+
+backend/api
+
+Its existing Supabase authentication middleware and protected routes are already implemented.
+
+OBJECTIVE
+
+Make the EXISTING `backend/api` application runnable through a Replit development workflow so Stage 5 live authentication testing can execute.
+
+This is ONLY test/development workflow wiring.
+
+DO NOT redesign or rewrite the backend.
+
+DO NOT change authentication architecture.
+
+DO NOT change database schema.
+
+DO NOT change migrations.
+
+DO NOT change RLS policies.
+
+DO NOT change application authorization logic.
+
+DO NOT create new users or fixtures.
+
+DO NOT modify the five Stage 4 identities.
+
+DO NOT modify their passwords or roles.
+
+DO NOT connect GitHub, Vercel, Railway, or production Supabase.
+
+DO NOT publish Replit.
+
+FIRST inspect the existing repository and determine:
+
+1. How `backend/api` currently starts.
+2. Its existing package scripts.
+3. Its existing entrypoint.
+4. Its configured port behavior.
+5. Whether it already has a development/start script.
+6. How the current Replit workflow points to `artifacts/api-server`.
+7. Whether the backend can be exposed directly without changing application source.
+
+PREFERRED APPROACH
+
+Prefer changing ONLY the Replit development workflow/configuration so that the existing `backend/api` server is started and exposed.
+
+Do not duplicate the backend.
+
+Do not create a second authentication implementation.
+
+Do not move routes between packages unless absolutely required.
+
+Do not alter route definitions.
+
+Do not alter middleware.
+
+Do not alter database code.
+
+Do not alter environment variable names.
+
+ENVIRONMENT
+
+Use the existing development Supabase environment variables already configured in Replit Secrets.
+
+Do not print any secret values.
+
+Do not print:
+- SUPABASE_SERVICE_ROLE_KEY
+- SUPABASE_DB_URL
+- access tokens
+- refresh tokens
+- passwords
+
+VERIFY
+
+After wiring the workflow:
+
+1. Start the existing backend/api application.
+2. Confirm its health endpoint works.
+3. Confirm the existing protected routes are actually mounted.
+4. Without authentication, verify a protected route now reaches authentication middleware and returns its expected authentication failure, normally HTTP 401 rather than 404.
+5. Do not perform authenticated tests yet.
+6. Do not test IDOR/RLS/cart/order isolation yet.
+
+If the existing backend cannot be started without modifying application source, STOP and report exactly what source change would be required. Do not make that change automatically.
+
+If only Replit workflow/configuration changes are required, make the minimal change and verify it.
+
+REPORT EXACTLY:
+
+# Phase 12 — Stage 5A Report
+
+## Status
+PASS / BLOCKED / FAIL
+
+## Existing Backend
+- Entrypoint:
+- Start command:
+- Port:
+- Health endpoint:
+
+## Workflow
+- Previous workflow:
+- New workflow:
+- Workflow/config files changed:
+
+## Route Verification
+- Health endpoint:
+- `/api/customer/profile` mounted:
+- `/api/vendor/store` mounted:
+- `/api/admin/stores` mounted:
+
+## Authentication Boundary
+- Unauthenticated protected request:
+- Expected status:
+- Actual status:
+
+## Changes
+- Application source changed:
+- Migration changed:
+- Schema changed:
+- Database data changed:
+- Fixture identities changed:
+
+## External Systems
+- Production Supabase:
+- GitHub:
+- Vercel:
+- Railway:
+- Replit publishing:
+
+STOP AFTER STAGE 5A.
+
+DO NOT RUN STAGE 5 AUTHENTICATED TESTS YET.
