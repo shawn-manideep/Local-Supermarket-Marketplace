@@ -1,0 +1,647 @@
+PHASE 12 — STAGE 7
+LIVE DEV SECURITY, RLS & AUTHORIZATION VALIDATION
+
+You are executing ONLY Phase 12 Stage 7.
+
+PROJECT:
+supermarket-marketplace-dev
+
+OBJECTIVE:
+Perform a controlled live validation of the already-built application against the DEV Supabase project using the existing development fixtures.
+
+This stage is VALIDATION ONLY.
+
+DO NOT build new marketplace features.
+DO NOT create catalog/business fixtures.
+DO NOT create categories.
+DO NOT create products.
+DO NOT create carts.
+DO NOT create orders.
+DO NOT create order items.
+DO NOT modify application behavior.
+
+==================================================
+1. ABSOLUTE CHANGE CONTROL
+==================================================
+
+During this stage:
+
+- Do NOT modify application source code.
+- Do NOT modify backend authorization logic.
+- Do NOT modify frontend code.
+- Do NOT modify Drizzle schema.
+- Do NOT modify migrations 0000–0005.
+- Do NOT create a new migration unless a previously implemented security defect is discovered and a repair is absolutely required.
+
+If a defect is discovered:
+
+1. STOP the affected test area.
+2. Do not immediately repair it.
+3. Report the exact defect, evidence, affected boundary, and whether it is a code issue, privilege issue, RLS issue, fixture issue, or test harness issue.
+4. Continue only with independent tests that are not affected, if safe.
+
+Do NOT broaden database privileges merely to make a test pass.
+
+Do NOT create production resources.
+
+DO NOT touch:
+- production Supabase
+- GitHub
+- Vercel
+- Railway
+- Replit publishing/deployment
+
+Use only the existing DEV Supabase project:
+supermarket-marketplace-dev
+project ref: gkwcolipeavxnuzqlamb
+
+==================================================
+2. EXISTING DEVELOPMENT FIXTURES
+==================================================
+
+Use only the existing Stage 4 fixtures.
+
+Expected identities:
+
+CUSTOMER A
+- customer role
+- owns Customer A profile
+- owns Address A
+- Address A is associated with Store A service pincode
+
+CUSTOMER B
+- customer role
+- owns Customer B profile
+- owns Address B
+- Address B is associated with Store B service pincode
+
+VENDOR A
+- vendor role
+- owns Store A
+
+VENDOR B
+- vendor role
+- owns Store B
+
+ADMIN
+- admin role
+- no customer row
+- no vendor store ownership
+
+Do not create additional users.
+
+Do not print passwords or secrets.
+
+Retrieve credentials only from Replit Secrets where necessary.
+
+==================================================
+3. DATABASE BASELINE
+==================================================
+
+Before testing, verify the baseline counts.
+
+Expected:
+
+user_profiles = 5
+customers = 2
+customer_addresses = 2
+stores = 2
+store_service_pincodes = 2
+store_operating_hours = 14
+
+categories = 0
+products = 0
+carts = 0
+cart_items = 0
+orders = 0
+order_items = 0
+order_status_history = 0
+
+If counts differ unexpectedly:
+
+STOP and report before performing destructive or corrective actions.
+
+Do not delete or alter unexpected data.
+
+==================================================
+4. AUTHENTICATION VALIDATION
+==================================================
+
+Using the real DEV Supabase Auth identities and the real backend API:
+
+Test:
+
+A. Customer A
+B. Customer B
+C. Vendor A
+D. Vendor B
+E. Admin
+
+For each:
+
+- authenticate successfully
+- obtain a valid access token
+- call an appropriate protected backend endpoint
+- verify HTTP success
+- verify server-resolved role
+- verify identity belongs to expected fixture
+
+Also test:
+
+- missing Authorization header
+- malformed Bearer header
+- invalid/garbage token
+
+Expected:
+
+401
+safe generic authentication error
+no stack trace
+no secret/token leakage
+
+Do not print access tokens.
+
+==================================================
+5. CUSTOMER AUTHORIZATION / IDOR
+==================================================
+
+Using real Customer A and Customer B JWTs:
+
+Customer A:
+
+- own profile → allowed
+- own address → allowed
+- Customer B profile/address → denied or not exposed
+
+Customer B:
+
+- own profile → allowed
+- own address → allowed
+- Customer A profile/address → denied or not exposed
+
+Verify:
+
+- customer cannot access another customer's records by changing IDs
+- customer cannot act as vendor
+- customer cannot act as admin
+
+Expected cross-role access:
+
+403 where the route is reached but role is insufficient,
+or 404 where resource ownership intentionally results in not-found.
+
+Do not accept leaked data merely because the HTTP status is technically valid.
+
+==================================================
+6. VENDOR AUTHORIZATION / STORE ISOLATION
+==================================================
+
+Using Vendor A:
+
+- own Store A → allowed
+- Store B → denied
+
+Using Vendor B:
+
+- own Store B → allowed
+- Store A → denied
+
+Where applicable test:
+
+- own store
+- own categories
+- own products
+- own orders
+
+However, categories/products/orders are currently empty.
+
+Therefore DO NOT create records just to test them.
+
+Instead validate the route-level authorization and store scoping using the existing store fixtures and endpoints.
+
+Verify:
+
+- vendor store identity comes from authenticated server context
+- request body cannot override store ownership
+- Vendor A cannot operate on Store B
+- Vendor B cannot operate on Store A
+- vendor cannot access customer/admin-only routes
+
+==================================================
+7. ADMIN AUTHORIZATION
+==================================================
+
+Using Admin JWT:
+
+Verify allowed admin read operations that already exist.
+
+Verify Admin can access the intended administrative store/order views.
+
+Because orders are intentionally empty:
+
+- do not create orders
+- do not manufacture order fixtures
+
+Verify Admin cannot use customer/vendor identity as a substitute for the authenticated admin identity.
+
+==================================================
+8. DIRECT SUPABASE RLS VALIDATION
+==================================================
+
+Use real authenticated JWTs through the Supabase Data API.
+
+IMPORTANT:
+
+For RLS assertions:
+- DO NOT use service-role credentials.
+- DO NOT use backend service credentials.
+- Use the actual customer/vendor/admin JWT where the table privilege permits meaningful testing.
+
+Customer A:
+
+Verify customer-owned data isolation where privileges allow direct access.
+
+At minimum:
+
+public.customers
+public.customer_addresses
+
+Expected:
+
+Customer A:
+- own customer row = 1
+- foreign customer row = 0
+- own address = 1
+- foreign address = 0
+
+Customer B:
+- own customer row = 1
+- foreign customer row = 0
+- own address = 1
+- foreign address = 0
+
+Admin:
+- verify access consistent with existing RLS policies.
+
+Vendor:
+
+Do NOT add SELECT privileges simply to enable a direct RLS test.
+
+If the current privilege configuration prevents meaningful direct vendor RLS testing, record:
+
+"Not directly testable under current least-privilege grants."
+
+Do not alter privileges.
+
+==================================================
+9. RLS / PRIVILEGE STRUCTURE
+==================================================
+
+Inspect and report:
+
+- RLS enabled on all 13 application tables
+- current policies
+- effective authenticated privileges relevant to tested tables
+- anon privileges
+- PUBLIC privileges
+
+Pay special attention to:
+
+customers
+customer_addresses
+stores
+store_service_pincodes
+store_operating_hours
+categories
+products
+carts
+cart_items
+orders
+order_items
+order_status_history
+
+Do not change anything.
+
+The purpose is validation, not redesign.
+
+==================================================
+10. IMMUTABILITY / SECURITY STRUCTURE
+==================================================
+
+Without creating business records, inspect existing database protections for:
+
+- store owner immutability
+- child store_id immutability
+- order financial snapshot immutability
+- order delivery snapshot immutability
+- order status history immutability
+- historical order protection
+- catalog soft-delete model
+- vendor commission protection
+
+Do not modify these protections.
+
+Report PASS / FAIL / NOT TESTABLE for each.
+
+If a protection requires an actual row mutation to prove behavior and no safe fixture exists, mark it:
+
+NOT TESTABLE WITHOUT CREATING BUSINESS FIXTURES
+
+Do not create fixtures in Stage 7.
+
+==================================================
+11. SECURITY DEFINER / PRIVILEGED FUNCTIONS
+==================================================
+
+Inspect existing SECURITY DEFINER functions and verify:
+
+- fixed search_path where applicable
+- restricted EXECUTE privileges
+- no unnecessary PUBLIC execution
+- no unnecessary anon execution
+- authenticated execution only where intended
+
+Do not modify functions or grants.
+
+==================================================
+12. API SECURITY
+==================================================
+
+Verify existing backend behavior for:
+
+- authentication
+- role authorization
+- vendor store isolation
+- customer ownership
+- UUID validation
+- invalid IDs
+- malformed request bodies
+- protected-field rejection where applicable
+- generic authentication errors
+- no sensitive error leakage
+
+Do not create new routes.
+
+Do not modify validation.
+
+==================================================
+13. SECRET / SOURCE SAFETY
+==================================================
+
+Run the existing safe repository checks for:
+
+- committed credentials
+- hardcoded Supabase service-role key
+- hardcoded database password
+- JWT secrets
+- auth tokens
+- unsafe eval
+- unsafe HTML injection
+- accidental Authorization-header logging
+
+Do not print secrets.
+
+Expected:
+
+No committed credentials.
+No production secrets.
+No sensitive logs.
+
+==================================================
+14. RATE LIMIT / RESOURCE SAFETY
+==================================================
+
+Validate existing configuration/documentation only.
+
+Confirm the already implemented limits remain present:
+
+- API reads: 300/min/client IP
+- mutations: 60/min
+- order creation: 10/min
+- bounded limiter keys
+- 100 KB JSON body limit
+- list size cap 100
+- admin date range cap 366 days
+
+Do not perform a large-volume load test.
+
+Do not intentionally consume unnecessary Replit resources.
+
+==================================================
+15. BUILD / STATIC VALIDATION
+==================================================
+
+Run only the necessary existing checks:
+
+- backend typecheck
+- dashboard build
+- customer Expo Web export/build
+- backend health endpoint
+- migration/schema consistency check
+- security/source scan
+
+Do not modify source to resolve warnings.
+
+If an existing warning appears, report it.
+
+==================================================
+16. DATABASE MIGRATION INTEGRITY
+==================================================
+
+Verify remote migration history contains exactly:
+
+0000
+0001
+0002
+0003
+0004
+0005
+
+Verify:
+
+- no migration was changed
+- no unexpected migration exists
+- migration 0005 contains only the approved customer SELECT grants
+
+Do not run migration repair commands.
+
+Do not create another migration.
+
+==================================================
+17. FINAL DATA INTEGRITY
+==================================================
+
+At the end verify counts are still exactly:
+
+user_profiles = 5
+customers = 2
+customer_addresses = 2
+stores = 2
+store_service_pincodes = 2
+store_operating_hours = 14
+
+categories = 0
+products = 0
+carts = 0
+cart_items = 0
+orders = 0
+order_items = 0
+order_status_history = 0
+
+No business data may be created during Stage 7.
+
+==================================================
+18. EXTERNAL SYSTEM SAFETY
+==================================================
+
+Confirm:
+
+Production Supabase:
+UNCHANGED
+
+GitHub:
+UNCHANGED
+
+Vercel:
+UNCHANGED
+
+Railway:
+UNCHANGED
+
+Replit publishing:
+UNCHANGED
+
+Do not connect or publish anything.
+
+==================================================
+19. REQUIRED FINAL REPORT
+==================================================
+
+Return a structured report with exactly these sections:
+
+# Phase 12 — Stage 7 Report
+
+## Status
+
+One of:
+PASS
+PASS WITH LIMITATION
+BLOCKED
+FAIL
+
+## Authentication
+
+Table:
+
+Identity | Auth | Backend | Role | Result
+
+Do not include passwords or tokens.
+
+## Customer Authorization / IDOR
+
+List every test and result.
+
+## Vendor Authorization / Store Isolation
+
+List every test and result.
+
+## Admin Authorization
+
+List every test and result.
+
+## Direct RLS
+
+Separate:
+
+Customer A
+Customer B
+Admin
+Vendor
+
+Clearly distinguish:
+PASS
+FAIL
+NOT TESTABLE
+
+## RLS / Privileges
+
+Report relevant privileges and whether RLS remains enabled.
+
+## Database Security / Immutability
+
+Report each inspected protection as:
+
+PASS
+FAIL
+NOT TESTABLE
+
+## SECURITY DEFINER / Privileged Functions
+
+Report findings.
+
+## API Security
+
+Report findings.
+
+## Secret / Source Safety
+
+Report findings.
+
+## Rate / Resource Protection
+
+Report findings.
+
+## Build / Static Validation
+
+Report each check.
+
+## Migration Integrity
+
+Report remote migration history and whether migrations 0000–0005 remain unchanged.
+
+## Data Integrity
+
+Report final row counts for all 13 tables.
+
+## External Systems
+
+Explicitly state:
+
+Production Supabase: untouched
+GitHub: untouched
+Vercel: untouched
+Railway: untouched
+Replit publishing: untouched
+
+## Limitations
+
+Clearly state anything that could not be directly tested.
+
+## Changes Made
+
+Expected:
+
+Application source: none
+Drizzle schema: none
+Migrations: none
+Database data: none
+Production systems: none
+
+If anything differs, explain it precisely.
+
+## Final Recommendation
+
+State whether Phase 12 Stage 7 is:
+
+APPROVED
+APPROVED WITH LIMITATION
+BLOCKED
+NOT APPROVED
+
+Do not start Stage 8.
+
+STOP after the report.
+
+==================================================
+END OF STAGE 7
+==================================================
