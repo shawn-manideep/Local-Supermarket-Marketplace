@@ -9,7 +9,7 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-runButton = "Project"
+runButton = "Phase 12 Dashboard Preview"
 
 [[workflows.workflow]]
 name = "Project"
@@ -30,7 +30,7 @@ args = "CORS_ALLOWED_ORIGINS=https://$REPLIT_EXPO_DEV_DOMAIN pnpm --filter @work
 waitForPort = 5000
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow]]
 name = "Phase 12 Dashboard Preview"
