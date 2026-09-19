@@ -1,0 +1,272 @@
+PHASE 12 — STAGE 5B: LIVE AUTHENTICATION TESTING
+
+Stage 5A is approved.
+
+The real backend is now running through the development workflow:
+
+Workflow:
+Phase 12 Backend API
+
+Command:
+pnpm --filter @workspace/api run dev
+
+Backend:
+backend/api
+
+DEV Supabase:
+supermarket-marketplace-dev
+
+Stage 4 synthetic identities:
+
+- Customer A → customer
+- Customer B → customer
+- Vendor A → vendor → Store A
+- Vendor B → vendor → Store B
+- Admin → admin
+
+Five development-only passwords are already stored in Replit Secrets.
+
+OBJECTIVE
+
+Perform ONLY live authentication and server-side identity/role resolution tests.
+
+Do not begin IDOR testing.
+Do not begin RLS isolation testing.
+Do not test cart concurrency.
+Do not create catalog/cart/order fixtures.
+Do not modify application architecture.
+
+CREDENTIAL SECURITY
+
+Use the existing Replit Secrets internally.
+
+NEVER print or expose:
+- passwords
+- access tokens
+- refresh tokens
+- Supabase service-role key
+- database URL
+- anon/public key unnecessarily
+- Authorization headers
+- cookies containing credentials
+
+Redact credentials from all logs and final reporting.
+
+TEST 1 — CUSTOMER A
+
+Authenticate Customer A against the real DEV Supabase Auth service.
+
+Then use the resulting authenticated session internally to call:
+
+GET /api/customer/profile
+
+Verify:
+- authentication succeeds
+- backend accepts the authenticated request
+- server resolves the correct Supabase Auth user
+- server resolves role = customer
+- server resolves Customer A identity
+- response does not expose secrets
+
+Do not print the token.
+
+TEST 2 — CUSTOMER B
+
+Repeat the same test for Customer B.
+
+Verify:
+- authentication succeeds
+- role = customer
+- identity resolves to Customer B
+- response is successful
+- no credential is exposed
+
+TEST 3 — VENDOR A
+
+Authenticate Vendor A.
+
+Use the authenticated session to call:
+
+GET /api/vendor/store
+
+Verify:
+- authentication succeeds
+- role = vendor
+- vendor identity resolves server-side
+- store ownership resolves to Store A
+- Store A is returned
+- no client-supplied store_id is required to establish ownership
+- no credential is exposed
+
+Do not test access to Store B yet.
+
+TEST 4 — VENDOR B
+
+Authenticate Vendor B.
+
+Call:
+
+GET /api/vendor/store
+
+Verify:
+- authentication succeeds
+- role = vendor
+- vendor identity resolves server-side
+- store ownership resolves to Store B
+- no credential is exposed
+
+Do not test access to Store A yet.
+
+TEST 5 — ADMIN
+
+Authenticate Admin.
+
+Call:
+
+GET /api/admin/stores
+
+Verify:
+- authentication succeeds
+- role = admin
+- admin authorization is resolved server-side
+- endpoint succeeds
+- no credential is exposed
+
+TEST 6 — AUTHENTICATION FAILURE
+
+Using the running backend, verify:
+
+A. Missing Authorization header
+B. Malformed bearer token
+C. Invalid bearer token
+
+Use representative protected routes.
+
+Expected behavior:
+- authentication failure
+- normally HTTP 401
+- safe generic error
+- no stack trace
+- no Supabase secrets
+- no database credentials
+- no tokens
+- no internal implementation details
+
+TEST 7 — ROLE SELF-ASSIGNMENT STRUCTURAL CHECK
+
+Inspect the existing application routes/middleware only.
+
+Verify there is no public application route allowing:
+- customer → vendor
+- customer → admin
+- vendor → admin
+- arbitrary role assignment
+
+Do not modify any role.
+
+Do not create any new user.
+
+Do not attempt destructive role manipulation.
+
+TEST 8 — SERVER-SIDE VENDOR OWNERSHIP
+
+Verify from the existing backend implementation and live Vendor A/Vendor B authentication that vendor store resolution is based on authenticated identity/server-side ownership rather than a client-provided store_id.
+
+Do not perform cross-store IDOR testing yet.
+
+TEST 9 — DATA INTEGRITY
+
+After all tests verify counts remain unchanged:
+
+- user_profiles = 5
+- customers = 2
+- stores = 2
+- customer_addresses = 2
+- store_service_pincodes = 2
+- store_operating_hours = 14
+- categories = 0
+- products = 0
+- carts = 0
+- cart_items = 0
+- orders = 0
+- order_items = 0
+- order_status_history = 0
+
+No new business records should exist.
+
+TEST 10 — SOURCE INTEGRITY
+
+Verify:
+- application source unchanged
+- migrations unchanged
+- Drizzle schema unchanged
+- only the already-approved `.replit` workflow change remains
+- git diff/check is clean apart from the approved Stage 5A workflow configuration
+
+IMPORTANT
+
+If any authenticated test fails because of an application defect:
+
+STOP.
+
+Do not silently modify application code.
+
+Report the exact failure and the smallest likely cause.
+
+If all tests pass, STOP after Stage 5B.
+
+DO NOT START STAGE 6.
+
+REPORT FORMAT
+
+# Phase 12 — Stage 5B Report
+
+## Status
+PASS / PASS WITH LIMITATION / BLOCKED / FAIL
+
+## Authentication Results
+
+| Identity | Supabase Auth | Backend Auth | Role | Identity Resolution | Store Resolution |
+|---|---|---|---|---|---|
+| Customer A | | | customer | | N/A |
+| Customer B | | | customer | | N/A |
+| Vendor A | | | vendor | | Store A |
+| Vendor B | | | vendor | | Store B |
+| Admin | | | admin | | N/A |
+
+Do not include tokens or passwords.
+
+## Authentication Failure Tests
+
+| Test | Expected | Actual |
+|---|---|---|
+| Missing bearer | 401 | |
+| Malformed bearer | 401 | |
+| Invalid bearer | 401 | |
+
+## Role Security
+- Server-side role resolution:
+- Vendor ownership resolution:
+- Public role assignment route:
+- Safe auth errors:
+
+## Data Integrity
+Report counts only.
+
+## Source Integrity
+- Application source:
+- Migration:
+- Schema:
+- Approved workflow change:
+
+## External Systems
+- Production Supabase:
+- GitHub:
+- Vercel:
+- Railway:
+- Replit publishing:
+
+## Limitations
+Only report actual limitations.
+
+STOP AFTER STAGE 5B.
