@@ -79,7 +79,7 @@ export function createApp() {
   app.use(createApiRateLimit());
   app.use(express.json({ limit: "100kb" }));
 
-  app.get("/health", (_request, response) => {
+  app.get(["/health", "/api/health"], (_request, response) => {
     response.json({ status: "ok" });
   });
 

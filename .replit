@@ -9,52 +9,6 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-runButton = "Phase 12 Dashboard Preview"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Phase 12 Backend API"
-
-[[workflows.workflow]]
-name = "Phase 12 Backend API"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "CORS_ALLOWED_ORIGINS=https://$REPLIT_EXPO_DEV_DOMAIN pnpm --filter @workspace/api run dev"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow]]
-name = "Phase 12 Dashboard Preview"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=$REPLIT_DEV_DOMAIN VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/dashboard run dev -- --port 5173"
-waitForPort = 5173
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow]]
-name = "Phase 12 Customer Web Preview"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "rm -rf /tmp/phase12-customer-web && EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/customer exec expo export --platform web --output-dir /tmp/phase12-customer-web && PORT=8082 node scripts/src/customer-web-preview.mjs /tmp/phase12-customer-web"
-waitForPort = 8082
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -63,3 +17,9 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.development]
+SUPABASE_ANON_KEY = "sb_publishable_olHk9WQVRmzGF05yQB4bSA_YQzZRbE2"
+SUPABASE_URL = "https://gkwcolipeavxnuzqlamb.supabase.co"

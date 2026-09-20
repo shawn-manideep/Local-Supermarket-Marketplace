@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/customer/"
+title = "Marketplace Customer Web"
+description = "Artifact-managed development preview registration for the existing Supermarket Marketplace Expo Web customer application."
+version = "1.0.0"
+id = "artifacts/marketplace-customer"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/customer/" ]
+localPort = 25436
+
+[services.development]
+run = "rm -rf /tmp/phase12-customer-web && EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/customer exec expo export --clear --platform web --output-dir /tmp/phase12-customer-web && PORT=$PORT BASE_PATH=$BASE_PATH node ../../scripts/src/customer-web-preview.mjs /tmp/phase12-customer-web"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/marketplace-customer", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/marketplace-customer/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25436"
+BASE_PATH = "/customer/"

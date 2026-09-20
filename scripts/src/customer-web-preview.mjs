@@ -5,6 +5,11 @@ import path from "node:path";
 const webRoot = path.resolve(process.argv[2] ?? "/tmp/phase12-customer-web");
 const port = Number(process.env.PORT ?? 8082);
 const backendOrigin = process.env.PREVIEW_BACKEND_ORIGIN ?? "http://127.0.0.1:5000";
+const configuredBasePath = process.env.BASE_PATH ?? "/";
+const basePath =
+  configuredBasePath === "/"
+    ? ""
+    : `/${configuredBasePath.replace(/^\/+|\/+$/g, "")}`;
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -53,7 +58,13 @@ async function proxyApi(request, response) {
 
 async function serveStatic(request, response) {
   const requestPath = new URL(request.url ?? "/", "http://preview.local").pathname;
-  const candidate = path.resolve(webRoot, `.${requestPath === "/" ? "/index.html" : requestPath}`);
+  const assetPath =
+    basePath && (requestPath === basePath || requestPath === `${basePath}/`)
+      ? "/"
+      : basePath && requestPath.startsWith(`${basePath}/`)
+        ? requestPath.slice(basePath.length)
+        : requestPath;
+  const candidate = path.resolve(webRoot, `.${assetPath === "/" ? "/index.html" : assetPath}`);
   const filePath = candidate.startsWith(`${webRoot}${path.sep}`) ? candidate : "";
 
   let resolved = filePath;

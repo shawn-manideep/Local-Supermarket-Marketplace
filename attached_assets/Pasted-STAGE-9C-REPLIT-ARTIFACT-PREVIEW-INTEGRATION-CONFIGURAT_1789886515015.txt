@@ -1,0 +1,386 @@
+STAGE 9C — REPLIT ARTIFACT PREVIEW INTEGRATION
+CONFIGURATION-ONLY REMEDIATION
+
+You are operating on the existing Supermarket Marketplace monorepo.
+
+IMPORTANT:
+This is a DEVELOPMENT PREVIEW / REPLIT ROUTING FIX ONLY.
+
+DO NOT:
+- deploy or publish anything
+- create or modify production Supabase
+- create or modify Railway
+- create or modify Vercel
+- push to GitHub
+- change business logic
+- change database schema
+- create/edit migrations
+- change RLS policies
+- change Supabase Auth behavior
+- change roles/authorization rules
+- change order/cart/catalog behavior
+- change financial calculations
+- upgrade dependencies
+- add Redis/Sentry/monitoring
+- delete the existing DEV Supabase data
+- reset or reseed the DEV database
+- delete existing Stage 8 regression data
+- replace the real Phase 12 backend with a mock backend
+
+GOAL
+
+Convert the current Replit preview setup from the mixed artifact/legacy architecture into one consistent artifact-managed preview architecture.
+
+The Stage 9B audit established that:
+
+1. Replit artifact-managed routing currently owns:
+   /api
+   /__mockup
+
+2. No artifact currently owns:
+   /
+   /dashboard
+   /customer
+
+3. The real Phase 12 backend runs separately on port 5000.
+4. Dashboard runs separately on 5173.
+5. Customer Web runs separately on 8082.
+6. Legacy workflows were added for these services, but those workflows do not become owners of the artifact-managed public domain.
+7. Therefore the shared preview domain returns 404 at / and external port attempts can return 502.
+
+DO NOT GUESS REPLIT ARTIFACT MANIFEST SYNTAX.
+
+FIRST INSPECT:
+- artifacts/api-server
+- artifacts/mockup-sandbox
+- their manifests/configuration
+- pnpm workspace configuration
+- existing .replit configuration
+- current artifact registration/configuration
+- current dashboard configuration
+- current Expo Web export configuration
+- existing Phase 12 backend configuration
+
+Use the existing artifact conventions in this repository/project.
+
+TARGET ARCHITECTURE
+
+The Replit shared preview should become:
+
+    /              → Dashboard Web
+    /customer      → Customer Web
+    /api           → REAL Phase 12 backend
+    /__mockup      → existing Canvas/mockup artifact if still required
+
+The REAL backend must remain:
+
+    backend/api
+
+with:
+
+    GET /health
+
+and the existing authenticated API routes.
+
+Do NOT create a second backend implementation.
+
+TASK 1 — DASHBOARD ARTIFACT
+
+Register/configure the existing Dashboard as the root web artifact.
+
+Target:
+
+    /
+
+The Dashboard must continue to use the existing Phase 9A authentication implementation.
+
+Do not replace Supabase authentication.
+
+Do not introduce token-paste authentication.
+
+Dashboard API requests should continue to use:
+
+    /api
+
+because the artifact-managed router will expose the real backend under /api.
+
+Ensure dashboard static assets and client-side routing work correctly from:
+
+    /
+
+Do not introduce unnecessary reverse proxies if Replit artifact routing already provides the required routing.
+
+TASK 2 — CUSTOMER WEB ARTIFACT
+
+Register/configure the existing Customer Web application as a separate web artifact.
+
+Target:
+
+    /customer
+
+The Customer application must remain the existing Expo Web application.
+
+Do not rewrite it into a different framework.
+
+Ensure that:
+
+- Customer Web loads at /customer
+- static assets resolve correctly under /customer
+- client-side navigation does not break
+- API requests use the shared /api path
+- Supabase public configuration remains the existing DEV configuration
+- no production URLs are introduced
+
+Inspect the existing Expo export/base-path behavior before making changes.
+
+Make the minimum required configuration change so the exported Expo Web application works correctly under /customer.
+
+Do not blindly modify paths or asset URLs.
+
+TASK 3 — REAL API ARTIFACT
+
+The artifact-managed /api route must point to the REAL Phase 12 backend:
+
+    backend/api
+
+Do NOT leave the scaffold/mock API implementation as the authoritative API.
+
+Prefer repointing/reconfiguring the existing artifact-managed API service if the existing artifact system supports that cleanly.
+
+Do NOT create duplicate API services.
+
+The authoritative API must be the existing:
+
+    backend/api/src/index.ts
+
+and its normal build/start process.
+
+Verify:
+
+    /api/health
+
+returns the existing backend health response.
+
+Verify at least one protected endpoint still returns 401 without authentication.
+
+Do not modify API business behavior.
+
+TASK 4 — EXISTING MOCKUP ARTIFACT
+
+Preserve:
+
+    /__mockup
+
+if it is still required by the existing Replit project.
+
+Do not let it own /.
+
+Do not allow it to interfere with /, /customer, or /api.
+
+Do not delete it unless the existing artifact configuration clearly establishes that it is obsolete AND removing it is required for the routing architecture.
+
+Prefer minimal change.
+
+TASK 5 — LEGACY WORKFLOWS
+
+The following legacy Phase 12 workflows were only introduced for development:
+
+    Phase 12 Backend API
+    Phase 12 Dashboard Preview
+    Phase 12 Customer Web Preview
+
+Once the artifact-managed services are verified working, retire/disable the legacy preview workflows so there is only ONE authoritative preview architecture.
+
+Do not delete useful application source files.
+
+Do not remove the real backend.
+
+Do not remove dashboard/customer applications.
+
+Do not remove artifact source files until their replacements are verified.
+
+If the existing Replit system requires a workflow internally to start an artifact, keep the minimum required managed workflow and do not create duplicate public routing.
+
+TASK 6 — DO NOT DELETE artifacts/api-server PREMATURELY
+
+The existing:
+
+    artifacts/api-server
+
+may currently own /api.
+
+Do not simply delete it.
+
+First determine whether it can be safely repointed to the real:
+
+    backend/api
+
+service using the project's existing artifact configuration mechanism.
+
+If it cannot be repointed safely, create the minimum replacement using the existing artifact conventions and only retire the old artifact after verification.
+
+Do not guess unsupported configuration syntax.
+
+TASK 7 — SHARED PREVIEW VERIFICATION
+
+After making the configuration changes, verify using the actual Replit shared preview/domain.
+
+Required checks:
+
+1. Open:
+
+    /
+
+Expected:
+Dashboard loads.
+
+2. Open:
+
+    /customer
+
+Expected:
+Customer Web loads.
+
+3. Open:
+
+    /api/health
+
+Expected:
+Real Phase 12 backend responds successfully.
+
+4. Open:
+
+    /__mockup
+
+Expected:
+Existing mockup/canvas still works if it remains part of the project.
+
+5. Dashboard authentication:
+   - login with DEV Vendor A
+   - verify vendor dashboard loads
+   - verify dashboard calls /api successfully
+   - verify no manually pasted bearer token is required
+
+6. Customer:
+   - verify Customer Web loads
+   - verify DEV Supabase authentication still works
+   - verify customer API calls use /api
+   - verify no production endpoint is referenced
+
+7. Backend:
+   - unauthenticated protected endpoint returns 401
+   - /health returns 200
+
+IMPORTANT:
+Do not claim success based only on localhost ports.
+
+The purpose of this stage is specifically to verify the actual Replit artifact-managed shared preview.
+
+TASK 8 — CHECK FOR ROUTING CONFLICTS
+
+Confirm that:
+
+- no two artifacts claim /
+- no two artifacts claim /customer
+- no two services claim /api
+- legacy workflows are not required for public routing
+- dashboard does not accidentally call localhost
+- customer does not accidentally call localhost
+- no mock API receives production-like application requests
+- /api points to the real backend
+- /customer does not fall through to the dashboard
+- / does not fall through to the backend
+
+TASK 9 — MINIMUM-CHANGE RULE
+
+Before editing anything, inspect the existing configuration and determine the smallest safe set of changes.
+
+Do not refactor application code.
+
+Do not rewrite the frontend.
+
+Do not rewrite the backend.
+
+Do not change database code.
+
+Do not change authentication implementation.
+
+Do not upgrade dependencies.
+
+Do not create new infrastructure.
+
+This stage is only about integrating the existing applications with Replit's artifact-managed preview architecture.
+
+TASK 10 — REGRESSION CHECKS
+
+Run:
+
+- backend typecheck
+- backend tests
+- dashboard build
+- Expo Web export/build
+- workspace/build checks relevant to the changed configuration
+- existing security scans if available
+
+Expected existing backend test baseline:
+
+    33/33 passing
+
+Do not modify tests simply to make them pass.
+
+TASK 11 — DEV DATABASE PROTECTION
+
+The DEV Supabase project is:
+
+    supermarket-marketplace-dev
+
+DO NOT:
+
+- run migrations
+- reset database
+- truncate tables
+- reseed fixtures
+- modify Stage 8 regression order
+- modify catalog test data
+- modify RLS
+- modify grants
+
+Database state must remain unchanged.
+
+TASK 12 — REPORT
+
+At the end provide a concise Stage 9C report with:
+
+A. Changes made
+B. Artifact routing table
+C. Shared preview verification results
+D. Dashboard verification
+E. Customer verification
+F. Backend verification
+G. Legacy workflow status
+H. Tests/builds
+I. Confirmation that DEV database was unchanged
+J. Any remaining blocker
+
+Use this routing table:
+
+    /             → ?
+    /customer     → ?
+    /api          → ?
+    /__mockup     → ?
+
+Do NOT mark Stage 9C PASS unless the actual Replit shared preview has been verified.
+
+If the artifact system cannot be configured safely using the existing supported project configuration, STOP rather than guessing and report exactly what configuration/API limitation remains.
+
+FINAL SAFETY RULE:
+
+No production deployment.
+No GitHub push.
+No Vercel.
+No Railway.
+No production Supabase.
+No database changes.
+No business logic changes.
+
+Only fix the Replit artifact-managed development preview architecture.

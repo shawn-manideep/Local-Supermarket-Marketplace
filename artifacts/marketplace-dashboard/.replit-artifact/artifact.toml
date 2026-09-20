@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Marketplace Dashboard"
+description = "Artifact-managed development preview registration for the existing Supermarket Marketplace dashboard application."
+version = "1.0.0"
+id = "artifacts/marketplace-dashboard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25422
+
+[services.development]
+run = "VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=$REPLIT_DEV_DOMAIN pnpm --filter @workspace/dashboard exec vite --host 0.0.0.0 --port $PORT --strictPort"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/marketplace-dashboard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/marketplace-dashboard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25422"
+BASE_PATH = "/"
