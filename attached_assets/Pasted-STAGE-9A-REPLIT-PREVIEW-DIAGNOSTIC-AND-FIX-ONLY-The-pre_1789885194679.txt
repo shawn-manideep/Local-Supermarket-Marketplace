@@ -1,0 +1,95 @@
+STAGE 9A — REPLIT PREVIEW DIAGNOSTIC AND FIX ONLY
+
+The previous attempt reported these mappings:
+
+- Dashboard external 80 → local 5173
+- Customer external 8080 → local 8082
+- Backend external 5000 → local 5000
+
+However, the Replit Preview still shows:
+
+" Hmm... We couldn't reach this app
+Make sure this app has a port open and is ready to receive HTTP traffic."
+
+Therefore the previous mapping is NOT verified.
+
+Do not modify application code.
+
+Do not modify:
+- database
+- Supabase
+- migrations
+- RLS
+- authentication
+- CORS
+- marketplace logic
+- dependencies
+
+Do not create:
+- Railway
+- Vercel
+- production Supabase
+- GitHub changes
+
+TASK:
+
+Diagnose the actual Replit Preview/network configuration.
+
+1. Inspect the CURRENT `.replit` configuration.
+2. Inspect all active workflows and their commands.
+3. Confirm which process is actually listening on:
+   - 5000
+   - 5173
+   - 8082
+4. Confirm each process is bound to `0.0.0.0`, NOT only `127.0.0.1`.
+5. Test each service from inside the Replit environment using its actual
+   listening address.
+6. Check whether the Preview proxy is forwarding to the correct process.
+7. Check whether another workflow/process is occupying the required
+   external Preview port.
+8. Check whether the Vite dashboard server is configured to accept
+   Replit's proxied Host header.
+9. Check whether the static Customer Web server is bound to the expected
+   interface.
+10. Determine the EXACT reason the browser Preview returns
+    "We couldn't reach this app."
+
+IMPORTANT:
+
+Do NOT assume that changing the URL or external port fixes the issue.
+
+Do NOT report a mapping as working unless you actually verify the
+corresponding Preview request reaches the intended application.
+
+If the problem is caused by a workflow command or server binding,
+make the MINIMAL configuration/workflow change necessary.
+
+If the problem is caused by Replit's Preview infrastructure and cannot
+be fixed from the project, STOP and clearly state that.
+
+SUCCESS CRITERIA:
+
+A. Opening the Dashboard Preview from Replit displays the actual dashboard.
+
+B. Opening the Customer Web Preview from Replit displays the actual
+customer application.
+
+C. Backend `/health` returns HTTP 200 through Preview.
+
+D. No application/business/database code is changed.
+
+After fixing, provide:
+
+# Preview Diagnostic Result
+
+## Root Cause
+## Exact Change Made
+## Dashboard Preview
+## Customer Preview
+## Backend Preview
+## Verification Results
+## If Still Blocked — Exact Replit Limitation
+
+Do NOT continue to production work.
+Do NOT give general instructions.
+Do NOT tell me to manually guess ports.

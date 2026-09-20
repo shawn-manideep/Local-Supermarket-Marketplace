@@ -38,7 +38,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/dashboard run dev -- --port 5173"
+args = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=$REPLIT_DEV_DOMAIN VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY pnpm --filter @workspace/dashboard run dev -- --port 5173"
 waitForPort = 5173
 
 [workflows.workflow.metadata]
