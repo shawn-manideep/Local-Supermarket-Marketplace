@@ -1,0 +1,315 @@
+STAGE 9B — REPLIT PREVIEW ARCHITECTURE AUDIT ONLY
+
+IMPORTANT:
+DO NOT MODIFY ANYTHING.
+
+We need to determine whether our project was configured incorrectly for
+Replit Preview during the earlier development phases.
+
+Do NOT:
+- edit application source code
+- edit database/schema/migrations
+- edit RLS
+- edit Supabase configuration
+- edit authentication
+- edit CORS
+- edit dependencies
+- edit workflows
+- edit .replit
+- create deployments
+- publish to Replit
+- create Railway/Vercel/production resources
+- push GitHub
+- change ports
+- restart/reconfigure services unless required only for read-only inspection
+
+This is an AUDIT ONLY.
+
+==================================================
+BACKGROUND
+==================================================
+
+This is a monorepo:
+
+apps/
+  customer/
+  dashboard/
+
+backend/
+  api/
+
+packages/
+
+The application itself currently works locally:
+
+Dashboard:
+  port 5173
+
+Customer Web:
+  port 8082
+
+Backend:
+  port 5000
+
+The backend `/health` works.
+
+Dashboard and Customer Web respond correctly when accessed locally
+and through the Replit Host header.
+
+However, Replit public Preview routing does not expose these legacy
+workflows correctly.
+
+Replit reported that the workspace uses:
+
+"artifact-managed preview routing"
+
+We suspect our previous prompts/configuration may have mixed the
+artifact-managed Replit preview model with manually created legacy
+workflows.
+
+We have used Replit successfully on several earlier projects, so we
+want to understand what is structurally different here.
+
+==================================================
+PRIMARY QUESTION
+==================================================
+
+Determine whether the current Preview problem is caused by:
+
+A. an incorrect project architecture/configuration created by our
+   previous development prompts,
+
+B. an incorrect Replit workflow/preview configuration,
+
+C. the interaction between the monorepo and Replit artifact-managed
+   preview routing,
+
+D. a normal Replit limitation for this type of workspace,
+
+or
+
+E. another identifiable configuration issue.
+
+Do NOT assume the answer is "Replit limitation."
+
+Prove the conclusion from the current project configuration.
+
+==================================================
+1. INSPECT THE ORIGINAL PROJECT STRUCTURE
+==================================================
+
+Inspect:
+
+- `.replit`
+- `replit.md`
+- root package.json
+- pnpm-workspace.yaml
+- all workspace package.json files
+- apps/customer
+- apps/dashboard
+- backend/api
+- any Replit-specific configuration
+- any artifact-specific configuration
+- any existing preview configuration
+- any workflow configuration
+- any Vite configuration
+- any Expo configuration
+- any Replit plugins/configuration
+
+Determine:
+
+- what Replit project type this workspace currently appears to be
+- whether it is artifact-managed
+- whether that was present from the beginning
+- whether our later workflow configuration conflicts with it
+
+==================================================
+2. TRACE HOW PREVIEW WAS CONFIGURED
+==================================================
+
+Inspect the current repository and available project configuration and
+identify:
+
+- when the Dashboard workflow was introduced
+- when the Customer workflow was introduced
+- when the Backend workflow was introduced
+- whether these workflows are native to Replit's current project model
+- whether they were created by our development configuration
+- whether they replaced or bypassed an existing Replit preview mechanism
+
+Do not modify anything while investigating.
+
+==================================================
+3. CHECK ARTIFACT-MANAGED PREVIEW
+==================================================
+
+Identify exactly what Replit means in THIS workspace by:
+
+"artifact-managed preview routing"
+
+Determine:
+
+- which application/artifact owns the public development domain
+- which port/service it expects
+- whether it is intended to serve the dashboard
+- whether it is intended to serve the customer application
+- whether it can expose multiple workspace applications
+- whether our current legacy workflows are outside that routing layer
+- whether there is an existing supported configuration that would expose
+  the correct application without publishing/deploying
+
+Do not guess.
+
+If the relevant configuration is unavailable from the filesystem,
+state that explicitly.
+
+==================================================
+4. COMPARE WITH OUR EXISTING PROJECT MODEL
+==================================================
+
+Inspect the repository structure and determine whether the following
+assumption is valid:
+
+"One Replit Preview domain should directly expose the selected workflow
+port."
+
+If this assumption is wrong for artifact-managed projects, explain the
+actual model.
+
+Also determine whether our use of:
+
+- Phase 12 Backend API
+- Phase 12 Dashboard Preview
+- Phase 12 Customer Web Preview
+
+was appropriate or whether we introduced unnecessary workflow complexity.
+
+==================================================
+5. INVESTIGATE `Cannot GET /`
+==================================================
+
+Explain precisely what `Cannot GET /` represents in the current project.
+
+Determine which service returned it.
+
+Do not treat it as an application failure unless the evidence shows that
+it is.
+
+Also distinguish it from:
+
+- Replit "couldn't reach this app"
+- HTTP 404 from Replit router
+- HTTP 502 from Replit router
+- application-level HTTP 404
+
+==================================================
+6. COMPARE WITH EARLIER REPLIT PROJECT PATTERN
+==================================================
+
+We have successfully used Replit on earlier projects.
+
+Do NOT invent details about those projects.
+
+Based only on information available in this workspace/context, identify
+any relevant structural difference between those simpler projects and
+this current monorepo.
+
+If previous project configuration is not accessible from the current
+workspace, say so instead of guessing.
+
+==================================================
+7. DETERMINE THE CORRECT ARCHITECTURE
+==================================================
+
+Give us the technically correct development-preview architecture for
+THIS project.
+
+We need:
+
+Customer Web
+Dashboard
+Backend API
+
+The goal is:
+
+Replit development
+        ↓
+usable browser preview
+        ↓
+DEV Supabase
+        ↓
+manual QA
+
+This is NOT production deployment.
+
+Determine whether the correct approach is:
+
+Option A — use existing artifact-managed preview
+
+Option B — use legacy workflows
+
+Option C — configure a single development web entry point that talks to
+the backend
+
+Option D — another approach
+
+Select the technically appropriate option based on evidence.
+
+Do not implement it yet.
+
+==================================================
+8. IMPORTANT: DO NOT "FIX" ANYTHING
+==================================================
+
+This audit must produce ZERO repository changes.
+
+Before finishing verify:
+
+- git diff is unchanged
+- no files modified
+- no migrations changed
+- no dependencies changed
+- no workflows changed
+- no deployment created
+
+==================================================
+9. FINAL REPORT
+==================================================
+
+Return exactly:
+
+# Stage 9B — Replit Preview Architecture Audit
+
+## 1. Current Replit Project Model
+
+## 2. Current Preview Architecture
+
+## 3. How Our Earlier Configuration Interacts With It
+
+## 4. Root Cause of the Preview Problem
+
+## 5. Meaning of `Cannot GET /`
+
+## 6. What We Configured Correctly
+
+## 7. What We Configured Incorrectly or Unnecessarily
+
+## 8. Correct Development Preview Architecture
+
+## 9. Recommended Minimal Fix
+
+## 10. Expected Manual Testing Flow
+
+## 11. Repository Changes
+Must say:
+"NONE"
+
+## 12. Production Impact
+Must say whether this has any impact on production architecture.
+
+IMPORTANT:
+Do not provide another implementation prompt.
+
+Do not modify anything.
+
+We only want the audit and the evidence-based conclusion.
