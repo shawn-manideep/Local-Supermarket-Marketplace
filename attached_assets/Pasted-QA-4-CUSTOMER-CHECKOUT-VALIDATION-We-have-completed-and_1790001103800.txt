@@ -1,0 +1,278 @@
+QA-4 — CUSTOMER CHECKOUT VALIDATION
+
+We have completed and fixed QA-3 Cart testing.
+
+Current status:
+- QA-1 Discovery: PASS
+- QA-2 Catalog: PASS
+- QA-3 Cart: PASS
+- Cart empty-state defect was fixed.
+- Backend tests: 34/34 passing.
+
+Now perform QA-4 focused manual validation of the CUSTOMER CHECKOUT flow.
+
+IMPORTANT:
+This is a TESTING/VALIDATION task only.
+
+DO NOT modify application code, database schema, migrations, RLS, authentication, authorization, fixtures, artifact configuration, deployment configuration, or production resources.
+
+Use the existing DEV fixtures and Customer A / Store A.
+
+TEST OBJECTIVE
+
+Verify that checkout validation correctly calculates and validates:
+- cart
+- store
+- products
+- quantities
+- product availability
+- stock
+- customer address
+- service pincode
+- minimum order amount
+- delivery fee
+- COD
+- subtotal
+- total
+
+Checkout validation must NOT create an order.
+
+--------------------------------------------------
+1. PRECONDITIONS
+--------------------------------------------------
+
+Login as Customer A.
+
+Use Customer A's saved address:
+- Pincode: 400001
+
+Use:
+- Development Store A
+- Delivery fee: ₹25
+- Minimum order: ₹100
+
+Use available products:
+- Test Rice = ₹60
+- Test Oil = ₹80
+
+Make sure the cart starts clean.
+
+--------------------------------------------------
+2. VALID CHECKOUT
+--------------------------------------------------
+
+Add:
+- Test Rice ×1 = ₹60
+- Test Oil ×1 = ₹80
+
+Expected:
+- Subtotal = ₹140
+- Delivery fee = ₹25
+- Total = ₹165
+
+Open checkout/checkout validation.
+
+Verify:
+- Correct store
+- Correct saved delivery address
+- Correct pincode
+- COD is available
+- Subtotal = ₹140
+- Delivery fee = ₹25
+- Total = ₹165
+- Validation succeeds / ready = true
+- No error
+
+IMPORTANT:
+Confirm that this validation does NOT create an order.
+
+After validation:
+- Customer should still have the cart.
+- Cart should still contain Rice ×1 and Oil ×1.
+- There should be no newly created order.
+
+--------------------------------------------------
+3. MINIMUM ORDER VALIDATION
+--------------------------------------------------
+
+Change cart so subtotal is below ₹100.
+
+Example:
+- Test Rice ×1 = ₹60
+
+Run checkout validation.
+
+Expected:
+- HTTP 409 / equivalent validation error
+- Minimum-order requirement is reported
+- No order is created
+- Cart remains intact
+
+Restore the valid ₹140 cart afterward.
+
+--------------------------------------------------
+4. UNAVAILABLE PRODUCT
+--------------------------------------------------
+
+If practical without disrupting the fixture, test the existing:
+- Unavailable Item
+
+Attempt checkout while the cart contains an unavailable item.
+
+Expected:
+- Checkout validation rejected
+- HTTP 409 / equivalent
+- No order created
+- Existing valid cart data is not silently converted into an order
+
+Do not permanently modify fixture availability.
+
+--------------------------------------------------
+5. STOCK VALIDATION
+--------------------------------------------------
+
+Test an amount exceeding available stock using the existing Test Rice stock.
+
+Expected:
+- Checkout validation rejects the cart
+- HTTP 409 / equivalent stock error
+- No order created
+
+Restore the cart to a valid quantity afterward.
+
+Do not permanently change stock.
+
+--------------------------------------------------
+6. ADDRESS / PINCODE VALIDATION
+--------------------------------------------------
+
+Verify checkout rejects an address that is not eligible for Store A.
+
+Use only an existing controlled test address/fixture if available.
+
+Expected:
+- Invalid/foreign address is rejected
+- No order created
+
+Do not permanently modify customer addresses unless a temporary test operation is absolutely necessary.
+
+If the test cannot be safely performed with existing fixtures, report it as BLOCKED rather than changing fixtures.
+
+--------------------------------------------------
+7. CLIENT-SUPPLIED FINANCIAL VALUES
+--------------------------------------------------
+
+Verify the checkout API does not trust client-supplied:
+- subtotal
+- delivery fee
+- total
+
+Attempt to submit a manipulated financial value if this can be tested safely through the existing API.
+
+Expected:
+- Request rejected or server recalculates authoritative values.
+- Server-controlled values remain:
+  subtotal ₹140
+  delivery fee ₹25
+  total ₹165
+
+Do not change backend code.
+
+--------------------------------------------------
+8. COD VALIDATION
+--------------------------------------------------
+
+Verify COD is accepted as the MVP payment method.
+
+Expected:
+- COD validation succeeds for the valid cart.
+- No online payment flow appears.
+- No payment gateway is invoked.
+- No order is created merely by validation.
+
+--------------------------------------------------
+9. ORDER CREATION SAFETY
+--------------------------------------------------
+
+This is critical.
+
+After every invalid checkout test, verify:
+- No new order was created.
+- Existing delivered regression order remains untouched.
+- Cart remains intact unless the test itself legitimately changes cart state.
+
+For the valid checkout test, also verify:
+- Checkout validation alone does NOT create an order.
+
+Do NOT call the actual order-creation endpoint in QA-4.
+That will be tested separately in QA-5.
+
+--------------------------------------------------
+10. FINAL CLEANUP
+--------------------------------------------------
+
+Leave Customer A in this state:
+
+- Valid Store A cart:
+  Test Rice ×1
+  Test Oil ×1
+- Subtotal ₹140
+- No active Store B cart
+- No unintended new orders
+- Existing historical orders untouched
+
+If any temporary test data was created, clean it up.
+
+--------------------------------------------------
+11. ACCESSIBILITY / UI OBSERVATION
+--------------------------------------------------
+
+Record:
+- Checkout fields clearly labeled
+- Address clearly displayed
+- Store clearly identified
+- Subtotal/delivery/total readable
+- COD clearly understandable
+- Validation errors understandable
+- Buttons have appropriate labels/roles
+- Loading/busy state works
+- No blank screen
+- No unexpected network errors
+
+Do not fix accessibility issues in this task.
+
+--------------------------------------------------
+12. REQUIRED FINAL REPORT
+--------------------------------------------------
+
+Report each item as:
+
+PASS / FAIL / BLOCKED
+
+Include:
+1. Valid checkout
+2. Correct subtotal
+3. Delivery fee
+4. Correct total
+5. Minimum order validation
+6. Unavailable product validation
+7. Stock validation
+8. Address/pincode validation
+9. Client financial-value protection
+10. COD validation
+11. No order created during validation
+12. Cart persistence
+13. Customer isolation
+14. UI observations
+15. API/network errors
+16. Accessibility observations
+17. Cleanup state
+
+Also report:
+- Any unexpected defect
+- Exact HTTP status/error where relevant
+- Whether any files/code/database/configuration were changed
+
+STOP after reporting QA-4.
+
+Do not proceed to QA-5.
