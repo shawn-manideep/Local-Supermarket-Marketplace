@@ -1,0 +1,336 @@
+QA-6 — VENDOR ORDER PROCESSING + LIFECYCLE
+
+QA-5 customer order creation has passed.
+
+There is now exactly one real DEV regression order in PLACED state.
+
+Use that existing order for this task.
+
+IMPORTANT:
+- Do NOT create another customer order.
+- Do NOT modify application code, database schema, migrations, RLS, authentication, authorization, or deployment configuration.
+- This is a manual validation task.
+- If a defect is discovered, STOP and report it rather than fixing it.
+- Preserve the regression order for subsequent QA.
+
+--------------------------------------------------
+1. PRECONDITION
+--------------------------------------------------
+
+Use:
+
+Vendor A
+Development Store A
+
+Locate the existing newly-created Customer A order.
+
+Expected:
+- Order status = PLACED
+- Store = Development Store A
+- Customer/order belongs to Store A
+- Items:
+  Test Rice ×1
+  Test Oil ×1
+- Subtotal = ₹140
+- Delivery fee = ₹25
+- Total = ₹165
+- Payment = COD
+- Delivery type = vendor_staff
+
+Verify Vendor A can see the order.
+
+--------------------------------------------------
+2. VENDOR ORDER LIST
+--------------------------------------------------
+
+Open the Vendor dashboard/order management UI.
+
+Verify:
+- The PLACED order appears.
+- Correct order ID is shown.
+- Customer/order summary is appropriate.
+- Status = PLACED.
+- Amount = ₹165.
+- COD is shown.
+- Store A context is correct.
+
+Verify Vendor B cannot see Customer A / Store A's order.
+
+Do not modify anything during this step.
+
+--------------------------------------------------
+3. ORDER DETAIL
+--------------------------------------------------
+
+Open the order detail.
+
+Verify the vendor can see the operational information required to process the order:
+
+- Order ID
+- Order date/time
+- Items
+- Quantities
+- Item prices
+- Order subtotal
+- Delivery fee
+- Total
+- Payment method
+- Delivery address/contact information
+- Current status
+- Order history
+
+Verify customer-facing/internal-only fields are not unnecessarily exposed.
+
+Do not attempt to edit snapshots or financial values.
+
+--------------------------------------------------
+4. ACCEPT ORDER
+--------------------------------------------------
+
+From the Vendor UI, perform:
+
+PLACED → ACCEPTED
+
+Expected:
+- Action succeeds.
+- Status becomes ACCEPTED.
+- Exactly one corresponding status-history event is added.
+- Actor is Vendor A.
+- Role is vendor.
+- Server timestamp is used.
+
+Verify the order cannot remain in PLACED after successful acceptance.
+
+--------------------------------------------------
+5. PREPARING
+--------------------------------------------------
+
+Perform:
+
+ACCEPTED → PREPARING
+
+Expected:
+- Action succeeds.
+- Status becomes PREPARING.
+- One new history event.
+- Correct vendor actor.
+
+--------------------------------------------------
+6. READY
+--------------------------------------------------
+
+Perform:
+
+PREPARING → READY
+
+Expected:
+- Action succeeds.
+- Status becomes READY.
+- One new history event.
+
+Verify the UI clearly communicates that the order is ready for delivery.
+
+--------------------------------------------------
+7. DELIVERY
+--------------------------------------------------
+
+Perform:
+
+READY → OUT_FOR_DELIVERY
+
+Expected:
+- Action succeeds.
+- Status becomes OUT_FOR_DELIVERY.
+- One new history event.
+- Delivery type remains vendor_staff.
+- Delivery contact information remains correct.
+
+Verify the vendor UI clearly shows that the order is now out for delivery.
+
+--------------------------------------------------
+8. DELIVERED
+--------------------------------------------------
+
+Perform:
+
+OUT_FOR_DELIVERY → DELIVERED
+
+Expected:
+- Action succeeds.
+- Status becomes DELIVERED.
+- One new history event.
+- DELIVERED is terminal.
+
+Attempting another lifecycle transition after DELIVERED should be rejected.
+
+Do not create another order for this test.
+
+--------------------------------------------------
+9. INVALID TRANSITIONS
+--------------------------------------------------
+
+Verify the vendor cannot perform invalid transitions.
+
+At minimum verify that a terminal DELIVERED order cannot be moved to:
+- ACCEPTED
+- PREPARING
+- READY
+- OUT_FOR_DELIVERY
+
+Expected:
+- Request rejected safely.
+- Order remains DELIVERED.
+
+Do not alter the final state.
+
+--------------------------------------------------
+10. VENDOR ISOLATION
+--------------------------------------------------
+
+Verify Vendor B cannot:
+- View Store A's order
+- View Store A's order details
+- Change Store A's order status
+- Perform any lifecycle action on Store A's order
+
+Expected:
+- Safe 404/403 denial as appropriate.
+- No Store A data exposed.
+
+--------------------------------------------------
+11. CUSTOMER VISIBILITY
+--------------------------------------------------
+
+After each lifecycle transition, if practical, verify Customer A's order reflects the updated status.
+
+At minimum verify:
+- ACCEPTED
+- PREPARING
+- READY
+- OUT_FOR_DELIVERY
+- DELIVERED
+
+Do not create or modify another order.
+
+--------------------------------------------------
+12. ADMIN VISIBILITY
+--------------------------------------------------
+
+Verify the Admin dashboard can see the same order and final status.
+
+Admin must remain read-only for lifecycle processing.
+
+Do not use Admin to change the order status.
+
+--------------------------------------------------
+13. SNAPSHOT IMMUTABILITY
+--------------------------------------------------
+
+After the complete lifecycle, verify:
+
+- Item price snapshots unchanged
+- Subtotal unchanged
+- Delivery fee unchanged
+- Total unchanged
+- Commission snapshot unchanged
+- Delivery address snapshot unchanged
+- Payment method unchanged
+- Delivery type unchanged
+
+Expected:
+The order remains historically identical to the values captured at creation.
+
+--------------------------------------------------
+14. HISTORY
+--------------------------------------------------
+
+Verify the order history contains the expected lifecycle:
+
+PLACED
+ACCEPTED
+PREPARING
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+
+Expected:
+- One event per successful transition.
+- Correct actor/role.
+- Server-generated timestamps.
+- History cannot be edited/deleted through normal UI/API.
+
+--------------------------------------------------
+15. UI / UX OBSERVATIONS
+--------------------------------------------------
+
+Record:
+
+- Vendor login experience
+- Dashboard navigation
+- Order list readability
+- Order detail readability
+- Status visibility
+- Action button clarity
+- Loading/busy states
+- Success/error messages
+- Empty states
+- Responsive behavior
+- Accessibility labels/button roles
+- Any confusing or incomplete UI
+
+Do NOT fix UI issues during this task.
+
+--------------------------------------------------
+16. API / NETWORK
+--------------------------------------------------
+
+Record:
+- Successful lifecycle HTTP statuses
+- Expected rejection statuses
+- Any unexpected network/API errors
+- Any console/runtime errors
+
+The React Native Web useNativeDriver warning, if still present, should be recorded as non-blocking unless it causes a functional problem.
+
+--------------------------------------------------
+17. FINAL STATE
+
+The regression order MUST remain:
+
+DELIVERED
+
+Do not delete it.
+
+Do not create another order.
+
+This same order will be used for final customer/admin verification.
+
+--------------------------------------------------
+18. REQUIRED FINAL REPORT
+
+Report:
+
+1. Vendor login
+2. Vendor order list
+3. Vendor order detail
+4. PLACED visibility
+5. ACCEPTED
+6. PREPARING
+7. READY
+8. OUT_FOR_DELIVERY
+9. DELIVERED
+10. Invalid transition protection
+11. Vendor isolation
+12. Customer status visibility
+13. Admin visibility
+14. Snapshot immutability
+15. Complete history
+16. UI/UX observations
+17. Accessibility observations
+18. API/network errors
+19. Final order ID
+20. Final order status
+21. Any defect
+22. Any files/code/database/configuration changed
+
+STOP after QA-6.
