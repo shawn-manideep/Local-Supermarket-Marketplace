@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api";
 
-const colors = { bg:"#F8F6EF", card:"#FFFFFF", ink:"#17352B", muted:"#61736C", accent:"#E85D3F", line:"#DDE5DF", danger:"#A53D31" };
+const colors = { bg: "#F7F5F0", card: "#FFFFFF", ink: "#1C2924", muted: "#5F7068", accent: "#D45543", soft: "#EAF0EC", line: "#E3DFD5", danger: "#C13521", highlight: "#FFF2EF" };
 
 export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void }) {
   const [cart, setCart] = useState<CustomerCart | null>(null);

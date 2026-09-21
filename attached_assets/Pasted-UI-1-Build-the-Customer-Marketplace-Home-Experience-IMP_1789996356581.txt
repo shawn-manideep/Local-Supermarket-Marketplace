@@ -1,0 +1,283 @@
+UI-1 — Build the Customer Marketplace Home Experience
+
+IMPORTANT CONTEXT
+
+The Local Supermarket Marketplace already has a working backend and DEV Supabase environment.
+
+Do NOT rebuild or modify the backend architecture.
+
+Existing backend capabilities already include:
+- Supabase authentication
+- Customer authentication/session
+- Customer profile
+- Customer addresses
+- Store discovery by customer pincode
+- Active store filtering
+- Store operating status
+- Store categories
+- Store products
+- Product availability
+- Customer cart
+- Checkout validation
+- Orders
+- Order lifecycle
+- Customer/vendor/admin authorization
+
+The current customer frontend is only a basic functional shell.
+
+GOAL
+
+Build the first polished customer-facing marketplace screen:
+
+CUSTOMER HOME → STORE DISCOVERY
+
+This must look and feel like a real local supermarket marketplace, not an internal prototype.
+
+DO NOT work on:
+- deployment
+- GitHub
+- Vercel
+- Railway
+- production Supabase
+- database migrations
+- RLS
+- backend business rules
+- payment integration
+- delivery partner system
+- notifications
+- advanced search
+- maps/GPS
+
+Do not spend time on infrastructure.
+
+--------------------------------------------------
+1. CUSTOMER HOME SCREEN
+--------------------------------------------------
+
+Replace the current placeholder/basic Home screen with a polished grocery marketplace home screen.
+
+Use the existing application design system and React Native/Expo architecture.
+
+The screen should contain:
+
+HEADER
+- Delivery location section
+- Show the customer's currently selected/default saved address
+- Friendly location label such as "Deliver to Home"
+- Show the pincode
+- Tapping the location should navigate to/select from saved addresses
+
+SEARCH
+- Prominent search-style input/card:
+  "Search supermarkets"
+- For this iteration it does NOT need full product search.
+- It may be a visual entry point only, but it must look intentional and polished.
+- Do not create fake search results.
+
+STORE DISCOVERY
+Title:
+"Supermarkets near you"
+
+Subtitle:
+"Choose a supermarket to start shopping"
+
+Use the existing customer store discovery API.
+
+Only show stores that the backend already considers eligible for the customer's selected pincode.
+
+Each store should be displayed as a polished card containing:
+
+- Store name
+- Open / Closed status
+- Delivery fee
+- Minimum order amount
+- Service pincode context where appropriate
+- Clear "Shop Now" action
+- Appropriate supermarket/store icon or simple visual treatment
+
+Do NOT invent ratings, distances, reviews, discounts, offers, delivery times or other data that the backend does not provide.
+
+If the backend does not provide an image/logo, use a clean designed placeholder/icon rather than fake imagery.
+
+--------------------------------------------------
+2. STATES
+--------------------------------------------------
+
+Implement proper UI states:
+
+LOADING
+- Skeleton/loading treatment
+- Do not show an empty page while loading
+
+SUCCESS
+- Store cards
+
+NO ADDRESS
+- Explain that the customer needs a delivery address
+- Provide a clear action:
+  "Add delivery address"
+
+NO STORES
+- Friendly empty state:
+  "No supermarkets available in this area yet."
+- Explain that the customer can choose another saved address
+
+ERROR
+- Friendly error message
+- Retry action
+
+CLOSED STORE
+- Clearly display CLOSED status
+- Do not prevent viewing unless existing backend rules require it
+- Do not invent ordering restrictions on the client
+
+--------------------------------------------------
+3. STORE SELECTION
+--------------------------------------------------
+
+When the customer taps "Shop Now":
+
+Navigate to the existing store/catalog flow.
+
+Pass the selected store through the existing application state/navigation.
+
+Do NOT create a fake catalog.
+
+Use the existing store/catalog APIs already implemented in the project.
+
+The next screen can remain simple for now; this task is primarily about making HOME + STORE DISCOVERY polished.
+
+--------------------------------------------------
+4. VISUAL DESIGN
+--------------------------------------------------
+
+The UI should look like a modern local grocery marketplace.
+
+Design principles:
+
+- Clean
+- Modern
+- Friendly
+- Mobile-first
+- Good spacing
+- Strong typography hierarchy
+- Rounded cards
+- Clear primary actions
+- Consistent icons
+- Comfortable touch targets
+- Good empty/loading/error states
+- Avoid excessive gradients
+- Avoid clutter
+- Avoid huge decorative graphics that consume the screen
+
+Do not copy Zomato/Swiggy branding.
+
+Create an original supermarket marketplace visual identity.
+
+Keep the design consistent with the existing app rather than introducing an unrelated design system.
+
+--------------------------------------------------
+5. BOTTOM NAVIGATION
+--------------------------------------------------
+
+Keep the existing customer navigation.
+
+The Home tab should clearly appear selected.
+
+Keep:
+- Home
+- Cart
+- Orders
+- Account
+
+Do not create additional tabs.
+
+--------------------------------------------------
+6. RESPONSIVE BEHAVIOR
+--------------------------------------------------
+
+This is an Expo React Native application that also runs on Web.
+
+Make sure the screen works on:
+
+- mobile-sized viewport
+- Replit web preview
+- desktop browser width
+
+Do not break existing native-compatible components.
+
+--------------------------------------------------
+7. IMPORTANT DATA RULE
+--------------------------------------------------
+
+Never hardcode fake supermarkets.
+
+The screen must use the existing authenticated customer store-discovery API.
+
+If the customer has no address, show the proper empty state.
+
+If stores are returned, render those real DEV stores.
+
+Do not modify database fixtures just to make the UI look populated.
+
+--------------------------------------------------
+8. DO NOT BREAK EXISTING FUNCTIONALITY
+--------------------------------------------------
+
+Do not modify:
+- authentication
+- role resolution
+- API authorization
+- RLS
+- cart rules
+- checkout validation
+- order lifecycle
+- vendor/admin functionality
+
+Do not change backend contracts unless absolutely required.
+
+Prefer consuming the APIs exactly as they currently exist.
+
+--------------------------------------------------
+9. VERIFICATION
+--------------------------------------------------
+
+After implementation:
+
+1. Run existing backend tests.
+2. Run customer typecheck/build.
+3. Verify Expo Web export.
+4. Verify the managed customer route:
+   /customer/
+5. Verify:
+   - logged-out customer sees login
+   - customer can sign in
+   - customer reaches Home
+   - saved address appears
+   - Store A from DEV data appears for the appropriate pincode
+   - Store B does not incorrectly appear for the wrong pincode
+   - store status is displayed from backend data
+   - tapping Shop Now enters the existing store/catalog flow
+6. Verify no backend/database/migration changes were made.
+
+Do NOT publish.
+
+Do NOT create GitHub commits.
+
+Do NOT touch production resources.
+
+--------------------------------------------------
+10. COMPLETION REPORT
+--------------------------------------------------
+
+At the end report only:
+
+- files changed
+- customer screens improved
+- API endpoints consumed
+- tests/builds passed
+- whether backend/database/migrations changed
+- whether production was touched
+
+Do not start another phase automatically.
+STOP after UI-1.

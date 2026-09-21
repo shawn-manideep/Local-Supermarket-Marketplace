@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerOrderDetail, type CustomerOrderStatus, type CustomerOrderSummary } from "./lib/api";
 
-const colors = { bg: "#F8F6EF", card: "#FFFFFF", ink: "#17352B", muted: "#61736C", accent: "#E85D3F", line: "#DDE5DF", danger: "#A53D31", soft: "#E8F1EA" };
+const colors = { bg: "#F7F5F0", card: "#FFFFFF", ink: "#1C2924", muted: "#5F7068", accent: "#D45543", soft: "#EAF0EC", line: "#E3DFD5", danger: "#C13521", highlight: "#FFF2EF" };
 const stages: CustomerOrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"];
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });

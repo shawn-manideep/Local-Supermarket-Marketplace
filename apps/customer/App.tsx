@@ -24,7 +24,7 @@ import { CartScreen } from "./src/CartScreen";
 import { OrdersScreen } from "./src/OrdersScreen";
 
 type Screen = "home" | "cart" | "orders" | "account" | "addresses";
-const colors = { bg: "#F8F6EF", card: "#FFFFFF", ink: "#17352B", muted: "#61736C", accent: "#E85D3F", soft: "#E8F1EA", line: "#DDE5DF", danger: "#A53D31" };
+const colors = { bg: "#F7F5F0", card: "#FFFFFF", ink: "#1C2924", muted: "#5F7068", accent: "#D45543", soft: "#EAF0EC", line: "#E3DFD5", danger: "#C13521", highlight: "#FFF2EF" };
 
 function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
   return <View style={styles.field}><Text style={styles.label}>{props.label}</Text><TextInput {...props} placeholderTextColor="#8A9892" style={styles.input} /></View>;
@@ -92,7 +92,7 @@ function AddressesScreen() {
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
-  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View accessibilityLabel="Primary navigation" style={styles.nav}>{(["home","cart","orders","addresses","account"] as Screen[]).map((item) => <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item }} key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
+  return <View style={styles.shell}><View style={styles.content}>{screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> : screen === "account" ? <AccountScreen /> : <AddressesScreen />}</View><View accessibilityLabel="Primary navigation" style={styles.nav}>{(["home","cart","orders","account"] as Screen[]).map((item) => <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item }} key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}><Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text></Pressable>)}</View></View>;
 }
 
 export default function App() {
