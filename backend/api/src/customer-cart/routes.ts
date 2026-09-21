@@ -17,6 +17,10 @@ import { centsToMoney, moneyToCents } from "./money.js";
 
 export const customerCartRouter = Router();
 
+export function cartStatusAfterItemRemoval(remainingItemCount: number) {
+  return remainingItemCount === 0 ? "ABANDONED" as const : "ACTIVE" as const;
+}
+
 function customerId(request: Request) {
   const id = (request as AuthenticatedRequest).auth?.userId;
   if (!id) throw new HttpError(401, "Authentication required");
@@ -130,15 +134,22 @@ customerCartRouter.patch("/api/customer/cart/items/:itemId", requireRole("custom
   await getDb().transaction(async (transaction) => {
     await transaction.execute(sql`select pg_advisory_xact_lock(hashtextextended(${ownerId}, 0))`);
     const [owned] = await transaction.select({
-      id: cartItems.id, stock: products.stockQuantity, active: products.isActive,
+      id: cartItems.id, cartId: cartItems.cartId, stock: products.stockQuantity, active: products.isActive,
       available: products.availability,
     }).from(cartItems).innerJoin(carts, eq(carts.id, cartItems.cartId))
       .innerJoin(products, eq(products.id, cartItems.productId))
       .where(and(eq(cartItems.id, params.data.itemId), eq(carts.customerId, ownerId), eq(carts.status, "ACTIVE")))
       .limit(1).for("share");
     if (!owned) throw new HttpError(404, "Cart item not found");
-    if (body.data.quantity === 0) await transaction.delete(cartItems).where(eq(cartItems.id, owned.id));
-    else {
+    if (body.data.quantity === 0) {
+      await transaction.delete(cartItems).where(eq(cartItems.id, owned.id));
+      const remaining = await transaction.select({ id: cartItems.id }).from(cartItems)
+        .where(eq(cartItems.cartId, owned.cartId)).limit(1);
+      if (cartStatusAfterItemRemoval(remaining.length) === "ABANDONED") {
+        await transaction.update(carts).set({ status: "ABANDONED", updatedAt: new Date() })
+          .where(and(eq(carts.id, owned.cartId), eq(carts.customerId, ownerId), eq(carts.status, "ACTIVE")));
+      }
+    } else {
       if (!owned.active || !owned.available) throw new HttpError(409, "Product is no longer available");
       if (body.data.quantity > owned.stock) throw new HttpError(409, "Requested quantity exceeds available stock");
       await transaction.update(cartItems).set({ quantity: body.data.quantity, updatedAt: new Date() }).where(eq(cartItems.id, owned.id));
@@ -153,11 +164,17 @@ customerCartRouter.delete("/api/customer/cart/items/:itemId", requireRole("custo
   const ownerId = customerId(request);
   await getDb().transaction(async (transaction) => {
     await transaction.execute(sql`select pg_advisory_xact_lock(hashtextextended(${ownerId}, 0))`);
-    const [owned] = await transaction.select({ id: cartItems.id }).from(cartItems)
+    const [owned] = await transaction.select({ id: cartItems.id, cartId: cartItems.cartId }).from(cartItems)
       .innerJoin(carts, eq(carts.id, cartItems.cartId))
       .where(and(eq(cartItems.id, params.data.itemId), eq(carts.customerId, ownerId), eq(carts.status, "ACTIVE"))).limit(1);
     if (!owned) throw new HttpError(404, "Cart item not found");
     await transaction.delete(cartItems).where(eq(cartItems.id, owned.id));
+    const remaining = await transaction.select({ id: cartItems.id }).from(cartItems)
+      .where(eq(cartItems.cartId, owned.cartId)).limit(1);
+    if (cartStatusAfterItemRemoval(remaining.length) === "ABANDONED") {
+      await transaction.update(carts).set({ status: "ABANDONED", updatedAt: new Date() })
+        .where(and(eq(carts.id, owned.cartId), eq(carts.customerId, ownerId), eq(carts.status, "ACTIVE")));
+    }
   });
   response.json({ cart: await cartResponse(ownerId) });
 }));

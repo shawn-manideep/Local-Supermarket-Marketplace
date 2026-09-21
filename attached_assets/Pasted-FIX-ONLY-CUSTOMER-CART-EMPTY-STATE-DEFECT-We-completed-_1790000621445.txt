@@ -1,0 +1,71 @@
+FIX ONLY — CUSTOMER CART EMPTY-STATE DEFECT
+
+We completed manual QA-3 for Customer Cart & Shopping Behavior.
+
+One confirmed functional defect was found:
+
+When the customer removes the final item from an ACTIVE cart:
+- The item is removed successfully.
+- However, the ACTIVE cart remains with zero items.
+- The Cart screen continues showing the store and ₹0 totals.
+- Expected behavior is the same empty-cart state shown when there is no active cart.
+- Explicit "Clear Cart" already correctly abandons the cart and restores the empty-cart state.
+
+Fix ONLY this defect.
+
+REQUIRED BEHAVIOR
+
+1. When DELETE /api/customer/cart/items/:itemId removes the final remaining item:
+   - The resulting cart must not remain an ACTIVE zero-item cart.
+   - It should follow the existing empty-cart lifecycle semantics used by Clear Cart.
+   - Do not delete historical carts.
+   - Do not affect CONVERTED or ABANDONED carts.
+
+2. Customer Cart UI:
+   - After removing the final item, immediately show the existing empty-cart state.
+   - Do not show the previous store with ₹0 totals.
+   - Do not require a page refresh or logout/login.
+
+3. Preserve all existing behavior:
+   - Removing one item while other items remain must continue working.
+   - Quantity updates must continue working.
+   - Unavailable-product protection must continue working.
+   - Stock-limit validation must continue working.
+   - One-supermarket-per-cart rule must continue working.
+   - Store switching must remain unchanged.
+   - Cart persistence must remain unchanged.
+   - Customer isolation must remain unchanged.
+
+4. Do NOT change:
+   - database schema
+   - migrations
+   - RLS policies
+   - authentication
+   - authorization
+   - checkout
+   - order creation
+   - store/product APIs
+   - production configuration
+   - deployment configuration
+   - fixture data
+
+5. Reuse the existing cart lifecycle implementation and Clear Cart semantics rather than introducing a new cart state.
+
+VALIDATION REQUIRED
+
+After the fix:
+- Run the relevant backend/cart tests.
+- Add or update a focused automated test proving:
+  ACTIVE cart with exactly 1 item
+  → remove final item
+  → no ACTIVE zero-item cart remains
+  → customer receives the expected empty-cart response/state.
+- Verify an ACTIVE cart with 2 items still behaves correctly when only one item is removed.
+- Verify existing 33/33 API tests remain passing.
+- Run customer TypeScript/typecheck and Expo Web export.
+- Verify managed Customer route still loads.
+- Report exact files changed and exact tests/results.
+
+Do not make unrelated UI, accessibility, infrastructure, database, migration, or deployment changes.
+
+STOP after this focused fix and report the result.

@@ -5,6 +5,7 @@ import test from "node:test";
 import { customerCartItemCreateSchema, customerCartItemUpdateSchema, customerCheckoutValidationSchema } from "@workspace/validation";
 import { createApp } from "../app.js";
 import { centsToMoney, moneyToCents } from "./money.js";
+import { cartStatusAfterItemRemoval } from "./routes.js";
 
 test("cart and checkout routes require authentication", async () => {
   const server = createApp().listen(0, "127.0.0.1");
@@ -31,6 +32,11 @@ test("money calculations remain integer-cent based", () => {
   assert.equal(moneyToCents("12.30"), 1230n);
   assert.equal(centsToMoney(1230n), "12.30");
   assert.equal(centsToMoney(moneyToCents("19.99") * 3n), "59.97");
+});
+
+test("removing cart items abandons only an empty active cart", () => {
+  assert.equal(cartStatusAfterItemRemoval(0), "ABANDONED");
+  assert.equal(cartStatusAfterItemRemoval(1), "ACTIVE");
 });
 
 test("direct customer cart writes are removed from RLS", async () => {
