@@ -1,0 +1,94 @@
+Stage 9D — Fix Replit Artifact Runtime Environment Only
+
+We have completed zero-credit Shell diagnostics.
+
+DO NOT change application code, business logic, database schema, migrations, Supabase data, RLS, authentication logic, dependencies, or production configuration.
+
+The application services are proven healthy when the intended runtime variables are supplied manually:
+
+1. API:
+   PORT=5000
+   pnpm --filter @workspace/api-server run dev
+   → Server listening on port 5000
+
+2. Dashboard:
+   PORT=5173
+   BASE_PATH=/
+   pnpm --filter @workspace/marketplace-dashboard run dev
+   → Vite ready, localhost:5173/
+
+3. Customer:
+   PORT=8082
+   BASE_PATH=/customer/
+   pnpm --filter @workspace/marketplace-customer run dev
+   → Vite ready, localhost:8082/customer/
+
+Current problem:
+Clicking Replit Run results in "Your app is not running" because the managed runtime is not supplying these required environment variables.
+
+Current .replit has an empty [workflows] section.
+Stage 9C established these managed artifacts:
+
+/                 → artifacts/marketplace-dashboard
+/customer/        → artifacts/marketplace-customer
+/api/*            → artifacts/api-server
+/__mockup/        → artifacts/mockup-sandbox
+
+Task:
+Repair ONLY the Replit artifact-managed runtime environment so each registered artifact receives the required PORT and BASE_PATH values when started by Replit Run.
+
+Required runtime values:
+- artifacts/marketplace-dashboard:
+  PORT=5173
+  BASE_PATH=/
+- artifacts/marketplace-customer:
+  PORT=8082
+  BASE_PATH=/customer/
+- artifacts/api-server:
+  PORT=5000
+
+IMPORTANT:
+- Use the existing Replit artifact-management mechanism and conventions already present in this project.
+- Do NOT recreate the old Phase 12 legacy workflows.
+- Do NOT add manual port exposure.
+- Do NOT use "Expose this port".
+- Do NOT change vite.config.ts to make variables optional.
+- Do NOT change src/index.ts to make PORT optional.
+- Do NOT add fallback/default ports in application code.
+- Do NOT modify .replit with guessed artifact syntax.
+- Do NOT create duplicate API services.
+- Do NOT remove artifacts/api-server.
+- Do NOT publish or deploy.
+- Do NOT create GitHub commits.
+- Do NOT touch Supabase DEV data/schema/RLS/migrations.
+- Do NOT upgrade dependencies.
+
+First inspect the existing registered artifact configuration and determine where Replit expects artifact runtime environment variables to be defined. Do not guess the configuration format.
+
+Then make the minimum configuration-only change required.
+
+Verification:
+1. Click/execute the normal Replit Run mechanism.
+2. Confirm all four managed services start without manual PORT/B
+ASE_PATH commands.
+3. Verify:
+   /                 → Dashboard HTTP 200
+   /customer/        → Customer HTTP 200
+   /api/health       → API HTTP 200
+   /api/auth/me      → 401 when unauthenticated
+   /__mockup/        → Canvas HTTP 200
+4. Confirm Dashboard and Customer assets load.
+5. Confirm Supabase login page still renders.
+6. Run existing 33/33 backend tests.
+7. Run typecheck/builds.
+8. Confirm no database/schema/data changes.
+9. Confirm no production deployment/GitHub/Vercel/Railway changes.
+
+If Replit's artifact runtime does NOT expose a supported configuration mechanism for these variables, STOP and report exactly what mechanism is missing. Do not invent a workaround and do not modify application code.
+
+Return a concise completion report listing:
+- exact configuration files changed
+- exact runtime variables configured
+- managed routes verified
+- tests/builds
+- confirmation that DB/production remained untouched.

@@ -23,3 +23,5 @@ timeoutMs = 20000
 [userenv.development]
 SUPABASE_ANON_KEY = "sb_publishable_olHk9WQVRmzGF05yQB4bSA_YQzZRbE2"
 SUPABASE_URL = "https://gkwcolipeavxnuzqlamb.supabase.co"
+
+[nix]
