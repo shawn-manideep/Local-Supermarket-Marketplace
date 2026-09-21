@@ -1,0 +1,261 @@
+QA-1 — Customer Location, Pincode & Supermarket Availability
+
+IMPORTANT:
+This is a QA/verification task only.
+
+DO NOT modify application code.
+DO NOT modify database schema.
+DO NOT create migrations.
+DO NOT modify RLS.
+DO NOT modify backend business rules.
+DO NOT create test fixtures.
+DO NOT change existing DEV data.
+DO NOT change Replit artifact configuration.
+DO NOT deploy/publish.
+DO NOT use GitHub/Vercel/Railway.
+DO NOT spend time redesigning UI.
+
+Use the existing DEV environment and existing seeded test data.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Validate the real customer journey:
+
+CUSTOMER LOGIN
+→ SAVED ADDRESS
+→ PINCODE
+→ SUPERMARKET AVAILABILITY
+→ STORE SELECTION
+
+We specifically want to confirm that the frontend is correctly consuming the already-tested marketplace APIs.
+
+==================================================
+TEST ACCOUNT
+==================================================
+
+Use the existing seeded Customer A account and its existing saved address.
+
+Do not print the password or any secret.
+
+Use the existing DEV fixture data.
+
+Known DEV fixture:
+
+Store A:
+- Name: Development Store A
+- Status: ACTIVE
+- Service pincode: 400001
+- Delivery fee: ₹25
+- Minimum order: ₹100
+- Operating hours: 09:00–21:00
+- Commission: 8.5%
+
+Store B:
+- Name: Development Store B
+- Status: ACTIVE
+- Service pincode: 560001
+- Delivery fee: ₹30
+- Minimum order: ₹150
+- Operating hours: 09:00–21:00
+- Commission: 9%
+
+Customer A is associated with the 400001 test address.
+
+Do not create additional stores or products.
+
+==================================================
+TEST 1 — LOGIN
+==================================================
+
+Open the managed customer application:
+
+/customer/
+
+Confirm:
+
+1. Logged-out customer sees the login screen.
+2. Sign in as existing Customer A.
+3. Authentication succeeds.
+4. Customer reaches the customer application.
+5. No management/admin screen is shown.
+
+==================================================
+TEST 2 — SAVED ADDRESS
+==================================================
+
+Open the customer's saved addresses.
+
+Confirm:
+
+1. Existing Customer A address is displayed.
+2. Pincode is 400001.
+3. Address belongs to Customer A.
+4. Default-address behavior works.
+5. Selecting the address updates the active delivery location.
+
+Do not modify the address unless absolutely required for testing.
+
+==================================================
+TEST 3 — SUPERMARKET DISCOVERY
+==================================================
+
+From the Customer Home screen, verify the application calls the existing:
+
+GET /api/customer/stores?pincode=400001
+
+Confirm the UI displays:
+
+Development Store A
+
+Confirm Store A displays the backend-provided values:
+
+- Store name
+- OPEN/CLOSED status
+- Delivery fee ₹25
+- Minimum order ₹100
+- Service/location information where currently supported
+
+Do not invent ratings, distance, reviews, discounts, delivery times, or other information not returned by the API.
+
+==================================================
+TEST 4 — STORE B ISOLATION
+==================================================
+
+For Customer A / pincode 400001:
+
+Confirm Development Store B is NOT displayed.
+
+This is important.
+
+Expected:
+
+400001 → Store A
+400001 → NOT Store B
+
+Do not modify Store B.
+
+==================================================
+TEST 5 — WRONG/UNSERVED PINCODE
+==================================================
+
+Test an address/pincode with no supermarket coverage.
+
+Use the existing new-customer test behavior already validated for:
+
+500090
+
+Do not create a new store.
+
+Confirm:
+
+GET /api/customer/stores?pincode=500090
+
+returns successfully with zero eligible stores.
+
+The UI must show a friendly empty state such as:
+
+"No supermarkets available in this area yet."
+
+It must NOT show:
+
+- Failed to fetch
+- blank screen
+- HTTP error
+- fake supermarket
+
+==================================================
+TEST 6 — STORE OPEN/CLOSED DISPLAY
+==================================================
+
+Verify the store status displayed by the customer UI comes from the existing backend operating-hours calculation.
+
+Do not invent or hardcode the status.
+
+If the current time causes Store A to be CLOSED, report that fact rather than treating it as a defect.
+
+==================================================
+TEST 7 — SHOP NOW
+==================================================
+
+From Store A's card:
+
+Click:
+
+Shop Now
+
+Confirm the customer enters the existing Store A catalog flow.
+
+Do not evaluate the product list deeply yet.
+
+For this QA stage, only confirm:
+
+Store A selected
+→ Store A catalog route/screen opens
+→ no navigation error
+→ no blank screen
+→ no wrong-store data
+
+==================================================
+EXPECTED RESULT
+==================================================
+
+The expected customer flow is:
+
+Customer A login
+↓
+Saved address 400001
+↓
+Home
+↓
+Development Store A visible
+↓
+Store B NOT visible
+↓
+Store A details correct
+↓
+Shop Now
+↓
+Store A catalog opens
+
+And for 500090:
+
+500090
+↓
+No supermarkets
+↓
+Friendly empty state
+
+==================================================
+SECURITY CHECK
+==================================================
+
+Confirm that:
+
+- Customer A cannot see Store B for pincode 400001.
+- No owner IDs are displayed.
+- No commission information is exposed.
+- No stock information is exposed on the store-discovery screen.
+- No development credentials or tokens are displayed.
+
+==================================================
+REPORT ONLY
+==================================================
+
+At the end provide:
+
+1. Login result
+2. Address result
+3. Pincode/store discovery result
+4. Store A result
+5. Store B isolation result
+6. 500090 no-store result
+7. Shop Now result
+8. Any UI defects observed
+9. Any API/network errors observed
+10. Whether any code/database/migration/RLS changes were made
+
+If everything passes, DO NOT modify anything.
+
+STOP after this QA stage.
