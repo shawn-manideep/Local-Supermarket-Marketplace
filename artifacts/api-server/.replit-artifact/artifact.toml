@@ -10,7 +10,7 @@ name = "API Server"
 paths = ["/api"]
 
 [services.development]
-run = "pnpm --filter @workspace/api run dev"
+run = "CORS_ALLOWED_ORIGINS=https://$REPLIT_DEV_DOMAIN pnpm --filter @workspace/api run dev"
 
 
 [services.production]

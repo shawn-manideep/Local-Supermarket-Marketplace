@@ -1,0 +1,195 @@
+BUG FIX — Customer New-Account Address Creation: "Failed to fetch"
+
+We found a real customer-facing bug during manual QA.
+
+A NEW customer account was created successfully:
+sharanya@yopmail.com
+
+The customer reaches:
+ /customer/
+
+The Addresses screen loads correctly.
+
+The user filled:
+
+Recipient name: Sharanya
+Phone: 8465846585
+Address line 1: Hyderabad
+Address line 2: Hi-tech city
+City: Hyderabad
+State: telangana
+Pincode: 500090
+
+When clicking "Add address", the UI displays:
+
+"Failed to fetch"
+
+IMPORTANT:
+This is a focused bug-fix task only.
+
+DO NOT:
+- redesign the application
+- change the database schema
+- create migrations
+- modify RLS
+- change authentication architecture
+- change backend business rules
+- change cart/order logic
+- change Replit artifact architecture
+- change ports
+- create legacy workflows
+- publish
+- deploy
+- configure GitHub/Vercel/Railway
+- upgrade dependencies
+
+First diagnose the actual failing request.
+
+--------------------------------------------------
+1. TRACE THE ADDRESS CREATE FLOW
+--------------------------------------------------
+
+Inspect the current customer address implementation.
+
+Identify:
+
+- exact frontend function used by "Add address"
+- exact HTTP method
+- exact API URL
+- exact backend route
+- request body
+- authentication header handling
+- API base URL resolution
+- BASE_PATH handling
+
+The existing backend route is expected to support customer address creation.
+
+Do not assume the URL. Read the current source.
+
+--------------------------------------------------
+2. TEST THE ACTUAL REQUEST
+--------------------------------------------------
+
+Use the current Replit managed preview environment.
+
+Determine whether the request is failing because of:
+
+- incorrect API URL
+- incorrect /customer base path handling
+- CORS
+- missing Authorization header
+- expired/missing Supabase session token
+- wrong HTTP method
+- incorrect route
+- frontend fetch error handling
+- backend error being incorrectly converted to "Failed to fetch"
+
+Inspect the browser/network/runtime evidence where available.
+
+DO NOT guess.
+
+--------------------------------------------------
+3. IMPORTANT ERROR-HANDLING REQUIREMENT
+--------------------------------------------------
+
+If the backend is actually returning an HTTP error such as:
+
+400 / 401 / 403 / 404 / 409 / 500
+
+the frontend must NOT display the generic:
+
+"Failed to fetch"
+
+Instead display the meaningful API error returned by the backend.
+
+"Failed to fetch" should only represent a genuine network/connectivity failure.
+
+--------------------------------------------------
+4. NEW CUSTOMER FLOW
+--------------------------------------------------
+
+Verify the following using the new customer account:
+
+1. Sign up
+2. Sign in
+3. Session is restored
+4. Customer profile exists as expected
+5. Open Addresses
+6. Submit a valid address
+7. Address is created
+8. Address appears in saved addresses
+9. Default-address behavior works if selected
+10. Customer Home can then use the saved address for store discovery
+
+Do NOT create fake database data manually just to make the UI pass.
+
+--------------------------------------------------
+5. PINCODE
+--------------------------------------------------
+
+Do NOT hardcode or restrict the address creation screen to the fixture pincodes.
+
+500090 must be allowed as a normal customer address pincode if it satisfies the existing validation rules.
+
+Store availability for that pincode is a separate concern.
+
+An address can exist even if no supermarket currently serves that pincode.
+
+--------------------------------------------------
+6. SECURITY
+--------------------------------------------------
+
+Ensure:
+
+- Authorization bearer token is sent correctly.
+- Address ownership continues to come from authenticated customer identity.
+- Client cannot specify another customer's customer_id.
+- Backend remains the authorization boundary.
+- Do not expose service-role credentials.
+- Do not weaken RLS or authorization.
+
+--------------------------------------------------
+7. MINIMAL CHANGE
+--------------------------------------------------
+
+Fix only the actual cause.
+
+Prefer the smallest possible source change.
+
+Do not refactor unrelated customer screens.
+
+--------------------------------------------------
+8. VERIFICATION
+--------------------------------------------------
+
+After fixing:
+
+- create/sign in with a new customer
+- add address with pincode 500090
+- confirm successful creation
+- refresh the page
+- confirm the address remains
+- confirm the address can be selected/defaulted
+- confirm Home handles the pincode correctly
+- confirm a pincode with no eligible stores produces the proper "No supermarkets available" state rather than an API/network error
+
+Also verify:
+
+- backend tests remain 33/33
+- customer typecheck
+- customer build/export
+- managed /customer/ route
+- /api/health
+- no database/schema/migration changes
+- no production changes
+
+At the end report:
+
+1. root cause
+2. exact files changed
+3. exact fix
+4. new-account address test result
+5. tests/builds
+6. confirmation that DB/RLS/migrations/production were untouched
+
+STOP after this bug fix.
