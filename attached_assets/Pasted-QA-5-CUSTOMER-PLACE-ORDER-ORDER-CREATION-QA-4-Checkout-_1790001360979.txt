@@ -1,0 +1,232 @@
+QA-5 — CUSTOMER PLACE ORDER + ORDER CREATION
+
+QA-4 Checkout Validation is complete.
+
+Now validate the actual CUSTOMER order-creation flow using the existing DEV environment.
+
+IMPORTANT:
+This task is specifically for creating ONE real DEV test order.
+Do not create multiple orders unnecessarily.
+
+Use:
+- Customer A
+- Development Store A
+- Customer A's 400001 address
+- COD
+- Test Rice ×1 = ₹60
+- Test Oil ×1 = ₹80
+- Delivery fee = ₹25
+- Expected subtotal = ₹140
+- Expected total = ₹165
+
+DO NOT modify application code, database schema, migrations, RLS, authentication, authorization, deployment configuration, or production resources unless a genuine defect is discovered. If a defect is discovered, STOP and report it instead of fixing it.
+
+--------------------------------------------------
+1. PRE-CHECK
+--------------------------------------------------
+
+Confirm:
+- Customer A is authenticated.
+- Store A is active and serves 400001.
+- Customer A has the 400001 address.
+- Cart contains exactly:
+  Test Rice ×1
+  Test Oil ×1
+- Expected subtotal ₹140.
+- No unintended active Store B cart exists.
+
+Record the order count before placing the order.
+
+--------------------------------------------------
+2. PLACE ORDER
+--------------------------------------------------
+
+Use the normal Customer UI.
+
+Proceed through checkout and press the actual "Place Order" action.
+
+This is intentionally allowed in QA-5.
+
+Expected:
+- Order creation succeeds.
+- Exactly ONE new order is created.
+- No duplicate order is created.
+- Customer receives the created order/order ID.
+- Order status = PLACED.
+
+--------------------------------------------------
+3. VERIFY ORDER SNAPSHOTS
+--------------------------------------------------
+
+Verify the created order contains server-controlled historical snapshots:
+
+Customer/delivery:
+- Customer identity
+- Delivery address
+- Delivery contact
+- Pincode
+- delivery_type = vendor_staff
+
+Payment:
+- payment method = COD
+
+Financial:
+- subtotal = ₹140
+- delivery fee = ₹25
+- total = ₹165
+
+Commission:
+- Store A commission rate snapshot = 8.5%
+- Commission amount snapshot = ₹11.90
+
+Order items:
+- Test Rice
+  quantity = 1
+  unit price snapshot = ₹60
+  line total = ₹60
+
+- Test Oil
+  quantity = 1
+  unit price snapshot = ₹80
+  line total = ₹80
+
+Do not accept any client-supplied values as authoritative.
+
+--------------------------------------------------
+4. CART CONVERSION
+--------------------------------------------------
+
+After successful order creation verify:
+- Original ACTIVE cart becomes CONVERTED.
+- Cart items remain historically retained.
+- No active replacement cart is created automatically.
+- Customer cart endpoint no longer shows an active cart.
+
+--------------------------------------------------
+5. ORDER HISTORY
+--------------------------------------------------
+
+Verify:
+- Exactly one initial order-status-history record exists for this order.
+- Initial status = PLACED.
+- Actor/role information is server-controlled.
+- Timestamp is server-generated.
+
+--------------------------------------------------
+6. CUSTOMER ORDER ACCESS
+--------------------------------------------------
+
+Verify Customer A can retrieve the new order.
+
+Verify:
+- Order appears in Customer Orders.
+- Status shows PLACED.
+- Store name is correct.
+- Items and totals are correct.
+- COD is shown.
+- Delivery information is appropriate.
+
+Do not test vendor processing in this task.
+
+--------------------------------------------------
+7. CUSTOMER ISOLATION
+--------------------------------------------------
+
+Verify Customer B cannot retrieve Customer A's newly created order.
+
+Expected:
+- HTTP 404 or equivalent safe denial.
+- No order data is exposed.
+
+--------------------------------------------------
+8. DUPLICATE / REPLAY PROTECTION
+--------------------------------------------------
+
+Do NOT repeatedly press Place Order.
+
+If the UI/API provides a safe indication that the submit action is protected against duplicate requests, record it.
+
+Verify there is exactly ONE new order.
+
+--------------------------------------------------
+9. HISTORICAL SNAPSHOT CHECK
+--------------------------------------------------
+
+After order creation, if safely possible without affecting other tests:
+
+Change Test Rice price temporarily from ₹60 to ₹65 using the legitimate vendor catalog UI/API.
+
+Then retrieve the newly created order.
+
+Expected:
+- Order item price remains ₹60.
+- Subtotal remains ₹140.
+- Delivery fee remains ₹25.
+- Total remains ₹165.
+- Commission snapshot remains ₹11.90.
+
+Restore Test Rice to ₹60 afterward.
+
+Do not modify the order itself.
+
+--------------------------------------------------
+10. STOCK EXPECTATION
+--------------------------------------------------
+
+Record whether stock changed.
+
+The current MVP intentionally does NOT deduct or reserve stock during order creation.
+
+Therefore:
+- Do not report unchanged stock as a defect.
+- Record the observed behavior.
+
+--------------------------------------------------
+11. FINAL STATE
+--------------------------------------------------
+
+Leave this order intact as the primary DEV regression order.
+
+DO NOT delete it.
+
+The order will be used in subsequent QA:
+- Vendor processing
+- Delivery
+- Customer order status
+- Admin visibility
+
+Do not create another order unless the first attempt fails before an order is created.
+
+--------------------------------------------------
+12. REQUIRED REPORT
+--------------------------------------------------
+
+Report:
+
+1. Pre-order cart state
+2. Order count before
+3. Place Order result
+4. Created order ID
+5. Order count after
+6. Status
+7. Order item snapshots
+8. Delivery snapshots
+9. Payment method
+10. Financial snapshots
+11. Commission snapshots
+12. Initial history record
+13. Cart conversion
+14. Customer order visibility
+15. Customer B isolation
+16. Duplicate protection
+17. Historical price snapshot
+18. Stock behavior
+19. UI observations
+20. API/network errors
+21. Accessibility observations
+22. Any defect
+23. Any files/code/database/configuration changed
+
+STOP after QA-5.
+
+Do not proceed to vendor testing yet.
