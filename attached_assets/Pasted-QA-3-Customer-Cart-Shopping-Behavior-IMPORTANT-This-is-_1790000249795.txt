@@ -1,0 +1,323 @@
+QA-3 — Customer Cart & Shopping Behavior
+
+IMPORTANT:
+This is a QA/verification task only.
+
+DO NOT modify application code.
+DO NOT modify database schema.
+DO NOT create migrations.
+DO NOT modify RLS.
+DO NOT modify backend business rules.
+DO NOT create test fixtures.
+DO NOT modify existing DEV data except normal cart operations required by this test.
+DO NOT change Replit artifact configuration.
+DO NOT deploy/publish.
+DO NOT use GitHub/Vercel/Railway.
+
+Use the existing DEV Customer A, Store A, categories and products.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Continue from the verified flow:
+
+Customer A
+→ address 400001
+→ Development Store A
+→ Test Grocery
+→ products
+
+Now validate:
+
+PRODUCT
+→ ADD TO CART
+→ QUANTITY
+→ REMOVE
+→ TOTAL
+→ UNAVAILABLE PRODUCT PROTECTION
+→ ONE-SUPERMARKET CART RULE
+
+==================================================
+KNOWN PRODUCTS
+==================================================
+
+Development Store A:
+
+Test Rice
+- ₹60
+- available
+- stock 20
+
+Test Oil
+- ₹80
+- available
+- stock 20
+
+Unavailable Item
+- ₹10
+- unavailable
+- stock 20
+
+Store B:
+
+Store B Test Product
+- ₹20
+- available
+
+Do not change these products.
+
+==================================================
+TEST 1 — INITIAL CART
+==================================================
+
+Open Customer A's Cart.
+
+Confirm:
+
+- Cart loads successfully.
+- If there is no active cart, show the correct empty-cart state.
+- No Store B products appear.
+- No unrelated customer's cart appears.
+
+==================================================
+TEST 2 — ADD TEST RICE
+==================================================
+
+From Store A:
+
+Add:
+
+Test Rice × 1
+
+Expected:
+
+- Cart contains Test Rice.
+- Quantity = 1.
+- Unit price = ₹60.
+- Line total = ₹60.
+- Store = Development Store A.
+
+Confirm the cart UI does not display internal stock/SKU/commission data.
+
+==================================================
+TEST 3 — ADD TEST OIL
+==================================================
+
+Add:
+
+Test Oil × 1
+
+Expected:
+
+- Test Rice × 1
+- Test Oil × 1
+- Subtotal = ₹140
+
+Confirm both items belong to Store A.
+
+==================================================
+TEST 4 — INCREASE QUANTITY
+==================================================
+
+Increase Test Rice:
+
+1 → 2
+
+Expected:
+
+- Test Rice × 2
+- Test Oil × 1
+- Rice line total = ₹120
+- Oil line total = ₹80
+- Subtotal = ₹200
+
+Confirm quantity changes are persisted correctly.
+
+==================================================
+TEST 5 — DECREASE QUANTITY
+==================================================
+
+Decrease Test Rice:
+
+2 → 1
+
+Expected subtotal:
+
+₹60 + ₹80 = ₹140
+
+==================================================
+TEST 6 — REMOVE ITEM
+==================================================
+
+Remove Test Oil.
+
+Expected:
+
+- Only Test Rice remains.
+- Quantity = 1.
+- Subtotal = ₹60.
+
+==================================================
+TEST 7 — REMOVE LAST ITEM
+==================================================
+
+Remove Test Rice.
+
+Expected:
+
+- Cart becomes empty.
+- Correct empty-cart state appears.
+- No stale Test Rice/Test Oil remains visually.
+
+==================================================
+TEST 8 — UNAVAILABLE PRODUCT PROTECTION
+==================================================
+
+Attempt to add:
+
+Unavailable Item
+
+Expected:
+
+- Customer cannot add it successfully.
+- Appropriate unavailable message/state is shown.
+- Cart remains unchanged.
+
+Do not modify the product to make it available.
+
+==================================================
+TEST 9 — STOCK LIMIT
+==================================================
+
+Use Test Rice.
+
+Attempt to increase quantity beyond the available stock of 20.
+
+Do not create a huge number of requests.
+
+Verify that quantity cannot exceed the backend stock limit.
+
+Expected:
+
+- Maximum accepted quantity = 20.
+- Attempting quantity 21 is rejected or prevented.
+- Cart remains consistent.
+
+After testing, reduce/remove the item so the final cart is clean.
+
+==================================================
+TEST 10 — STORE SWITCH
+==================================================
+
+Add:
+
+Test Rice × 1
+
+Then navigate to Store B through the normal customer UI.
+
+Attempt to add:
+
+Store B Test Product
+
+Expected:
+
+The customer receives the existing store-switch behavior.
+
+Expected behavior:
+
+STORE_SWITCH_REQUIRED
+
+The application should NOT silently mix Store A and Store B products.
+
+Then choose the existing confirmation option to switch stores.
+
+Expected:
+
+- Store A active cart becomes ABANDONED.
+- Store B becomes the active cart.
+- Store A items are NOT merged into Store B.
+- Store A cart is not deleted.
+- Store B cart contains only Store B Test Product.
+
+==================================================
+TEST 11 — CART PERSISTENCE
+==================================================
+
+With the Store B cart active:
+
+- Navigate away from Cart.
+- Return to Cart.
+- Confirm Store B Test Product remains.
+
+If practical, refresh/reload the customer web app and confirm the active cart is restored.
+
+==================================================
+TEST 12 — CUSTOMER ISOLATION
+==================================================
+
+Do not modify another customer's data.
+
+Verify structurally/through existing QA capabilities that Customer A's cart is not visible to another customer.
+
+Do not create additional fixture data.
+
+==================================================
+TEST 13 — CLEANUP
+==================================================
+
+Leave DEV in a predictable state.
+
+After testing:
+
+- No active Store A cart should remain.
+- No active Store B cart should remain.
+
+Existing abandoned carts from previous approved tests may remain.
+
+Do not delete historical/converted/abandoned carts manually.
+
+==================================================
+UI CHECK
+==================================================
+
+Report whether:
+
+- product cards clearly show Add to Cart
+- quantity controls are understandable
+- cart totals are readable
+- remove controls are clear
+- empty cart is understandable
+- unavailable product state is clear
+- store-switch confirmation is understandable
+- no blank/error screen appears
+
+Do not redesign anything.
+
+==================================================
+REPORT ONLY
+==================================================
+
+Return:
+
+1. Initial cart
+2. Add Rice
+3. Add Oil
+4. Quantity increase
+5. Quantity decrease
+6. Remove item
+7. Empty cart
+8. Unavailable product
+9. Stock limit
+10. Store switching
+11. Cart persistence
+12. Customer isolation
+13. Cleanup state
+14. UI observations
+15. API/network errors
+16. Any accessibility issues
+17. Whether any code/database/schema/migration/RLS/artifact changes occurred
+
+If everything passes, make no code changes.
+
+STOP after QA-3.
