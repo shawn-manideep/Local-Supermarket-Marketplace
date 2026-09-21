@@ -1,0 +1,190 @@
+QA-7 — CUSTOMER + ADMIN FINAL ORDER VERIFICATION
+
+QA-6 is complete.
+
+The existing DEV regression order is now DELIVERED.
+
+IMPORTANT:
+- Use ONLY the existing regression order.
+- Do NOT create another order.
+- Do NOT modify application code.
+- Do NOT modify database/schema/migrations/RLS/authentication/authorization.
+- Do NOT fix UI issues during this task.
+- Do NOT delete or alter the regression order.
+- This is validation only.
+
+==================================================
+PART A — CUSTOMER
+==================================================
+
+Login as Customer A.
+
+1. Open Customer Orders.
+
+Verify the regression order appears with:
+- Correct order ID
+- Development Store A
+- Status = DELIVERED
+- Test Rice ×1
+- Test Oil ×1
+- Subtotal ₹140
+- Delivery fee ₹25
+- Total ₹165
+- COD
+- Delivery information
+- Order date/time
+
+2. Open the order detail.
+
+Verify:
+- Item price snapshots remain correct.
+- Total remains ₹165.
+- Delivery address/contact snapshot is correct.
+- Payment = COD.
+- Delivery type = vendor_staff.
+- Final status = DELIVERED.
+- Order history is correct if exposed in the UI.
+
+3. Terminal state:
+Verify the customer cannot cancel or otherwise change the DELIVERED order.
+
+4. Customer isolation:
+Login as Customer B.
+
+Verify Customer B cannot see or retrieve Customer A's regression order.
+
+Expected:
+- Absent from order list.
+- Direct access safely denied.
+
+==================================================
+PART B — ADMIN
+==================================================
+
+Login as Admin.
+
+1. Open Admin order management.
+
+Verify the regression order is visible with:
+- Correct order ID
+- Development Store A
+- Appropriate customer/order information
+- Items and quantities
+- Item prices
+- Subtotal ₹140
+- Delivery fee ₹25
+- Total ₹165
+- COD
+- Delivery information
+- Status = DELIVERED
+
+2. Open order detail.
+
+Verify all historical snapshots remain unchanged.
+
+3. Verify complete history:
+
+PLACED
+ACCEPTED
+PREPARING
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+
+Verify:
+- One event per successful transition.
+- Correct actor/role.
+- Server timestamps.
+- History is not editable/deletable through normal UI/API.
+
+4. Admin lifecycle permissions:
+Verify Admin cannot use vendor lifecycle controls to change the order.
+
+The order must remain DELIVERED.
+
+==================================================
+PART C — STORE / VENDOR UI OBSERVATION
+==================================================
+
+Record the previously identified minor UI issue:
+
+Vendor order list does not explicitly show "Development Store A", while order detail does.
+
+Do NOT fix it.
+
+Record it as a final UI polish item.
+
+==================================================
+PART D — UI/UX REVIEW
+==================================================
+
+Record, without fixing:
+
+Customer:
+- Orders navigation
+- Order list
+- Order detail
+- Status visibility
+- Delivered state
+- Loading/empty/error states
+- Action/button clarity
+- Accessibility
+- Responsive behavior
+
+Admin:
+- Login
+- Navigation
+- Order list
+- Order detail
+- Status visibility
+- Read-only lifecycle behavior
+- Loading/error states
+- Accessibility
+- Responsive behavior
+
+Also record:
+- blank screens
+- console/runtime errors
+- unexpected API/network errors
+
+==================================================
+PART E — FINAL INTEGRITY
+==================================================
+
+At the end verify:
+
+- Same regression order remains DELIVERED.
+- No duplicate order created.
+- No snapshots changed.
+- No cart recreated.
+- No unexpected stock change.
+- No fixture data permanently changed.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report PASS / FAIL / BLOCKED for:
+
+1. Customer order list
+2. Customer order detail
+3. Customer DELIVERED status
+4. Customer snapshot integrity
+5. Customer terminal-state protection
+6. Customer B isolation
+7. Admin order list
+8. Admin order detail
+9. Admin snapshot integrity
+10. Admin lifecycle read-only behavior
+11. Complete order history
+12. Regression order preservation
+13. Vendor store-name UI observation
+14. Customer UI observations
+15. Admin UI observations
+16. Accessibility observations
+17. API/network errors
+18. Runtime/console errors
+19. Any defect
+20. Any files/code/database/configuration changed
+
+STOP after the report.
