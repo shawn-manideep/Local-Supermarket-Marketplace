@@ -1,0 +1,207 @@
+FINAL UI/UX POLISH — CUSTOMER + VENDOR + ADMIN
+
+Functional end-to-end QA is complete.
+
+Validated flow:
+Customer → Store Discovery → Catalog → Cart → Checkout → Order → Vendor Processing → Delivery → Customer Orders → Admin
+
+The existing DEV regression order is DELIVERED and MUST NOT be modified or deleted.
+
+This task is now for a focused UI/UX polish pass only.
+
+IMPORTANT:
+Do not change business logic or backend behavior.
+
+Do NOT modify:
+- database schema
+- migrations
+- RLS
+- authentication
+- authorization
+- order lifecycle rules
+- cart rules
+- checkout rules
+- financial calculations
+- APIs unless absolutely required for a purely UI display correction
+- production configuration
+- deployment configuration
+
+First inspect the existing implementation and the QA findings from the completed QA tasks.
+
+Consolidate the known UI follow-ups into ONE focused polish pass.
+
+KNOWN ITEMS TO REVIEW
+
+1. VENDOR ORDER LIST
+The vendor order list row does not explicitly identify "Development Store A", while the order detail does.
+
+Improve the list row so the store context is clear.
+
+Do not expose unnecessary internal information.
+
+2. CUSTOMER ACCESSIBILITY
+Earlier QA identified that clickable product cards/category chips on React Native Web do not have explicit accessible button roles.
+
+Improve accessibility semantics for interactive elements.
+
+Do not change their visual behavior.
+
+3. REACT NATIVE WEB WARNING
+Review the known non-blocking `useNativeDriver` warning.
+
+If it can be safely eliminated without changing functionality, fix it.
+
+If it originates from a dependency/library and cannot be safely changed within this scope, leave it unchanged and document it.
+
+Do NOT perform dependency upgrades just to remove the warning.
+
+4. CUSTOMER UI
+Review:
+- Home/store discovery
+- Store cards
+- Catalog
+- Category filters
+- Product cards
+- Cart
+- Checkout
+- Orders
+- Account/address screens
+
+Check for:
+- consistent spacing
+- readable typography
+- clear primary actions
+- loading states
+- empty states
+- error states
+- disabled states
+- responsive mobile/web behavior
+- accessible labels/roles
+- obvious navigation
+
+5. VENDOR UI
+Review:
+- Login
+- Vendor dashboard
+- Store management
+- Categories
+- Products
+- Orders
+- Order detail
+- Delivery/lifecycle actions
+
+Check:
+- clear status presentation
+- clear primary action
+- store identity
+- order information hierarchy
+- loading/empty/error states
+- responsive layout
+- accessibility
+
+6. ADMIN UI
+Review:
+- Login
+- Dashboard
+- Store management
+- Store approval/status controls
+- Commission information
+- Orders
+- Order detail
+
+Check:
+- clear navigation
+- clear platform/store context
+- readable tables/cards
+- status presentation
+- read-only order behavior
+- loading/empty/error states
+- responsive layout
+- accessibility
+
+IMPORTANT UI RULES
+
+Keep the existing product design direction.
+
+Do not redesign the application from scratch.
+
+Do not introduce:
+- new features
+- payments
+- maps
+- GPS
+- delivery partners
+- notifications
+- analytics
+- coupons
+- loyalty
+- unnecessary animations
+- new dependencies unless absolutely necessary
+
+Use the existing components/styles/design system wherever possible.
+
+Any changes must preserve all existing functional behavior.
+
+REGRESSION REQUIREMENTS
+
+After UI changes:
+
+- Backend tests remain 34/34 or higher if additional legitimate tests are added.
+- Customer typecheck passes.
+- Dashboard typecheck/build passes.
+- Expo Web export passes.
+- Managed Customer route works.
+- Managed Dashboard route works.
+- API health works.
+- Existing authentication still works.
+- Existing Customer/Vendor/Admin role boundaries remain unchanged.
+- Existing regression order remains DELIVERED.
+- No new orders are created.
+- No database/schema/migration/RLS changes occur.
+
+FINAL REVIEW
+
+After implementation, manually verify:
+
+CUSTOMER:
+- Home
+- Store discovery
+- Catalog
+- Cart
+- Orders
+- Account
+
+VENDOR:
+- Dashboard
+- Catalog
+- Orders
+- Order detail
+- Delivery actions
+
+ADMIN:
+- Dashboard
+- Stores
+- Orders
+- Order detail
+
+Record any remaining UI issue that should NOT be fixed in this task.
+
+Do not make unrelated changes.
+
+FINAL REPORT
+
+Provide:
+
+1. Exact files changed
+2. UI improvements made
+3. Accessibility improvements
+4. Vendor store-name improvement
+5. Whether the useNativeDriver warning was fixed or remains
+6. Any remaining UI issues
+7. Backend test result
+8. Typecheck/build results
+9. Expo Web result
+10. Confirmation that no DB/schema/RLS/auth/business logic changed
+11. Confirmation that the regression order remains DELIVERED
+
+STOP after this task.
