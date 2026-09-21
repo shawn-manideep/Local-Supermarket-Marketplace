@@ -1,0 +1,293 @@
+QA-2 — Customer Store Categories & Product Catalog
+
+IMPORTANT:
+This is a QA/verification task only.
+
+DO NOT modify application code.
+DO NOT modify database schema.
+DO NOT create migrations.
+DO NOT modify RLS.
+DO NOT modify backend business rules.
+DO NOT create test fixtures.
+DO NOT modify existing DEV data.
+DO NOT change Replit artifact configuration.
+DO NOT deploy/publish.
+DO NOT use GitHub/Vercel/Railway.
+DO NOT spend time redesigning the UI.
+
+Use the existing DEV environment and existing seeded data.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Continue the verified customer journey:
+
+Customer A
+→ 400001
+→ Development Store A
+→ Store A catalog
+
+Now verify:
+
+STORE
+→ CATEGORIES
+→ PRODUCTS
+→ PRODUCT AVAILABILITY
+→ PRODUCT DETAILS
+
+We are testing the actual customer UI against the already-tested backend.
+
+==================================================
+KNOWN DEV FIXTURE
+==================================================
+
+Development Store A
+
+Store:
+- Name: Development Store A
+- Pincode: 400001
+- Delivery fee: ₹25
+- Minimum order: ₹100
+
+Store A category:
+- Test Grocery
+
+Store A products:
+1. Test Rice
+   - Price: ₹60
+   - Availability: available
+   - Stock: 20
+   - Active: yes
+
+2. Test Oil
+   - Price: ₹80
+   - Availability: available
+   - Stock: 20
+   - Active: yes
+
+3. Unavailable Item
+   - Price: ₹10
+   - Availability: unavailable
+   - Stock: 20
+   - Active: yes
+
+Do not create or modify any of these records.
+
+==================================================
+TEST 1 — OPEN STORE A
+==================================================
+
+Use existing Customer A.
+
+Confirm:
+
+1. Login succeeds.
+2. Active address is 400001.
+3. Development Store A appears.
+4. Click/tap Shop Now.
+5. Store A catalog opens.
+6. Store B products are NOT shown.
+
+==================================================
+TEST 2 — CATEGORY API/UI
+==================================================
+
+Verify the customer application consumes the existing:
+
+GET /api/customer/stores/:storeId/categories?pincode=400001
+
+Confirm:
+
+- "Test Grocery" is displayed.
+- Category belongs to Development Store A.
+- No unrelated Store B category is displayed.
+- No inactive category is displayed.
+- Category selection/filtering does not cause a navigation or network error.
+
+Do not test or modify vendor category management.
+
+==================================================
+TEST 3 — PRODUCT API/UI
+==================================================
+
+Verify the customer application consumes:
+
+GET /api/customer/stores/:storeId/products?pincode=400001
+
+Confirm these Store A products appear:
+
+- Test Rice — ₹60
+- Test Oil — ₹80
+- Unavailable Item — ₹10
+
+Confirm:
+
+- Product names are correct.
+- Prices are correct.
+- Products belong to Store A.
+- Store B products are not shown.
+- Product data is rendered from the API rather than hardcoded.
+
+==================================================
+TEST 4 — AVAILABLE PRODUCTS
+==================================================
+
+For:
+
+Test Rice
+Test Oil
+
+Confirm the UI indicates they are available and allows the customer to open/view the product and proceed toward adding them to cart.
+
+Do NOT add them to cart in this stage unless the existing UI requires it to verify the product detail action.
+
+==================================================
+TEST 5 — UNAVAILABLE PRODUCT
+==================================================
+
+For:
+
+Unavailable Item
+
+Confirm:
+
+- It is visible if the API intentionally returns active-but-unavailable products.
+- It is clearly shown as unavailable.
+- Customer cannot successfully add it to cart.
+- The UI does not incorrectly show it as purchasable.
+
+If the UI hides unavailable products entirely, report that behavior rather than treating it as automatically correct or incorrect.
+
+==================================================
+TEST 6 — PRODUCT DETAIL
+==================================================
+
+Open Test Rice.
+
+Confirm:
+
+- Product name = Test Rice
+- Price = ₹60
+- Correct Store A context
+- No Store B data
+- No stock number exposed to the customer
+- No SKU/external code exposed
+- No owner ID exposed
+- No commission information exposed
+
+Do not expose internal backend fields merely for testing.
+
+==================================================
+TEST 7 — CATEGORY FILTERING
+==================================================
+
+Select "Test Grocery".
+
+Confirm the displayed products remain Store A products.
+
+Expected:
+
+Test Rice
+Test Oil
+Unavailable Item
+
+No Store B Test Product.
+
+==================================================
+TEST 8 — STORE ISOLATION
+==================================================
+
+Attempt only through the normal customer UI to verify that Store A's catalog does not contain Store B's product:
+
+"Store B Test Product"
+
+Expected:
+
+NOT VISIBLE.
+
+Do not attempt to modify Store B.
+
+==================================================
+TEST 9 — CUSTOMER-FACING DATA SAFETY
+==================================================
+
+Confirm customer UI does NOT expose:
+
+- stock quantity
+- SKU
+- external code
+- owner_user_id
+- commission rate
+- commission amount
+- internal timestamps
+- database IDs unless already intentionally used as non-sensitive navigation identifiers
+
+==================================================
+TEST 10 — UI QUALITY CHECK
+==================================================
+
+Do not redesign anything.
+
+Simply report whether the current catalog is usable:
+
+- Store name/context clearly visible?
+- Category clearly visible?
+- Product names readable?
+- Prices readable?
+- Available/unavailable state understandable?
+- Product cards/buttons usable?
+- No blank states unexpectedly shown?
+- No broken images or obvious layout errors?
+- No console/runtime error that blocks the flow?
+
+Also report the accessibility observation from QA-1 if it still exists for product/category interactive controls.
+
+==================================================
+EXPECTED RESULT
+==================================================
+
+Expected customer flow:
+
+Customer A
+↓
+400001
+↓
+Development Store A
+↓
+Test Grocery
+↓
+Test Rice ₹60
+Test Oil ₹80
+Unavailable Item ₹10
+↓
+Available items can proceed toward cart
+↓
+Unavailable Item cannot be purchased
+
+Store B Test Product must NOT appear.
+
+==================================================
+REPORT ONLY
+==================================================
+
+At the end provide:
+
+1. Store opening result
+2. Category result
+3. Product result
+4. Test Rice result
+5. Test Oil result
+6. Unavailable Item result
+7. Product detail result
+8. Category filtering result
+9. Store isolation result
+10. Customer-facing data safety result
+11. UI/runtime issues
+12. Accessibility issues
+13. API/network errors
+14. Whether any code/database/migration/RLS/artifact changes were made
+
+If everything passes, DO NOT modify anything.
+
+STOP after this QA stage.
