@@ -91,7 +91,7 @@ export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
           <h2>Store approvals</h2>
           <p className="muted">Review store state and manage the store-specific commission rate.</p>
         </div>
-        <button className="secondary-button" disabled={loading} onClick={loadStores}>
+        <button className="secondary-button" disabled={loading} onClick={loadStores} type="button">
           {loading ? "Loading…" : "Refresh stores"}
         </button>
       </div>
@@ -110,8 +110,10 @@ export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
             stores.map((store) => (
               <button
                 className={`store-list-item ${selectedId === store.id ? "selected" : ""}`}
+                aria-pressed={selectedId === store.id}
                 key={store.id}
                 onClick={() => setSelectedId(store.id)}
+                type="button"
               >
                 <span>
                   <strong>{store.name}</strong>
@@ -141,7 +143,7 @@ export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
               </div>
               <div className="action-row">
                 {statusActions[selectedStore.status]?.map((action) => (
-                  <button className={action.className ?? "secondary-button"} key={action.path} onClick={() => runAction(action.path)}>
+                  <button className={action.className ?? "secondary-button"} key={action.path} onClick={() => runAction(action.path)} type="button">
                     {action.label}
                   </button>
                 ))}

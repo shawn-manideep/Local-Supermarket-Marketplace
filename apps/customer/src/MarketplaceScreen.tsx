@@ -23,13 +23,15 @@ const colors = {
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: Platform.OS !== "web" }),
+        Animated.timing(anim, { toValue: 0.5, duration: 800, useNativeDriver: Platform.OS !== "web" })
       ])
-    ).start();
-  }, []);
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [anim]);
   return <Animated.View style={[styles.skeleton, style, { opacity: anim }]} />;
 }
 
@@ -177,26 +179,26 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
 
   if (product && store) return (
     <ScrollView contentContainerStyle={styles.page}>
-      <Pressable onPress={() => { ++catalogGeneration.current; setProduct(null); }}><Text style={styles.link}>← Back to {store.name}</Text></Pressable>
+      <Pressable accessibilityLabel={`Back to ${store.name}`} accessibilityRole="button" onPress={() => { ++catalogGeneration.current; setProduct(null); }}><Text style={styles.link}>← Back to {store.name}</Text></Pressable>
       {product.imageUrl && <Image source={{ uri: product.imageUrl }} style={styles.heroImage} />}
       <Text style={styles.hero}>{product.name}</Text><Text style={styles.price}>₹{product.price}</Text>
       <Text style={styles.body}>{product.description ?? "No description provided."}</Text>
       <Text style={[styles.badge, !product.availability && styles.closed]}>{product.availability ? "Available" : "Unavailable"}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Add product to cart" disabled={!product.availability || adding} onPress={() => void addToCart(product)} style={[styles.primary,!product.availability&&{opacity:0.4}]}><Text style={styles.primaryText}>{adding ? "Adding…" : product.availability?"Add to Cart":"Unavailable"}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Add ${product.name} to cart`} accessibilityState={{ disabled: !product.availability || adding, busy: adding }} disabled={!product.availability || adding} onPress={() => void addToCart(product)} style={[styles.primary,(!product.availability || adding)&&styles.disabled]}><Text style={styles.primaryText}>{adding ? "Adding…" : product.availability?"Add to Cart":"Unavailable"}</Text></Pressable>
     </ScrollView>
   );
 
   if (store) return (
     <ScrollView contentContainerStyle={styles.page}>
-      <Pressable onPress={() => selectStore(null)}><Text style={styles.link}>← Change supermarket</Text></Pressable>
+      <Pressable accessibilityLabel="Change supermarket" accessibilityRole="button" onPress={() => selectStore(null)}><Text style={styles.link}>← Change supermarket</Text></Pressable>
       <Text style={styles.eyebrow}>{store.operatingStatus}</Text><Text style={styles.hero}>{store.name}</Text>
       <Text style={styles.body}>{store.description ?? "Browse this supermarket’s catalog."}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-        <Pressable onPress={() => void filterProducts("")} style={[styles.chip, !categoryId && styles.chipActive]}><Text style={!categoryId ? styles.chipActiveText : styles.chipText}>All</Text></Pressable>
-        {categories.map((category) => <Pressable key={category.id} onPress={() => void filterProducts(category.id)} style={[styles.chip, categoryId === category.id && styles.chipActive]}><Text style={categoryId === category.id ? styles.chipActiveText : styles.chipText}>{category.name}</Text></Pressable>)}
+        <Pressable accessibilityLabel="Show all products" accessibilityRole="button" accessibilityState={{ selected: !categoryId, busy: loadingCatalog && !categoryId }} onPress={() => void filterProducts("")} style={[styles.chip, !categoryId && styles.chipActive]}><Text style={!categoryId ? styles.chipActiveText : styles.chipText}>All</Text></Pressable>
+        {categories.map((category) => <Pressable accessibilityLabel={`Filter by ${category.name}`} accessibilityRole="button" accessibilityState={{ selected: categoryId === category.id, busy: loadingCatalog && categoryId === category.id }} key={category.id} onPress={() => void filterProducts(category.id)} style={[styles.chip, categoryId === category.id && styles.chipActive]}><Text style={categoryId === category.id ? styles.chipActiveText : styles.chipText}>{category.name}</Text></Pressable>)}
       </ScrollView>
       {loadingCatalog ? <ActivityIndicator color={colors.accent} /> : products.length === 0 ? <Text style={styles.body}>No products in this category.</Text> : products.map((item) =>
-        <Pressable key={item.id} onPress={() => void showProduct(item)} style={styles.row}>
+        <Pressable accessibilityLabel={`View ${item.name}, ₹${item.price}, ${item.availability ? "available" : "unavailable"}`} accessibilityRole="button" key={item.id} onPress={() => void showProduct(item)} style={styles.row}>
           {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.thumb} /> : <View style={styles.thumb} />}
           <View style={styles.copy}><Text style={styles.title}>{item.name}</Text><Text style={styles.price}>₹{item.price}</Text><Text style={[styles.body, !item.availability && styles.danger]}>{item.availability ? "Available" : "Unavailable"}</Text></View>
         </Pressable>
@@ -212,7 +214,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
       <View style={styles.header}>
         <View style={styles.headerContext}>
           <Text style={styles.headerEyebrow}>DELIVERY LOCATION</Text>
-          <Pressable onPress={openAddresses} style={({ pressed }) => [styles.locationRow, pressed && styles.pressed]}>
+          <Pressable accessibilityLabel={activeAddress ? `Change delivery location, currently ${activeAddress.label || activeAddress.city}, ${activeAddress.pincode}` : "Add a delivery address"} accessibilityRole="button" onPress={openAddresses} style={({ pressed }) => [styles.locationRow, pressed && styles.pressed]}>
             {loadingAddresses ? (
               <Skeleton style={{ width: 150, height: 24, borderRadius: 6 }} />
             ) : (
@@ -246,7 +248,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
           <View style={styles.messageCard}>
             <Text style={styles.messageTitle}>Oops, something went wrong</Text>
             <Text style={styles.messageBody}>{error}</Text>
-            <Pressable onPress={() => { if (!addresses.length) loadAddresses(); else loadStores(); }} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" onPress={() => { if (!addresses.length) loadAddresses(); else loadStores(); }} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
               <Text style={styles.secondaryBtnText}>Try again</Text>
             </Pressable>
           </View>
@@ -254,7 +256,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
           <View style={styles.messageCard}>
             <Text style={styles.messageTitle}>Where to?</Text>
             <Text style={styles.messageBody}>Add a delivery address to find trusted nearby supermarkets.</Text>
-            <Pressable onPress={openAddresses} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" onPress={openAddresses} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
               <Text style={styles.primaryBtnText}>Add delivery address</Text>
             </Pressable>
           </View>
@@ -262,14 +264,14 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
           <View style={styles.messageCard}>
             <Text style={styles.messageTitle}>No supermarkets available in this area yet.</Text>
             <Text style={styles.messageBody}>Choose another saved address to check a different delivery area.</Text>
-            <Pressable onPress={openAddresses} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" onPress={openAddresses} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
               <Text style={styles.secondaryBtnText}>Change location</Text>
             </Pressable>
           </View>
         ) : (
           <View style={styles.storesList}>
             {stores.map((item) => (
-              <Pressable key={item.id} onPress={() => selectStore(item)} style={({ pressed }) => [styles.storeCard, pressed && styles.storeCardPressed]}>
+              <Pressable accessibilityLabel={`Shop at ${item.name}. ${item.operatingStatus}. Delivery ₹${item.deliveryFee}, minimum order ₹${item.minimumOrderValue}`} accessibilityRole="button" key={item.id} onPress={() => selectStore(item)} style={({ pressed }) => [styles.storeCard, pressed && styles.storeCardPressed]}>
                 <View style={styles.storeCardInner}>
                   <View style={styles.storeLogoBox}>
                     {item.logoImageUrl ? (
@@ -380,4 +382,5 @@ const styles = StyleSheet.create({
   danger: { color: colors.danger },
   primary: { backgroundColor: colors.ink, borderRadius: 12, padding: 15, alignItems: "center" },
   primaryText: { color: "#FFFFFF", fontWeight: "800" },
+  disabled: { opacity: 0.4 },
 });

@@ -167,7 +167,7 @@ export function VendorStorePanel({ token, onMessage }: VendorStorePanelProps) {
           <h2>My store</h2>
           <p className="muted">Manage the store linked to your authenticated vendor account.</p>
         </div>
-        <button className="secondary-button" disabled={loading} onClick={loadStore}>
+        <button className="secondary-button" disabled={loading} onClick={loadStore} type="button">
           {loading ? "Loading…" : "Load my store"}
         </button>
       </div>
@@ -243,7 +243,7 @@ export function VendorStorePanel({ token, onMessage }: VendorStorePanelProps) {
                 pincodes.map((item) => (
                   <span className="chip" key={item.id}>
                     {item.pincode}
-                    <button aria-label={`Remove ${item.pincode}`} onClick={() => removePincode(item.pincode)}>×</button>
+                    <button aria-label={`Remove ${item.pincode}`} onClick={() => removePincode(item.pincode)} type="button">×</button>
                   </span>
                 ))
               )}
@@ -304,7 +304,7 @@ export function VendorStorePanel({ token, onMessage }: VendorStorePanelProps) {
                     type="time"
                     value={draft.closesAt}
                   />
-                  <button className="text-button" onClick={() => saveHours(dayOfWeek)}>Save</button>
+                  <button className="text-button" onClick={() => saveHours(dayOfWeek)} type="button">Save</button>
                 </div>
               );
             })}

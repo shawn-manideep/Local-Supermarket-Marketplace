@@ -424,6 +424,22 @@ button:disabled {
   opacity: 0.55;
 }
 
+button,
+input,
+textarea,
+select {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgb(52 118 77 / 28%);
+  outline-offset: 2px;
+}
+
 .count-pill {
   background: #e8f2e9;
   color: #34764d;
@@ -476,6 +492,7 @@ button:disabled {
 .order-id { color: #286143; font-family: "Space Mono", monospace; font-size: 12px; }
 .order-customer, .order-amount { display: grid; gap: 3px; }
 .order-customer small, .order-amount small { color: #718078; font-size: 12px; }
+.order-customer .order-store { color: #40574a; font-weight: 750; }
 .order-pagination { align-items: center; display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; }
 .order-detail-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); }
 .order-items { display: grid; gap: 0; }
@@ -492,6 +509,9 @@ button:disabled {
   .order-summary-grid { grid-template-columns: repeat(2, 1fr); }
   .order-detail-grid { grid-template-columns: 1fr; }
   .delivery-queue { grid-template-columns: 1fr; }
+  .topbar { align-items: flex-start; gap: 16px; }
+  .topbar-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .card { padding: 18px; }
 }
 
 .inline-form {
@@ -940,5 +960,83 @@ button:disabled {
 
   .switch-label {
     margin-right: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    padding: 14px;
+  }
+
+  .topbar {
+    flex-direction: column;
+  }
+
+  .topbar-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .auth-frame {
+    margin-top: 2vh;
+    padding: 24px 20px;
+  }
+
+  .order-table {
+    overflow: visible;
+  }
+
+  .order-row-header {
+    display: none;
+  }
+
+  .order-row-data {
+    background: #fbfdfb;
+    border: 1px solid #e4ece5;
+    border-radius: 12px;
+    gap: 6px 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: 10px;
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .order-row-data .order-id,
+  .order-row-data .order-customer,
+  .order-row-data .order-amount {
+    grid-column: 1;
+  }
+
+  .order-row-data .status {
+    align-self: start;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .order-row-data .order-created {
+    align-self: end;
+    grid-column: 2;
+    grid-row: 3;
+    text-align: right;
+  }
+
+  .order-pagination {
+    justify-content: space-between;
+  }
+
+  .order-pagination .muted {
+    text-align: center;
+  }
+
+  .detail-list div,
+  .order-item,
+  .order-error {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .detail-list dd {
+    max-width: none;
+    text-align: left;
   }
 }

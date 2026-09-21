@@ -45,7 +45,7 @@ function Detail({ detail, vendor, busy, onAction, onClose }: {
     <div className="card order-detail" data-testid={`card-order-detail-${detail.id}`}>
       <div className="card-heading">
         <div><p className="eyebrow">Immutable order detail</p><h3>Order {detail.id.slice(0, 8)}</h3><p className="muted">{date(detail.createdAt)}</p></div>
-        <button className="text-button" data-testid="button-close-order-detail" onClick={onClose}>Close</button>
+        <button className="text-button" data-testid="button-close-order-detail" onClick={onClose} type="button">Close</button>
       </div>
       <div className="order-detail-grid">
         <div>
@@ -78,7 +78,7 @@ function Detail({ detail, vendor, busy, onAction, onClose }: {
       </div>
       {vendor && available.length > 0 && <div className="order-actions">
         {available.some((item) => item.action === "REJECT") && <input className="order-note" data-testid="input-rejection-note" maxLength={500} onChange={(event) => setNote(event.target.value)} placeholder="Optional rejection note" value={note} />}
-        {available.map((item) => <button className={item.className} data-testid={`button-order-action-${item.action.toLowerCase()}`} disabled={busy} key={item.action} onClick={() => onAction(item.action, item.action === "REJECT" ? note.trim() || undefined : undefined)}>{busy ? "Working…" : item.label}</button>)}
+        {available.map((item) => <button className={item.className} data-testid={`button-order-action-${item.action.toLowerCase()}`} disabled={busy} key={item.action} onClick={() => onAction(item.action, item.action === "REJECT" ? note.trim() || undefined : undefined)} type="button">{busy ? "Working…" : item.label}</button>)}
       </div>}
     </div>
   );
@@ -147,12 +147,12 @@ export function OrderOperations({ token, vendor, stores = [], storeId, onMessage
   };
   return (
     <section className="order-section">
-      <div className="section-heading"><div><p className="eyebrow">{vendor ? "Vendor operations" : "Platform operations"}</p><h2>{vendor ? "Orders in motion" : "Order oversight"}</h2><p className="muted">{vendor ? "Review the newest orders and move each one forward with confidence." : "Read-only platform visibility across every store and order."}</p></div><button className="secondary-button" data-testid="button-refresh-orders" disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh orders"}</button></div>
+      <div className="section-heading"><div><p className="eyebrow">{vendor ? "Vendor operations" : "Platform operations"}</p><h2>{vendor ? "Orders in motion" : "Order oversight"}</h2><p className="muted">{vendor ? "Review the newest orders and move each one forward with confidence." : "Read-only platform visibility across every store and order."}</p></div><button className="secondary-button" data-testid="button-refresh-orders" disabled={loading} onClick={() => void load()} type="button">{loading ? "Refreshing…" : "Refresh orders"}</button></div>
       <SummaryTiles counts={counts} />
       {vendor && <div className="delivery-queue" aria-label="Delivery queue">
         <div><p className="eyebrow">Delivery queue</p><strong>Vendor-owned delivery</strong></div>
         {(["READY", "OUT_FOR_DELIVERY", "DELIVERED"] as const).map((deliveryStatus) =>
-          <button className={status === deliveryStatus ? "active" : ""} key={deliveryStatus} onClick={() => { setStatus(deliveryStatus); setPage(1); }}>
+          <button aria-pressed={status === deliveryStatus} className={status === deliveryStatus ? "active" : ""} key={deliveryStatus} onClick={() => { setStatus(deliveryStatus); setPage(1); }} type="button">
             <span>{statusLabel(deliveryStatus)}</span><strong>{counts[deliveryStatus] ?? 0}</strong>
           </button>)}
       </div>}
@@ -162,12 +162,12 @@ export function OrderOperations({ token, vendor, stores = [], storeId, onMessage
           {!vendor && <label>Store<select data-testid="select-order-store" onChange={(event) => { setAdminStore(event.target.value); setPage(1); }} value={adminStore}><option value="">All stores</option>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>}
           {!vendor && <><label>From<input data-testid="input-orders-from" onChange={(event) => { setFrom(event.target.value); setPage(1); }} type="date" value={from} /></label><label>To<input data-testid="input-orders-to" onChange={(event) => { setTo(event.target.value); setPage(1); }} type="date" value={to} /></label></>}
         </div><span className="muted">{pagination.total} total</span></div>
-        {error && <div className="order-error" role="alert"><span>{error}</span><button className="secondary-button" onClick={() => void load()}>Retry</button></div>}
-        {loading ? <div className="empty-state"><strong>Loading order queue…</strong><span>Checking the latest operational state.</span></div> : orders.length === 0 ? <div className="empty-state"><strong>No orders in this view</strong><span>Try another status or refresh when new orders arrive.</span></div> : <div className="order-table"><div className="order-row"><strong>Order</strong><strong>Customer</strong><strong>Status</strong><strong>Amount</strong><strong>Created</strong></div>{orders.map((order) => <div className="order-row" data-testid={`row-order-${order.id}`} key={order.id}><button className="text-button order-id" onClick={() => void openDetail(order.id)}>#{order.id.slice(0, 8)}</button><div className="order-customer"><strong>{order.deliveryContactName}</strong><small>{order.itemCount} items · {order.deliveryAddressSnapshot.pincode}</small></div><span className={`status status-${order.status.toLowerCase()}`}>{statusLabel(order.status)}</span><div className="order-amount"><strong>{money(order.totalAmount)}</strong><small>{order.paymentMethod}</small></div><small>{date(order.createdAt)}</small></div>)}</div>}
-        <div className="order-pagination"><button className="secondary-button" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)}>Previous</button><span className="muted">Page {page} of {Math.max(1, Math.ceil(pagination.total / pagination.pageSize))}</span><button className="secondary-button" disabled={loading || page >= Math.ceil(pagination.total / pagination.pageSize)} onClick={() => setPage((current) => current + 1)}>Next</button></div>
+        {error && <div className="order-error" role="alert"><span>{error}</span><button className="secondary-button" onClick={() => void load()} type="button">Retry</button></div>}
+        {loading ? <div aria-live="polite" className="empty-state"><strong>Loading order queue…</strong><span>Checking the latest operational state.</span></div> : orders.length === 0 ? <div className="empty-state"><strong>No orders in this view</strong><span>Try another status or refresh when new orders arrive.</span></div> : <div aria-label="Orders" className="order-table" role="table"><div className="order-row order-row-header" role="row"><strong role="columnheader">Order</strong><strong role="columnheader">Customer</strong><strong role="columnheader">Status</strong><strong role="columnheader">Amount</strong><strong role="columnheader">Created</strong></div>{orders.map((order) => <div className="order-row order-row-data" data-testid={`row-order-${order.id}`} key={order.id} role="row"><button aria-label={`Open order ${order.id.slice(0, 8)} from ${order.storeName}`} className="text-button order-id" onClick={() => void openDetail(order.id)} role="cell" type="button">#{order.id.slice(0, 8)}</button><div className="order-customer" role="cell"><strong>{order.deliveryContactName}</strong><small className="order-store">{order.storeName}</small><small>{order.itemCount} items · {order.deliveryAddressSnapshot.pincode}</small></div><span className={`status status-${order.status.toLowerCase()}`} role="cell">{statusLabel(order.status)}</span><div className="order-amount" role="cell"><strong>{money(order.totalAmount)}</strong><small>{order.paymentMethod}</small></div><small className="order-created" role="cell">{date(order.createdAt)}</small></div>)}</div>}
+        <div className="order-pagination"><button className="secondary-button" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)} type="button">Previous</button><span className="muted">Page {page} of {Math.max(1, Math.ceil(pagination.total / pagination.pageSize))}</span><button className="secondary-button" disabled={loading || page >= Math.ceil(pagination.total / pagination.pageSize)} onClick={() => setPage((current) => current + 1)} type="button">Next</button></div>
       </div>
       {detailLoading && <div className="card empty-state"><strong>Loading order detail…</strong><span>Retrieving the latest status and historical snapshots.</span></div>}
-      {!detailLoading && detailError && <div className="card order-error" role="alert"><span>{detailError}</span><button className="secondary-button" disabled={!detailTargetId} onClick={() => { if (detailTargetId) void openDetail(detailTargetId); }}>Retry detail</button></div>}
+      {!detailLoading && detailError && <div className="card order-error" role="alert"><span>{detailError}</span><button className="secondary-button" disabled={!detailTargetId} onClick={() => { if (detailTargetId) void openDetail(detailTargetId); }} type="button">Retry detail</button></div>}
       {!detailLoading && selected && <Detail detail={selected} vendor={vendor} busy={busy} onAction={action} onClose={() => { ++detailGeneration.current; setSelected(null); setDetailTargetId(""); setDetailError(""); }} />}
     </section>
   );

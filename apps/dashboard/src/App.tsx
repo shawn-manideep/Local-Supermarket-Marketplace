@@ -160,7 +160,7 @@ export default function App() {
             <p className="eyebrow">Local Supermarket Marketplace</p>
             <h1>Store management</h1>
           </div>
-          <div className="topbar-actions"><div className="phase-badge">Phase 9A</div><button className="text-button" data-testid="button-sign-out" onClick={signOut}>Sign out</button></div>
+          <div className="topbar-actions"><div className="phase-badge">Phase 9A</div><button className="text-button" data-testid="button-sign-out" onClick={signOut} type="button">Sign out</button></div>
         </header>
 
         <section className="auth-strip">
@@ -174,7 +174,7 @@ export default function App() {
         {notice && (
           <div className={`notice notice-${notice.kind}`} role="status">
             {notice.message}
-            <button aria-label="Dismiss notification" onClick={() => setNotice(null)}>×</button>
+             <button aria-label="Dismiss notification" onClick={() => setNotice(null)} type="button">×</button>
           </div>
         )}
 
@@ -193,5 +193,5 @@ function AuthFrame({ children }: { children: ReactNode }) {
 }
 
 function AuthState({ title, message, action, actionLabel = "Return to sign in" }: { title: string; message: string; action?: () => void; actionLabel?: string }) {
-  return <div className="auth-state"><p className="eyebrow">Local Supermarket Marketplace</p><h1>{title}</h1><p className="muted">{message}</p>{action && <button className="secondary-button" onClick={action}>{actionLabel}</button>}</div>;
+  return <div className="auth-state"><p className="eyebrow">Local Supermarket Marketplace</p><h1>{title}</h1><p className="muted">{message}</p>{action && <button className="secondary-button" onClick={action} type="button">{actionLabel}</button>}</div>;
 }
