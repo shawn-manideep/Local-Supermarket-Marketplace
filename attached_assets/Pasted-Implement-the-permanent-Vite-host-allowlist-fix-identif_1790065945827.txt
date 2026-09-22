@@ -1,0 +1,66 @@
+Implement the permanent Vite host-allowlist fix identified in the completed read-only diagnostic.
+
+IMPORTANT:
+This is a narrowly scoped configuration fix.
+Do NOT modify database, Supabase, API routes, customer app, ports, artifact manifests, .replit, deployment settings, or package versions.
+
+TARGET FILE:
+apps/dashboard/vite.config.ts
+
+CURRENT PROBLEM:
+The Dashboard currently allows only REPLIT_DEV_DOMAIN, which is the current .pike.replit.dev hostname.
+
+Some teammates access the same Replit Preview through the corresponding .pike.repl.co hostname, causing Vite:
+
+403
+Blocked request. This host (...) is not allowed.
+
+IMPLEMENTATION:
+1. Read process.env.REPLIT_DEV_DOMAIN.
+2. Build an exact allowed-host list containing the current REPLIT_DEV_DOMAIN.
+3. If REPLIT_DEV_DOMAIN ends with ".replit.dev", derive the exact matching ".repl.co" hostname by replacing only the suffix:
+   ".replit.dev" -> ".repl.co"
+4. Add both exact hostnames to Vite server.allowedHosts.
+5. Remove undefined/empty values.
+6. Preserve the existing server.proxy configuration exactly.
+7. Do NOT use:
+   allowedHosts: true
+8. Do NOT use a wildcard such as:
+   ".pike.repl.co"
+9. Do NOT hardcode the current generated UUID hostname.
+10. Do NOT change artifact TOMLs or .replit.
+
+Example implementation concept:
+
+const replitDevDomain = process.env.REPLIT_DEV_DOMAIN;
+
+const allowedHosts = [
+  replitDevDomain,
+  replitDevDomain?.endsWith(".replit.dev")
+    ? replitDevDomain.replace(/\.replit\.dev$/, ".repl.co")
+    : undefined,
+].filter((host): host is string => Boolean(host));
+
+Then configure:
+
+server: {
+  allowedHosts,
+  // preserve existing proxy configuration
+}
+
+VALIDATION REQUIRED:
+- Typecheck/build must pass.
+- Dashboard must still load through the current .pike.replit.dev hostname.
+- The corresponding .pike.repl.co hostname must no longer receive Vite's blocked-host 403.
+- An unrelated hostname must still be rejected.
+- /api proxy behavior must remain unchanged.
+- Customer app must remain unchanged.
+- Do not make any database or Supabase changes.
+
+At the end report:
+1. Exact file changed
+2. Exact code change
+3. Validation results
+4. Both hostnames tested
+5. Confirmation that no wildcard/allowedHosts:true was introduced
+6. Confirmation that no other files were changed
