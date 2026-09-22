@@ -1,0 +1,123 @@
+We have identified a SECOND Replit Preview problem after the Run/Preview orchestration audit.
+
+IMPORTANT:
+READ-ONLY DIAGNOSTIC ONLY.
+DO NOT MODIFY ANY FILES.
+DO NOT MODIFY .replit.
+DO NOT MODIFY artifact.toml.
+DO NOT modify application source.
+DO NOT change ports.
+DO NOT set Vite allowedHosts to true.
+DO NOT publish the app.
+DO NOT create a workaround.
+
+CURRENT OBSERVATION
+
+The project Preview now works from my laptop in the Replit environment.
+
+However, teammates accessing the SAME Replit development Preview URL from different locations receive this exact Vite error:
+
+Blocked request. This host ("85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.repl.co") is not allowed.
+
+Vite says:
+
+To allow this host, add
+"85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.repl.co"
+to server.allowedHosts in vite.config.js.
+
+IMPORTANT CONTEXT
+
+The Dashboard artifact development command currently uses:
+
+__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=$REPLIT_DEV_DOMAIN
+
+and starts the dashboard Vite server.
+
+Vite officially supports __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS as an environment variable for adding trusted allowed hosts.
+
+We need to determine why the actual Replit Preview hostname is not being accepted.
+
+AUDIT THE FOLLOWING READ-ONLY:
+
+1. Locate the actual Dashboard Vite configuration file.
+
+2. Show the current server configuration, especially:
+   - server.host
+   - server.allowedHosts
+   - server.port
+   - server.strictPort
+   - preview.allowedHosts if present
+
+3. Determine exactly how allowed hosts are currently populated.
+
+4. Determine the value of REPLIT_DEV_DOMAIN inside the Dashboard artifact runtime.
+
+5. Determine the value of:
+   __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+   inside the Dashboard artifact runtime.
+
+6. Determine the actual Host header arriving at Vite when the teammate accesses:
+
+85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.repl.co
+
+7. Determine whether the pike.repl.co hostname is:
+   - the Replit development domain
+   - an external preview proxy hostname
+   - a generated project hostname
+   - or something else.
+
+8. Determine whether Replit expects the pike.repl.co hostname to be automatically included in Vite allowedHosts.
+
+9. Determine whether REPLIT_DEV_DOMAIN is expected to contain the pike.repl.co hostname.
+
+10. Determine whether the current artifact command's:
+    __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=$REPLIT_DEV_DOMAIN
+    is sufficient for all teammates accessing the shared Preview URL.
+
+11. Determine whether the current issue is:
+    A. incorrect Vite configuration,
+    B. incorrect Replit environment variable,
+    C. Replit artifact routing/proxy behavior,
+    D. different hostnames being used by different access paths,
+    E. or another configuration issue.
+
+12. Check whether the Dashboard artifact and the Customer artifact use different host validation mechanisms.
+
+13. Check whether the same issue could occur after restarting the workspace.
+
+14. Check whether adding the exact pike.repl.co hostname would be a permanent solution or only a temporary/project-specific workaround.
+
+15. Check whether a wildcard such as:
+    .pike.repl.co
+    would be appropriate or unsafe.
+
+16. DO NOT recommend:
+    allowedHosts: true
+
+17. DO NOT recommend disabling host validation globally.
+
+18. Determine the safest permanent configuration that allows legitimate Replit Preview access from teammates while retaining Vite host protection.
+
+19. Identify the exact file(s) that would need to change for a permanent fix.
+
+20. Determine whether this should be fixed in application Vite configuration or in the Replit artifact environment configuration.
+
+EXPECTED OUTPUT
+
+A. Exact root cause
+B. Current Vite allowed-host mechanism
+C. Actual Replit host/domain values
+D. Why laptop works
+E. Why teammate fails
+F. Permanent fix
+G. Temporary workaround
+H. Exact files that would change
+I. Security implications
+J. Verification test for:
+   - my laptop
+   - teammate browser
+   - workspace restart
+   - Preview refresh
+
+DO NOT IMPLEMENT ANYTHING.
+Return the diagnostic report only.
