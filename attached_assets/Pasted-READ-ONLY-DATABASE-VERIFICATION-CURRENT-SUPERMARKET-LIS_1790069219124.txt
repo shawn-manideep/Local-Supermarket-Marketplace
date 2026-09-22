@@ -1,0 +1,120 @@
+READ-ONLY DATABASE VERIFICATION — CURRENT SUPERMARKET LIST
+
+Do not modify anything.
+
+I need the exact list of supermarkets/stores currently present in the DEV Supabase database.
+
+Environment:
+- DEV project: supermarket-marketplace-dev
+- This is a READ-ONLY inspection.
+- Do not create, update, delete, approve, suspend, or modify any records.
+- Do not change code, migrations, auth, RLS, or configuration.
+- Do not expose passwords, tokens, service-role keys, or other secrets.
+
+Query the current DEV database and provide the actual store records.
+
+For EVERY store, report:
+
+1. Store ID
+2. Store name
+3. Store status
+4. Owner/vendor user ID (masked if necessary; do not expose sensitive information)
+5. Vendor email associated with the store, if safely available
+6. Delivery fee
+7. Minimum order amount
+8. Commission rate
+9. Service pincodes
+10. Operating hours for all 7 days
+11. Whether the store is currently OPEN or CLOSED according to the application's operating-hours logic
+
+Also report:
+
+### PRODUCTS
+For each store:
+- Number of categories
+- Category names
+- Number of products
+- Product names
+- Price
+- Availability
+- Active/inactive status
+- Stock quantity
+
+### CUSTOMER DISCOVERY TEST
+
+For each store, provide:
+
+Store → service pincode(s)
+
+Then tell me:
+
+1. Which store(s) would appear to a customer using pincode 500090?
+2. Which store(s) would appear for pincode 400001?
+3. Which store(s) would appear for pincode 560001?
+4. Are there currently any stores serving Hyderabad pincode 500090?
+5. Are all stores ACTIVE?
+6. Are there any stores with zero products?
+7. Are there any products that are inactive?
+8. Are there any products that are active but unavailable?
+
+### ORDERS
+
+Also provide a summary only:
+- Total orders
+- Orders by store
+- Current status of each order
+- Total order amount
+- Order date
+
+Do not expose customer passwords, auth tokens, phone numbers, full private addresses, or secrets.
+
+### OUTPUT FORMAT
+
+Use this structure:
+
+STORE 1
+-----------
+Name:
+Status:
+Vendor:
+Delivery Fee:
+Minimum Order:
+Commission:
+Service Pincodes:
+Operating Hours:
+
+Categories:
+- ...
+
+Products:
+- Product | Category | Price | Available | Active | Stock
+
+STORE 2
+-----------
+...
+
+Then:
+
+CUSTOMER DISCOVERY
+------------------
+500090 → ...
+400001 → ...
+560001 → ...
+
+ORDER SUMMARY
+-------------
+...
+
+Finally provide:
+
+DATABASE TOTALS
+---------------
+Stores:
+Active stores:
+Categories:
+Products:
+Orders:
+
+IMPORTANT:
+This is an inspection only.
+Do not make any changes.
