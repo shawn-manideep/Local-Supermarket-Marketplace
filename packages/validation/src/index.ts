@@ -35,9 +35,15 @@ const phoneSchema = z
     /^(?:(?:\+|00)91[- ]?|91[- ]?)?[6-9]\d{9}$/,
     "Use a valid Indian phone number",
   );
-const nullablePhoneSchema = z.preprocess(
+
+const customerPhoneSchema = z
+  .string()
+  .trim()
+  .regex(/^[6-9]\d{9}$/, "Use a valid 10-digit Indian mobile number");
+
+const nullableCustomerPhoneSchema = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? null : value),
-  phoneSchema.nullable(),
+  customerPhoneSchema.nullable(),
 );
 
 export const storeUpdateSchema = z
@@ -224,7 +230,7 @@ const customerText = (maximum: number) => z.string().trim().min(1).max(maximum);
 export const customerProfileUpdateSchema = z
   .object({
     fullName: customerText(120).nullable().optional(),
-    phone: nullablePhoneSchema.optional(),
+    phone: nullableCustomerPhoneSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -238,7 +244,7 @@ export const customerAddressIdParamSchema = z.object({
 const customerAddressFields = {
   label: customerText(60).nullable().optional(),
   recipientName: customerText(120),
-  phone: phoneSchema,
+  phone: customerPhoneSchema,
   line1: customerText(240),
   line2: customerText(240).nullable().optional(),
   city: customerText(120),

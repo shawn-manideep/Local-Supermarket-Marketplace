@@ -1,0 +1,552 @@
+CUSTOMER APP UI/UX REVAMP + VERIFIED BUG FIXES
+
+I reviewed the actual Customer application in a browser recording.
+
+The current customer UI is functional in several areas, but visually and experientially it is not acceptable for a consumer-facing grocery marketplace.
+
+DO NOT rebuild the backend or change the business architecture.
+
+We need a professional, modern, customer-friendly grocery marketplace UI inspired by the information hierarchy and usability patterns of established Indian grocery apps such as Zepto, Blinkit and BigBasket.
+
+IMPORTANT:
+Use these products only as UX/design inspiration.
+Do NOT copy their branding, logos, colors, exact layouts, assets, or proprietary designs.
+
+The goal is:
+- modern
+- clean
+- visually engaging
+- mobile-first
+- easy for non-technical customers
+- strong visual hierarchy
+- grocery-shopping focused
+- polished enough for a real MVP demo
+
+TECHNICAL CONSTRAINTS:
+- Keep the existing Expo + React Native + TypeScript architecture.
+- Keep existing backend APIs.
+- Keep Supabase Auth.
+- Keep existing database schema.
+- Keep RLS/security.
+- Keep business rules.
+- Do not introduce a new UI framework unnecessarily.
+- Do not create fake functionality.
+- Do not replace working APIs with mock data.
+- Do not change order/business logic unless required to fix a verified bug.
+- Preserve the existing customer functionality.
+
+==================================================
+PART 1 — CREATE A CUSTOMER DESIGN SYSTEM
+==================================================
+
+Create reusable customer UI primitives/components for:
+
+- page/container layout
+- section headers
+- cards
+- product cards
+- supermarket cards
+- category chips
+- primary buttons
+- secondary buttons
+- destructive buttons
+- quantity selector
+- price display
+- status badges
+- empty states
+- loading states
+- error states
+- confirmation dialogs
+- input fields
+- form validation messages
+- order timeline
+- bottom navigation
+- address cards
+
+Establish consistent:
+- typography hierarchy
+- spacing
+- border radius
+- shadows/elevation
+- button heights
+- card spacing
+- touch target sizes
+- icon treatment
+- disabled states
+- selected states
+- error states
+
+Do not overuse rounded cards or excessive borders.
+Avoid the current plain form-like appearance.
+
+==================================================
+PART 2 — HOME SCREEN
+==================================================
+
+Redesign the customer Home screen.
+
+Desired structure:
+
+1. Delivery location header
+   - city/locality
+   - pincode
+   - address selector
+
+2. Prominent search bar
+   - "Search groceries, brands and products"
+
+3. Shop by category
+   - visually attractive category chips/cards
+   - horizontal scrolling where appropriate
+
+4. Supermarkets near you
+   - attractive store cards
+   - store name
+   - open/closed
+   - delivery fee
+   - minimum order
+   - service pincode
+   - Shop Now CTA
+
+5. Product discovery section where data is available
+   - popular products / featured products / recently viewed
+   - use real backend data
+   - do not create fake data
+
+6. Proper empty state when no supermarkets are available.
+
+The page should no longer have large unnecessary empty areas.
+
+==================================================
+PART 3 — SUPERMARKET / STORE PAGE
+==================================================
+
+Redesign the store catalog.
+
+Header:
+- back navigation
+- store name
+- OPEN/CLOSED status
+- delivery information
+- minimum order
+
+Category navigation:
+- horizontal category chips/tabs
+
+Product section:
+- mobile-friendly 2-column product grid where appropriate
+- attractive product cards
+- product image/visual area
+- product name
+- pack/quantity if available
+- price
+- availability
+- Add button
+
+For products without real image assets:
+- use a tasteful local visual placeholder/icon system
+- do NOT use broken external images
+- do NOT invent fake product photography
+
+Unavailable products:
+- visibly disabled
+- clearly marked unavailable
+- cannot be added to cart
+
+==================================================
+PART 4 — PRODUCT DETAIL
+==================================================
+
+Redesign product detail.
+
+Include:
+- product visual
+- product name
+- price
+- availability
+- description when available
+- quantity selector
+- prominent Add to Cart
+- store name
+- delivery context
+
+Do not display internal database fields such as stock, SKU, owner IDs, commission, etc.
+
+==================================================
+PART 5 — CART
+==================================================
+
+Redesign Cart into a proper grocery basket experience.
+
+Show:
+
+Store
+Items
+Quantity controls
+Remove action
+Subtotal
+Delivery fee
+Minimum order status
+Total
+Delivery address
+Payment method
+Place Order CTA
+
+Make the total visually prominent.
+
+Use a sticky/fixed bottom checkout CTA where appropriate on mobile.
+
+Prevent accidental double submission.
+
+Preserve existing store-switch behavior.
+
+==================================================
+PART 6 — CHECKOUT
+==================================================
+
+Use the existing backend checkout validation endpoint before final order creation if the current architecture permits it.
+
+Do not duplicate authoritative financial calculations in the UI.
+
+The server remains authoritative.
+
+Show clear validation messages for:
+- invalid address
+- unavailable product
+- insufficient stock
+- minimum order not reached
+- store/pincode mismatch
+
+==================================================
+PART 7 — ORDER DETAILS
+==================================================
+
+Completely redesign Order Details.
+
+Use a clear order-tracking layout:
+
+ORDER REFERENCE
+CURRENT STATUS
+
+Visual timeline:
+
+PLACED
+↓
+ACCEPTED
+↓
+PREPARING
+↓
+READY
+↓
+OUT FOR DELIVERY
+↓
+DELIVERED
+
+Only show states according to actual order history.
+
+Then:
+
+Items
+Bill summary
+Delivery details
+Payment method
+
+Make the current status visually prominent.
+
+Avoid huge unused whitespace.
+
+==================================================
+PART 8 — FIX CUSTOMER CANCEL ORDER
+==================================================
+
+This is a VERIFIED FUNCTIONAL BUG from browser testing.
+
+Current behavior:
+- Order is PLACED.
+- "Cancel order" button is visible.
+- Clicking it does not visibly cancel the order.
+
+Investigate the existing implementation.
+
+Do NOT weaken backend authorization or lifecycle rules.
+
+Customer cancellation is allowed only while order status is PLACED.
+
+Expected behavior:
+
+Cancel Order
+→ confirmation dialog
+→ user confirms
+→ existing customer cancellation API
+→ HTTP success
+→ order status becomes CANCELLED
+→ status timeline updates
+→ cancel button disappears
+→ order list updates
+
+If the API fails:
+- show a useful user-facing error
+- keep the order in its actual server status
+
+Add a regression test for the UI/API interaction if the existing test architecture supports it.
+
+==================================================
+PART 9 — ACCOUNT SCREEN
+==================================================
+
+The current Account screen is too minimal.
+
+It currently shows essentially:
+- Full name
+- Phone
+- Save profile
+- Sign out
+
+Redesign it into a customer account hub.
+
+Sections:
+
+PERSONAL DETAILS
+- Full name
+- Phone
+- Email
+- Edit/save
+
+DELIVERY
+- My Addresses
+- Manage addresses
+
+ORDERS
+- My Orders
+
+HELP
+- Help & Support
+
+ACCOUNT
+- Sign out
+
+IMPORTANT:
+Do not expose functionality that does not exist in the backend.
+Where a section is not yet implemented, either:
+- connect it to an existing real endpoint, or
+- omit it.
+
+Do not create decorative buttons that do nothing.
+
+==================================================
+PART 10 — PHONE VALIDATION
+==================================================
+
+This is another VERIFIED BUG.
+
+Current phone field accepts:
+- more than 10 digits
+- non-numeric characters
+
+Fix both frontend and backend validation.
+
+For Indian mobile numbers:
+
+- exactly 10 digits
+- digits only
+- first digit must be 6, 7, 8 or 9
+
+Frontend:
+- numeric input mode
+- maxLength=10
+- filter/reject non-digit characters
+- clear validation message
+
+Backend:
+- enforce the same business validation
+- never rely only on frontend validation
+
+Do not change unrelated profile fields.
+
+==================================================
+PART 11 — ADDRESSES
+==================================================
+
+Keep the recently fixed address-edit behavior.
+
+IMPORTANT:
+The address PATCH fix was already implemented and verified.
+
+Do NOT regress it.
+
+The request must continue sending only editable fields and never:
+- id
+- customerId
+- createdAt
+- updatedAt
+
+Verify:
+- create
+- edit
+- delete
+- default address
+- validation
+
+==================================================
+PART 12 — BOTTOM NAVIGATION
+==================================================
+
+Improve the bottom navigation.
+
+Keep the existing core destinations:
+
+Home
+Cart
+Orders
+Account
+
+Use:
+- clear icons
+- labels
+- selected state
+- accessible touch targets
+- active indicator
+
+The navigation should feel like a modern shopping app.
+
+==================================================
+PART 13 — RESPONSIVE / MOBILE-FIRST
+==================================================
+
+The application is primarily a mobile shopping experience.
+
+Optimize for:
+- Android phone
+- iPhone
+- narrow screens
+- touch interaction
+
+Also ensure the existing web preview remains usable.
+
+Avoid desktop-first layouts with huge empty spaces.
+
+==================================================
+PART 14 — UX STATES
+==================================================
+
+Every important screen should have:
+
+Loading
+Empty
+Error
+Retry
+Success
+Disabled
+Submitting/busy
+
+Examples:
+
+No stores:
+"Sorry, we don't have a supermarket serving this pincode yet."
+
+Empty cart:
+"Your basket is empty"
+"Start shopping"
+
+Order cancelled:
+"Order cancelled"
+
+Network/API error:
+"Something went wrong. Please try again."
+
+==================================================
+PART 15 — ACCESSIBILITY
+==================================================
+
+Ensure:
+- readable font sizes
+- sufficient contrast
+- meaningful button labels
+- keyboard/input behavior
+- accessible touch targets
+- visible selected states
+- visible focus/pressed states
+- no color-only status communication
+
+==================================================
+PART 16 — DO NOT ADD THESE
+==================================================
+
+Do NOT add:
+- online payment
+- coupons
+- loyalty
+- delivery partner app
+- GPS tracking
+- maps
+- subscriptions
+- AI recommendations
+- fake reviews
+- fake ratings
+- fake offers
+- fake product inventory
+- unnecessary animations
+
+We are improving the existing MVP, not expanding scope.
+
+==================================================
+PART 17 — VERIFICATION
+==================================================
+
+After implementation:
+
+1. Customer login
+2. Home
+3. Address selector
+4. Store discovery
+5. Store catalog
+6. Category filtering
+7. Product detail
+8. Add to cart
+9. Quantity update
+10. Remove
+11. Checkout
+12. Place COD order
+13. Order detail
+14. Cancel PLACED order
+15. Orders list
+16. Account
+17. Address create/edit/delete
+18. Phone validation
+
+Verify that the recently fixed address-edit functionality still works.
+
+Run:
+- TypeScript
+- existing backend tests
+- customer web export
+- relevant frontend checks
+
+Do not modify database schema unless absolutely required for the phone validation contract, and if it is required, STOP and report before changing the database.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Design system created
+3. Screens redesigned
+4. Cancel-order root cause and fix
+5. Phone-validation root cause and fix
+6. Address-edit regression result
+7. Tests
+8. Build result
+9. Any remaining UI/UX gaps
+
+IMPORTANT:
+This is a CUSTOMER UI/UX modernization task.
+
+Do not touch Vendor/Admin UI in this task.
+
+Do not rewrite backend architecture.
+
+Do not remove existing working functionality.
+
+The final result should feel like a polished local grocery marketplace, not a developer prototype.

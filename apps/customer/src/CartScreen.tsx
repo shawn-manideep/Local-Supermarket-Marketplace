@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api";
+import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
+import { QuantitySelector } from "./components/QuantitySelector";
+import { ConfirmationDialog } from "./components/ConfirmationDialog";
 
-const colors = { bg: "#F7F5F0", card: "#FFFFFF", ink: "#1C2924", muted: "#5F7068", accent: "#D45543", soft: "#EAF0EC", line: "#E3DFD5", danger: "#C13521", highlight: "#FFF2EF" };
+function BasketIcon() {
+  return (
+    <View style={{ width: 40, height: 32, borderBottomWidth: 3, borderLeftWidth: 3, borderRightWidth: 3, borderColor: colors.muted, borderRadius: 4, position: "relative", alignItems: "center", marginTop: 12 }}>
+      <View style={{ width: 24, height: 16, borderTopWidth: 3, borderLeftWidth: 3, borderRightWidth: 3, borderColor: colors.muted, position: "absolute", top: -16, borderTopLeftRadius: 12, borderTopRightRadius: 12 }} />
+    </View>
+  );
+}
 
 export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void }) {
   const [cart, setCart] = useState<CustomerCart | null>(null);
@@ -12,6 +21,9 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   const [message, setMessage] = useState("");
   const quantityQueues = useRef<Record<string, { target: number; running: boolean }>>({});
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+
+  const [clearDialogVisible, setClearDialogVisible] = useState(false);
+  const [clearLoading, setClearLoading] = useState(false);
 
   const load = async () => {
     setLoading(true); setMessage("");
@@ -31,11 +43,14 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   const quantity = (itemId: string, next: number) => {
     const current = cart?.items.find((item) => item.id === itemId)?.quantity ?? next;
     const queue = quantityQueues.current[itemId] ?? { target: current, running: false };
-    if (queue.target === 0) return;
+    if (queue.target === 0) {
+      if (next === 0) return;
+    }
     queue.target = next === 0 ? 0 : Math.max(1, queue.target + (next - current));
     quantityQueues.current[itemId] = queue;
     if (!queue.running) void flushQuantity(itemId);
   };
+  
   const flushQuantity = async (itemId: string) => {
     const queue = quantityQueues.current[itemId];
     if (!queue || queue.running) return;
@@ -53,38 +68,154 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
       delete quantityQueues.current[itemId];
     }
   };
-  const clear = () => Alert.alert("Clear cart?", "The cart record will be preserved as abandoned.", [
-    { text:"Cancel" }, { text:"Clear", style:"destructive", onPress:() => void customerApi("/api/customer/cart", { method:"DELETE" }).then(() => setCart(null)).catch((reason) => setMessage(reason.message)) },
-  ]);
+
+  const clear = () => setClearDialogVisible(true);
+
+  const confirmClear = async () => {
+    setClearLoading(true);
+    try {
+      await customerApi("/api/customer/cart", { method: "DELETE" });
+      setCart(null);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Unable to clear basket.");
+    } finally {
+      setClearLoading(false);
+      setClearDialogVisible(false);
+    }
+  };
+
   const validate = async () => {
     if (checkoutBusy || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
     setCheckoutBusy(true);
-    setLoading(true); setMessage("");
+    setMessage("");
     try {
+      await customerApi("/api/customer/checkout/validate", { method: "POST", body: JSON.stringify({ addressId, paymentMethod: "COD" }) });
       const result = await customerApi<{ order: { id: string } }>("/api/customer/orders", { method:"POST", body:JSON.stringify({ addressId, paymentMethod:"COD" }) });
       onOrderPlaced(result.order.id);
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to place order."); }
-    finally { setLoading(false); setCheckoutBusy(false); }
+    finally { setCheckoutBusy(false); }
   };
 
-  if (loading) return <View accessibilityLabel="Loading cart" accessibilityRole="progressbar" style={styles.center}><ActivityIndicator color={colors.accent}/><Text style={styles.body}>Loading your cart…</Text></View>;
-  if (!cart) return <View style={styles.center}><Text style={styles.hero}>Your cart is empty</Text><Text style={styles.body}>Add available products from one supermarket to begin.</Text>{!!message && <Text style={styles.error}>{message}</Text>}</View>;
-  return <ScrollView contentContainerStyle={styles.page}>
-    <Text style={styles.eyebrow}>CART</Text><Text style={styles.hero}>{cart.storeName}</Text>
-    {cart.items.map((item) => <View key={item.id} style={styles.card}>
-      <View style={styles.between}><View style={{flex:1}}><Text style={styles.title}>{item.name}</Text><Text style={styles.body}>₹{item.unitPrice} each · ₹{item.lineSubtotal}</Text>{!item.purchasable && <Text style={styles.error}>Unavailable or out of stock</Text>}</View>
-       <View style={styles.controls}><Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${item.name} quantity`} accessibilityState={{ disabled: item.quantity <= 1 }} disabled={item.quantity <= 1} onPress={() => void quantity(item.id, item.quantity - 1)} style={[styles.step,item.quantity <= 1 && styles.disabled]}><Text>−</Text></Pressable><Text accessibilityLabel={`${item.name} quantity ${item.quantity}`} style={styles.title}>{item.quantity}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Increase ${item.name} quantity`} onPress={() => void quantity(item.id, item.quantity + 1)} style={styles.step}><Text>+</Text></Pressable></View></View>
-       <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.name} from cart`} onPress={() => void quantity(item.id, 0)}><Text style={styles.remove}>Remove</Text></Pressable>
-    </View>)}
-    <View style={styles.card}><Line label="Subtotal" value={cart.subtotal}/><Line label="Delivery fee" value={cart.deliveryFee}/><Line label="Minimum order" value={cart.minimumOrderValue}/><Line label="Total" value={cart.total} strong/></View>
-    <Text style={styles.title}>Delivery address</Text>
-    {addresses.length === 0 ? <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.primary}><Text style={styles.primaryText}>Add an address</Text></Pressable> : addresses.map((address) => <Pressable accessibilityLabel={`Deliver to ${address.label ?? address.recipientName}, ${address.line1}, ${address.city} ${address.pincode}`} accessibilityRole="radio" accessibilityState={{ selected: addressId === address.id }} key={address.id} onPress={() => setAddressId(address.id)} style={[styles.address,addressId===address.id&&styles.selected]}><Text style={styles.title}>{addressId===address.id?"●":"○"} {address.label ?? address.recipientName}</Text><Text style={styles.body}>{address.line1}, {address.city} {address.pincode}</Text></Pressable>)}
-    <View style={styles.card}><Text style={styles.title}>Payment method</Text><Text style={styles.body}>Cash on Delivery (COD)</Text></View>
-    {!cart.checkoutReady && <Text style={styles.error}>Resolve unavailable items or meet the minimum order value before checkout.</Text>}
-    {!!message && <Text style={styles.body}>{message}</Text>}
-      <Pressable accessibilityRole="button" accessibilityLabel="Place order with cash on delivery" accessibilityState={{ disabled: !cart.checkoutReady || !addressId || checkoutBusy, busy: checkoutBusy }} disabled={!cart.checkoutReady || !addressId || checkoutBusy} onPress={() => void validate()} style={[styles.primary,(!cart.checkoutReady||!addressId||checkoutBusy)&&styles.disabled]}><Text style={styles.primaryText}>{checkoutBusy ? "Placing order…" : "Place order · COD"}</Text></Pressable>
-    <Pressable accessibilityLabel="Clear all items from cart" accessibilityRole="button" onPress={clear}><Text style={styles.remove}>Clear cart</Text></Pressable>
-  </ScrollView>;
+  if (loading) return <View style={[commonStyles.page, styles.center]}><ActivityIndicator color={colors.accent}/></View>;
+  
+  if (!cart) return (
+    <ScrollView contentContainerStyle={commonStyles.page}>
+      <View style={[commonStyles.container, { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }]}>
+        <View style={styles.emptyBasket}>
+          <BasketIcon />
+        </View>
+        <Text style={typography.title1}>Your basket is empty</Text>
+        <Text style={[typography.body, { textAlign: "center" }]}>Add fresh groceries from a local supermarket to get started.</Text>
+        {!!message && <Text style={[typography.caption, { color: colors.danger }]}>{message}</Text>}
+      </View>
+    </ScrollView>
+  );
+
+  return (
+    <>
+      <ScrollView contentContainerStyle={commonStyles.page}>
+        <View style={commonStyles.container}>
+          <Text style={typography.eyebrow}>YOUR BASKET</Text>
+          <Text style={[typography.hero, { marginBottom: spacing.xl }]}>{cart.storeName}</Text>
+          
+          <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
+            {cart.items.map((item) => (
+              <View key={item.id} style={styles.cartItem}>
+                <View style={{ flex: 1, gap: spacing.xs }}>
+                  <Text style={typography.bodySemibold}>{item.name}</Text>
+                  <Text style={typography.caption}>₹{item.unitPrice} each</Text>
+                  <Text style={typography.title3}>₹{item.lineSubtotal}</Text>
+                  {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Unavailable</Text>}
+                </View>
+                <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
+                  <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
+                  <Pressable onPress={() => quantity(item.id, 0)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>Remove</Text></Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={commonStyles.card}>
+            <Line label="Subtotal" value={cart.subtotal} />
+            <Line label="Delivery fee" value={cart.deliveryFee} />
+            <Line label="Minimum order req." value={cart.minimumOrderValue} />
+            <View style={styles.divider} />
+            <Line label="Total" value={cart.total} strong />
+          </View>
+
+          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Delivery Address</Text>
+          {addresses.length === 0 ? (
+            <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Add Delivery Address</Text></Pressable>
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {addresses.map((address) => (
+                <Pressable key={address.id} onPress={() => setAddressId(address.id)} style={[styles.addressCard, addressId === address.id && styles.addressCardActive]}>
+                  <View style={[styles.radio, addressId === address.id && styles.radioActive]}>
+                    {addressId === address.id && <View style={styles.radioInner} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={typography.bodySemibold}>{address.label ?? address.recipientName}</Text>
+                    <Text style={typography.body}>{address.line1}, {address.city} {address.pincode}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Payment Method</Text>
+          <View style={[commonStyles.card, { flexDirection: "row", alignItems: "center", gap: spacing.sm }]}>
+            <View style={styles.radioActive}><View style={styles.radioInner} /></View>
+            <Text style={typography.bodySemibold}>Cash on Delivery (COD)</Text>
+          </View>
+
+          <View style={{ marginTop: spacing.xxl, gap: spacing.md }}>
+            {!cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>Resolve unavailable items or meet the minimum order value to checkout.</Text>}
+            {!!message && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{message}</Text>}
+            
+            <Pressable disabled={!cart.checkoutReady || !addressId || checkoutBusy} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy) && styles.disabled]}>
+              {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Place Order • ₹{cart.total}</Text>}
+            </Pressable>
+            <Pressable onPress={clear} style={{ padding: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.muted, textAlign: "center" }]}>Clear basket</Text></Pressable>
+          </View>
+        </View>
+      </ScrollView>
+      <ConfirmationDialog
+        visible={clearDialogVisible}
+        title="Clear Basket?"
+        message="The basket record will be preserved as abandoned. Are you sure?"
+        confirmLabel="Clear"
+        isDestructive
+        loading={clearLoading}
+        onConfirm={confirmClear}
+        onCancel={() => !clearLoading && setClearDialogVisible(false)}
+      />
+    </>
+  );
 }
-function Line({label,value,strong=false}:{label:string;value:string;strong?:boolean}) { return <View style={styles.between}><Text style={strong?styles.title:styles.body}>{label}</Text><Text style={strong?styles.title:styles.body}>₹{value}</Text></View>; }
-const styles=StyleSheet.create({page:{paddingTop:Platform.OS === "web" ? 67 : 24,paddingBottom:40,paddingHorizontal:22,gap:14,backgroundColor:colors.bg},center:{flex:1,alignItems:"center",justifyContent:"center",padding:24,gap:12,backgroundColor:colors.bg},hero:{fontSize:30,fontWeight:"800",color:colors.ink},eyebrow:{fontSize:12,fontWeight:"800",letterSpacing:1.5,color:colors.accent},title:{fontSize:16,fontWeight:"800",color:colors.ink},body:{fontSize:14,lineHeight:21,color:colors.muted},error:{color:colors.danger},card:{backgroundColor:colors.card,borderWidth:1,borderColor:colors.line,borderRadius:16,padding:15,gap:10},between:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",gap:12},controls:{flexDirection:"row",alignItems:"center",gap:10},step:{width:34,height:34,borderRadius:17,backgroundColor:"#E8F1EA",alignItems:"center",justifyContent:"center"},remove:{color:colors.danger,fontWeight:"700",paddingVertical:6},address:{backgroundColor:colors.card,borderWidth:1,borderColor:colors.line,borderRadius:14,padding:14,gap:4},selected:{borderColor:colors.accent,backgroundColor:"#FFF2ED"},primary:{backgroundColor:colors.ink,borderRadius:12,padding:15,alignItems:"center"},primaryText:{color:"#FFF",fontWeight:"800"},disabled:{opacity:.4}});
+
+function Line({label,value,strong=false}:{label:string;value:string;strong?:boolean}) { 
+  return (
+    <View style={styles.between}>
+      <Text style={strong ? typography.title3 : typography.body}>{label}</Text>
+      <Text style={strong ? typography.title3 : typography.bodySemibold}>₹{value}</Text>
+    </View>
+  ); 
+}
+
+const styles = StyleSheet.create({
+  center: { alignItems: "center", justifyContent: "center" },
+  emptyBasket: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
+  cartItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, ...shadows.sm },
+  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 4 },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing.sm },
+  secondaryBtn: { backgroundColor: colors.soft, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: colors.line },
+  secondaryBtnText: { ...typography.bodySemibold, color: colors.ink },
+  primaryBtn: { backgroundColor: colors.ink, borderRadius: radius.md, height: 56, justifyContent: "center", alignItems: "center" },
+  primaryBtnText: { ...typography.title3, color: colors.card },
+  disabled: { opacity: 0.4 },
+  addressCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md },
+  addressCardActive: { borderColor: colors.ink, backgroundColor: colors.soft },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.muted, justifyContent: "center", alignItems: "center" },
+  radioActive: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.ink, justifyContent: "center", alignItems: "center" },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.ink },
+});

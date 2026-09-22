@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { customerApi, type CustomerOrderDetail, type CustomerOrderStatus, type CustomerOrderSummary } from "./lib/api";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { customerApi, type CustomerOrderDetail, type CustomerOrderSummary } from "./lib/api";
+import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
+import { ConfirmationDialog } from "./components/ConfirmationDialog";
 
-const colors = { bg: "#F7F5F0", card: "#FFFFFF", ink: "#1C2924", muted: "#5F7068", accent: "#D45543", soft: "#EAF0EC", line: "#E3DFD5", danger: "#C13521", highlight: "#FFF2EF" };
-const stages: CustomerOrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"];
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor Delivery" : "Platform Delivery";
@@ -24,6 +24,7 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
     finally { if (request === listGeneration.current) setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
+
   const open = async (id: string) => {
     const request = ++detailGeneration.current;
     setLoading(true); setError("");
@@ -32,48 +33,194 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
     finally { if (request === detailGeneration.current) setLoading(false); }
   };
   useEffect(() => { if (initialOrderId) void open(initialOrderId); }, [initialOrderId]);
-  const cancel = () => {
-    if (!selected) return;
-    Alert.alert("Cancel this order?", "Cancellation is available while the order is still placed.", [
-      { text: "Keep order" },
-      { text: "Cancel order", style: "destructive", onPress: async () => {
-        try {
-          const result = await customerApi<{ order?: CustomerOrderDetail } | CustomerOrderDetail>(`/api/customer/orders/${selected.id}/cancel`, { method: "POST" });
-          const next: CustomerOrderDetail = "order" in result ? result.order as CustomerOrderDetail : result as CustomerOrderDetail;
-          setSelected(next);
-          await load();
-        }
-        catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to cancel order."); }
-      } },
-    ]);
-  };
-  if (selected) return <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} cancel={cancel} error={error} />;
-  if (loading) return <View accessibilityLabel="Loading orders" accessibilityRole="progressbar" style={styles.center}><ActivityIndicator color={colors.accent} /><Text style={styles.body}>Loading your orders…</Text></View>;
-  return <ScrollView contentContainerStyle={styles.page}>
-    <Text style={styles.eyebrow}>ORDERS</Text><Text style={styles.hero}>Your orders</Text><Text style={styles.body}>A clear record from local shop to doorstep.</Text>
-    {!!error && <View accessibilityRole="alert" style={styles.errorBox}><Text style={styles.error}>{error}</Text><Pressable accessibilityRole="button" onPress={() => void load()}><Text style={styles.link}>Try again</Text></Pressable></View>}
-    {orders.length === 0 && !error ? <View style={styles.empty}><Text style={styles.title}>No orders yet</Text><Text style={styles.body}>Your first supermarket order will appear here.</Text></View> : orders.map((order) =>
-     <Pressable accessibilityRole="button" accessibilityLabel={`View order from ${order.storeName}`} key={order.id} onPress={() => void open(order.id)} style={styles.card}>
-        <View style={styles.between}><View><Text style={styles.title}>{order.storeName}</Text><Text style={styles.body}>{date(order.createdAt)}</Text></View><Text style={styles.status}>{order.status.replaceAll("_", " ")}</Text></View>
-        <View style={styles.between}><Text style={styles.body}>Order #{order.id.slice(0, 8)}</Text><Text style={styles.total}>{money(order.totalAmount)}</Text></View>
-      </Pressable>)}
-  </ScrollView>;
+
+  if (selected) return <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} refresh={load} />;
+  
+  if (loading) return <View style={[commonStyles.page, { justifyContent: "center", alignItems: "center" }]}><ActivityIndicator color={colors.accent} /></View>;
+  
+  return (
+    <ScrollView contentContainerStyle={commonStyles.page}>
+      <View style={commonStyles.container}>
+        <Text style={typography.eyebrow}>HISTORY</Text>
+        <Text style={[typography.hero, { marginBottom: spacing.xs }]}>Your Orders</Text>
+        <Text style={[typography.body, { marginBottom: spacing.xl }]}>Track your recent local grocery runs.</Text>
+        
+        {!!error && (
+          <View style={styles.errorBox}>
+            <Text style={[typography.bodySemibold, { color: colors.danger }]}>{error}</Text>
+            <Pressable onPress={() => void load()}><Text style={[typography.bodySemibold, { color: colors.ink, textDecorationLine: "underline" }]}>Try again</Text></Pressable>
+          </View>
+        )}
+        
+        {orders.length === 0 && !error ? (
+          <View style={styles.emptyState}>
+            <Text style={typography.title2}>No orders yet</Text>
+            <Text style={typography.body}>Your first supermarket order will appear here.</Text>
+          </View>
+        ) : (
+          <View style={{ gap: spacing.md }}>
+            {orders.map((order) => (
+              <Pressable accessibilityRole="button" key={order.id} onPress={() => void open(order.id)} style={styles.orderCard}>
+                <View style={styles.between}>
+                  <Text style={typography.title3}>{order.storeName}</Text>
+                  <Text style={typography.body}>{date(order.createdAt)}</Text>
+                </View>
+                <View style={styles.between}>
+                  <Text style={typography.caption}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
+                  <Text style={typography.bodySemibold}>{money(order.totalAmount)}</Text>
+                </View>
+                <View style={[styles.statusBadge, order.status === "CANCELLED" ? styles.statusBadgeCancelled : null]}>
+                  <Text style={[styles.statusBadgeText, order.status === "CANCELLED" ? styles.statusBadgeTextCancelled : null]}>{order.status.replaceAll("_", " ")}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
 }
 
-function OrderDetail({ order, back, cancel, error }: { order: CustomerOrderDetail; back: () => void; cancel: () => void; error: string }) {
-  const current = order.status === "CANCELLED" ? -1 : stages.indexOf(order.status);
-  return <ScrollView contentContainerStyle={styles.page}>
-    <Pressable accessibilityLabel="Back to all orders" accessibilityRole="button" onPress={back}><Text style={styles.link}>← All orders</Text></Pressable>
-    <Text style={styles.eyebrow}>ORDER CONFIRMED</Text><Text style={styles.hero}>{order.storeName}</Text>
-    <View style={styles.confirm}><Text style={styles.confirmLabel}>REFERENCE</Text><Text style={styles.reference}>#{order.id.slice(0, 8).toUpperCase()}</Text><Text style={styles.status}>{order.status.replaceAll("_", " ")}</Text></View>
-    <View style={styles.card}><Text style={styles.title}>Status timeline</Text>{order.statusHistory.map((entry, index) => <View key={entry.id} style={styles.timeline}><View style={[styles.dot, index === order.statusHistory.length - 1 && styles.dotActive]} /><View style={{ flex: 1 }}><Text style={styles.title}>{entry.status.replaceAll("_", " ")}</Text><Text style={styles.body}>{entry.note ?? "Order update"} · {date(entry.createdAt)}</Text></View></View>)}{current >= 0 && current < stages.length && <Text style={styles.body}>We’ll keep you posted as your order moves through the shop.</Text>}</View>
-    <View style={styles.card}>{order.items.map((item) => <View key={item.id} style={styles.itemLine}><View style={{ flex: 1 }}><Text style={styles.title}>{item.productNameSnapshot}</Text><Text style={styles.body}>{money(item.productPriceSnapshot)} each · Qty {item.quantity}</Text></View><Text style={styles.body}>{money(item.subtotal)}</Text></View>)}<View style={styles.rule} /><Line label="Subtotal" value={order.subtotal} /><Line label="Delivery fee" value={order.deliveryFeeSnapshot} /><Line label="Total" value={order.totalAmount} strong /></View>
-    <View style={styles.card}><Text style={styles.title}>Delivery details</Text><Text style={styles.body}>{order.deliveryContactName} · {order.deliveryContactPhone}</Text><Text style={styles.body}>{order.deliveryAddressSnapshot.line1}{order.deliveryAddressSnapshot.line2 ? `, ${order.deliveryAddressSnapshot.line2}` : ""}, {order.deliveryAddressSnapshot.city}, {order.deliveryAddressSnapshot.state} {order.deliveryAddressSnapshot.pincode}</Text><Text style={styles.body}>{deliveryLabel(order.deliveryType)} · Cash on Delivery</Text></View>
-    {!!error && <Text style={styles.error}>{error}</Text>}
-    {order.status === "PLACED" && <Pressable accessibilityLabel={`Cancel order ${order.id.slice(0, 8)}`} accessibilityRole="button" onPress={cancel} style={styles.cancel}><Text style={styles.cancelText}>Cancel order</Text></Pressable>}
-  </ScrollView>;
+function OrderDetail({ order, back, refresh }: { order: CustomerOrderDetail; back: () => void; refresh: () => void; }) {
+  const [cancelVisible, setCancelVisible] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [localOrder, setLocalOrder] = useState(order);
+  const [error, setError] = useState("");
+
+  const handleCancel = async () => {
+    setCancelLoading(true); setError("");
+    try {
+      const result = await customerApi<{ order?: CustomerOrderDetail } | CustomerOrderDetail>(`/api/customer/orders/${localOrder.id}/cancel`, { method: "POST" });
+      const next = "order" in result ? result.order as CustomerOrderDetail : result as CustomerOrderDetail;
+      setLocalOrder(next);
+      setCancelVisible(false);
+      refresh(); // update the list in background
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to cancel order.");
+      setCancelVisible(false);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <ScrollView contentContainerStyle={commonStyles.page}>
+        <View style={commonStyles.container}>
+          <Pressable onPress={back} style={{ paddingVertical: spacing.sm, alignSelf: "flex-start", marginBottom: spacing.sm }}>
+            <Text style={[typography.bodySemibold, { color: colors.accent }]}>← All Orders</Text>
+          </Pressable>
+          
+          <Text style={typography.eyebrow}>ORDER SUMMARY</Text>
+          <Text style={[typography.hero, { marginBottom: spacing.lg }]}>{localOrder.storeName}</Text>
+          
+          <View style={styles.confirmBox}>
+            <View>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: "#A7C0B1", letterSpacing: 1.2 }}>REFERENCE</Text>
+              <Text style={{ fontSize: 28, fontWeight: "800", color: colors.card }}>#{localOrder.id.slice(0, 8).toUpperCase()}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+              <Text style={[styles.statusBadgeText, { color: colors.card }]}>{localOrder.status.replaceAll("_", " ")}</Text>
+            </View>
+          </View>
+          
+          <View style={[commonStyles.card, { marginTop: spacing.xl }]}>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Status Timeline</Text>
+            <View style={{ gap: spacing.lg }}>
+              {localOrder.statusHistory.map((entry, index) => {
+                const isLast = index === localOrder.statusHistory.length - 1;
+                return (
+                  <View key={entry.id} style={{ flexDirection: "row", gap: spacing.md }}>
+                    <View style={{ width: 14, alignItems: "center" }}>
+                      <View style={[styles.dot, isLast && styles.dotActive]} />
+                      {!isLast && <View style={styles.timelineLine} />}
+                    </View>
+                    <View style={{ flex: 1, paddingBottom: isLast ? 0 : spacing.sm }}>
+                      <Text style={typography.bodySemibold}>{entry.status.replaceAll("_", " ")}</Text>
+                      <Text style={typography.caption}>{entry.note ?? "Status updated"} • {date(entry.createdAt)}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={[commonStyles.card, { marginTop: spacing.xl }]}>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Items</Text>
+            <View style={{ gap: spacing.md }}>
+              {localOrder.items.map((item) => (
+                <View key={item.id} style={styles.between}>
+                  <View style={{ flex: 1, paddingRight: spacing.sm }}>
+                    <Text style={typography.bodySemibold}>{item.productNameSnapshot}</Text>
+                    <Text style={typography.caption}>{money(item.productPriceSnapshot)} × {item.quantity}</Text>
+                  </View>
+                  <Text style={typography.bodySemibold}>{money(item.subtotal)}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.divider} />
+            <Line label="Subtotal" value={localOrder.subtotal} />
+            <Line label="Delivery fee" value={localOrder.deliveryFeeSnapshot} />
+            <View style={styles.divider} />
+            <Line label="Total Paid (COD)" value={localOrder.totalAmount} strong />
+          </View>
+
+          <View style={[commonStyles.card, { marginTop: spacing.xl, marginBottom: spacing.xl }]}>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Delivery details</Text>
+            <Text style={typography.body}>{localOrder.deliveryContactName} • {localOrder.deliveryContactPhone}</Text>
+            <Text style={typography.body}>{localOrder.deliveryAddressSnapshot.line1}{localOrder.deliveryAddressSnapshot.line2 ? `, ${localOrder.deliveryAddressSnapshot.line2}` : ""}</Text>
+            <Text style={typography.body}>{localOrder.deliveryAddressSnapshot.city}, {localOrder.deliveryAddressSnapshot.state} {localOrder.deliveryAddressSnapshot.pincode}</Text>
+            <Text style={[typography.caption, { marginTop: spacing.sm }]}>{deliveryLabel(localOrder.deliveryType)}</Text>
+          </View>
+
+          {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md, textAlign: "center" }]}>{error}</Text>}
+
+          {localOrder.status === "PLACED" && (
+            <Pressable onPress={() => setCancelVisible(true)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Cancel Order</Text>
+            </Pressable>
+          )}
+        </View>
+      </ScrollView>
+      
+      <ConfirmationDialog
+        visible={cancelVisible}
+        title="Cancel Order?"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmLabel="Yes, Cancel"
+        cancelLabel="Keep Order"
+        isDestructive
+        loading={cancelLoading}
+        onConfirm={handleCancel}
+        onCancel={() => !cancelLoading && setCancelVisible(false)}
+      />
+    </>
+  );
 }
-function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) { return <View style={styles.between}><Text style={strong ? styles.title : styles.body}>{label}</Text><Text style={strong ? styles.title : styles.body}>{money(value)}</Text></View>; }
+
+function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) { 
+  return (
+    <View style={styles.between}>
+      <Text style={strong ? typography.title3 : typography.body}>{label}</Text>
+      <Text style={strong ? typography.title3 : typography.bodySemibold}>{money(value)}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  page:{paddingTop:Platform.OS === "web" ? 67 : 24,paddingBottom:40,paddingHorizontal:22,gap:15,backgroundColor:colors.bg},center:{flex:1,alignItems:"center",justifyContent:"center",padding:24,gap:10,backgroundColor:colors.bg},hero:{fontSize:32,lineHeight:38,fontWeight:"800",color:colors.ink},eyebrow:{fontSize:12,fontWeight:"800",letterSpacing:1.5,color:colors.accent},body:{fontSize:14,lineHeight:21,color:colors.muted},title:{fontSize:16,fontWeight:"800",color:colors.ink},total:{fontSize:17,fontWeight:"800",color:colors.ink},card:{backgroundColor:colors.card,borderWidth:1,borderColor:colors.line,borderRadius:16,padding:16,gap:12},between:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",gap:12},itemLine:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",gap:12},status:{fontSize:11,fontWeight:"800",color:colors.ink,backgroundColor:colors.soft,paddingHorizontal:9,paddingVertical:6,borderRadius:9},link:{color:colors.accent,fontWeight:"800",paddingVertical:8},empty:{padding:24,alignItems:"center",gap:8,backgroundColor:colors.card,borderRadius:16,borderWidth:1,borderColor:colors.line},errorBox:{padding:14,borderRadius:14,backgroundColor:"#F7E4DE",gap:5},error:{color:colors.danger},confirm:{backgroundColor:colors.ink,borderRadius:18,padding:20,gap:7},confirmLabel:{fontSize:11,fontWeight:"800",letterSpacing:1.4,color:"#B9D0C2"},reference:{fontSize:25,fontWeight:"800",color:"#FFF"},timeline:{flexDirection:"row",gap:12,alignItems:"flex-start"},dot:{width:12,height:12,borderRadius:6,marginTop:4,backgroundColor:colors.line},dotActive:{backgroundColor:colors.accent},rule:{height:1,backgroundColor:colors.line},cancel:{borderWidth:1,borderColor:colors.danger,borderRadius:12,padding:14,alignItems:"center"},cancelText:{color:colors.danger,fontWeight:"800"}
+  emptyState: { alignItems: "center", padding: spacing.xl, backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, gap: spacing.md, marginTop: spacing.lg },
+  errorBox: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.highlight, gap: spacing.xs, marginBottom: spacing.lg },
+  orderCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm, ...shadows.sm },
+  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 2 },
+  statusBadge: { alignSelf: "flex-start", backgroundColor: colors.soft, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, marginTop: spacing.xs },
+  statusBadgeCancelled: { backgroundColor: colors.highlight },
+  statusBadgeText: { fontSize: 11, fontWeight: "800", color: colors.ink, textTransform: "uppercase" },
+  statusBadgeTextCancelled: { color: colors.danger },
+  confirmBox: { backgroundColor: colors.ink, borderRadius: radius.xl, padding: spacing.xl, flexDirection: "row", justifyContent: "space-between", alignItems: "center", ...shadows.md },
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.line, marginTop: 4 },
+  dotActive: { backgroundColor: colors.accent },
+  timelineLine: { width: 2, flex: 1, backgroundColor: colors.line, marginVertical: 4 },
+  divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing.md },
+  cancelBtn: { padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.danger, alignItems: "center", backgroundColor: colors.card },
+  cancelBtnText: { ...typography.bodySemibold, color: colors.danger },
 });
