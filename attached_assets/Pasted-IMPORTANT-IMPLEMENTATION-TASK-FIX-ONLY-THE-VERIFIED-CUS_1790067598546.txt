@@ -1,0 +1,69 @@
+IMPORTANT: IMPLEMENTATION TASK — FIX ONLY THE VERIFIED CUSTOMER ADDRESS EDIT BUG
+
+I reviewed a real browser recording of the current application.
+
+A definite bug was observed in the Customer → Addresses → Edit Address flow.
+
+Observed behavior:
+1. Customer application loads successfully.
+2. Existing saved address is displayed.
+3. Clicking Edit opens the address edit form.
+4. Editing the pincode and clicking "Update address" fails.
+5. The UI displays this backend validation error:
+
+   Unrecognized key(s) in object: 'id', 'customerId', 'createdAt', 'updatedAt'
+
+Root cause:
+The frontend is sending the full address response object to the PATCH address endpoint instead of sending only the editable address fields.
+
+Required fix:
+1. Inspect the customer address edit implementation in apps/customer.
+2. Inspect the PATCH customer address API contract and Zod schema in backend/api.
+3. Keep the backend validation strict. DO NOT weaken the schema.
+4. Fix the frontend request payload so it explicitly maps only editable fields.
+5. Never send server-controlled fields:
+   - id
+   - customerId
+   - createdAt
+   - updatedAt
+
+The PATCH request should contain only fields supported by the existing API contract, such as:
+   recipientName
+   phone
+   addressLine1
+   addressLine2
+   city
+   state
+   pincode
+   isDefault
+depending on the existing schema.
+
+Important:
+- Do NOT change the database schema.
+- Do NOT create a migration.
+- Do NOT weaken validation.
+- Do NOT change authentication/RLS.
+- Do NOT change the address API contract unless inspection proves the existing contract is incorrect.
+- Prefer fixing the frontend DTO/request mapping.
+- Preserve existing create-address and delete-address behavior.
+- Preserve default-address behavior.
+
+After the fix, test:
+A. Load existing address.
+B. Click Edit.
+C. Change pincode.
+D. Click Update address.
+E. Confirm HTTP success.
+F. Confirm the updated address is displayed after refresh.
+G. Confirm id/customerId/createdAt/updatedAt are not sent in the PATCH request.
+H. Confirm no regression to address creation, deletion, or default-address behavior.
+
+Run relevant typecheck/build/tests.
+
+Return:
+1. exact files changed
+2. exact root cause
+3. exact fix
+4. API request payload before/after
+5. test results
+6. confirmation that no DB/migration/RLS changes were made.

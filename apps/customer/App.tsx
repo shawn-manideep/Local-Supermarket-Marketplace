@@ -78,15 +78,28 @@ function AccountScreen() {
 }
 
 const blankAddress: AddressInput = { label: null, recipientName: "", phone: "", line1: "", line2: null, city: "", state: "", pincode: "", isDefault: false };
+function editableAddress(address: AddressInput | CustomerAddress): AddressInput {
+  return {
+    label: address.label,
+    recipientName: address.recipientName,
+    phone: address.phone,
+    line1: address.line1,
+    line2: address.line2,
+    city: address.city,
+    state: address.state,
+    pincode: address.pincode,
+    isDefault: address.isDefault,
+  };
+}
 function AddressesScreen() {
   const [items, setItems] = useState<CustomerAddress[]>([]); const [draft, setDraft] = useState<AddressInput>(blankAddress); const [editId, setEditId] = useState<string | null>(null); const [message, setMessage] = useState("");
   const load = () => customerApi<{ addresses: CustomerAddress[] }>("/api/customer/addresses").then((r) => setItems(r.addresses)).catch((e) => setMessage(e.message));
   useEffect(() => { void load(); }, []);
   const save = async () => {
-    try { await customerApi(editId ? `/api/customer/addresses/${editId}` : "/api/customer/addresses", { method: editId ? "PATCH" : "POST", body: JSON.stringify(draft) }); setDraft(blankAddress); setEditId(null); setMessage("Address saved."); await load(); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to save address."); }
+    try { await customerApi(editId ? `/api/customer/addresses/${editId}` : "/api/customer/addresses", { method: editId ? "PATCH" : "POST", body: JSON.stringify(editableAddress(draft)) }); setDraft(blankAddress); setEditId(null); setMessage("Address saved."); await load(); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to save address."); }
   };
   const remove = (id: string) => Alert.alert("Delete address?", "Historical order snapshots will not be affected.", [{ text: "Cancel" }, { text: "Delete", style: "destructive", onPress: () => void customerApi(`/api/customer/addresses/${id}`, { method: "DELETE" }).then(load).catch((e) => setMessage(e.message)) }]);
-  return <ScrollView contentContainerStyle={styles.page}><Text style={styles.eyebrow}>ADDRESSES</Text><Text style={styles.hero}>Delivery details</Text><View style={styles.card}>{(["recipientName","phone","line1","line2","city","state","pincode"] as const).map((key) => <Field key={key} label={{recipientName:"Recipient name",phone:"Phone",line1:"Address line 1",line2:"Address line 2",city:"City",state:"State",pincode:"Pincode"}[key]} keyboardType={key === "phone" || key === "pincode" ? "phone-pad" : "default"} onChangeText={(value) => setDraft({ ...draft, [key]: value || (key === "line2" ? null : "") })} value={draft[key] ?? ""} />)}<Pressable accessibilityLabel="Make this the default delivery address" accessibilityRole="checkbox" accessibilityState={{ checked: draft.isDefault }} onPress={() => setDraft({ ...draft, isDefault: !draft.isDefault })} style={styles.check}><Text style={styles.body}>{draft.isDefault ? "●" : "○"} Make default</Text></Pressable><Pressable accessibilityRole="button" onPress={save} style={styles.primary}><Text style={styles.primaryText}>{editId ? "Update address" : "Add address"}</Text></Pressable>{!!message && <Text accessibilityRole="alert" style={styles.notice}>{message}</Text>}</View>{items.map((item) => <View key={item.id} style={styles.address}><Text style={styles.addressTitle}>{item.recipientName}{item.isDefault ? " · Default" : ""}</Text><Text style={styles.body}>{item.line1}{item.line2 ? `, ${item.line2}` : ""}, {item.city}, {item.state} {item.pincode}</Text><View style={styles.row}><Pressable accessibilityLabel={`Edit address for ${item.recipientName}`} accessibilityRole="button" onPress={() => { setEditId(item.id); setDraft({ ...item }); }}><Text style={styles.link}>Edit</Text></Pressable><Pressable accessibilityLabel={`Delete address for ${item.recipientName}`} accessibilityRole="button" onPress={() => remove(item.id)}><Text style={[styles.link,{color:colors.danger}]}>Delete</Text></Pressable></View></View>)}</ScrollView>;
+  return <ScrollView contentContainerStyle={styles.page}><Text style={styles.eyebrow}>ADDRESSES</Text><Text style={styles.hero}>Delivery details</Text><View style={styles.card}>{(["recipientName","phone","line1","line2","city","state","pincode"] as const).map((key) => <Field key={key} label={{recipientName:"Recipient name",phone:"Phone",line1:"Address line 1",line2:"Address line 2",city:"City",state:"State",pincode:"Pincode"}[key]} keyboardType={key === "phone" || key === "pincode" ? "phone-pad" : "default"} onChangeText={(value) => setDraft({ ...draft, [key]: value || (key === "line2" ? null : "") })} value={draft[key] ?? ""} />)}<Pressable accessibilityLabel="Make this the default delivery address" accessibilityRole="checkbox" accessibilityState={{ checked: draft.isDefault }} onPress={() => setDraft({ ...draft, isDefault: !draft.isDefault })} style={styles.check}><Text style={styles.body}>{draft.isDefault ? "●" : "○"} Make default</Text></Pressable><Pressable accessibilityRole="button" onPress={save} style={styles.primary}><Text style={styles.primaryText}>{editId ? "Update address" : "Add address"}</Text></Pressable>{!!message && <Text accessibilityRole="alert" style={styles.notice}>{message}</Text>}</View>{items.map((item) => <View key={item.id} style={styles.address}><Text style={styles.addressTitle}>{item.recipientName}{item.isDefault ? " · Default" : ""}</Text><Text style={styles.body}>{item.line1}{item.line2 ? `, ${item.line2}` : ""}, {item.city}, {item.state} {item.pincode}</Text><View style={styles.row}><Pressable accessibilityLabel={`Edit address for ${item.recipientName}`} accessibilityRole="button" onPress={() => { setEditId(item.id); setDraft(editableAddress(item)); }}><Text style={styles.link}>Edit</Text></Pressable><Pressable accessibilityLabel={`Delete address for ${item.recipientName}`} accessibilityRole="button" onPress={() => remove(item.id)}><Text style={[styles.link,{color:colors.danger}]}>Delete</Text></Pressable></View></View>)}</ScrollView>;
 }
 
 function CustomerApp() {
