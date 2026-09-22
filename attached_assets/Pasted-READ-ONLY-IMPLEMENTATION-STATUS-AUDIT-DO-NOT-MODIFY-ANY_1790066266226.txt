@@ -1,0 +1,548 @@
+READ-ONLY IMPLEMENTATION STATUS AUDIT — DO NOT MODIFY ANYTHING
+
+We need to understand the actual current implementation status of the Supermarket Marketplace application before doing any further development.
+
+IMPORTANT:
+- READ-ONLY DIAGNOSTIC ONLY.
+- Do NOT edit or create any source files.
+- Do NOT modify database/schema/migrations.
+- Do NOT add dummy data.
+- Do NOT create users.
+- Do NOT change routes, ports, artifact manifests, .replit, Supabase, Vite, authentication, or deployment configuration.
+- Do NOT fix anything yet.
+- Do NOT upgrade packages.
+- Do NOT restart or stop existing services unless absolutely required for read-only inspection.
+- Do NOT use Agent credits for implementation.
+- Inspect the existing code, routes, screens, database integration, and existing test evidence.
+- Clearly distinguish:
+  1. implemented in code
+  2. connected/integrated
+  3. actually tested
+  4. not tested
+  5. missing/not implemented
+  6. blocked by environment/configuration
+
+We need an accurate CURRENT STATE report.
+
+==================================================
+1. COMPLETE APPLICATION INVENTORY
+==================================================
+
+Identify every user-facing application/module currently present.
+
+Expected architecture:
+
+- Customer application
+- Vendor portal/dashboard
+- Admin portal/dashboard
+- Backend API
+- Shared packages
+
+For each one report:
+
+- Exact source directory
+- Exact entry file
+- Exact artifact/preview path
+- Current development command
+- Whether it is currently registered with Replit artifact management
+- Whether it is accessible through the current Preview
+- Whether it is a real application or placeholder
+- Whether it has backend/API integration
+
+Do NOT assume something exists merely because a folder exists.
+
+==================================================
+2. CUSTOMER APPLICATION — COMPLETE SCREEN/ROUTE INVENTORY
+==================================================
+
+Inspect the actual customer application source.
+
+List EVERY customer screen/page/route that currently exists.
+
+For each screen provide:
+
+| Screen | Source file | Route/navigation | UI implemented? | Backend connected? | Database connected? | Tested? | Status |
+
+Include at minimum, if implemented:
+
+- Sign up
+- Sign in
+- Home
+- Address selection
+- Addresses
+- Store discovery
+- Store details
+- Categories
+- Product listing
+- Product detail
+- Cart
+- Checkout
+- Order creation
+- Orders
+- Order detail
+- Account/profile
+- Sign out
+- Loading/error/empty states
+
+Do NOT claim a screen exists merely because an API exists.
+
+Also identify screens that are implemented in code but are NOT reachable from the current navigation.
+
+==================================================
+3. VENDOR PORTAL — CRITICAL
+==================================================
+
+Find the actual vendor UI.
+
+Determine:
+
+- Where is the vendor portal source?
+- What is its route/path?
+- How does a vendor authenticate?
+- How is vendor role detected?
+- How is vendor store ownership resolved?
+- Which vendor screens exist?
+- Which screens are connected to real APIs?
+- Which screens are placeholders?
+- Which screens are missing?
+
+Inventory:
+
+- Vendor login
+- Vendor dashboard
+- Store profile
+- Service pincodes
+- Operating hours
+- Categories
+- Products
+- Product create
+- Product edit
+- Product activate/deactivate
+- Product availability
+- Product stock
+- Orders list
+- Order detail
+- Accept order
+- Reject order
+- Preparing
+- Ready
+- Out for delivery
+- Delivered
+- Delivery information
+- Any other vendor functionality
+
+For every item report exact source file and API endpoint.
+
+IMPORTANT:
+Do not confuse the existing Dashboard artifact with a fully implemented vendor portal. Determine from the code whether vendor functionality is actually rendered and reachable.
+
+==================================================
+4. ADMIN PORTAL
+==================================================
+
+Inventory the actual admin UI.
+
+Determine:
+
+- Admin authentication
+- Admin role protection
+- Admin landing/dashboard
+- Store management
+- Store approval/rejection/suspension/reactivation
+- Commission management
+- Order visibility
+- Customer visibility if implemented
+- Any reports/analytics
+- Any other admin screens
+
+For every screen:
+
+- source file
+- route
+- API endpoint
+- database interaction
+- tested/not tested
+
+Clearly identify placeholder screens.
+
+==================================================
+5. BACKEND API COVERAGE
+==================================================
+
+Inspect every backend route currently implemented.
+
+Produce a structured inventory grouped by:
+
+AUTH
+CUSTOMER
+CUSTOMER ADDRESSES
+STORE DISCOVERY
+CATALOG
+CART
+CHECKOUT
+ORDERS
+VENDOR
+ADMIN
+DELIVERY
+
+For every endpoint provide:
+
+- HTTP method
+- path
+- purpose
+- authenticated role(s)
+- frontend consumer
+- database tables touched
+- implemented?
+- tested?
+- test evidence if available
+
+Identify any backend endpoint that has no corresponding UI.
+
+Identify any UI action that has no corresponding backend endpoint.
+
+==================================================
+6. DATABASE CONNECTION
+==================================================
+
+Inspect how the applications connect to Supabase.
+
+Verify:
+
+- Customer Auth
+- Vendor Auth
+- Admin Auth
+- customer profile
+- addresses
+- stores
+- pincodes
+- operating hours
+- categories
+- products
+- carts
+- cart items
+- orders
+- order items
+- order status history
+
+For each, determine whether:
+
+A. schema exists
+B. backend API exists
+C. frontend UI exists
+D. frontend -> API -> database connection exists
+E. live DEV Supabase testing has actually been performed
+
+Do not claim live database validation merely because the code compiles.
+
+==================================================
+7. END-TO-END TESTING — VERY IMPORTANT
+==================================================
+
+Review ALL existing test reports and test files.
+
+We previously performed substantial Phase 12 DEV validation.
+
+Determine exactly which of the following were actually tested against the live DEV Supabase environment:
+
+CUSTOMER:
+1. customer authentication
+2. customer address
+3. store discovery by pincode
+4. catalog
+5. product detail
+6. add to cart
+7. update cart
+8. remove cart item
+9. switch supermarket
+10. checkout validation
+11. order creation
+12. customer order viewing
+13. customer order isolation
+
+VENDOR:
+14. vendor authentication
+15. vendor store isolation
+16. vendor catalog isolation
+17. vendor order access
+18. accept order
+19. prepare order
+20. ready order
+21. out for delivery
+22. delivered
+
+ADMIN:
+23. admin authentication
+24. admin store visibility
+25. admin order visibility
+26. commission visibility
+
+SECURITY:
+27. customer A cannot access customer B
+28. vendor A cannot access vendor B
+29. vendor cannot modify another store
+30. customer cannot perform vendor actions
+31. order snapshots remain immutable
+32. order history remains immutable
+33. duplicate order protection
+34. RLS behavior
+
+For every item classify:
+
+PASS
+PASS WITH LIMITATION
+NOT TESTED
+NOT IMPLEMENTED
+BLOCKED
+
+Provide evidence where available.
+
+==================================================
+8. ACTUAL CUSTOMER ACCOUNT / TEST DATA
+==================================================
+
+Determine what development test identities/data currently exist.
+
+Do NOT create anything.
+
+Report whether the existing DEV fixtures still exist:
+
+- Customer A
+- Customer B
+- Vendor A
+- Vendor B
+- Admin
+
+Report counts for:
+
+- customers
+- addresses
+- stores
+- categories
+- products
+- carts
+- cart items
+- orders
+- order items
+- order history
+
+Also identify whether dummy supermarket/catalog data currently exists.
+
+We previously created development Store A and Store B and test products.
+
+Verify whether those records still exist.
+
+DO NOT modify them.
+
+==================================================
+9. EDIT OPERATIONS
+==================================================
+
+Audit actual UI + API support for EDIT operations.
+
+Check:
+
+Customer:
+- profile edit
+- address edit
+
+Vendor:
+- store profile edit
+- service pincode edit
+- operating hours edit
+- category edit
+- product edit
+- product price
+- availability
+- stock
+- activation/deactivation
+
+Admin:
+- store management
+- commission rate
+
+For each determine:
+
+UI exists?
+API exists?
+Database mutation exists?
+Authorization exists?
+Actually tested?
+
+==================================================
+10. DELETE OPERATIONS
+==================================================
+
+This is especially important because the system intentionally uses soft-delete/historical preservation in several areas.
+
+Do NOT assume "delete" should mean physical database deletion.
+
+Audit:
+
+- customer address deletion
+- cart item removal
+- cart clearing
+- category deactivation
+- product deactivation
+- any store deletion
+- any order deletion
+- any order item deletion
+- any order history deletion
+
+For each explain the actual implemented behavior.
+
+Distinguish:
+
+- true delete
+- soft delete/deactivation
+- removal from active cart
+- intentionally prohibited historical deletion
+
+Also identify any UI buttons labeled Delete that currently do nothing or are not connected.
+
+==================================================
+11. NAVIGATION / ROUTING AUDIT
+==================================================
+
+Inspect all React/Expo routing/navigation code.
+
+Answer:
+
+- Which routes are registered?
+- Which routes are reachable?
+- Which pages exist but aren't linked?
+- Which navigation buttons point to nonexistent routes?
+- Are vendor/admin/customer flows separated correctly?
+- Are protected routes actually protected?
+- Is role-based navigation implemented?
+- Are there dead-end pages?
+- Are there placeholder pages?
+
+Give exact route paths.
+
+==================================================
+12. WHY ONLY TWO CUSTOMER WEB PAGES + DASHBOARD WERE VISIBLE
+==================================================
+
+This needs a precise explanation.
+
+Determine whether the pages were:
+
+A. actually missing,
+B. implemented but not linked,
+C. implemented but protected behind authentication,
+D. implemented only as native screens,
+E. implemented but not registered in the Replit Preview,
+F. hidden because the Preview only exposes the Dashboard and Customer shell,
+G. genuinely not implemented.
+
+Do not guess.
+
+Trace the actual code/navigation/artifact configuration and identify the exact reason.
+
+==================================================
+13. UI COMPLETENESS
+==================================================
+
+Compare the current implementation against the agreed MVP architecture.
+
+Expected customer flow:
+
+SIGN UP/LOGIN
+→ ADDRESS
+→ STORE DISCOVERY
+→ STORE
+→ CATEGORIES/PRODUCTS
+→ PRODUCT
+→ CART
+→ CHECKOUT
+→ ORDER
+→ ORDER STATUS
+→ DELIVERY
+→ ACCOUNT
+
+Expected vendor flow:
+
+LOGIN
+→ STORE
+→ CATALOG
+→ ORDERS
+→ ORDER PROCESSING
+→ DELIVERY
+
+Expected admin flow:
+
+LOGIN
+→ STORES
+→ STORE APPROVAL/MANAGEMENT
+→ ORDERS
+→ COMMISSION
+
+Mark each step:
+
+IMPLEMENTED
+PARTIAL
+MISSING
+NOT CONNECTED
+NOT TESTED
+
+==================================================
+14. COMPLETE E2E GAP ANALYSIS
+==================================================
+
+At the end produce exactly these sections:
+
+A. WHAT IS ACTUALLY COMPLETE
+
+B. WHAT IS PARTIALLY COMPLETE
+
+C. WHAT IS IMPLEMENTED BUT NOT CONNECTED
+
+D. WHAT IS CONNECTED BUT NOT TESTED
+
+E. WHAT IS NOT IMPLEMENTED
+
+F. WHAT IS BLOCKED BY REPLIT/PREVIEW/ENVIRONMENT
+
+G. CURRENT DEV TEST DATA
+
+H. CURRENT CUSTOMER FLOW STATUS
+
+I. CURRENT VENDOR FLOW STATUS
+
+J. CURRENT ADMIN FLOW STATUS
+
+K. EDIT/DELETE STATUS
+
+L. REMAINING FIXES BEFORE UI/MVP CAN BE CALLED COMPLETE
+
+M. RECOMMENDED NEXT ORDER OF WORK
+
+==================================================
+15. IMPORTANT FINAL RULE
+==================================================
+
+Do not give us a generic statement such as:
+
+"Most of the application is complete."
+
+We need an evidence-based implementation inventory.
+
+Every claim should reference:
+
+- exact source file
+- route
+- API endpoint
+- test file/report
+- or database evidence
+
+where applicable.
+
+Again:
+
+READ-ONLY ONLY.
+NO CODE CHANGES.
+NO DATABASE CHANGES.
+NO NEW DATA.
+NO USER CREATION.
+NO CONFIGURATION CHANGES.
