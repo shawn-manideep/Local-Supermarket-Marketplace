@@ -1,0 +1,251 @@
+We need a ROOT-CAUSE AUDIT of the Replit Run/Preview configuration for this project.
+
+IMPORTANT:
+Do NOT modify application source code.
+Do NOT modify database schema or migrations.
+Do NOT modify Supabase configuration.
+Do NOT modify authentication.
+Do NOT modify API/business logic.
+Do NOT create temporary shell scripts.
+Do NOT create legacy workflows just to make Preview work temporarily.
+Do NOT randomly change ports.
+Do NOT modify artifact.toml files unless you first prove they are incorrectly configured.
+Do NOT publish the application.
+Do NOT consume effort on application features.
+
+Our problem is recurring:
+
+Replit repeatedly shows:
+
+"App is not running"
+
+even though the applications can be started successfully from Shell.
+
+We need the PERMANENT ROOT CAUSE and the correct Replit-native configuration.
+
+CURRENT APPLICATION ARCHITECTURE
+
+This is a PNPM monorepo for a local supermarket marketplace.
+
+Logical applications:
+
+1. Customer:
+   apps/customer
+   Expo + React Native + TypeScript
+   Supports Android/iOS/Web
+
+2. Dashboard:
+   React + Vite + TypeScript
+
+3. Backend:
+   backend/api
+   Node + Express + TypeScript
+
+Shared packages exist under:
+   packages/
+
+Database:
+   database/migrations/
+
+Replit has also created artifact-managed applications:
+
+artifacts/api-server/
+artifacts/marketplace-dashboard/
+artifacts/marketplace-customer/
+artifacts/mockup-sandbox/
+
+CURRENT INTENDED ROUTING
+
+/
+    → Marketplace Dashboard
+
+/customer/
+    → Marketplace Customer Web
+
+/api/*
+    → Real Backend API
+
+/__mockup/
+    → Canvas/Mockup
+
+CURRENT ARTIFACT CONFIGURATION
+
+API artifact:
+artifacts/api-server/.replit-artifact/artifact.toml
+
+It is configured as an API artifact with:
+previewPath = "/api"
+
+Customer artifact:
+artifacts/marketplace-customer/.replit-artifact/artifact.toml
+
+It is configured as a web artifact with:
+previewPath = "/customer/"
+router = "path"
+
+Dashboard artifact:
+artifacts/marketplace-dashboard/.replit-artifact/artifact.toml
+
+It is configured as a web artifact with:
+previewPath = "/"
+router = "path"
+
+Mockup artifact:
+artifacts/mockup-sandbox/.replit-artifact/artifact.toml
+
+It is configured for:
+/__mockup
+
+The project .replit currently has:
+
+[workflows]
+
+with no active project workflow.
+
+IMPORTANT OBSERVATIONS ALREADY VERIFIED
+
+1. The backend can be started manually and reports:
+
+API listening on port 5000
+
+2. The customer Expo web application can be exported successfully.
+
+3. The customer preview server can be started manually and reports:
+
+Customer Web preview listening on port 8082
+
+4. Replit Networking can expose a running port.
+
+5. Previously verified managed routes included:
+
+/                     → Dashboard 200
+/customer/             → Customer 200
+/api/health            → Backend 200
+/api/auth/me           → 401 unauthenticated
+/__mockup/             → 200
+
+6. Therefore this is NOT simply an application build failure.
+
+7. A previous Agent investigation reported that the artifact-managed services do not have an obvious supported project-file mechanism for being assigned to the green Run button without recreating legacy workflows.
+
+8. Repeated manual fixes temporarily start services, but after the workspace/runtime state changes, the green Run/Preview again reports:
+
+"App is not running"
+
+WHAT WE NEED FROM YOU
+
+Perform a READ-ONLY configuration audit.
+
+Inspect:
+
+- .replit
+- package.json files
+- pnpm-workspace configuration
+- all artifact.toml files
+- artifact registrations if accessible
+- Replit workflow configuration
+- Replit Run configuration
+- deployment configuration
+- previewPath configuration
+- router configuration
+- service definitions
+- localPort configuration
+- dynamic port handling
+- PORT environment handling
+- BASE_PATH handling
+- API routing
+- dashboard routing
+- customer routing
+- CORS configuration
+- any legacy Replit configuration
+- any conflicting launchers
+- any duplicate service definitions
+- any orphaned artifacts
+- any service that Replit considers the primary application
+- any mismatch between artifact-managed services and the project-level Run button
+
+ANSWER THESE QUESTIONS PRECISELY:
+
+1. What is the authoritative Replit application/service configuration for this project?
+
+2. Which artifact is currently supposed to be launched by the green Run button?
+
+3. Does Replit support running this multi-application artifact architecture through the project-level Run button?
+
+4. If yes, what exact configuration makes that happen?
+
+5. If no, what is the supported Replit-native architecture for this project?
+
+6. Is the empty [workflows] section in .replit part of the problem?
+
+7. Are artifact.toml service definitions sufficient for Run/Preview, or do they require an additional Replit platform/UI assignment?
+
+8. Are there duplicate or conflicting definitions between:
+   - .replit
+   - workflows
+   - artifact.toml
+   - package.json scripts
+   - deployment configuration?
+
+9. Why can Shell start the applications while Preview says "App is not running"?
+
+10. Why does the problem recur after a temporary fix?
+
+11. Which port should be the authoritative application/preview port?
+
+12. Should there be one primary Replit service that proxies/routes:
+       /
+       /customer/
+       /api/
+       /__mockup/
+    or should Replit manage these as separate artifact services?
+
+13. Is the current architecture actually supported by Replit's Preview/Run system?
+
+14. What EXACT configuration changes are required for a permanent solution?
+
+15. Which files would need to change?
+
+16. Which files MUST NOT be changed?
+
+17. After the permanent fix, what should happen when the user:
+    - opens the Replit project
+    - clicks Run
+    - refreshes Preview
+    - stops/restarts the workspace
+    - reopens the project the next day?
+
+18. Provide a final recommended architecture showing:
+
+    Replit Run
+       ↓
+    primary service
+       ↓
+    frontend
+    backend
+    routing
+    ports
+
+19. Clearly distinguish:
+    - permanent configuration
+    - temporary workaround
+    - unsupported configuration
+
+20. Do NOT make any changes until this diagnostic report is complete.
+
+The goal is NOT merely to make the Preview work once.
+
+The goal is to identify the authoritative Replit configuration and eliminate the recurring "App is not running" problem permanently.
+
+At the end, provide:
+
+A. ROOT CAUSE
+B. CURRENT CONFIGURATION
+C. CONFIGURATION CONFLICTS
+D. PERMANENT SOLUTION
+E. EXACT FILE CHANGES REQUIRED
+F. REPLIT UI SETTINGS REQUIRED
+G. PORT/RUN MODEL
+H. VERIFICATION TEST PLAN
+
+Do not implement anything yet.
