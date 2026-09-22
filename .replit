@@ -9,6 +9,28 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
+runButton = "Marketplace Development"
+
+[[workflows.workflow]]
+name = "Marketplace Development"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/api-server: API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/marketplace-dashboard: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/marketplace-customer: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/mockup-sandbox: Component Preview Server"
 
 [agent]
 stack = "PNPM_WORKSPACE"

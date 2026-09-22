@@ -1,0 +1,120 @@
+
+
+IMPLEMENT ONLY THE PERMANENT REPLIT RUN/PREVIEW FIX FROM THE COMPLETED ROOT-CAUSE AUDIT.
+
+The read-only audit has confirmed the root cause:
+
+- Four artifact-managed development workflows exist.
+- They are:
+  1. artifacts/api-server: API Server
+  2. artifacts/marketplace-dashboard: web
+  3. artifacts/marketplace-customer: web
+  4. artifacts/mockup-sandbox: Component Preview Server
+- All four are currently not_started when the project is opened.
+- .replit contains an empty [workflows] section.
+- The green Run button has no project-level workflow that starts these managed services.
+- This causes Preview to repeatedly show "App is not running".
+- Manual Shell starts are only temporary runtime workarounds.
+
+PERMANENT FIX:
+
+Modify ONLY the root .replit file.
+
+Replace the empty [workflows] section with a parent parallel workflow named:
+
+Marketplace Development
+
+It must be assigned to:
+
+runButton = "Marketplace Development"
+
+The parent workflow must contain ONLY workflow.run tasks referencing the existing artifact-managed workflows:
+
+artifacts/api-server: API Server
+artifacts/marketplace-dashboard: web
+artifacts/marketplace-customer: web
+artifacts/mockup-sandbox: Component Preview Server
+
+Use the existing managed workflow names exactly.
+
+DO NOT:
+
+- modify application source code
+- modify backend source code
+- modify package.json
+- modify pnpm-workspace.yaml
+- modify artifact.toml files
+- modify ports
+- hardcode ports
+- create shell.exec launchers
+- create legacy workflows
+- create a reverse proxy
+- modify routing
+- modify Supabase
+- modify database/migrations
+- modify authentication
+- modify API/business logic
+- modify deployment configuration
+- publish the application
+- create production resources
+- change Vercel/Railway configuration
+
+The intended workflow structure is:
+
+[workflows]
+runButton = "Marketplace Development"
+
+[[workflows.workflow]]
+name = "Marketplace Development"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/api-server: API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/marketplace-dashboard: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/marketplace-customer: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/mockup-sandbox: Component Preview Server"
+
+After making ONLY this change:
+
+1. Verify the .replit file.
+2. Verify the Run button recognizes "Marketplace Development".
+3. Start the parent workflow.
+4. Confirm all four child workflows start.
+5. Confirm their expected managed ports:
+   API 8080
+   Dashboard 25422
+   Customer 25436
+   Mockup 8081
+6. Verify:
+   /                 → Dashboard
+   /customer/        → Customer
+   /api/health       → HTTP 200
+   /__mockup/        → Mockup
+7. Stop the parent workflow.
+8. Start it again.
+9. Verify all four services start again.
+10. Do NOT make any additional changes.
+
+If Replit reports that the exact workflow syntax is unsupported, STOP and report the error. Do not invent an alternative launcher or modify artifact configurations.
+
+At the end report:
+
+- exact .replit diff
+- whether Marketplace Development appears in Run
+- whether all four workflows start
+- whether all four routes work
+- whether the second start works
+- list of files changed
+
+No other files should be changed
