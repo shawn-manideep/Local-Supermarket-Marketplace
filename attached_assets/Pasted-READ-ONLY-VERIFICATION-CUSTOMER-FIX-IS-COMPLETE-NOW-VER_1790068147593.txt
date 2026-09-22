@@ -1,0 +1,184 @@
+READ-ONLY VERIFICATION — CUSTOMER FIX IS COMPLETE, NOW VERIFY DASHBOARD/VENDOR ACCESS
+
+The Customer Address Edit issue has already been fixed and verified.
+
+DO NOT modify anything in this task.
+
+I need a definitive verification of the Dashboard/Vendor Portal because the browser recording showed that I could not actually reach the Vendor Portal.
+
+IMPORTANT DISTINCTION:
+
+"Vendor portal code exists" is NOT sufficient.
+
+We need to prove that an actual DEV vendor account can:
+
+1. Open the Dashboard
+2. Sign in
+3. Establish a Supabase session
+4. Call /api/auth/me
+5. Receive role=vendor
+6. Resolve its store
+7. Render the Vendor Portal
+8. Load real store data from the backend/database
+
+READ-ONLY ONLY:
+- No code changes
+- No database changes
+- No migrations
+- No seed changes
+- No auth changes
+- No role changes
+- No workflow changes
+- No configuration changes
+
+### 1. DEV AUTH ACCOUNTS
+
+Inspect the current DEV Supabase Auth users and user_profiles.
+
+Report:
+
+- Customer test accounts
+- Vendor test accounts
+- Admin test account
+
+For each vendor account report:
+
+- email
+- role
+- user_profile exists
+- owner_user_id/store relationship
+- store name
+- store status
+
+DO NOT expose passwords, tokens, service keys, or secrets.
+
+Specifically answer:
+
+A. Is there currently a valid vendor account?
+B. Is it correctly linked to a store?
+C. Is that store ACTIVE?
+
+### 2. TEST THE REAL VENDOR AUTH FLOW
+
+Use an existing DEV vendor account.
+
+Do not create or modify an account.
+
+Verify the actual flow:
+
+Dashboard
+→ Sign in
+→ Supabase Auth
+→ session
+→ access token
+→ GET /api/auth/me
+→ role=vendor
+→ store resolution
+→ Vendor Portal
+
+Record the HTTP result and response meaning for /api/auth/me.
+
+Do NOT print access tokens.
+
+### 3. VERIFY THE FRONTEND
+
+Inspect:
+
+apps/dashboard/src/
+
+Determine:
+
+- where login occurs
+- where Supabase session is restored
+- where /api/auth/me is called
+- how role is determined
+- how vendor UI is selected
+- how admin UI is selected
+- how customer access is denied
+
+Then actually verify with the valid vendor account whether the Vendor Portal renders.
+
+### 4. IF VENDOR LOGIN FAILS
+
+Do NOT fix it.
+
+Determine the exact failure category:
+
+A. Vendor account doesn't exist
+B. Vendor account has wrong role
+C. Vendor has no store association
+D. Supabase login fails
+E. Session restoration fails
+F. Access token is missing/invalid
+G. /api/auth/me returns an error
+H. /api/auth/me returns wrong role
+I. /api/auth/me returns vendor but no store
+J. Vendor role is correct but dashboard frontend fails to render
+K. Dashboard API origin/routing problem
+L. Other — provide evidence
+
+### 5. VERIFY CUSTOMER BEHAVIOR
+
+Using the existing customer account:
+
+Customer must NOT enter Vendor/Admin Portal.
+
+Confirm that this is intentional role protection and not a generic dashboard failure.
+
+### 6. VERIFY ADMIN BEHAVIOR
+
+Using the existing DEV admin account:
+
+Verify:
+
+Dashboard
+→ Admin login
+→ session
+→ /api/auth/me
+→ role=admin
+→ Admin Portal renders
+
+Again, do not modify anything.
+
+### 7. VERIFY VENDOR PORTAL DATA
+
+If the vendor portal successfully renders, verify whether it can read:
+
+- store profile
+- service pincodes
+- operating hours
+- categories
+- products
+- orders
+
+Do not edit anything.
+
+### 8. FINAL REPORT
+
+Return:
+
+CUSTOMER:
+- login: PASS/FAIL
+- management denial: PASS/FAIL
+
+VENDOR:
+- account exists: PASS/FAIL
+- account role: PASS/FAIL
+- store association: PASS/FAIL
+- Supabase login: PASS/FAIL
+- /api/auth/me: PASS/FAIL
+- Vendor Portal rendering: PASS/FAIL
+- store data loading: PASS/FAIL
+
+ADMIN:
+- account exists: PASS/FAIL
+- Supabase login: PASS/FAIL
+- /api/auth/me: PASS/FAIL
+- Admin Portal rendering: PASS/FAIL
+
+MOST IMPORTANT:
+State clearly whether the Vendor Portal was actually opened successfully with a real DEV vendor account.
+
+If it failed, identify the exact failure point and evidence.
+
+DO NOT implement any fix.
