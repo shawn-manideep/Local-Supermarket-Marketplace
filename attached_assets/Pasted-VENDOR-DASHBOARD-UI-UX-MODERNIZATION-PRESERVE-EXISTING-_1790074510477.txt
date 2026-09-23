@@ -1,0 +1,938 @@
+VENDOR DASHBOARD UI/UX MODERNIZATION — PRESERVE EXISTING BUSINESS LOGIC
+
+We have completed and browser-verified the Customer application UI modernization and its verified customer bug fixes.
+
+Now work ONLY on the existing Vendor Dashboard / Vendor Portal.
+
+This is a VENDOR UI/UX modernization task.
+
+DO NOT modify the Customer application in this task.
+
+DO NOT modify the Admin UI in this task.
+
+DO NOT implement 30-minute delivery or scheduled delivery slots in this task.
+
+DO NOT implement Create Store in this task.
+
+DO NOT change the database schema, migrations, RLS, authentication architecture, order lifecycle, financial calculations, commission logic, or business rules unless an absolutely necessary existing Vendor UI bug is discovered. If such a change appears necessary, STOP and report it before changing it.
+
+==================================================
+PART 1 — OBJECTIVE
+==================================================
+
+The current Vendor Dashboard is functional, but it currently feels too much like an internal developer/database management screen.
+
+Redesign it into a professional, modern supermarket/vendor management dashboard suitable for a real supermarket owner.
+
+The Vendor should immediately understand:
+
+1. How is my store doing?
+2. Are there new orders?
+3. Which orders require action?
+4. What products/categories do I manage?
+5. What is my store status?
+6. What delivery/order actions do I need to perform?
+
+The result should feel like a polished business application, not a developer prototype.
+
+Use modern grocery/retail management UX patterns for inspiration.
+
+Do NOT copy any third-party branding, logos, colors, proprietary layouts, assets, or designs.
+
+==================================================
+PART 2 — STRICT TECHNICAL CONSTRAINTS
+==================================================
+
+Preserve:
+
+- existing React + TypeScript Dashboard architecture
+- existing Supabase Auth
+- existing backend APIs
+- existing database schema
+- existing RLS/security
+- existing vendor authorization
+- existing vendor → store ownership model
+- existing order lifecycle
+- existing financial calculations
+- existing commission calculations
+- existing catalog APIs
+- existing store APIs
+
+Do NOT replace working APIs with mock data.
+
+Do NOT create fake orders, fake customers, fake revenue, fake analytics, fake ratings, fake reviews, or fake inventory.
+
+All displayed business data must come from the existing backend/API.
+
+Do NOT introduce a new UI framework unnecessarily.
+
+Reuse existing components where practical.
+
+Do NOT change Customer application files.
+
+Do NOT change Admin application files.
+
+==================================================
+PART 3 — FIRST INSPECT THE EXISTING VENDOR APPLICATION
+==================================================
+
+Before implementing the redesign:
+
+Inspect:
+
+- current Vendor Dashboard entry point
+- current Vendor Portal components
+- current navigation
+- current store APIs
+- current category APIs
+- current product APIs
+- current order APIs
+- current order lifecycle actions
+- current authentication/session handling
+- current role resolution
+- current store ownership resolution
+
+Map which existing screens/components are:
+
+- working
+- partially working
+- placeholder
+- decorative
+- disconnected from backend
+
+Do not rewrite working functionality unnecessarily.
+
+Preserve all currently working Vendor API interactions.
+
+==================================================
+PART 4 — CREATE A VENDOR DESIGN SYSTEM
+==================================================
+
+Create/reuse Vendor-specific reusable UI primitives for:
+
+- Dashboard layout
+- Sidebar/navigation
+- Header
+- Page headers
+- Cards
+- Summary/stat cards
+- Order cards
+- Order status badges
+- Product cards/table rows
+- Category rows
+- Store information cards
+- Form sections
+- Inputs
+- Select/dropdown controls
+- Primary buttons
+- Secondary buttons
+- Destructive buttons
+- Confirmation dialogs
+- Empty states
+- Loading states
+- Error states
+- Retry states
+- Success feedback
+- Disabled states
+- Busy/submitting states
+- Tables
+- Mobile responsive layouts
+
+Establish consistent:
+
+- typography
+- spacing
+- border radius
+- shadows/elevation
+- button sizing
+- table spacing
+- card spacing
+- status colors
+- icon treatment
+- selected states
+- hover states
+- disabled states
+- error states
+
+Avoid excessive rounded cards and excessive borders.
+
+Avoid the current plain form-heavy appearance.
+
+==================================================
+PART 5 — VENDOR NAVIGATION
+==================================================
+
+Create a clear Vendor navigation structure.
+
+Recommended structure:
+
+Dashboard
+Store
+Catalog
+  - Categories
+  - Products
+Orders
+Delivery
+Settings
+
+Use clear icons and labels.
+
+The exact implementation may use a sidebar on desktop and an appropriate responsive navigation on smaller screens.
+
+Do NOT create fake pages.
+
+If a navigation item is not backed by existing functionality, either:
+
+- connect it to an existing real feature, or
+- omit it.
+
+Do not create decorative buttons that do nothing.
+
+==================================================
+PART 6 — VENDOR DASHBOARD HOME
+==================================================
+
+Redesign the Vendor Dashboard home.
+
+The vendor should immediately see operational information.
+
+Recommended structure:
+
+HEADER
+
+Store name
+Store status
+Vendor profile/account
+
+OVERVIEW
+
+Show useful real metrics based on existing API data.
+
+Examples:
+
+- New Orders
+- Preparing
+- Ready
+- Out for Delivery
+- Delivered
+
+Only display metrics that can be calculated from existing real API data.
+
+Do NOT invent revenue or sales analytics if the existing API does not provide reliable data for them.
+
+ORDERS REQUIRING ACTION
+
+Create a prominent section for orders that need vendor action.
+
+For example:
+
+NEW ORDER
+Order reference
+Customer
+Total
+Items
+Payment method
+Delivery information
+
+[View Order]
+
+PREPARING
+Order reference
+Current status
+
+[View Order]
+
+READY
+Order reference
+
+[View Order]
+
+Make urgent/actionable orders visually obvious.
+
+==================================================
+PART 7 — STORE MANAGEMENT
+==================================================
+
+Redesign the existing Vendor Store screen.
+
+The vendor should clearly see:
+
+Store name
+Store status
+Service pincodes
+Delivery fee
+Minimum order
+Operating hours
+
+Organize the information into clear sections.
+
+Example:
+
+STORE PROFILE
+
+Store Name
+Status
+Delivery Fee
+Minimum Order
+
+SERVICE AREA
+
+Served pincodes
+
+OPERATING HOURS
+
+Monday
+Tuesday
+...
+Sunday
+
+Make editing intuitive.
+
+Use the existing real APIs.
+
+Do not allow the Vendor to edit protected fields such as:
+
+- owner_user_id
+- store ownership
+- store status where not permitted
+- commission rate
+- other server-controlled fields
+
+Preserve existing backend authorization.
+
+==================================================
+PART 8 — SERVICE PINCODES
+==================================================
+
+Redesign service-pincode management.
+
+Show:
+
+Current service pincodes
+
+Allow the Vendor to use the existing supported add/remove functionality.
+
+Use:
+
+- clear input
+- validation
+- success feedback
+- error feedback
+- loading/busy state
+- confirmation where appropriate
+
+Do not expose database IDs unnecessarily.
+
+==================================================
+PART 9 — OPERATING HOURS
+==================================================
+
+Redesign operating-hours management.
+
+Show all seven days clearly.
+
+Example:
+
+Monday
+09:00 AM — 09:00 PM
+[Edit]
+
+Tuesday
+09:00 AM — 09:00 PM
+[Edit]
+
+...
+
+Make open/closed configuration visually obvious.
+
+Use the existing operating-hours API.
+
+Do not introduce a new timezone model.
+
+Do not change the existing Asia/Kolkata business behavior.
+
+==================================================
+PART 10 — CATALOG / CATEGORIES
+==================================================
+
+Redesign Categories.
+
+Show:
+
+Category name
+Active/inactive state
+Product count if available from reliable API data
+
+Actions:
+
+- Create category
+- Edit category
+- Activate/deactivate
+
+Use existing backend APIs.
+
+Do not implement hard deletion if the existing system intentionally uses activation/deactivation.
+
+Show clear confirmation for destructive/deactivation actions.
+
+==================================================
+PART 11 — PRODUCTS
+==================================================
+
+Redesign the Products experience.
+
+Provide a professional product-management interface.
+
+Show:
+
+Product name
+Category
+Price
+Availability
+Active/inactive
+Stock where appropriate for Vendor management
+
+Use the existing backend data.
+
+Actions already supported by the backend should remain available:
+
+- Create product
+- Edit product
+- Change price
+- Change stock
+- Change category
+- Activate
+- Deactivate
+- Change availability
+
+Do not expose unnecessary internal fields to the user interface.
+
+Do not allow editing protected ownership/store fields.
+
+Use clear status badges:
+
+ACTIVE
+INACTIVE
+AVAILABLE
+UNAVAILABLE
+
+Do not confuse:
+
+is_active
+
+with:
+
+availability
+
+These are different concepts and must remain different.
+
+==================================================
+PART 12 — ORDERS
+==================================================
+
+This is one of the most important Vendor screens.
+
+Create a professional order-management interface.
+
+Organize orders clearly by status.
+
+Recommended filters/tabs:
+
+New
+Accepted
+Preparing
+Ready
+Out for Delivery
+Delivered
+Rejected
+Cancelled
+
+Only show statuses/orders supported by actual backend data.
+
+Each order should clearly display:
+
+Order reference
+Order date/time
+Customer
+Item count
+Total
+Payment method
+Current status
+Delivery information
+
+Use real backend data.
+
+Do not create fake order counts.
+
+==================================================
+PART 13 — ORDER DETAIL
+==================================================
+
+Redesign Vendor Order Detail.
+
+Recommended structure:
+
+ORDER #XXXX
+
+CURRENT STATUS
+
+Customer
+Delivery address
+Customer contact information where the existing API permits it
+
+Items
+
+Product
+Quantity
+Price
+Line total
+
+Financial summary
+
+Subtotal
+Delivery fee
+Total
+
+Payment
+
+COD
+
+Delivery information
+
+Delivery type
+Delivery contact information where available
+
+Order timeline
+
+PLACED
+↓
+ACCEPTED
+↓
+PREPARING
+↓
+READY
+↓
+OUT FOR DELIVERY
+↓
+DELIVERED
+
+Only display timeline states according to actual order history.
+
+==================================================
+PART 14 — ORDER ACTIONS
+==================================================
+
+Preserve the existing backend lifecycle exactly.
+
+Current lifecycle:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Vendor rejection remains allowed only according to the existing backend rule.
+
+Do not create arbitrary status controls.
+
+Do not create a generic "change status" dropdown.
+
+Each action must use the existing lifecycle API.
+
+Examples:
+
+PLACED:
+
+[Accept Order]
+[Reject Order]
+
+ACCEPTED:
+
+[Start Preparing]
+
+PREPARING:
+
+[Mark Ready]
+
+READY:
+
+[Out for Delivery]
+
+OUT FOR DELIVERY:
+
+[Mark Delivered]
+
+Show confirmation where appropriate.
+
+Show loading/busy state while submitting.
+
+Prevent duplicate submissions.
+
+After successful status changes:
+
+- update the visible order status
+- update the timeline
+- refresh/revalidate order data
+- remove actions that are no longer valid
+- show useful success feedback
+
+If the API fails:
+
+- show a clear error
+- retain the actual server status
+- do not show a false success state
+
+==================================================
+PART 15 — DELIVERY SCREEN
+==================================================
+
+Create a Vendor Delivery section using ONLY the existing delivery functionality.
+
+For now, this means the existing vendor-owned delivery flow:
+
+READY
+→ OUT FOR DELIVERY
+→ DELIVERED
+
+Show orders currently requiring delivery action.
+
+Example:
+
+READY FOR DELIVERY
+
+Order #1234
+Customer
+Address
+Total
+
+[Mark Out for Delivery]
+
+OUT FOR DELIVERY
+
+Order #1235
+Customer
+Address
+
+[Mark Delivered]
+
+IMPORTANT:
+
+DO NOT implement:
+
+- delivery partners
+- driver assignment
+- GPS
+- maps
+- live tracking
+- route optimization
+- delivery fleet
+- delivery notifications
+- 30-minute delivery logic
+- scheduled delivery slots
+
+Those will be handled in a separate later task after architecture review.
+
+==================================================
+PART 16 — VENDOR ACCOUNT / SETTINGS
+==================================================
+
+Provide a clean Vendor account/settings area using only existing functionality.
+
+Show appropriate authenticated vendor information.
+
+Provide sign out.
+
+Do not create unsupported profile fields or settings.
+
+==================================================
+PART 17 — RESPONSIVE DESIGN
+==================================================
+
+The Vendor Dashboard must work well on:
+
+- desktop
+- laptop
+- tablet
+- narrow screens
+
+Desktop:
+
+Use sidebar + content area.
+
+Tablet/mobile:
+
+Use responsive navigation and stacked cards/tables where necessary.
+
+Do not allow:
+
+- horizontal overflow
+- clipped buttons
+- unreadable tables
+- tiny touch targets
+- excessive empty whitespace
+
+The existing Replit browser preview must remain usable.
+
+==================================================
+PART 18 — UX STATES
+==================================================
+
+Every important Vendor screen must handle:
+
+Loading
+Empty
+Error
+Retry
+Success
+Disabled
+Submitting/busy
+
+Examples:
+
+No orders:
+
+"No orders yet"
+
+No products:
+
+"No products added yet"
+
+API failure:
+
+"Something went wrong. Please try again."
+
+Successful update:
+
+"Store details updated"
+
+Successful product creation:
+
+"Product added successfully"
+
+Do not leave blank screens while data is loading.
+
+==================================================
+PART 19 — ACCESSIBILITY
+==================================================
+
+Ensure:
+
+- readable font sizes
+- sufficient contrast
+- meaningful labels
+- keyboard-friendly inputs
+- accessible buttons
+- adequate touch targets
+- visible selected states
+- visible focus/pressed states
+- status is not communicated only through color
+
+==================================================
+PART 20 — DO NOT IMPLEMENT YET
+==================================================
+
+Do NOT implement any of the following in this task:
+
+- 30-minute delivery
+- estimated delivery time calculations
+- hourly scheduled delivery slots
+- scheduled orders
+- delivery scheduling backend
+- new order statuses for scheduling
+- Create Store
+- Admin store creation
+- online payments
+- refunds
+- settlements
+- delivery partner app
+- GPS
+- maps
+- live tracking
+- coupons
+- loyalty
+- subscriptions
+- AI recommendations
+- ratings
+- reviews
+- fake analytics
+- fake inventory
+- fake revenue
+
+These are intentionally deferred to later controlled tasks.
+
+==================================================
+PART 21 — SECURITY / BUSINESS RULE PROTECTION
+==================================================
+
+Do NOT weaken any existing security.
+
+Vendor identity must continue to come from authenticated Supabase session/backend authorization.
+
+Never trust a client-provided store_id for authorization.
+
+Never allow a Vendor to access another Vendor's:
+
+- store
+- categories
+- products
+- orders
+- customer information
+
+Do not expose:
+
+- commission internals unnecessarily
+- owner IDs
+- database IDs where not needed
+- server-only fields
+- protected financial fields
+
+Do not modify RLS.
+
+Do not modify authentication.
+
+Do not modify order ownership rules.
+
+==================================================
+PART 22 — VERIFICATION
+==================================================
+
+After implementation, verify with the existing real DEV Vendor account.
+
+Do NOT create fake Vendor accounts unless required for testing.
+
+Verify:
+
+1. Vendor login
+2. Session restoration
+3. Vendor Portal access
+4. Store loads correctly
+5. Store profile displays
+6. Service pincodes display
+7. Operating hours display
+8. Categories display
+9. Create category
+10. Edit category
+11. Activate/deactivate category
+12. Products display
+13. Create product
+14. Edit product
+15. Price update
+16. Stock update
+17. Availability update
+18. Activate/deactivate product
+19. Orders display
+20. Order detail
+21. Accept order
+22. Reject PLACED order where applicable
+23. Start preparing
+24. Mark ready
+25. Mark out for delivery
+26. Mark delivered
+27. Invalid lifecycle actions remain blocked
+28. Vendor cannot access another store's data
+29. Vendor cannot modify protected fields
+30. Sign out
+31. Responsive browser layout
+32. Loading states
+33. Empty states
+34. Error states
+
+Use real backend data.
+
+Do not create unnecessary new test data that pollutes DEV.
+
+==================================================
+PART 23 — TESTING
+==================================================
+
+Run:
+
+- Dashboard TypeScript
+- Workspace TypeScript if practical
+- Existing backend tests
+- Dashboard production build
+- Existing API health check
+- Relevant Vendor API tests
+- Browser verification of the Vendor Portal
+
+Do not modify the existing test suite merely to make tests pass.
+
+If a test fails because of a real bug, investigate it.
+
+==================================================
+PART 24 — CHANGE CONTROL
+==================================================
+
+Before finishing, report exactly which files were changed.
+
+IMPORTANT:
+
+Expected scope is primarily:
+
+apps/dashboard/...
+
+and any strictly necessary shared UI files.
+
+Do NOT modify:
+
+- apps/customer
+- database migrations
+- RLS
+- Supabase Auth architecture
+- order lifecycle services
+- financial calculation logic
+- production configuration
+- deployment configuration
+
+unless absolutely necessary.
+
+If you believe any such change is required:
+
+STOP and report it before making that change.
+
+==================================================
+PART 25 — FINAL REPORT
+==================================================
+
+Return a concise but complete report containing:
+
+1. Files changed
+2. Vendor design system/components created
+3. Navigation structure
+4. Dashboard redesign
+5. Store management redesign
+6. Category/product redesign
+7. Order management redesign
+8. Order detail redesign
+9. Delivery screen redesign
+10. Existing functionality preserved
+11. APIs used
+12. Security/business rules preserved
+13. Tests performed
+14. Browser verification performed
+15. Build result
+16. Any bugs discovered
+17. Any remaining UI/UX gaps
+18. Any requested changes that were intentionally NOT implemented
+
+IMPORTANT FINAL RULE:
+
+This task is ONLY Vendor Dashboard modernization.
+
+Do not expand scope.
+
+Do not implement Admin UI.
+
+Do not implement Customer UI.
+
+Do not implement Create Store.
+
+Do not implement delivery scheduling.
+
+Do not implement 30-minute delivery.
+
+Do not modify the existing order architecture.
+
+The goal is to make the existing Vendor Portal feel like a polished, professional supermarket operations application while preserving all existing backend functionality and security.

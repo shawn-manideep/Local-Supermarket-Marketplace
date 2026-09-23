@@ -152,8 +152,23 @@ export default function App() {
     return <main className="page"><div className="dashboard-shell"><AuthFrame><AuthState title="Management access is unavailable" message="This account is a customer account. Ask a platform administrator for vendor or admin access." action={signOut} actionLabel="Sign out" /></AuthFrame></div></main>;
   }
 
+  if (profile.role === "vendor" && profile.storeId) {
+    return (
+      <div className="app-root is-vendor">
+        <VendorStorePanel 
+          onMessage={onMessage} 
+          token={session.access_token} 
+          profile={profile}
+          onSignOut={signOut}
+          notice={notice}
+          onDismissNotice={() => setNotice(null)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <main className="page">
+    <main className="page is-admin">
       <div className="dashboard-shell">
         <header className="topbar">
           <div>
@@ -179,7 +194,7 @@ export default function App() {
         )}
 
         {profile.role === "vendor" ? (
-          profile.storeId ? <VendorStorePanel onMessage={onMessage} token={session.access_token} /> : <div className="empty-state"><strong>No vendor store is linked</strong><span>Your account is approved for vendor access, but no store has been assigned yet.</span></div>
+          <div className="empty-state"><strong>No vendor store is linked</strong><span>Your account is approved for vendor access, but no store has been assigned yet.</span></div>
         ) : (
           <AdminStorePanel onMessage={onMessage} token={session.access_token} />
         )}
