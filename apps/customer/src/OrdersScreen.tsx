@@ -13,6 +13,7 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
   const [selected, setSelected] = useState<CustomerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"All" | "Processing" | "Delivered" | "Cancelled">("All");
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
 
@@ -41,9 +42,8 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
   return (
     <ScrollView contentContainerStyle={commonStyles.page}>
       <View style={commonStyles.container}>
-        <Text style={typography.eyebrow}>HISTORY</Text>
-        <Text style={[typography.hero, { marginBottom: spacing.xs }]}>Your Orders</Text>
-        <Text style={[typography.body, { marginBottom: spacing.xl }]}>Track your recent local grocery runs.</Text>
+        <Text style={styles.listHeader}>My Orders</Text>
+        <View style={styles.filters}>{(["All", "Processing", "Delivered", "Cancelled"] as const).map(item => <Pressable accessibilityRole="button" accessibilityState={{ selected: filter === item }} key={item} onPress={() => setFilter(item)} style={[styles.filter, filter === item && styles.filterActive]}><Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{item}</Text></Pressable>)}</View>
         
         {!!error && (
           <View style={styles.errorBox}>
@@ -57,17 +57,19 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
             <Text style={typography.title2}>No orders yet</Text>
             <Text style={typography.body}>Your first supermarket order will appear here.</Text>
           </View>
+        ) : orders.length > 0 && !orders.some(order => filter === "All" || (filter === "Processing" ? !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) : filter === "Delivered" ? order.status === "DELIVERED" : ["CANCELLED", "REJECTED"].includes(order.status))) ? (
+          <View style={styles.emptyState}><Text style={typography.title2}>No {filter.toLowerCase()} orders</Text></View>
         ) : (
           <View style={{ gap: spacing.md }}>
-            {orders.map((order) => (
+             {orders.filter(order => filter === "All" || (filter === "Processing" ? !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) : filter === "Delivered" ? order.status === "DELIVERED" : ["CANCELLED", "REJECTED"].includes(order.status))).map((order) => (
               <Pressable accessibilityRole="button" key={order.id} onPress={() => void open(order.id)} style={styles.orderCard}>
                 <View style={styles.between}>
-                  <Text style={typography.title3}>{order.storeName}</Text>
+                  <Text style={typography.title3}>#{order.id.slice(0, 8).toUpperCase()}</Text>
                   <Text style={typography.body}>{date(order.createdAt)}</Text>
                 </View>
                 <View style={styles.between}>
-                  <Text style={typography.caption}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
-                  <Text style={typography.bodySemibold}>{money(order.totalAmount)}</Text>
+                  <Text style={typography.caption}>{order.storeName}</Text>
+                  <Text style={typography.bodySemibold}>Total: {money(order.totalAmount)}</Text>
                 </View>
                 <View style={[styles.statusBadge, order.status === "CANCELLED" ? styles.statusBadgeCancelled : null]}>
                   <Text style={[styles.statusBadgeText, order.status === "CANCELLED" ? styles.statusBadgeTextCancelled : null]}>{order.status.replaceAll("_", " ")}</Text>
@@ -208,6 +210,12 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
 }
 
 const styles = StyleSheet.create({
+  listHeader: { backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: "800", marginHorizontal: -spacing.lg, marginTop: -16, padding: spacing.lg },
+  filters: { flexDirection: "row", justifyContent: "space-between", gap: 4, marginVertical: spacing.lg },
+  filter: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20 },
+  filterActive: { backgroundColor: colors.accent },
+  filterText: { color: colors.muted, fontSize: 11, fontWeight: "600" },
+  filterTextActive: { color: colors.card },
   emptyState: { alignItems: "center", padding: spacing.xl, backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, gap: spacing.md, marginTop: spacing.lg },
   errorBox: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.highlight, gap: spacing.xs, marginBottom: spacing.lg },
   orderCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm, ...shadows.sm },

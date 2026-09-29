@@ -4,3 +4,4 @@
 - [Order lifecycle boundary](order-lifecycle-boundary.md) — order creation and status changes are API-only, transactionally locked, and snapshot current authoritative values.
 - [Migration repair discipline](migration-repair-discipline.md) — never edit approved migrations; security and policy repairs must be forward-only.
 - [Legacy workflow preview routing](legacy-workflow-preview-routing.md) — non-artifact webview workflows may stay local when artifact-managed domains own preview routing.
+- [Customer browser origin](customer-dev-browser-origin.md) — interactive Customer API checks require the development origin; localhost screenshots may hit CORS.

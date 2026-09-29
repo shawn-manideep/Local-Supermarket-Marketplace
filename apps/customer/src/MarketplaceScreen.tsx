@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, Animated, TextInput } from "react-native";
-import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerStore } from "./lib/api";
+import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { QuantitySelector } from "./components/QuantitySelector";
 import { PlaceholderImage } from "./components/PlaceholderImage";
@@ -41,10 +41,11 @@ function SearchIcon() {
   );
 }
 
-export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: () => void; openCart: () => void }) {
+export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { openAddresses: () => void; openCart: () => void; resetToken: number }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [pincode, setPincode] = useState("");
   const [stores, setStores] = useState<CustomerStore[]>([]);
+  const [homeCategories, setHomeCategories] = useState<CustomerCategory[]>([]);
   const [store, setStore] = useState<CustomerStore | null>(null);
   const [categories, setCategories] = useState<CustomerCategory[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -57,6 +58,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
   const [error, setError] = useState("");
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
 
@@ -66,6 +68,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
 
   const discoveryGeneration = useRef(0);
   const catalogGeneration = useRef(0);
+  const pendingCategoryId = useRef("");
 
   const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())), [stores, searchQuery]);
   const filteredProducts = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [products, searchQuery]);
@@ -76,11 +79,16 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
   };
 
   const selectStore = (nextStore: CustomerStore | null) => {
+    pendingCategoryId.current = "";
     clearCatalog();
     setError("");
     if (!nextStore) setLoadingCatalog(false);
     setStore(nextStore);
   };
+
+  useEffect(() => {
+    if (resetToken > 0) selectStore(null);
+  }, [resetToken]);
 
   const loadAddresses = useCallback(() => {
     setLoadingAddresses(true); setError("");
@@ -95,6 +103,13 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
   }, []);
 
   useEffect(() => { loadAddresses(); }, [loadAddresses]);
+  useEffect(() => {
+    let active = true;
+    customerApi<{ profile: CustomerProfile }>("/api/customer/profile")
+      .then(({ profile }) => { if (active) setCustomerName(profile.fullName?.split(" ")[0] ?? ""); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const loadStores = useCallback(() => {
     if (!pincode) { setStores([]); return; }
@@ -107,18 +122,28 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
   }, [pincode]);
 
   useEffect(() => { loadStores(); }, [loadStores]);
+  useEffect(() => {
+    const firstStore = stores[0];
+    if (!firstStore || !pincode) { setHomeCategories([]); return; }
+    let active = true;
+    customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${firstStore.id}/categories?pincode=${pincode}`)
+      .then(result => { if (active) setHomeCategories(result.categories); })
+      .catch(() => { if (active) setHomeCategories([]); });
+    return () => { active = false; };
+  }, [stores, pincode]);
 
   useEffect(() => {
     if (!store) return;
     const generation = ++catalogGeneration.current;
-    setLoadingCatalog(true); setError(""); setCategoryId(""); setProduct(null); setCategories([]); setProducts([]);
+    setLoadingCatalog(true); setError(""); setCategoryId(pendingCategoryId.current); setProduct(null); setCategories([]); setProducts([]);
     Promise.all([
       customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${store.id}/categories?pincode=${pincode}`),
       customerApi<{ products: CustomerProduct[] }>(`/api/customer/stores/${store.id}/products?pincode=${pincode}`),
     ]).then(([categoryResult, productResult]) => {
       if (generation === catalogGeneration.current) {
         setCategories(categoryResult.categories);
-        setProducts(productResult.products);
+         setProducts(pendingCategoryId.current ? productResult.products.filter(item => item.categoryId === pendingCategoryId.current) : productResult.products);
+         pendingCategoryId.current = "";
       }
     }).catch((reason) => {
       if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load catalog.");
@@ -188,7 +213,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
 
   if (product && store) {
     content = (
-      <ScrollView contentContainerStyle={commonStyles.page}>
+      <ScrollView key="product-detail" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <Pressable accessibilityLabel={`Back to ${store.name}`} accessibilityRole="button" onPress={() => { ++catalogGeneration.current; setProduct(null); }} style={styles.backBtn}>
             <Text style={styles.backText}>← Back to {store.name}</Text>
@@ -203,7 +228,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
 
           <Text style={typography.hero}>{product.name}</Text>
           <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{product.price}</Text>
-          <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description ?? "A fresh selection from your local supermarket."}</Text>
+          {!!product.description && <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description}</Text>}
           
           {product.availability && (
             <View style={styles.qtyRow}>
@@ -222,27 +247,28 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
     );
   } else if (store) {
     content = (
-      <ScrollView contentContainerStyle={commonStyles.page}>
+      <ScrollView key={`store-${store.id}-${categoryId}`} contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
-          <Pressable accessibilityLabel="Change supermarket" accessibilityRole="button" onPress={() => selectStore(null)} style={styles.backBtn}>
-            <Text style={styles.backText}>← All Supermarkets</Text>
-          </Pressable>
-          
-          <View style={{ marginBottom: spacing.xl }}>
-            <Text style={typography.eyebrow}>{store.operatingStatus}</Text>
-            <Text style={typography.hero}>{store.name}</Text>
-            <Text style={typography.body}>{store.description ?? `Delivery ₹${store.deliveryFee} • Min Order ₹${store.minimumOrderValue}`}</Text>
+          <View style={styles.storeHero}>
+            {store.logoImageUrl ? <Image source={{ uri: store.logoImageUrl }} style={styles.storeHeroImage} /> : <PlaceholderImage name={store.name} style={styles.storeHeroImage} />}
+            <Pressable accessibilityLabel="Change supermarket" accessibilityRole="button" onPress={() => selectStore(null)} style={styles.heroBack}><Text style={styles.heroBackText}>‹</Text></Pressable>
+            <Text style={styles.heroName}>{store.name}</Text>
+          </View>
+          <View style={styles.storeHeading}>
+            <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
+            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{store.description ?? `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Closed"} · Serves {pincode}</Text></View>
           </View>
 
-          <View style={styles.searchBar}>
+          {!!categoryId && <View style={styles.categoryHeader}><Pressable onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? "Products"}</Text></View>}
+          <View style={[styles.searchBar, { marginTop: spacing.lg }]}>
             <SearchIcon />
-            <TextInput style={styles.searchInput} placeholder="Search products..." placeholderTextColor={colors.muted} value={searchQuery} onChangeText={setSearchQuery} />
+            <TextInput style={styles.searchInput} placeholder={categoryId ? "Search this category..." : "Search products in this store..."} placeholderTextColor={colors.muted} value={searchQuery} onChangeText={setSearchQuery} />
           </View>
 
-          {!searchQuery && (
+          {(
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: spacing.md, marginHorizontal: -spacing.lg }} contentContainerStyle={{ paddingHorizontal: spacing.lg }}>
               <Pressable accessibilityRole="button" onPress={() => void filterProducts("")} style={[styles.chip, !categoryId && styles.chipActive]}>
-                <Text style={!categoryId ? styles.chipActiveText : styles.chipText}>All Products</Text>
+                <Text style={!categoryId ? styles.chipActiveText : styles.chipText}>All</Text>
               </Pressable>
               {categories.map((category) => (
                 <Pressable accessibilityRole="button" key={category.id} onPress={() => void filterProducts(category.id)} style={[styles.chip, categoryId === category.id && styles.chipActive]}>
@@ -251,6 +277,7 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
               ))}
             </ScrollView>
           )}
+          <Text style={[typography.title3, { marginBottom: spacing.md }]}>{categoryId ? "Products" : "Popular Products"}</Text>
 
           {loadingCatalog ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : filteredProducts.length === 0 ? (
             <View style={styles.emptyState}>
@@ -264,12 +291,13 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
                   {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
                   <View style={styles.productInfo}>
                     <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
-                    <Text style={[typography.title3, { color: colors.accent }]}>₹{item.price}</Text>
+                    <Text style={typography.caption} numberOfLines={1}>{categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
+                    <Text style={[typography.title3, { color: colors.ink }]}>₹{item.price}</Text>
                     {!item.availability && <Text style={[typography.caption, { color: colors.danger }]}>Out of Stock</Text>}
                   </View>
                   {item.availability && (
                     <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); void addToCart(item, 1); }} style={styles.addMiniBtn}>
-                      <Text style={styles.addMiniBtnText}>+</Text>
+                      <Text style={styles.addMiniBtnText}>+ Add</Text>
                     </Pressable>
                   )}
                 </Pressable>
@@ -284,10 +312,12 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
     const activeAddress = addresses.find((a) => a.pincode === pincode) || addresses[0];
 
     content = (
-      <ScrollView contentContainerStyle={commonStyles.page}>
+      <ScrollView key="store-discovery" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <View style={styles.header}>
-            <Text style={typography.eyebrow}>DELIVERING TO</Text>
+            <Text style={styles.greeting}>Hello,</Text>
+            <Text style={typography.title1}>{customerName || "Welcome back"}</Text>
+            <Text style={[typography.caption, { marginTop: spacing.sm }]}>⌖  Delivering to</Text>
             <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.locationRow}>
               {loadingAddresses ? <Skeleton style={{ width: 150, height: 24, borderRadius: 6 }} /> : (
                 <>
@@ -303,8 +333,21 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
             <TextInput style={styles.searchInput} placeholder="Search supermarkets..." placeholderTextColor={colors.muted} value={searchQuery} onChangeText={setSearchQuery} />
           </View>
 
-          <Text style={[typography.title1, { marginBottom: spacing.xs }]}>Fresh Near You</Text>
-          <Text style={[typography.body, { marginBottom: spacing.lg }]}>Choose a local supermarket to shop fresh groceries.</Text>
+          <View style={styles.promo}>
+            <Text style={styles.promoTitle}>Fresh Groceries{"\n"}Delivered to Your Door</Text>
+            <Text style={styles.promoText}>Quality products from your local stores.</Text>
+            <View style={styles.promoPill}><Text style={styles.promoPillText}>Shop now  ›</Text></View>
+          </View>
+          {homeCategories.length > 0 && <View style={{ marginBottom: spacing.xl }}>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Shop by Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.md }}>
+              {homeCategories.map(category => <Pressable accessibilityRole="button" key={category.id} onPress={() => { selectStore(stores[0]); pendingCategoryId.current = category.id; }} style={styles.homeCategory}>
+                <View style={styles.homeCategoryIcon}><Text style={styles.homeCategoryInitial}>{category.name.charAt(0).toUpperCase()}</Text></View>
+                <Text style={styles.homeCategoryText} numberOfLines={1}>{category.name}</Text>
+              </Pressable>)}
+            </ScrollView>
+          </View>}
+          <Text style={[typography.title3, { marginBottom: spacing.md }]}>Supermarkets Near You</Text>
           
           {loadingAddresses || loadingStores ? (
             <View style={{ gap: spacing.lg }}><StoreSkeleton /><StoreSkeleton /></View>
@@ -334,9 +377,9 @@ export function MarketplaceScreen({ openAddresses, openCart }: { openAddresses: 
                     {item.logoImageUrl ? <Image source={{ uri: item.logoImageUrl }} style={styles.storeLogo} /> : <PlaceholderImage name={item.name} style={styles.storeLogo} />}
                     <View style={styles.storeInfo}>
                       <Text style={typography.title3} numberOfLines={1}>{item.name}</Text>
-                      <Text style={typography.caption}>Delivery ₹{item.deliveryFee} • Min ₹{item.minimumOrderValue}</Text>
-                      <Text style={typography.caption}>Serving {pincode}</Text>
-                    <Text style={styles.shopNowText}>Shop now →</Text>
+                       <Text style={typography.caption}>Delivery ₹{item.deliveryFee} · Min ₹{item.minimumOrderValue}</Text>
+                       <Text style={typography.caption}>Serves {pincode}</Text>
+                       <Text style={styles.shopNowText}>{item.operatingStatus === "OPEN" ? "Open now" : "Closed"}  ·  View store ›</Text>
                     </View>
                     <View style={[styles.statusBadge, item.operatingStatus === "CLOSED" && styles.statusBadgeClosed]}>
                       <Text style={[styles.statusBadgeText, item.operatingStatus === "CLOSED" && styles.statusBadgeTextClosed]}>{item.operatingStatus}</Text>
@@ -392,7 +435,7 @@ const styles = StyleSheet.create({
   skeletonTextLong: { height: 16, borderRadius: 4, width: "80%", marginBottom: 4 },
   skeletonTextShort: { height: 12, borderRadius: 4, width: "50%", marginTop: 4 },
   emptyState: { alignItems: "center", padding: spacing.xl, backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, gap: spacing.md, marginTop: spacing.lg },
-  primaryBtn: { backgroundColor: colors.ink, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md, width: "100%", alignItems: "center" },
+  primaryBtn: { backgroundColor: colors.accent, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md, width: "100%", alignItems: "center" },
   primaryBtnText: { ...typography.bodySemibold, color: colors.card },
   secondaryBtn: { backgroundColor: colors.soft, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md, width: "100%", alignItems: "center" },
   secondaryBtnText: { ...typography.bodySemibold, color: colors.ink },
@@ -406,8 +449,8 @@ const styles = StyleSheet.create({
   productCard: { width: "48%", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.sm, marginBottom: spacing.md, ...shadows.sm },
   productThumb: { width: "100%", aspectRatio: 1, borderRadius: radius.md, marginBottom: spacing.sm },
   productInfo: { gap: spacing.xs, marginBottom: spacing.xl },
-  addMiniBtn: { position: "absolute", bottom: spacing.sm, right: spacing.sm, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.soft, justifyContent: "center", alignItems: "center", zIndex: 2 },
-  addMiniBtnText: { color: colors.ink, fontSize: 18, fontWeight: "600", marginTop: -2 },
+  addMiniBtn: { position: "absolute", bottom: spacing.sm, left: spacing.sm, right: spacing.sm, height: 30, borderRadius: 7, backgroundColor: colors.accent, justifyContent: "center", alignItems: "center", zIndex: 2 },
+  addMiniBtnText: { color: colors.card, fontSize: 12, fontWeight: "700" },
   productHero: { position: "relative", marginBottom: spacing.lg },
   heroImage: { width: "100%", height: 300, borderRadius: radius.xl },
   badge: { position: "absolute", top: spacing.md, left: spacing.md, backgroundColor: colors.card, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, ...shadows.sm },
@@ -416,4 +459,26 @@ const styles = StyleSheet.create({
   closedText: { color: colors.danger },
   qtyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.card, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, marginBottom: spacing.xl },
   disabled: { opacity: 0.5 },
+  greeting: { fontSize: 13, color: colors.muted },
+  promo: { backgroundColor: colors.accent, borderRadius: radius.lg, padding: 18, minHeight: 132, marginBottom: spacing.xl, justifyContent: "center", overflow: "hidden" },
+  promoTitle: { color: colors.card, fontSize: 19, fontWeight: "800", lineHeight: 24 },
+  promoText: { color: "#E4EDFF", fontSize: 11, marginTop: 6 },
+  promoPill: { backgroundColor: colors.card, borderRadius: 20, alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 6, marginTop: 12 },
+  promoPillText: { color: colors.accent, fontSize: 11, fontWeight: "800" },
+  storeHero: { height: 150, marginTop: -16, marginHorizontal: -spacing.lg, backgroundColor: colors.accent, position: "relative", justifyContent: "flex-end" },
+  storeHeroImage: { width: "100%", height: "100%", position: "absolute" },
+  heroBack: { position: "absolute", top: 10, left: 15, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
+  heroBackText: { fontSize: 27, color: colors.ink, lineHeight: 31 },
+  heroName: { color: colors.card, fontWeight: "800", fontSize: 24, textAlign: "center", padding: 12, backgroundColor: "#10275688" },
+  storeHeading: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 18 },
+  storeAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+  storeAvatarText: { color: colors.card, fontSize: 22, fontWeight: "800" },
+  openText: { color: colors.accent, fontSize: 12, marginTop: 3, fontWeight: "600" },
+  categoryHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, backgroundColor: colors.accent, marginHorizontal: -spacing.lg },
+  categoryHeaderText: { color: colors.card, fontSize: 27 },
+  categoryHeaderTitle: { color: colors.card, fontSize: 20, fontWeight: "800" },
+  homeCategory: { width: 72, alignItems: "center", gap: 6 },
+  homeCategoryIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
+  homeCategoryInitial: { color: colors.accent, fontSize: 22, fontWeight: "800" },
+  homeCategoryText: { fontSize: 11, color: colors.ink, textAlign: "center" },
 });

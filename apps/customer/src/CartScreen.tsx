@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { QuantitySelector } from "./components/QuantitySelector";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
+import { PlaceholderImage } from "./components/PlaceholderImage";
 
 function BasketIcon() {
   return (
@@ -101,6 +102,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   if (!cart) return (
     <ScrollView contentContainerStyle={commonStyles.page}>
       <View style={[commonStyles.container, { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }]}>
+        <Text style={styles.emptyHeader}>My Cart</Text>
         <View style={styles.emptyBasket}>
           <BasketIcon />
         </View>
@@ -115,20 +117,21 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
     <>
       <ScrollView contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
-          <Text style={typography.eyebrow}>YOUR BASKET</Text>
-          <Text style={[typography.hero, { marginBottom: spacing.xl }]}>{cart.storeName}</Text>
+          <View style={styles.cartHeader}><Text style={styles.cartHeaderText}>My Cart</Text><Pressable accessibilityRole="button" onPress={clear}><Text style={styles.clearText}>Clear</Text></Pressable></View>
+          <Text style={[typography.caption, { marginBottom: spacing.md }]}>{cart.items.length} {cart.items.length === 1 ? "item" : "items"} · {cart.storeName}</Text>
           
           <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
             {cart.items.map((item) => (
               <View key={item.id} style={styles.cartItem}>
+                {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.cartImage} /> : <PlaceholderImage name={item.name} style={styles.cartImage} />}
                 <View style={{ flex: 1, gap: spacing.xs }}>
                   <Text style={typography.bodySemibold}>{item.name}</Text>
                   <Text style={typography.caption}>₹{item.unitPrice} each</Text>
-                  <Text style={typography.title3}>₹{item.lineSubtotal}</Text>
+                  <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
                   {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Unavailable</Text>}
                 </View>
                 <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
-                  <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
+                  <Text style={typography.title3}>₹{item.lineSubtotal}</Text>
                   <Pressable onPress={() => quantity(item.id, 0)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>Remove</Text></Pressable>
                 </View>
               </View>
@@ -138,7 +141,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
           <View style={commonStyles.card}>
             <Line label="Subtotal" value={cart.subtotal} />
             <Line label="Delivery fee" value={cart.deliveryFee} />
-            <Line label="Minimum order req." value={cart.minimumOrderValue} />
+            <Text style={[typography.caption, { marginVertical: 4 }]}>Minimum order ₹{cart.minimumOrderValue}</Text>
             <View style={styles.divider} />
             <Line label="Total" value={cart.total} strong />
           </View>
@@ -175,7 +178,6 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
             <Pressable disabled={!cart.checkoutReady || !addressId || checkoutBusy} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy) && styles.disabled]}>
               {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Place Order • ₹{cart.total}</Text>}
             </Pressable>
-            <Pressable onPress={clear} style={{ padding: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.muted, textAlign: "center" }]}>Clear basket</Text></Pressable>
           </View>
         </View>
       </ScrollView>
@@ -203,14 +205,19 @@ function Line({label,value,strong=false}:{label:string;value:string;strong?:bool
 }
 
 const styles = StyleSheet.create({
+  emptyHeader: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: "800", padding: spacing.lg },
   center: { alignItems: "center", justifyContent: "center" },
   emptyBasket: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
-  cartItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, ...shadows.sm },
+  cartItem: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
+  cartImage: { width: 64, height: 64, borderRadius: radius.md },
+  cartHeader: { backgroundColor: colors.accent, marginHorizontal: -spacing.lg, marginTop: -16, paddingHorizontal: spacing.lg, height: 60, marginBottom: spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  cartHeaderText: { color: colors.card, fontSize: 20, fontWeight: "800" },
+  clearText: { color: colors.card, fontWeight: "600" },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 4 },
   divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing.sm },
   secondaryBtn: { backgroundColor: colors.soft, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: colors.line },
   secondaryBtnText: { ...typography.bodySemibold, color: colors.ink },
-  primaryBtn: { backgroundColor: colors.ink, borderRadius: radius.md, height: 56, justifyContent: "center", alignItems: "center" },
+  primaryBtn: { backgroundColor: colors.accent, borderRadius: radius.md, height: 56, justifyContent: "center", alignItems: "center" },
   primaryBtnText: { ...typography.title3, color: colors.card },
   disabled: { opacity: 0.4 },
   addressCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md },

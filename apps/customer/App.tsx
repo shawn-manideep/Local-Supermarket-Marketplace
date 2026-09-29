@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -24,9 +25,9 @@ import { colors, radius, typography, spacing, shadows, commonStyles } from "./sr
 import { PhoneInput } from "./src/components/PhoneInput";
 import { ConfirmationDialog } from "./src/components/ConfirmationDialog";
 
-type Screen = "home" | "cart" | "orders" | "account" | "addresses";
+type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses";
 
-function NavIcon({ item, active }: { item: Exclude<Screen, "addresses">; active: boolean }) {
+function NavIcon({ item, active }: { item: "home" | "cart" | "orders" | "account"; active: boolean }) {
   const color = active ? colors.accent : colors.muted;
 
   if (item === "home") {
@@ -83,12 +84,24 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string; 
   );
 }
 
+function BasketBrand() {
+  return <View style={styles.brandDrawing}>
+    <View style={styles.brandHandle} />
+    <View style={styles.brandBasket}>
+      <View style={styles.brandStripes}><View style={styles.brandStripe} /><View style={styles.brandStripe} /><View style={styles.brandStripe} /></View>
+    </View>
+    <View style={styles.brandWheels}><View style={styles.brandWheel} /><View style={styles.brandWheel} /></View>
+    <View style={styles.brandLeaf} />
+  </View>;
+}
+
 function AuthScreen() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const submit = async () => {
     setBusy(true); setMessage("");
@@ -108,44 +121,55 @@ function AuthScreen() {
   return (
     <ScrollView contentContainerStyle={styles.authPage}>
       <View style={styles.authContainer}>
-        <Text style={typography.eyebrow}>LOCAL BASKET</Text>
-        <Text style={typography.hero}>{mode === "signin" ? "Welcome back" : "Create account"}</Text>
-        <Text style={[typography.body, { marginBottom: spacing.xl }]}>Your neighbourhood supermarket starts here.</Text>
-        
-        <View style={commonStyles.card}>
-          <Field label="Email" autoCapitalize="none" keyboardType="email-address" onChangeText={setEmail} value={email} />
-          <Field label="Password" onChangeText={setPassword} secureTextEntry value={password} />
+        <View style={styles.authBrand}>
+          <BasketBrand />
+          <Text style={styles.brandName}>LOCAL BASKET</Text>
+          <Text style={styles.brandSub}>Fresh Groceries · Local Stores</Text>
+        </View>
+        <Text style={typography.hero}>{mode === "signin" ? "Welcome back!" : "Create an account"}</Text>
+        <Text style={[typography.body, { marginBottom: spacing.xl }]}>Shop fresh. Shop local.</Text>
+        <View style={styles.authForm}>
+          <Field label="Email address" placeholder="Enter your email" autoCapitalize="none" keyboardType="email-address" onChangeText={setEmail} value={email} />
+          <Field label="Password" placeholder="Enter your password" onChangeText={setPassword} secureTextEntry={!passwordVisible} value={password} />
+          <Pressable accessibilityRole="button" onPress={() => setPasswordVisible(v => !v)} style={styles.passwordToggle}><Text style={styles.linkText}>{passwordVisible ? "Hide password" : "Show password"}</Text></Pressable>
           {!!message && <Text style={styles.errorText}>{message}</Text>}
-          
           <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryBtn}>
             {busy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{mode === "signin" ? "Sign in" : "Sign up"}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>
-            <Text style={styles.linkText}>{mode === "signin" ? "New here? Create an account" : "Already registered? Sign in"}</Text>
+          <Text style={styles.authDivider}>OR</Text>
+          <Pressable accessibilityRole="button" onPress={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }} style={styles.authOutline}>
+            <Text style={styles.authOutlineText}>{mode === "signin" ? "Create an account" : "Back to sign in"}</Text>
           </Pressable>
         </View>
+        <View style={styles.authIllustration}><View style={styles.illustrationGlow}><BasketBrand /></View></View>
       </View>
     </ScrollView>
   );
 }
 
-function AccountScreen({ navigate }: { navigate: (s: Screen) => void }) {
+function AccountScreen({ navigate, editProfile = false }: { navigate: (s: Screen) => void; editProfile?: boolean }) {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+  const loadProfile = () => {
+    setLoadError("");
     void customerApi<{ profile: CustomerProfile }>("/api/customer/profile")
       .then(({ profile }) => {
         setProfile(profile);
         setName(profile.fullName ?? "");
         setPhone(profile.phone ?? "");
       })
-      .catch((e) => setMessage(e.message));
+      .catch(() => setLoadError("Unable to load your profile. Please try again."));
+  };
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
+    loadProfile();
   }, []);
 
   const save = async () => {
@@ -162,8 +186,8 @@ function AccountScreen({ navigate }: { navigate: (s: Screen) => void }) {
       });
       setProfile(next);
       setMessage("Profile saved successfully.");
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Unable to save profile.");
+    } catch {
+      setMessage("Unable to save your profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -172,46 +196,32 @@ function AccountScreen({ navigate }: { navigate: (s: Screen) => void }) {
   return (
     <ScrollView contentContainerStyle={commonStyles.page}>
       <View style={commonStyles.container}>
-        <Text style={typography.eyebrow}>ACCOUNT HUB</Text>
-        <Text style={[typography.hero, { marginBottom: spacing.xl }]}>Your Details</Text>
+        {editProfile && <Pressable accessibilityRole="button" onPress={() => navigate("account")} style={styles.profileHeader}><Text style={styles.profileHeaderText}>‹   Personal Information</Text></Pressable>}
         
-        {!profile && !message ? <ActivityIndicator accessibilityLabel="Loading account" color={colors.accent} style={{ marginTop: spacing.xl }} /> : (
+        {loadError ? <View style={commonStyles.card}><Text style={styles.errorText}>{loadError}</Text><Pressable accessibilityRole="button" onPress={loadProfile}><Text style={styles.linkText}>Try again</Text></Pressable></View> : !profile ? <ActivityIndicator accessibilityLabel="Loading account" color={colors.accent} style={{ marginTop: spacing.xl }} /> : (
           <View style={{ gap: spacing.lg }}>
-            <View style={commonStyles.card}>
-              <Text style={[typography.title3, { marginBottom: spacing.md }]}>Personal Details</Text>
+            {editProfile ? <View style={[commonStyles.card, styles.profileCard]}>
+              <View style={styles.avatar}><Text style={styles.avatarText}>{(name || email || "C").charAt(0).toUpperCase()}</Text></View>
               <View style={{ gap: spacing.md }}>
+                <Field label="Full Name" onChangeText={setName} value={name} />
                 <Field label="Email" value={email} editable={false} style={{ backgroundColor: colors.bg, color: colors.muted }} />
-                <Field label="Full name" onChangeText={setName} value={name} />
                 <PhoneInput label="Mobile Number" value={phone} onChangeText={setPhone} />
                 {!!message && <Text accessibilityRole="alert" style={message.includes("success") ? styles.successText : styles.errorText}>{message}</Text>}
                 <Pressable accessibilityRole="button" onPress={save} disabled={saving} style={styles.primaryBtn}>
-                  {saving ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Save profile</Text>}
+                  {saving ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Save Changes</Text>}
                 </Pressable>
               </View>
-            </View>
-
-            <View style={commonStyles.card}>
-              <Text style={[typography.title3, { marginBottom: spacing.md }]}>Delivery</Text>
-              <Pressable style={styles.menuRow} onPress={() => navigate("addresses")}>
-                <Text style={typography.bodySemibold}>Manage Addresses</Text>
-                <Text style={typography.body}>→</Text>
-              </Pressable>
-            </View>
-
-            <View style={commonStyles.card}>
-              <Text style={[typography.title3, { marginBottom: spacing.md }]}>Orders</Text>
-              <Pressable style={styles.menuRow} onPress={() => navigate("orders")}>
-                <Text style={typography.bodySemibold}>My Orders</Text>
-                <Text style={typography.body}>→</Text>
-              </Pressable>
-            </View>
-
-            <View style={commonStyles.card}>
-              <Text style={[typography.title3, { marginBottom: spacing.md }]}>Account</Text>
-              <Pressable accessibilityRole="button" onPress={() => supabase.auth.signOut()} style={styles.menuRow}>
-                <Text style={[typography.bodySemibold, { color: colors.danger }]}>Sign out</Text>
-              </Pressable>
-            </View>
+            </View> : <>
+              <Pressable accessibilityRole="button" onPress={() => navigate("profile")} style={styles.accountBanner}><View style={styles.smallAvatar}><Text style={styles.avatarText}>{(name || email || "C").charAt(0).toUpperCase()}</Text></View><View style={{ flex: 1 }}><Text style={styles.accountName}>{name || "Your account"}</Text><Text style={styles.accountEmail} numberOfLines={1}>{email}</Text></View><Text style={styles.accountBannerArrow}>›</Text></Pressable>
+              <View style={styles.accountMenu}>
+                <Pressable style={styles.menuRow} onPress={() => navigate("profile")}><Text style={styles.menuIcon}>♙</Text><Text style={styles.menuLabel}>Personal Information</Text><Text style={styles.menuArrow}>›</Text></Pressable>
+                <Pressable style={styles.menuRow} onPress={() => navigate("addresses")}><Text style={styles.menuIcon}>⌖</Text><Text style={styles.menuLabel}>Delivery Addresses</Text><Text style={styles.menuArrow}>›</Text></Pressable>
+                <Pressable style={styles.menuRow} onPress={() => navigate("orders")}><Text style={styles.menuIcon}>▤</Text><Text style={styles.menuLabel}>My Orders</Text><Text style={styles.menuArrow}>›</Text></Pressable>
+                <View style={styles.menuRow}><Text style={styles.menuIcon}>♡</Text><Text style={styles.menuLabel}>Saved Items</Text><Text style={styles.unsupported}>Coming soon</Text></View>
+                <View style={styles.menuRow}><Text style={styles.menuIcon}>⚙</Text><Text style={styles.menuLabel}>Settings</Text><Text style={styles.unsupported}>Coming soon</Text></View>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => supabase.auth.signOut()} style={styles.signOut}><Text style={styles.signOutText}>Sign Out</Text></Pressable>
+            </>}
           </View>
         )}
       </View>
@@ -368,21 +378,24 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
-  const navItems: Exclude<Screen, "addresses">[] = ["home", "cart", "orders", "account"];
+  const [homeResetKey, setHomeResetKey] = useState(0);
+  const { height } = useWindowDimensions();
+  const navItems: Array<"home" | "cart" | "orders" | "account"> = ["home", "cart", "orders", "account"];
   return (
-    <View style={styles.shell}>
+    <View style={[styles.shell, Platform.OS === "web" && { height }]}>
       <View style={styles.content}>
-        {screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> 
+        {screen === "home" ? <MarketplaceScreen resetToken={homeResetKey} openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} />
         : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> 
         : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> 
         : screen === "account" ? <AccountScreen navigate={setScreen} /> 
+        : screen === "profile" ? <AccountScreen navigate={setScreen} editProfile />
         : <AddressesScreen navigate={setScreen} />}
       </View>
       <View accessibilityLabel="Primary navigation" style={styles.nav}>
         {navItems.map((item) => (
-          <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item }} key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}>
-            <NavIcon item={item} active={screen === item} />
-            <Text style={[styles.navText, screen === item && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
+           <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item || (item === "account" && (screen === "profile" || screen === "addresses")) }} key={item} onPress={() => { setOrderId(undefined); if (item === "home") setHomeResetKey(key => key + 1); setScreen(item); }} style={styles.navItem}>
+             <NavIcon item={item} active={screen === item || (item === "account" && (screen === "profile" || screen === "addresses"))} />
+             <Text style={[styles.navText, (screen === item || (item === "account" && (screen === "profile" || screen === "addresses"))) && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
           </Pressable>
         ))}
       </View>
@@ -403,10 +416,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1, backgroundColor: colors.bg },
+  shell: { flex: 1, backgroundColor: colors.bg, width: "100%", maxWidth: 430, alignSelf: "center", ...(Platform.OS === "web" ? { boxShadow: "0 0 40px rgba(12, 49, 120, 0.12)" } : {}) },
   content: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl, backgroundColor: colors.bg },
-  authPage: { flexGrow: 1, backgroundColor: colors.bg, justifyContent: "center", padding: spacing.xl },
+  authPage: { flexGrow: 1, backgroundColor: colors.card, justifyContent: "center", padding: spacing.xl, paddingTop: Platform.OS === "web" ? 67 : 30 },
   authContainer: { width: "100%", maxWidth: 400, alignSelf: "center" },
   field: { gap: spacing.xs },
   label: { ...typography.bodySemibold, fontSize: 13 },
@@ -414,12 +427,12 @@ const styles = StyleSheet.create({
   inputError: { borderColor: colors.danger },
   errorText: { ...typography.caption, color: colors.danger },
   successText: { ...typography.caption, color: colors.ink },
-  primaryBtn: { backgroundColor: colors.ink, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center" },
+  primaryBtn: { backgroundColor: colors.accent, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center", ...shadows.sm },
   primaryBtnText: { ...typography.bodySemibold, color: colors.card, fontSize: 16 },
   secondaryBtn: { backgroundColor: colors.soft, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center" },
   secondaryBtnText: { ...typography.bodySemibold, color: colors.ink, fontSize: 16 },
   linkText: { ...typography.bodySemibold, color: colors.accent, textAlign: "center", padding: spacing.sm },
-  menuRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.sm },
+  menuRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, minHeight: 50, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, ...shadows.sm },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
   checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.muted, justifyContent: "center", alignItems: "center" },
   checkboxActive: { borderColor: colors.ink },
@@ -437,5 +450,42 @@ const styles = StyleSheet.create({
   accountHead: { position: "absolute", top: 1, width: 9, height: 9, borderRadius: 5, borderWidth: 2 },
   accountBody: { position: "absolute", bottom: 0, width: 19, height: 10, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderWidth: 2, borderBottomWidth: 0 },
   navText: { ...typography.caption, color: colors.muted, fontSize: 11 },
-  navActive: { color: colors.ink, fontWeight: "800" },
+  navActive: { color: colors.accent, fontWeight: "800" },
+  authBrand: { alignItems: "center", marginBottom: 36 },
+  brandDrawing: { width: 62, height: 56, alignSelf: "center", position: "relative", marginBottom: 6 },
+  brandHandle: { position: "absolute", top: 10, left: 7, width: 17, height: 4, backgroundColor: colors.accent, transform: [{ rotate: "22deg" }] },
+  brandBasket: { position: "absolute", top: 19, left: 15, width: 38, height: 28, backgroundColor: colors.accent, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, transform: [{ skewX: "-8deg" }], justifyContent: "center", alignItems: "center" },
+  brandStripes: { flexDirection: "row", gap: 6 },
+  brandStripe: { height: 16, width: 3, borderRadius: 2, backgroundColor: colors.card, opacity: 0.8 },
+  brandWheels: { position: "absolute", top: 48, left: 20, width: 30, flexDirection: "row", justifyContent: "space-between" },
+  brandWheel: { width: 6, height: 6, backgroundColor: colors.accent, borderRadius: 3 },
+  brandLeaf: { position: "absolute", right: 4, top: 3, width: 14, height: 10, borderTopLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: "#3DA96A", transform: [{ rotate: "-22deg" }] },
+  brandName: { fontSize: 19, fontWeight: "900", color: colors.ink, letterSpacing: 1.5 },
+  brandSub: { fontSize: 11, color: colors.muted },
+  authForm: { gap: 14 },
+  passwordToggle: { alignSelf: "flex-end", marginTop: -12 },
+  authDivider: { textAlign: "center", color: colors.muted, marginVertical: 8, fontSize: 12 },
+  authOutline: { height: 48, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.accent, borderRadius: radius.md },
+  authOutlineText: { color: colors.accent, fontWeight: "700" },
+  authIllustration: { height: 110, backgroundColor: colors.soft, marginHorizontal: -spacing.xl, marginBottom: -spacing.xl, marginTop: 52, alignItems: "center", justifyContent: "center", borderTopLeftRadius: 80, borderTopRightRadius: 80 },
+  illustrationGlow: { opacity: 0.28, transform: [{ scale: 1.5 }] },
+  pageBar: { backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: "800", padding: 18, marginHorizontal: -spacing.lg, marginTop: -8, marginBottom: 20 },
+  backLink: { color: colors.accent, fontWeight: "800", fontSize: 18, marginBottom: 24 },
+  profileHeader: { backgroundColor: colors.accent, padding: 18, marginHorizontal: -spacing.lg, marginTop: -8, marginBottom: 18 },
+  profileHeaderText: { color: colors.card, fontWeight: "800", fontSize: 20 },
+  profileCard: { gap: 22, borderWidth: 0, backgroundColor: colors.card },
+  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.soft, alignSelf: "center", alignItems: "center", justifyContent: "center", marginVertical: 12 },
+  smallAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontSize: 26, color: colors.accent, fontWeight: "800" },
+  accountBanner: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: colors.accent, padding: 18, marginHorizontal: -spacing.lg, marginTop: -8, marginBottom: spacing.lg },
+  accountBannerArrow: { color: colors.card, fontSize: 24 },
+  accountName: { color: colors.card, fontWeight: "800", fontSize: 17 },
+  accountEmail: { color: "#D6E5FF", fontSize: 12 },
+  accountMenu: { gap: 8 },
+  menuIcon: { color: colors.accent, fontSize: 21, width: 32, textAlign: "center" },
+  menuLabel: { flex: 1, fontSize: 15, color: colors.ink, fontWeight: "600" },
+  menuArrow: { color: colors.muted, fontSize: 22 },
+  unsupported: { color: colors.muted, fontSize: 11 },
+  signOut: { borderWidth: 1, borderColor: colors.danger, borderRadius: radius.md, height: 48, alignItems: "center", justifyContent: "center" },
+  signOutText: { color: colors.danger, fontWeight: "700" },
 });

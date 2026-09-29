@@ -1,0 +1,799 @@
+CUSTOMER APP UI/UX — FINAL DESIGN CONTRACT
+
+I am providing a single reference image containing the final approved Customer application UI.
+
+Treat the uploaded reference image as the exact visual source of truth.
+
+Do NOT redesign it.
+Do NOT modernize it.
+Do NOT simplify it.
+Do NOT introduce your own visual interpretation.
+Do NOT use the previous customer UI as a design reference.
+
+The goal is to reproduce the uploaded reference image as closely as reasonably possible while preserving all existing working functionality.
+
+1. PROJECT SCOPE
+
+Work ONLY on the Customer application:
+
+apps/customer
+
+This is an Expo + React Native + React Native Web application.
+
+This task is primarily a Customer UI/UX implementation and integration task.
+
+Do NOT modify the following unless a tiny change is absolutely required for an existing Customer UI integration:
+
+backend/api
+database/
+database/migrations/
+Supabase schema
+RLS policies
+authentication architecture
+vendor dashboard
+admin dashboard
+Railway configuration
+Vercel configuration
+Git configuration
+
+Do not create duplicate backend logic.
+
+Do not create mock APIs.
+
+Do not create fake data when existing API/data is available.
+
+2. FINAL DESIGN SOURCE OF TRUTH
+
+The uploaded reference image contains these eight approved screens:
+
+Login / Sign In
+Home / Supermarket List
+Supermarket / Store Page
+Product List / Category
+Cart
+Orders
+Account / Main Account
+Personal Information
+
+The uploaded image is the design specification, not inspiration.
+
+The final implementation should closely reproduce:
+
+overall layout
+screen proportions
+blue visual language
+blue gradients
+background colors
+typography hierarchy
+font sizing
+font weights
+spacing
+margins
+padding
+rounded corners
+card shapes
+borders
+shadows
+buttons
+search bars
+icons
+category icons
+product cards
+product images
+price presentation
+quantity controls
+badges
+status indicators
+bottom navigation
+account menu
+form layout
+order cards
+cart layout
+section ordering
+
+Do not substitute a different design system.
+
+3. FIRST — INSPECT THE EXISTING APPLICATION
+
+Before modifying code, inspect the current Customer application.
+
+Identify:
+
+Screens already implemented
+Existing navigation
+Existing components
+Existing API functions
+Existing authentication flow
+Existing address functionality
+Existing store discovery
+Existing catalog
+Existing cart
+Existing checkout
+Existing orders
+Existing cancellation
+Existing account/profile functionality
+Existing Supabase integration
+Existing styling/theme files
+
+Do not delete working functionality simply because the visual implementation is being replaced.
+
+Reuse existing business logic and API functions wherever possible.
+
+4. IMPORTANT — FUNCTIONALITY MUST REMAIN INTACT
+
+The redesign must preserve the current working Customer functionality.
+
+Preserve:
+
+Authentication
+Sign up
+Sign in
+Sign out
+Session restoration
+Authentication state
+Customer profile
+View profile
+Edit profile
+Save profile
+Existing phone validation
+Addresses
+Add address
+Edit address
+Delete address
+Set default address
+Select delivery address
+Store discovery
+Pincode/address-based supermarket discovery
+Only eligible/active supermarkets
+Existing API behavior
+Store/catalog
+Store details
+Categories
+Products
+Availability
+Product prices
+Existing search/filter behavior where already implemented
+Cart
+Add product
+Increase quantity
+Decrease quantity
+Remove product
+Clear cart
+One-store cart rule
+Existing store-switch behavior
+Checkout
+Existing checkout validation
+COD
+Delivery fee
+Minimum order validation
+Total calculation
+Existing backend validation
+Orders
+Order creation
+Order list
+Order details
+Status history
+Cancellation when allowed
+Existing order lifecycle
+
+Do not move business calculations into the UI.
+
+The backend remains authoritative.
+
+5. LOGIN / SIGN-IN SCREEN
+
+Reproduce the first screen from the reference.
+
+Match:
+
+logo placement
+logo scale
+blue branding
+welcome message
+supporting text
+email field
+password field
+password visibility control
+Forgot Password placement if already supported
+Sign In button
+OR divider
+Create Account button
+supporting registration text
+lower illustration/background treatment
+spacing and proportions
+
+Connect the UI to the existing authentication implementation.
+
+Do not create another authentication system.
+
+6. HOME / SUPERMARKET LIST
+
+Reproduce the second reference screen.
+
+Include the visual structure shown:
+
+Header
+greeting
+customer name
+profile icon
+delivery location
+address selector
+Search
+
+Use the same search-bar style shown in the reference.
+
+Promotional area
+
+Reproduce the banner/card structure shown in the reference.
+
+Shop by Category
+
+Match:
+
+section title
+See All
+category icons
+labels
+spacing
+card/icon proportions
+Supermarkets Near You
+
+Match:
+
+supermarket card
+store image
+store name
+rating
+location/distance information
+open/closed state
+delivery information where available
+navigation indicator
+Bottom navigation
+
+Match the reference:
+
+Home
+Cart
+Orders
+Account
+
+Use the existing navigation functionality.
+
+7. SUPERMARKET / STORE PAGE
+
+Reproduce the third reference screen.
+
+Match:
+
+back button
+store hero/header
+store image
+favourite icon
+store name
+rating
+review count
+distance
+opening status
+opening hours
+search products in store
+category filters
+product grid
+product cards
+
+Product cards should match the reference:
+
+image
+favourite icon
+product name
+quantity/unit
+price
+Add button
+
+Use real existing API data.
+
+Do not hard-code supermarket or product data.
+
+8. PRODUCT CATEGORY PAGE
+
+Reproduce the fourth reference screen.
+
+Match:
+
+blue header
+back navigation
+category title
+search bar
+filter icon
+category tabs
+selected/unselected tab styling
+two-column product grid
+product images
+favourite buttons
+product names
+quantity/unit
+prices
+blue + Add buttons
+
+Use actual product data from the existing Customer API.
+
+Preserve product availability behavior.
+
+9. CART
+
+Reproduce the fifth reference screen.
+
+Match:
+
+blue header
+My Cart title
+Clear action
+cart item cards
+product images
+product name
+unit information
+price
+quantity controls
+line totals
+delivery charges
+subtotal
+total
+checkout button
+bottom navigation
+
+Preserve existing:
+
+cart API
+quantity validation
+stock/availability validation
+store switching
+checkout validation
+
+Do not calculate authoritative totals independently in the frontend.
+
+Display the values returned by the existing backend.
+
+10. ORDERS
+
+Reproduce the sixth reference screen.
+
+Match:
+
+blue header
+My Orders
+status tabs
+order cards
+order number
+date/time
+product preview images
+item information
+total
+status badges
+navigation arrows
+
+Use actual customer orders.
+
+Do not create mock orders.
+
+Status display must reflect the actual backend status/history.
+
+Do not display future lifecycle states as if they already happened.
+
+11. ACCOUNT / MAIN ACCOUNT
+
+Reproduce the seventh reference screen.
+
+Match:
+
+profile avatar
+customer name
+email
+profile navigation
+Personal Information
+Delivery Addresses
+My Orders
+Saved Items
+Settings
+Sign Out
+blue/white styling
+menu cards
+icons
+spacing
+
+Connect every item to existing functionality where it exists.
+
+If a referenced feature such as Saved Items or Settings does not currently have backend functionality, do NOT invent a fake backend implementation.
+
+Use an appropriate existing placeholder/navigation treatment while preserving the reference visual structure.
+
+12. PERSONAL INFORMATION
+
+Reproduce the eighth reference screen.
+
+Match:
+
+blue header
+back button
+profile image
+camera/edit icon
+Full Name field
+Email field
+Mobile Number field
+Save Changes button
+exact visual hierarchy
+field spacing
+border radius
+button styling
+
+Use the existing profile API.
+
+Preserve current validation.
+
+Do not expose protected/internal IDs.
+
+Do not allow users to edit protected fields.
+
+13. RESPONSIVE BEHAVIOR
+
+The reference image is primarily a mobile UI.
+
+The Customer app must preserve the mobile-first appearance.
+
+For Expo Web:
+
+maintain a phone-like content width
+center the mobile application appropriately
+avoid huge desktop whitespace
+maintain correct proportions
+do not stretch cards unnecessarily
+preserve bottom navigation
+maintain usable scrolling
+prevent content from being hidden behind navigation
+
+Do not turn the application into a generic desktop website.
+
+14. DESIGN SYSTEM
+
+Create/reuse a centralized Customer UI theme where practical.
+
+The visual system should consistently use the reference image's:
+
+Primary visual language
+strong blue primary color
+lighter blue surfaces
+white cards
+subtle borders
+soft shadows
+rounded cards
+rounded buttons
+clean grocery-marketplace appearance
+
+Do not introduce unrelated colors or visual styles.
+
+Use consistent:
+
+spacing
+border radius
+typography
+button height
+icon sizing
+card padding
+section spacing
+
+across all eight screens.
+
+15. ICONS AND IMAGES
+
+Use appropriate existing assets/components where available.
+
+Do not replace the reference visual structure with emoji.
+
+Do not use random icon libraries simply because they are convenient if an existing project icon system already exists.
+
+Product/store images should use existing image URLs/data when available.
+
+Do not hard-code fake products.
+
+If an image is unavailable, use a visually consistent placeholder that fits the reference design.
+
+16. DO NOT BREAK THE BACKEND
+
+Do not modify:
+
+API contracts
+request formats
+response formats
+authentication
+authorization
+RLS
+database schema
+order lifecycle
+cart business rules
+checkout validation
+financial calculations
+
+The UI must adapt to the existing backend.
+
+If a UI requirement appears to require backend functionality that does not exist, stop and report it instead of silently changing backend architecture.
+
+17. DO NOT CREATE DUPLICATE LOGIC
+
+Do not create:
+
+duplicate API clients
+duplicate authentication
+duplicate cart logic
+duplicate order creation
+duplicate checkout calculations
+duplicate Supabase clients
+duplicate navigation architecture
+
+Reuse the existing implementation.
+
+18. ERROR / LOADING / EMPTY STATES
+
+Every existing API-driven screen must retain proper:
+
+loading state
+empty state
+error state
+retry behavior
+disabled/busy state
+
+These states should use the same visual language as the reference.
+
+Do not show raw technical errors to customers.
+
+19. BUTTON SAFETY
+
+Preserve existing duplicate-submit protection.
+
+For actions such as:
+
+Sign In
+Sign Up
+Add to Cart
+Checkout
+Save Profile
+Cancel Order
+Address Save/Delete
+
+prevent duplicate requests while the operation is in progress.
+
+20. IMPLEMENTATION ORDER
+
+Implement in this order:
+
+Phase A
+
+Inspect existing Customer application.
+
+Phase B
+
+Establish shared visual theme/components.
+
+Phase C
+
+Login.
+
+Phase D
+
+Home/store discovery.
+
+Phase E
+
+Store page.
+
+Phase F
+
+Category/product page.
+
+Phase G
+
+Cart.
+
+Phase H
+
+Orders.
+
+Phase I
+
+Account.
+
+Phase J
+
+Personal Information.
+
+Phase K
+
+Cross-screen navigation and consistency pass.
+
+21. TESTING REQUIREMENT
+
+After implementation, test all eight screens.
+
+Verify:
+
+Login
+↓
+Home
+↓
+Address selection
+↓
+Supermarket
+↓
+Category
+↓
+Product
+↓
+Add to Cart
+↓
+Cart
+↓
+Checkout
+↓
+Order
+↓
+Orders
+↓
+Account
+↓
+Personal Information
+
+Test both:
+
+Visual
+
+Compare every screen against the uploaded reference image.
+
+Functional
+
+Verify:
+
+authentication
+address selection
+store discovery
+product loading
+add to cart
+quantity changes
+cart totals
+checkout validation
+order creation
+order list
+order detail
+cancellation
+profile update
+navigation
+loading/error/empty states
+22. FINAL VISUAL REVIEW
+
+Before declaring the task complete, perform a dedicated visual review.
+
+Compare each of the eight screens against the uploaded reference image.
+
+Specifically check:
+
+header height
+blue colors
+typography
+spacing
+card dimensions
+button dimensions
+border radius
+shadows
+image proportions
+icon placement
+bottom navigation
+section order
+alignment
+content density
+mobile proportions
+
+Fix obvious visual differences.
+
+Do not stop after merely making the screens functional.
+
+The objective is both:
+
+FUNCTIONALITY
++
+REFERENCE-MATCHING UI
+23. FILE CHANGE BOUNDARY
+
+Prefer modifying only:
+
+apps/customer/**
+
+and existing shared UI files that are genuinely required.
+
+Do not modify:
+
+backend/api/**
+database/**
+database/migrations/**
+apps/dashboard/**
+
+unless a change is absolutely necessary and is explicitly reported.
+
+24. IMPORTANT — NO CREATIVE INTERPRETATION
+
+This is the most important instruction.
+
+The uploaded reference image has already been approved.
+
+Do not make another design decision on my behalf.
+
+Do not say:
+
+"I modernized it"
+"I improved the design"
+"I simplified the layout"
+"I used a cleaner approach"
+"I made it more responsive"
+"I changed the colors for better accessibility"
+
+unless the change is required for technical functionality.
+
+The reference image is the design authority.
+
+25. FINAL REPORT
+
+When finished, report:
+
+Files changed
+
+List every changed file.
+
+Screens completed
+1. Login
+2. Home
+3. Store
+4. Category/Product
+5. Cart
+6. Orders
+7. Account
+8. Personal Information
+Functionality verified
+
+List the actual flows tested.
+
+Backend changes
+
+Explicitly state:
+
+Backend changed: YES/NO
+
+If YES, explain exactly why.
+
+Database changes
+
+Explicitly state:
+
+Database changed: YES/NO
+Visual verification
+
+State which screens were compared against the uploaded reference image.
+
+Tests
+
+Report:
+
+TypeScript
+Expo Web build
+API tests if run
+Browser testing
+navigation testing
+authentication testing
+
+Do not claim a test passed unless it was actually executed.
+
+FINAL INSTRUCTION
+
+Use the uploaded reference image as the final and exact Customer UI design source of truth.
+
+Preserve the existing working application and APIs.
+
+Do not creatively redesign anything.
+
+Do not modify Vendor/Admin/Backend/Database architecture.
+
+Build the eight Customer screens to closely match the reference image and verify the complete customer journey end-to-end.

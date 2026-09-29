@@ -1,15 +1,15 @@
 import { StyleSheet, Platform } from "react-native";
 
 export const colors = {
-  bg: "#F9F8F6",
+  bg: "#F6F8FD",
   card: "#FFFFFF",
-  ink: "#0F3D24", // Deep spinach green
-  muted: "#607A6A",
-  accent: "#DE4A22", // Ripe tomato
-  soft: "#E8F0EB",
-  line: "#E3E0D8",
-  danger: "#D83A27",
-  highlight: "#FFF0EB",
+  ink: "#102756",
+  muted: "#71809C",
+  accent: "#1251CE",
+  soft: "#E8F0FF",
+  line: "#E3E9F4",
+  danger: "#C7474A",
+  highlight: "#FFF0EF",
 };
 
 export const spacing = {
@@ -30,9 +30,9 @@ export const radius = {
 };
 
 export const typography = StyleSheet.create({
-  hero: { fontSize: 32, fontWeight: "800", color: colors.ink, lineHeight: 38 },
-  title1: { fontSize: 24, fontWeight: "800", color: colors.ink, lineHeight: 30 },
-  title2: { fontSize: 20, fontWeight: "800", color: colors.ink, lineHeight: 26 },
+  hero: { fontSize: 25, fontWeight: "800", color: colors.ink, lineHeight: 32 },
+  title1: { fontSize: 21, fontWeight: "800", color: colors.ink, lineHeight: 27 },
+  title2: { fontSize: 18, fontWeight: "800", color: colors.ink, lineHeight: 24 },
   title3: { fontSize: 17, fontWeight: "800", color: colors.ink, lineHeight: 22 },
   body: { fontSize: 15, fontWeight: "400", color: colors.muted, lineHeight: 22 },
   bodySemibold: { fontSize: 15, fontWeight: "600", color: colors.ink, lineHeight: 22 },
@@ -59,14 +59,14 @@ export const shadows = {
 
 export const commonStyles = StyleSheet.create({
   page: {
-    paddingTop: Platform.OS === "web" ? 67 : 24,
+    paddingTop: Platform.OS === "web" ? 24 : 24,
     paddingBottom: 100,
     backgroundColor: colors.bg,
     flexGrow: 1,
   },
   container: {
     paddingHorizontal: spacing.lg,
-    maxWidth: 760,
+    maxWidth: 430,
     width: "100%",
     alignSelf: "center",
   },
