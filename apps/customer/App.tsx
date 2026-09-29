@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -149,27 +148,21 @@ function AuthScreen() {
 
 function AccountScreen({ navigate, editProfile = false }: { navigate: (s: Screen) => void; editProfile?: boolean }) {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
-  const [loadError, setLoadError] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const loadProfile = () => {
-    setLoadError("");
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
     void customerApi<{ profile: CustomerProfile }>("/api/customer/profile")
       .then(({ profile }) => {
         setProfile(profile);
         setName(profile.fullName ?? "");
         setPhone(profile.phone ?? "");
       })
-      .catch(() => setLoadError("Unable to load your profile. Please try again."));
-  };
-
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
-    loadProfile();
+      .catch((e) => setMessage(e.message));
   }, []);
 
   const save = async () => {
@@ -186,8 +179,8 @@ function AccountScreen({ navigate, editProfile = false }: { navigate: (s: Screen
       });
       setProfile(next);
       setMessage("Profile saved successfully.");
-    } catch {
-      setMessage("Unable to save your profile. Please try again.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Unable to save profile.");
     } finally {
       setSaving(false);
     }
@@ -196,9 +189,9 @@ function AccountScreen({ navigate, editProfile = false }: { navigate: (s: Screen
   return (
     <ScrollView contentContainerStyle={commonStyles.page}>
       <View style={commonStyles.container}>
-        {editProfile && <Pressable accessibilityRole="button" onPress={() => navigate("account")} style={styles.profileHeader}><Text style={styles.profileHeaderText}>‹   Personal Information</Text></Pressable>}
+        {editProfile ? <Pressable accessibilityRole="button" onPress={() => navigate("account")} style={styles.profileHeader}><Text style={styles.profileHeaderText}>‹   Personal Information</Text></Pressable> : <Text style={styles.pageBar}>My Account</Text>}
         
-        {loadError ? <View style={commonStyles.card}><Text style={styles.errorText}>{loadError}</Text><Pressable accessibilityRole="button" onPress={loadProfile}><Text style={styles.linkText}>Try again</Text></Pressable></View> : !profile ? <ActivityIndicator accessibilityLabel="Loading account" color={colors.accent} style={{ marginTop: spacing.xl }} /> : (
+        {!profile && !message ? <ActivityIndicator accessibilityLabel="Loading account" color={colors.accent} style={{ marginTop: spacing.xl }} /> : (
           <View style={{ gap: spacing.lg }}>
             {editProfile ? <View style={[commonStyles.card, styles.profileCard]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{(name || email || "C").charAt(0).toUpperCase()}</Text></View>
@@ -212,7 +205,7 @@ function AccountScreen({ navigate, editProfile = false }: { navigate: (s: Screen
                 </Pressable>
               </View>
             </View> : <>
-              <Pressable accessibilityRole="button" onPress={() => navigate("profile")} style={styles.accountBanner}><View style={styles.smallAvatar}><Text style={styles.avatarText}>{(name || email || "C").charAt(0).toUpperCase()}</Text></View><View style={{ flex: 1 }}><Text style={styles.accountName}>{name || "Your account"}</Text><Text style={styles.accountEmail} numberOfLines={1}>{email}</Text></View><Text style={styles.accountBannerArrow}>›</Text></Pressable>
+              <View style={styles.accountBanner}><View style={styles.smallAvatar}><Text style={styles.avatarText}>{(name || email || "C").charAt(0).toUpperCase()}</Text></View><View><Text style={styles.accountName}>{name || "Your account"}</Text><Text style={styles.accountEmail}>{email}</Text></View></View>
               <View style={styles.accountMenu}>
                 <Pressable style={styles.menuRow} onPress={() => navigate("profile")}><Text style={styles.menuIcon}>♙</Text><Text style={styles.menuLabel}>Personal Information</Text><Text style={styles.menuArrow}>›</Text></Pressable>
                 <Pressable style={styles.menuRow} onPress={() => navigate("addresses")}><Text style={styles.menuIcon}>⌖</Text><Text style={styles.menuLabel}>Delivery Addresses</Text><Text style={styles.menuArrow}>›</Text></Pressable>
@@ -378,13 +371,11 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
-  const [homeResetKey, setHomeResetKey] = useState(0);
-  const { height } = useWindowDimensions();
   const navItems: Array<"home" | "cart" | "orders" | "account"> = ["home", "cart", "orders", "account"];
   return (
-    <View style={[styles.shell, Platform.OS === "web" && { height }]}>
+    <View style={styles.shell}>
       <View style={styles.content}>
-        {screen === "home" ? <MarketplaceScreen resetToken={homeResetKey} openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} />
+        {screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> 
         : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> 
         : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> 
         : screen === "account" ? <AccountScreen navigate={setScreen} /> 
@@ -393,7 +384,7 @@ function CustomerApp() {
       </View>
       <View accessibilityLabel="Primary navigation" style={styles.nav}>
         {navItems.map((item) => (
-           <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item || (item === "account" && (screen === "profile" || screen === "addresses")) }} key={item} onPress={() => { setOrderId(undefined); if (item === "home") setHomeResetKey(key => key + 1); setScreen(item); }} style={styles.navItem}>
+           <Pressable accessibilityRole="tab" accessibilityLabel={`${item} tab`} accessibilityState={{ selected: screen === item || (item === "account" && (screen === "profile" || screen === "addresses")) }} key={item} onPress={() => { setOrderId(undefined); setScreen(item); }} style={styles.navItem}>
              <NavIcon item={item} active={screen === item || (item === "account" && (screen === "profile" || screen === "addresses"))} />
              <Text style={[styles.navText, (screen === item || (item === "account" && (screen === "profile" || screen === "addresses"))) && styles.navActive]}>{item[0].toUpperCase()+item.slice(1)}</Text>
           </Pressable>
@@ -432,7 +423,7 @@ const styles = StyleSheet.create({
   secondaryBtn: { backgroundColor: colors.soft, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center" },
   secondaryBtnText: { ...typography.bodySemibold, color: colors.ink, fontSize: 16 },
   linkText: { ...typography.bodySemibold, color: colors.accent, textAlign: "center", padding: spacing.sm },
-  menuRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, minHeight: 50, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, ...shadows.sm },
+  menuRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.sm },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
   checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.muted, justifyContent: "center", alignItems: "center" },
   checkboxActive: { borderColor: colors.ink },
@@ -477,8 +468,7 @@ const styles = StyleSheet.create({
   avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.soft, alignSelf: "center", alignItems: "center", justifyContent: "center", marginVertical: 12 },
   smallAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 26, color: colors.accent, fontWeight: "800" },
-  accountBanner: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: colors.accent, padding: 18, marginHorizontal: -spacing.lg, marginTop: -8, marginBottom: spacing.lg },
-  accountBannerArrow: { color: colors.card, fontSize: 24 },
+  accountBanner: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: colors.accent, padding: 18, borderRadius: radius.lg },
   accountName: { color: colors.card, fontWeight: "800", fontSize: 17 },
   accountEmail: { color: "#D6E5FF", fontSize: 12 },
   accountMenu: { gap: 8 },
