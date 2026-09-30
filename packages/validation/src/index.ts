@@ -221,6 +221,60 @@ export const productStockQuantitySchema = z.object({
   stockQuantity: stockQuantitySchema,
 }).strict();
 
+const variantQuantityValueSchema = z.preprocess(
+  normalizeNumericInput,
+  z.number().finite().positive().max(999_999_999.999).refine(
+    (value) => Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-8,
+    "Must have at most three decimal places",
+  ),
+).transform((value) => String(value));
+
+const variantFieldsSchema = {
+  name: catalogNameSchema,
+  quantityValue: variantQuantityValueSchema,
+  quantityUnit: z.enum(["g", "kg", "ml", "l", "piece", "pack", "dozen"]),
+  price: catalogPriceSchema,
+  stockQuantity: stockQuantitySchema,
+  availability: z.boolean(),
+  isActive: z.boolean(),
+  sku: catalogCodeSchema,
+  externalCode: catalogCodeSchema,
+  sortOrder: z.number().int().min(-2_147_483_648).max(2_147_483_647),
+} as const;
+
+export const productVariantCreateSchema = z.object({
+  name: variantFieldsSchema.name,
+  quantityValue: variantFieldsSchema.quantityValue,
+  quantityUnit: variantFieldsSchema.quantityUnit,
+  price: variantFieldsSchema.price,
+  stockQuantity: variantFieldsSchema.stockQuantity.optional().default(0),
+  availability: variantFieldsSchema.availability.optional().default(true),
+  isActive: variantFieldsSchema.isActive.optional().default(true),
+  sku: variantFieldsSchema.sku,
+  externalCode: variantFieldsSchema.externalCode,
+  sortOrder: variantFieldsSchema.sortOrder.optional().default(0),
+}).strict();
+
+export const productVariantUpdateSchema = z.object({
+  name: variantFieldsSchema.name.optional(),
+  quantityValue: variantFieldsSchema.quantityValue.optional(),
+  quantityUnit: variantFieldsSchema.quantityUnit.optional(),
+  price: variantFieldsSchema.price.optional(),
+  stockQuantity: variantFieldsSchema.stockQuantity.optional(),
+  availability: variantFieldsSchema.availability.optional(),
+  isActive: variantFieldsSchema.isActive.optional(),
+  sku: variantFieldsSchema.sku,
+  externalCode: variantFieldsSchema.externalCode,
+  sortOrder: variantFieldsSchema.sortOrder.optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: "At least one permitted variant field is required",
+});
+
+export const productVariantIdParamSchema = z.object({
+  productId: catalogUuidSchema,
+  variantId: catalogUuidSchema,
+}).strict();
+
 export const productCategorySchema = z.object({
   categoryId: catalogUuidSchema.nullable(),
 }).strict();
@@ -303,6 +357,7 @@ const cartQuantitySchema = z.coerce.number().int().min(1).max(999);
 
 export const customerCartItemCreateSchema = z.object({
   productId: z.string().uuid(),
+  variantId: z.string().uuid(),
   quantity: cartQuantitySchema,
   confirmStoreSwitch: z.boolean().optional(),
 }).strict();
@@ -327,6 +382,16 @@ export const customerOrderCreateSchema = z.object({
 
 export const customerOrderIdParamSchema = z.object({
   orderId: z.string().uuid(),
+}).strict();
+
+export const customerOrderRepeatPreviewQuerySchema = z.object({
+  addressId: z.string().uuid(),
+}).strict();
+
+export const customerOrderRepeatSchema = z.object({
+  addressId: z.string().uuid(),
+  idempotencyKey: z.string().uuid(),
+  confirmStoreSwitch: z.boolean().optional(),
 }).strict();
 
 export const vendorOrderActionSchema = z.object({

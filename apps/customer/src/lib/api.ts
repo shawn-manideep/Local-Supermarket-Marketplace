@@ -55,11 +55,34 @@ export interface CustomerProduct {
   price: string;
   availability: boolean;
   imageUrl: string | null;
+  variants?: CustomerProductVariant[];
+}
+
+export type CustomerQuantityUnit = "g" | "kg" | "ml" | "l" | "piece" | "pack" | "dozen";
+export interface CustomerProductVariant {
+  id: string;
+  productId: string;
+  name: string;
+  quantityValue: string;
+  quantityUnit: CustomerQuantityUnit;
+  price: string;
+  stockQuantity: number;
+  availability: boolean;
+  isActive: boolean;
+  sku: string | null;
+  externalCode: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CustomerCartItem {
   id: string;
   productId: string;
+  variantId: string;
+  variantName: string;
+  quantityValue: string;
+  quantityUnit: CustomerQuantityUnit;
   name: string;
   imageUrl: string | null;
   quantity: number;
@@ -90,9 +113,18 @@ export interface CustomerOrderSummary {
   status: CustomerOrderStatus;
   totalAmount: string;
   createdAt: string;
+  itemSummary: Array<{
+    productNameSnapshot: string;
+    variantNameSnapshot?: string | null;
+    quantity: number;
+  }>;
 }
 export interface CustomerOrderItem {
   id: string;
+  variantId: string | null;
+  variantNameSnapshot: string | null;
+  variantQuantityValueSnapshot: string | null;
+  variantQuantityUnitSnapshot: CustomerQuantityUnit | null;
   productNameSnapshot: string;
   productPriceSnapshot: string;
   quantity: number;
@@ -125,6 +157,29 @@ export interface CustomerOrderDetail extends CustomerOrderSummary {
   deliveryContactPhone: string;
   statusHistory: CustomerOrderStatusHistory[];
   updatedAt: string;
+}
+
+export interface RepeatOrderPreviewItem {
+  orderItemId: string;
+  productName: string;
+  variantNameSnapshot: string;
+  quantity: number;
+  currentUnitPrice: string | null;
+  available: boolean;
+  reason: string | null;
+}
+
+export interface RepeatOrderPreview {
+  storeAvailable: boolean;
+  storeSwitchRequired: boolean;
+  items: RepeatOrderPreviewItem[];
+  canAddCount: number;
+}
+
+export interface RepeatOrderResult {
+  cart: CustomerCart | null;
+  unavailable: RepeatOrderPreviewItem[];
+  addedCount: number;
 }
 
 const domain = process.env.EXPO_PUBLIC_DOMAIN;

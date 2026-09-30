@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { Router, type Request } from "express";
 import { z } from "zod";
 import {
-  carts, cartItems, categories, customerAddresses, getDb, orderItems,
+  carts, cartItems, categories, customerAddresses, customerRepeatRequests, getDb, orderItems, productVariants,
   orderStatusHistory, orders, products, storeServicePincodes, stores,
 } from "@workspace/db";
 import {
@@ -12,6 +12,7 @@ import {
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
+import { cartResponse } from "../customer-cart/routes.js";
 import { centsToMoney, moneyToCents } from "../customer-cart/money.js";
 import { commissionCents, DEFAULT_COMMISSION_RATE, LEGAL_ORDER_TRANSITIONS } from "./lifecycle.js";
 
@@ -45,6 +46,9 @@ const vendorOrderSummaryFields = {
 const safeItemFields = {
   id: orderItems.id, productNameSnapshot: orderItems.productNameSnapshot,
   productPriceSnapshot: orderItems.productPriceSnapshot, quantity: orderItems.quantity, subtotal: orderItems.subtotal,
+  variantId: orderItems.variantId, variantNameSnapshot: orderItems.variantNameSnapshot,
+  variantQuantityValueSnapshot: orderItems.variantQuantityValueSnapshot,
+  variantQuantityUnitSnapshot: orderItems.variantQuantityUnitSnapshot,
 };
 const safeHistoryFields = {
   id: orderStatusHistory.id, status: orderStatusHistory.status,
@@ -60,6 +64,98 @@ function addressSnapshot(address: typeof customerAddresses.$inferSelect) {
     line1: address.line1, line2: address.line2, city: address.city,
     state: address.state, pincode: address.pincode,
   };
+}
+
+const repeatPreviewQuerySchema = z.object({ addressId: z.string().uuid() }).strict();
+const repeatOrderBodySchema = z.object({
+  addressId: z.string().uuid(),
+  idempotencyKey: z.string().uuid(),
+  confirmStoreSwitch: z.boolean().optional(),
+}).strict();
+
+type RepeatIntent = { sourceOrderId: string; addressId: string; confirmStoreSwitch: boolean };
+export function repeatIntentMatches(existing: RepeatIntent, requested: RepeatIntent) {
+  return existing.sourceOrderId === requested.sourceOrderId &&
+    existing.addressId === requested.addressId &&
+    existing.confirmStoreSwitch === requested.confirmStoreSwitch;
+}
+
+export function planRepeatLineAdditions(
+  lines: Array<{ variantId: string | null; quantity: number; stockQuantity: number | null; available: boolean }>,
+  currentQuantities: Map<string, number>,
+) {
+  return lines.map((line) => {
+    if (!line.available || !line.variantId || line.stockQuantity === null) return false;
+    const current = currentQuantities.get(line.variantId) ?? 0;
+    if (current + line.quantity > line.stockQuantity) return false;
+    currentQuantities.set(line.variantId, current + line.quantity);
+    return true;
+  });
+}
+
+async function repeatOrderPreviewData(
+  db: ReturnType<typeof getDb>,
+  customerId: string,
+  id: string,
+  addressId: string,
+) {
+  const [order] = await db.select({
+    id: orders.id, storeId: orders.storeId,
+  }).from(orders).where(and(eq(orders.id, id), eq(orders.customerId, customerId))).limit(1);
+  if (!order) throw new HttpError(404, "Order not found");
+  const [address] = await db.select().from(customerAddresses)
+    .where(and(eq(customerAddresses.id, addressId), eq(customerAddresses.customerId, customerId))).limit(1);
+  if (!address) throw new HttpError(404, "Delivery address not found");
+  const [store] = await db.select({
+    status: stores.status,
+  }).from(stores).innerJoin(storeServicePincodes, and(
+    eq(storeServicePincodes.storeId, stores.id),
+    eq(storeServicePincodes.pincode, address.pincode),
+  )).where(eq(stores.id, order.storeId)).limit(1);
+  const storeAvailable = store?.status === "ACTIVE";
+  const [activeCart] = await db.select({ storeId: carts.storeId }).from(carts)
+    .where(and(eq(carts.customerId, customerId), eq(carts.status, "ACTIVE")))
+    .orderBy(asc(carts.createdAt)).limit(1);
+  const storeSwitchRequired = Boolean(activeCart && activeCart.storeId !== order.storeId);
+  const rows = await db.select({
+    orderItemId: orderItems.id,
+    orderProductId: orderItems.productId,
+    productName: orderItems.productNameSnapshot,
+    variantNameSnapshot: orderItems.variantNameSnapshot,
+    quantity: orderItems.quantity,
+    currentUnitPrice: productVariants.price,
+    variantId: productVariants.id,
+    variantProductId: productVariants.productId,
+    productId: products.id,
+    productStoreId: products.storeId,
+    productActive: products.isActive,
+    productAvailable: products.availability,
+    variantActive: productVariants.isActive,
+    variantAvailable: productVariants.availability,
+    stockQuantity: productVariants.stockQuantity,
+  }).from(orderItems).leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .leftJoin(products, eq(products.id, productVariants.productId))
+    .where(eq(orderItems.orderId, order.id)).orderBy(asc(orderItems.createdAt));
+  const items = rows.map((row) => {
+    let reason: string | null = null;
+    if (!storeAvailable) reason = "Store cannot deliver to the selected address";
+    else if (!row.variantId || !row.productId || row.stockQuantity === null || row.variantProductId !== row.productId ||
+      row.orderProductId !== row.productId ||
+      row.productStoreId !== order.storeId) reason = "Original product variant is no longer available";
+    else if (!row.productActive || !row.productAvailable || !row.variantActive || !row.variantAvailable)
+      reason = "Product variant is currently unavailable";
+    else if (row.quantity > row.stockQuantity) reason = "Insufficient stock";
+    return {
+      orderItemId: row.orderItemId,
+      productName: row.productName,
+      variantNameSnapshot: row.variantNameSnapshot,
+      quantity: row.quantity,
+      currentUnitPrice: row.currentUnitPrice,
+      available: reason === null,
+      reason,
+    };
+  });
+  return { storeAvailable, storeSwitchRequired, items, canAddCount: items.filter((item) => item.available).length, order };
 }
 
 ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(async (req, res) => {
@@ -82,8 +178,9 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     if (!store || store.stores.status !== "ACTIVE") throw new HttpError(409, "Store cannot deliver to the selected address");
     // Lock cart items/products only. PostgreSQL rejects FOR UPDATE on the nullable
     // side of an outer join, so category relation validation is a separate read.
-    const rows = await tx.select({ item: cartItems, product: products })
+    const rows = await tx.select({ item: cartItems, product: products, variant: productVariants })
       .from(cartItems).innerJoin(products, eq(products.id, cartItems.productId))
+      .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
       .where(eq(cartItems.cartId, cart.id)).for("update");
     if (!rows.length) throw new HttpError(409, "Cart is empty");
     const categoryIds = rows.map(({ product }) => product.categoryId).filter((id): id is string => id !== null);
@@ -96,15 +193,16 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
         ))
         .for("share")
       : [];
-    if (rows.some(({ product }) => product.storeId !== cart.storeId || !product.isActive ||
-      !product.availability || product.stockQuantity < 0 ||
+    if (rows.some(({ product, variant }) => product.storeId !== cart.storeId || variant.productId !== product.id ||
+      !product.isActive || !product.availability || !variant.isActive ||
+      !variant.availability || variant.stockQuantity < 0 ||
       (product.categoryId !== null && !validCategories.some(c => c.id === product.categoryId)))) {
-      throw new HttpError(409, "One or more cart products are no longer available");
+      throw new HttpError(409, "One or more cart product variants are no longer available");
     }
-    if (rows.some(({ item, product }) => item.quantity > product.stockQuantity))
+    if (rows.some(({ item, variant }) => item.quantity > variant.stockQuantity))
       throw new HttpError(409, "Requested quantity exceeds available stock");
-    const subtotal = rows.reduce((sum, { item, product }) =>
-      sum + moneyToCents(product.price) * BigInt(item.quantity), 0n);
+    const subtotal = rows.reduce((sum, { item, variant }) =>
+      sum + moneyToCents(variant.price) * BigInt(item.quantity), 0n);
     const fee = moneyToCents(store.stores.deliveryFee);
     const minimum = moneyToCents(store.stores.minimumOrderValue);
     if (subtotal < minimum) throw new HttpError(409, `Minimum order value is ${store.stores.minimumOrderValue}`);
@@ -119,10 +217,13 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
       deliveryContactPhone: address.phone,
     }).returning();
     if (!order) throw new HttpError(500, "Unable to create order");
-    await tx.insert(orderItems).values(rows.map(({ item, product }) => ({
+    await tx.insert(orderItems).values(rows.map(({ item, product, variant }) => ({
       orderId: order.id, productId: product.id, productNameSnapshot: product.name,
-      productPriceSnapshot: product.price, quantity: item.quantity,
-      subtotal: centsToMoney(moneyToCents(product.price) * BigInt(item.quantity)),
+      variantId: variant.id, variantNameSnapshot: variant.name,
+      variantQuantityValueSnapshot: variant.quantityValue,
+      variantQuantityUnitSnapshot: variant.quantityUnit,
+      productPriceSnapshot: variant.price, quantity: item.quantity,
+      subtotal: centsToMoney(moneyToCents(variant.price) * BigInt(item.quantity)),
     })));
     await tx.insert(orderStatusHistory).values({ orderId: order.id, status: "PLACED", changedBy: customerId });
     await tx.update(carts).set({ status: "CONVERTED", updatedAt: new Date() }).where(eq(carts.id, cart.id));
@@ -136,11 +237,243 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
   res.status(201).json({ order: { ...safe, items, statusHistory } });
 }));
 
+ordersRouter.get("/api/customer/orders/:orderId/repeat-preview", requireRole("customer"), asyncHandler(async (req, res) => {
+  const id = orderId(req);
+  const parsed = repeatPreviewQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw new HttpError(400, "Invalid repeat-order preview request", validationDetails(parsed.error));
+  const preview = await repeatOrderPreviewData(getDb(), userId(req), id, parsed.data.addressId);
+  const { order: _order, ...result } = preview;
+  res.json(result);
+}));
+
+ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"), asyncHandler(async (req, res) => {
+  const id = orderId(req);
+  const parsed = repeatOrderBodySchema.safeParse(req.body);
+  if (!parsed.success) throw new HttpError(400, "Invalid repeat-order request", validationDetails(parsed.error));
+  const customerId = userId(req);
+  const requestedIntent: RepeatIntent = {
+    sourceOrderId: id,
+    addressId: parsed.data.addressId,
+    confirmStoreSwitch: parsed.data.confirmStoreSwitch ?? false,
+  };
+  const result = await getDb().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${customerId}, 0))`);
+    const [previousRequest] = await tx.select().from(customerRepeatRequests)
+      .where(and(
+        eq(customerRepeatRequests.customerId, customerId),
+        eq(customerRepeatRequests.idempotencyKey, parsed.data.idempotencyKey),
+      )).limit(1);
+    if (previousRequest) {
+      if (!repeatIntentMatches({
+        sourceOrderId: previousRequest.sourceOrderId,
+        addressId: previousRequest.addressId,
+        confirmStoreSwitch: previousRequest.confirmStoreSwitch,
+      }, requestedIntent)) {
+        throw new HttpError(409, "Idempotency key was already used for a different repeat-order request", {
+          code: "IDEMPOTENCY_KEY_REUSED",
+        });
+      }
+      return previousRequest.response as unknown as {
+        unavailable: Array<Record<string, unknown>>;
+        addedCount: number;
+      };
+    }
+    const [order] = await tx.select({
+      id: orders.id, storeId: orders.storeId, storeName: stores.name,
+    }).from(orders).innerJoin(stores, eq(stores.id, orders.storeId))
+      .where(and(eq(orders.id, id), eq(orders.customerId, customerId))).limit(1).for("share");
+    if (!order) throw new HttpError(404, "Order not found");
+    const [address] = await tx.select().from(customerAddresses)
+      .where(and(eq(customerAddresses.id, parsed.data.addressId), eq(customerAddresses.customerId, customerId)))
+      .limit(1).for("share");
+    if (!address) throw new HttpError(404, "Delivery address not found");
+    const [store] = await tx.select({ status: stores.status }).from(stores).innerJoin(
+      storeServicePincodes,
+      and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, address.pincode)),
+    ).where(eq(stores.id, order.storeId)).limit(1).for("share");
+    if (!store || store.status !== "ACTIVE") throw new HttpError(409, "Store cannot deliver to the selected address");
+    const orderRows = await tx.select({
+      orderItemId: orderItems.id, productName: orderItems.productNameSnapshot,
+      orderProductId: orderItems.productId,
+      variantNameSnapshot: orderItems.variantNameSnapshot, quantity: orderItems.quantity,
+      productId: products.id, productStoreId: products.storeId, productActive: products.isActive,
+      productAvailable: products.availability,
+      variantId: productVariants.id, variantProductId: productVariants.productId,
+      variantActive: productVariants.isActive, variantAvailable: productVariants.availability,
+      stockQuantity: productVariants.stockQuantity, currentUnitPrice: productVariants.price,
+      quantityValue: productVariants.quantityValue, quantityUnit: productVariants.quantityUnit,
+    }).from(orderItems).leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+      .leftJoin(products, eq(products.id, productVariants.productId))
+      .where(eq(orderItems.orderId, order.id)).orderBy(asc(orderItems.createdAt));
+    const variantIds = [...new Set(orderRows.flatMap((row) => row.variantId ? [row.variantId] : []))];
+    const lockedVariants = variantIds.length
+      ? await tx.select().from(productVariants).where(inArray(productVariants.id, variantIds)).for("share")
+      : [];
+    const variantById = new Map(lockedVariants.map((variant) => [variant.id, variant]));
+    const productIds = [...new Set(lockedVariants.map((variant) => variant.productId))];
+    const lockedProducts = productIds.length
+      ? await tx.select().from(products).where(inArray(products.id, productIds)).for("share")
+      : [];
+    const productById = new Map(lockedProducts.map((product) => [product.id, product]));
+    const evaluated = orderRows.map((row) => {
+      const variant = row.variantId ? variantById.get(row.variantId) : undefined;
+      const product = variant ? productById.get(variant.productId) : undefined;
+      const currentRow = {
+        ...row,
+        variantId: variant?.id ?? null,
+        variantProductId: variant?.productId ?? null,
+        variantActive: variant?.isActive ?? null,
+        variantAvailable: variant?.availability ?? null,
+        currentUnitPrice: variant?.price ?? null,
+        stockQuantity: variant?.stockQuantity ?? null,
+        productId: product?.id ?? null,
+        productStoreId: product?.storeId ?? null,
+        productActive: product?.isActive ?? null,
+        productAvailable: product?.availability ?? null,
+      };
+      let reason: string | null = null;
+      if (!currentRow.variantId || !currentRow.productId || currentRow.stockQuantity === null ||
+        currentRow.variantProductId !== currentRow.productId || row.orderProductId !== currentRow.productId ||
+        currentRow.productStoreId !== order.storeId) reason = "Original product variant is no longer available";
+      else if (!currentRow.productActive || !currentRow.productAvailable ||
+        !currentRow.variantActive || !currentRow.variantAvailable)
+        reason = "Product variant is currently unavailable";
+      else if (row.quantity > currentRow.stockQuantity) reason = "Insufficient stock";
+      return {
+        orderItemId: row.orderItemId, productName: row.productName,
+        variantNameSnapshot: row.variantNameSnapshot, quantity: row.quantity,
+        currentUnitPrice: currentRow.currentUnitPrice,
+        available: reason === null, reason, row: currentRow,
+      };
+    });
+    const activeCarts = await tx.select({
+      id: carts.id, storeId: carts.storeId, storeName: stores.name,
+      createdAt: carts.createdAt,
+    }).from(carts).innerJoin(stores, eq(stores.id, carts.storeId))
+      .where(and(eq(carts.customerId, customerId), eq(carts.status, "ACTIVE")))
+      .orderBy(asc(carts.createdAt)).for("update");
+    const targetCarts = activeCarts.filter((cart) => cart.storeId === order.storeId);
+    const targetCartIds = targetCarts.map((cart) => cart.id);
+    const existingTargetItems = targetCartIds.length
+      ? await tx.select({
+        cartId: cartItems.cartId, variantId: cartItems.variantId,
+        productId: productVariants.productId, quantity: cartItems.quantity,
+      }).from(cartItems).innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
+        .where(inArray(cartItems.cartId, targetCartIds)).for("update")
+      : [];
+    const existingQuantities = new Map<string, number>();
+    for (const item of existingTargetItems) {
+      existingQuantities.set(item.variantId, (existingQuantities.get(item.variantId) ?? 0) + item.quantity);
+    }
+    const plannedAdditions = planRepeatLineAdditions(evaluated.map((item) => ({
+      variantId: item.row.variantId,
+      quantity: item.quantity,
+      stockQuantity: item.row.stockQuantity,
+      available: item.available,
+    })), existingQuantities);
+    const unavailable = evaluated.flatMap((item, index) => {
+      if (!item.available) {
+        const { row: _row, ...publicItem } = item;
+        return [publicItem];
+      }
+      if (!plannedAdditions[index]) {
+        const { row: _row, ...publicItem } = item;
+        return [{ ...publicItem, available: false, reason: "Insufficient stock for cart quantity" }];
+      }
+      return [];
+    });
+    const additions = evaluated.filter((_item, index) => plannedAdditions[index]);
+    if (additions.length === 0) {
+      const response = { unavailable, addedCount: 0 };
+      await tx.insert(customerRepeatRequests).values({
+        customerId, idempotencyKey: parsed.data.idempotencyKey,
+        sourceOrderId: id, addressId: parsed.data.addressId,
+        confirmStoreSwitch: requestedIntent.confirmStoreSwitch, response,
+      });
+      return response;
+    }
+    const conflictingCarts = activeCarts.filter((cart) => cart.storeId !== order.storeId);
+    if (conflictingCarts.length && !requestedIntent.confirmStoreSwitch) {
+      throw new HttpError(409, "Store switch required", {
+        code: "STORE_SWITCH_REQUIRED",
+        existingStore: { id: conflictingCarts[0]!.storeId, name: conflictingCarts[0]!.storeName },
+        requestedStore: { id: order.storeId, name: order.storeName },
+      });
+    }
+    let cart = targetCarts[0] ? { id: targetCarts[0].id } : undefined;
+    if (!cart) {
+      [cart] = await tx.insert(carts).values({ customerId, storeId: order.storeId })
+        .onConflictDoNothing().returning({ id: carts.id });
+      if (!cart) [cart] = await tx.select({ id: carts.id }).from(carts)
+        .where(and(eq(carts.customerId, customerId), eq(carts.storeId, order.storeId), eq(carts.status, "ACTIVE")))
+        .limit(1).for("update");
+    }
+    if (!cart) throw new HttpError(409, "Unable to create active cart");
+    const duplicateTargetCartIds = targetCartIds.filter((cartId) => cartId !== cart!.id);
+    if (duplicateTargetCartIds.length) {
+      const duplicateItems = existingTargetItems.filter((item) => duplicateTargetCartIds.includes(item.cartId));
+      for (const item of duplicateItems) {
+        await tx.insert(cartItems).values({
+          cartId: cart.id, productId: item.productId,
+          variantId: item.variantId, quantity: item.quantity,
+        }).onConflictDoUpdate({
+          target: [cartItems.cartId, cartItems.variantId],
+          set: { quantity: sql`${cartItems.quantity} + ${item.quantity}`, updatedAt: new Date() },
+        });
+      }
+    }
+    const cartsToAbandon = activeCarts.filter((activeCart) => activeCart.id !== cart!.id);
+    if (cartsToAbandon.length) {
+      await tx.update(carts).set({ status: "ABANDONED", updatedAt: new Date() })
+        .where(and(
+          eq(carts.customerId, customerId),
+          eq(carts.status, "ACTIVE"),
+          inArray(carts.id, cartsToAbandon.map((activeCart) => activeCart.id)),
+        ));
+    }
+    let addedCount = 0;
+    for (const { row } of additions) {
+      if (!row.variantId || !row.productId || row.stockQuantity === null) continue;
+      const [added] = await tx.insert(cartItems).values({
+        cartId: cart.id, productId: row.productId, variantId: row.variantId, quantity: row.quantity,
+      }).onConflictDoUpdate({
+        target: [cartItems.cartId, cartItems.variantId],
+        set: { quantity: sql`${cartItems.quantity} + ${row.quantity}`, updatedAt: new Date() },
+        where: sql`${cartItems.quantity} + ${row.quantity} <= ${row.stockQuantity}`,
+      }).returning({ id: cartItems.id });
+      if (added) addedCount += 1;
+    }
+    if (addedCount === 0) throw new HttpError(409, "Unable to add any repeat-order items");
+    const response = { unavailable, addedCount };
+    await tx.insert(customerRepeatRequests).values({
+      customerId, idempotencyKey: parsed.data.idempotencyKey,
+      sourceOrderId: id, addressId: parsed.data.addressId,
+      confirmStoreSwitch: requestedIntent.confirmStoreSwitch, response,
+    });
+    return response;
+  }, { isolationLevel: "read committed" });
+  res.json({ cart: await cartResponse(customerId), ...result });
+}));
+
 ordersRouter.get("/api/customer/orders", requireRole("customer"), asyncHandler(async (req, res) => {
-    const list = await getDb().select({ ...safeOrderSummaryFields, storeName: stores.name }).from(orders)
+  const db = getDb();
+  const list = await db.select({ ...safeOrderSummaryFields, storeName: stores.name }).from(orders)
     .innerJoin(stores, eq(stores.id, orders.storeId)).where(eq(orders.customerId, userId(req)))
     .orderBy(desc(orders.createdAt), desc(orders.id)).limit(100);
-  res.json({ orders: list });
+  const ids = list.map((order) => order.id);
+  const summaries = ids.length ? await db.select({
+    orderId: orderItems.orderId, productNameSnapshot: orderItems.productNameSnapshot,
+    variantNameSnapshot: orderItems.variantNameSnapshot, quantity: orderItems.quantity,
+  }).from(orderItems).where(inArray(orderItems.orderId, ids)).orderBy(asc(orderItems.createdAt)) : [];
+  const summaryByOrder = new Map<string, typeof summaries>();
+  for (const item of summaries) {
+    const current = summaryByOrder.get(item.orderId) ?? [];
+    current.push(item);
+    summaryByOrder.set(item.orderId, current);
+  }
+  res.json({ orders: list.map((order) => ({
+    ...order, itemSummary: (summaryByOrder.get(order.id) ?? []).map(({ orderId: _orderId, ...item }) => item),
+  })) });
 }));
 ordersRouter.get("/api/customer/orders/:orderId", requireRole("customer"), asyncHandler(async (req, res) => {
   const id = orderId(req);

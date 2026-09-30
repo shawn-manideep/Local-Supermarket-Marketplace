@@ -24,11 +24,20 @@ async function withServer(
 
 test("vendor catalog routes require authentication", async () => {
   await withServer(async (baseUrl) => {
-    for (const path of ["/api/vendor/categories", "/api/vendor/products"]) {
+    for (const path of [
+      "/api/vendor/categories",
+      "/api/vendor/products",
+    ]) {
       const response = await fetch(`${baseUrl}${path}`);
       assert.equal(response.status, 401);
       assert.deepEqual(await response.json(), { error: "Authentication required" });
     }
+    const variantResponse = await fetch(
+      `${baseUrl}/api/vendor/products/11111111-1111-4111-8111-111111111111/variants`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+    );
+    assert.equal(variantResponse.status, 401);
+    assert.deepEqual(await variantResponse.json(), { error: "Authentication required" });
   });
 });
 
@@ -54,7 +63,12 @@ test("catalog hard-delete endpoints do not exist", async () => {
       `${baseUrl}/api/vendor/products/11111111-1111-4111-8111-111111111111`,
       { method: "DELETE" },
     );
+    const variantResponse = await fetch(
+      `${baseUrl}/api/vendor/products/11111111-1111-4111-8111-111111111111/variants/22222222-2222-4222-8222-222222222222`,
+      { method: "DELETE" },
+    );
     assert.equal(categoryResponse.status, 404);
     assert.equal(productResponse.status, 404);
+    assert.equal(variantResponse.status, 404);
   });
 });

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
-import { customerCartItemCreateSchema, customerCartItemUpdateSchema, customerCheckoutValidationSchema } from "@workspace/validation";
+import {
+  customerCartItemCreateSchema, customerCartItemUpdateSchema,
+  customerCheckoutValidationSchema,
+} from "@workspace/validation";
 import { createApp } from "../app.js";
 import { centsToMoney, moneyToCents } from "./money.js";
 import { cartStatusAfterItemRemoval } from "./routes.js";
@@ -12,7 +15,10 @@ test("cart and checkout routes require authentication", async () => {
   await new Promise<void>((resolve) => server.once("listening", resolve));
   try {
     const { port } = server.address() as AddressInfo;
-    for (const [method, path] of [["GET", "/api/customer/cart"], ["POST", "/api/customer/cart/items"], ["POST", "/api/customer/checkout/validate"]] as const) {
+    for (const [method, path] of [
+      ["GET", "/api/customer/cart"], ["POST", "/api/customer/cart/items"],
+      ["POST", "/api/customer/checkout/validate"],
+    ] as const) {
       assert.equal((await fetch(`http://127.0.0.1:${port}${path}`, { method })).status, 401);
     }
   } finally {
@@ -21,11 +27,23 @@ test("cart and checkout routes require authentication", async () => {
 });
 
 test("cart inputs reject protected values and unsafe quantities", () => {
-  assert.equal(customerCartItemCreateSchema.safeParse({ productId: crypto.randomUUID(), quantity: 1, price: 1 }).success, false);
-  assert.equal(customerCartItemCreateSchema.safeParse({ productId: crypto.randomUUID(), quantity: -1 }).success, false);
+  const productId = crypto.randomUUID();
+  const variantId = crypto.randomUUID();
+  assert.equal(customerCartItemCreateSchema.safeParse({ productId, variantId, quantity: 1 }).success, true);
+  assert.equal(customerCartItemCreateSchema.safeParse({ productId, quantity: 1 }).success, false);
+  assert.equal(customerCartItemCreateSchema.safeParse({ productId, variantId, quantity: -1 }).success, false);
+  assert.equal(customerCartItemCreateSchema.safeParse({ productId, variantId, quantity: 1, price: 1 }).success, false);
   assert.equal(customerCartItemUpdateSchema.safeParse({ quantity: 0 }).success, true);
   assert.equal(customerCartItemUpdateSchema.safeParse({ quantity: 1000 }).success, false);
   assert.equal(customerCheckoutValidationSchema.safeParse({ addressId: crypto.randomUUID(), paymentMethod: "CARD" }).success, false);
+});
+
+test("variant cart identity uses distinct product variant ids and variant inventory prices", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  assert.match(routes, /target: \[cartItems\.cartId, cartItems\.variantId\]/);
+  assert.match(routes, /unitPrice: productVariants\.price/);
+  assert.match(routes, /stockQuantity: productVariants\.stockQuantity/);
+  assert.match(routes, /eq\(productVariants\.id, cartItems\.variantId\)/);
 });
 
 test("money calculations remain integer-cent based", () => {

@@ -1,26 +1,35 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { customerApi, type CustomerOrderDetail, type CustomerOrderSummary } from "./lib/api";
+import { randomUUID } from "expo-crypto";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { customerApi, type CustomerAddress, type CustomerOrderDetail, type CustomerOrderSummary, type RepeatOrderPreview, type RepeatOrderResult } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
-const date = (value: string) => new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+const date = (value: string) => new Date(value).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor Delivery" : "Platform Delivery";
 
-export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {}) {
+function createSecureUuid(): string {
+  return randomUUID();
+}
+
+export function OrdersScreen({ initialOrderId, onRepeatAdded }: { initialOrderId?: string; onRepeatAdded?: () => void } = {}) {
   const [orders, setOrders] = useState<CustomerOrderSummary[]>([]);
   const [selected, setSelected] = useState<CustomerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"All" | "Processing" | "Delivered" | "Cancelled">("All");
+  const [repeatOrderId, setRepeatOrderId] = useState<string | null>(null);
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
 
   const load = async () => {
     const request = ++listGeneration.current;
     setLoading(true); setError("");
-    try { const result = await customerApi<{ orders: CustomerOrderSummary[] }>("/api/customer/orders"); if (request === listGeneration.current) setOrders(result.orders); }
+    try {
+      const result = await customerApi<{ orders: CustomerOrderSummary[] }>("/api/customer/orders");
+      if (request === listGeneration.current) setOrders(result.orders);
+    }
     catch (reason) { if (request === listGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load orders."); }
     finally { if (request === listGeneration.current) setLoading(false); }
   };
@@ -35,7 +44,10 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
   };
   useEffect(() => { if (initialOrderId) void open(initialOrderId); }, [initialOrderId]);
 
-  if (selected) return <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} refresh={load} />;
+  if (selected) return <>
+    <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} refresh={load} onRepeat={() => setRepeatOrderId(selected.id)} />
+    <RepeatOrderDialog orderId={repeatOrderId} onClose={() => setRepeatOrderId(null)} onAdded={() => { setRepeatOrderId(null); onRepeatAdded?.(); }} />
+  </>;
   
   if (loading) return <View style={[commonStyles.page, { justifyContent: "center", alignItems: "center" }]}><ActivityIndicator color={colors.accent} /></View>;
   
@@ -61,35 +73,175 @@ export function OrdersScreen({ initialOrderId }: { initialOrderId?: string } = {
           <View style={styles.emptyState}><Text style={typography.title2}>No {filter.toLowerCase()} orders</Text></View>
         ) : (
           <View style={{ gap: spacing.md }}>
-             {orders.filter(order => filter === "All" || (filter === "Processing" ? !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) : filter === "Delivered" ? order.status === "DELIVERED" : ["CANCELLED", "REJECTED"].includes(order.status))).map((order) => (
-              <Pressable accessibilityRole="button" key={order.id} onPress={() => void open(order.id)} style={styles.orderCard}>
+              {orders.filter(order => filter === "All" || (filter === "Processing" ? !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) : filter === "Delivered" ? order.status === "DELIVERED" : ["CANCELLED", "REJECTED"].includes(order.status))).map((order) => (
+               <View key={order.id} style={styles.orderCard}>
                 <View style={styles.between}>
                   <Text style={typography.title3}>#{order.id.slice(0, 8).toUpperCase()}</Text>
                   <Text style={typography.body}>{date(order.createdAt)}</Text>
                 </View>
                 <View style={styles.between}>
-                  <Text style={typography.caption}>{order.storeName}</Text>
+                   <Text style={[typography.bodySemibold, { flex: 1, paddingRight: spacing.sm }]}>{order.storeName}</Text>
                   <Text style={typography.bodySemibold}>Total: {money(order.totalAmount)}</Text>
                 </View>
                 <View style={[styles.statusBadge, order.status === "CANCELLED" ? styles.statusBadgeCancelled : null]}>
                   <Text style={[styles.statusBadgeText, order.status === "CANCELLED" ? styles.statusBadgeTextCancelled : null]}>{order.status.replaceAll("_", " ")}</Text>
                 </View>
-              </Pressable>
+                 {!!order.itemSummary?.length && <Text numberOfLines={2} style={typography.caption}>{order.itemSummary.map(item => `${item.productNameSnapshot}${item.variantNameSnapshot ? ` · ${item.variantNameSnapshot}` : ""} × ${item.quantity}`).join("  ·  ")}</Text>}
+                 <View style={styles.orderActions}>
+                   <Pressable accessibilityRole="button" onPress={() => void open(order.id)} style={styles.viewOrderButton}><Text style={styles.viewOrderText}>View Order</Text></Pressable>
+                   <Pressable accessibilityRole="button" onPress={() => setRepeatOrderId(order.id)} style={styles.repeatButton}><Text style={styles.repeatText}>Repeat Order</Text></Pressable>
+                 </View>
+               </View>
             ))}
           </View>
         )}
       </View>
+      <RepeatOrderDialog orderId={repeatOrderId} onClose={() => setRepeatOrderId(null)} onAdded={() => { setRepeatOrderId(null); onRepeatAdded?.(); }} />
     </ScrollView>
   );
 }
 
-function OrderDetail({ order, back, refresh }: { order: CustomerOrderDetail; back: () => void; refresh: () => void; }) {
+function RepeatOrderDialog({ orderId, onClose, onAdded }: { orderId: string | null; onClose: () => void; onAdded: () => void }) {
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [addressId, setAddressId] = useState("");
+  const [preview, setPreview] = useState<RepeatOrderPreview | null>(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [retry, setRetry] = useState(0);
+  const idempotencyIntent = useRef<{ orderId: string; addressId: string; key: string } | null>(null);
+  const submissionInFlight = useRef(false);
+
+  useEffect(() => {
+    const intent = idempotencyIntent.current;
+    if (intent && (intent.orderId !== orderId || intent.addressId !== addressId)) {
+      idempotencyIntent.current = null;
+    }
+  }, [orderId, addressId]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    let active = true;
+    setAddresses([]);
+    setAddressId("");
+    setPreview(null);
+    setConfirmSwitch(false);
+    setMessage("");
+    setLoadingAddresses(true);
+    customerApi<{ addresses: CustomerAddress[] }>("/api/customer/addresses")
+      .then(({ addresses: next }) => {
+        if (!active) return;
+        setAddresses(next);
+        setAddressId((next.find(address => address.isDefault) ?? next[0])?.id ?? "");
+      })
+      .catch(reason => { if (active) setMessage(reason instanceof Error ? reason.message : "Unable to load delivery addresses."); })
+      .finally(() => { if (active) setLoadingAddresses(false); });
+    return () => { active = false; };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId || !addressId) return;
+    let active = true;
+    setLoadingPreview(true);
+    setPreview(null);
+    setConfirmSwitch(false);
+    setMessage("");
+    customerApi<RepeatOrderPreview>(`/api/customer/orders/${orderId}/repeat-preview?addressId=${encodeURIComponent(addressId)}`)
+      .then(result => { if (active) setPreview(result); })
+      .catch(reason => { if (active) setMessage(reason instanceof Error ? reason.message : "Unable to check this order's availability."); })
+      .finally(() => { if (active) setLoadingPreview(false); });
+    return () => { active = false; };
+  }, [orderId, addressId, retry]);
+
+  const addAvailableItems = async () => {
+    if (!orderId || !addressId || !preview || submitting || submissionInFlight.current) return;
+    submissionInFlight.current = true;
+    setSubmitting(true);
+    setMessage("");
+    try {
+      let intent = idempotencyIntent.current;
+      if (!intent || intent.orderId !== orderId || intent.addressId !== addressId) {
+        intent = { orderId, addressId, key: createSecureUuid() };
+        idempotencyIntent.current = intent;
+      }
+      const result = await customerApi<RepeatOrderResult>(`/api/customer/orders/${orderId}/repeat`, {
+        method: "POST",
+        body: JSON.stringify({ addressId, idempotencyKey: intent.key, ...(preview.storeSwitchRequired ? { confirmStoreSwitch: confirmSwitch } : {}) }),
+      });
+      if (idempotencyIntent.current?.key === intent.key) idempotencyIntent.current = null;
+      if (result.addedCount > 0) onAdded();
+      else setMessage("No available items were added. Your existing cart has not been changed.");
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "Unable to add available items.");
+    } finally {
+      submissionInFlight.current = false;
+      setSubmitting(false);
+    }
+  };
+
+  return <Modal transparent animationType="fade" visible={!!orderId} onRequestClose={onClose}>
+    <View style={styles.modalShade}>
+      <View style={styles.repeatModal}>
+        <Text style={typography.eyebrow}>REVIEW BEFORE ADDING</Text>
+        <Text style={[typography.title1, { marginTop: spacing.xs }]}>Repeat your order</Text>
+        <Text style={[typography.caption, { marginTop: spacing.xs, marginBottom: spacing.md }]}>We’ll check current availability and prices. This will not place an order.</Text>
+        {loadingAddresses ? <ActivityIndicator color={colors.accent} /> : addresses.length > 0 ? <>
+          <Text style={[typography.bodySemibold, { marginBottom: spacing.xs }]}>Delivery address</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.sm }}>
+            {addresses.map(address => <Pressable key={address.id} onPress={() => {
+              if (address.id !== addressId) {
+                idempotencyIntent.current = null;
+                setAddressId(address.id);
+              }
+            }} style={[styles.addressChip, addressId === address.id && styles.addressChipActive]}>
+              <Text style={[styles.addressChipText, addressId === address.id && styles.addressChipTextActive]}>{address.label || address.city}{address.isDefault ? " · Default" : ""}</Text>
+            </Pressable>)}
+          </ScrollView>
+        </> : !message && <Text style={styles.noticeText}>Add a delivery address before repeating this order.</Text>}
+        {loadingPreview && <View style={styles.previewLoading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>Checking store, variants and current prices…</Text></View>}
+        {preview && <>
+          {!preview.storeAvailable && <View style={styles.warningBox}><Text style={styles.warningText}>This supermarket is currently unavailable for the selected address. No items can be added.</Text></View>}
+          {preview.storeSwitchRequired && preview.storeAvailable && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: confirmSwitch }} onPress={() => setConfirmSwitch(value => !value)} style={styles.switchConfirm}>
+            <View style={[styles.checkbox, confirmSwitch && styles.checkboxActive]}>{confirmSwitch && <View style={styles.checkboxDot} />}</View>
+            <Text style={[typography.caption, { flex: 1 }]}>I understand this will switch stores and replace the current basket.</Text>
+          </Pressable>}
+          <ScrollView style={styles.previewList} contentContainerStyle={{ gap: spacing.sm }}>
+            {preview.items.map(item => <View key={item.orderItemId} style={styles.previewItem}>
+              <View style={[styles.availabilityMark, item.available && preview.storeAvailable ? styles.markAvailable : styles.markUnavailable]}><Text style={styles.availabilityMarkText}>{item.available && preview.storeAvailable ? "✓" : "!"}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={typography.bodySemibold}>{item.productName} · {item.variantNameSnapshot}</Text>
+                <Text style={typography.caption}>Quantity {item.quantity}{item.currentUnitPrice != null ? ` · Current price ₹${item.currentUnitPrice} each` : ""}</Text>
+                {(!item.available || !preview.storeAvailable) && <Text style={[typography.caption, { color: colors.danger }]}>{item.reason || (preview.storeAvailable ? "Currently unavailable" : "Store unavailable")}</Text>}
+              </View>
+            </View>)}
+          </ScrollView>
+          <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{preview.storeAvailable ? `${preview.canAddCount} ${preview.canAddCount === 1 ? "item" : "items"} can be added to your cart.` : "No items can be added right now."}</Text>
+        </>}
+        {!!message && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{message}</Text>}
+        {!!message && !loadingPreview && addressId && !preview && <Pressable onPress={() => setRetry(value => value + 1)} style={{ alignSelf: "flex-start", marginTop: spacing.xs }}><Text style={styles.repeatText}>Try availability check again</Text></Pressable>}
+        <View style={styles.modalActions}>
+          <Pressable accessibilityRole="button" onPress={onClose} disabled={submitting} style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancel</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => void addAvailableItems()} disabled={!preview || !preview.storeAvailable || preview.canAddCount === 0 || loadingPreview || submitting || (preview.storeSwitchRequired && !confirmSwitch)} style={[styles.modalAdd, (!preview || !preview.storeAvailable || preview.canAddCount === 0 || loadingPreview || submitting || (preview.storeSwitchRequired && !confirmSwitch)) && styles.buttonDisabled]}>
+            {submitting ? <ActivityIndicator color={colors.card} /> : <Text style={styles.modalAddText}>Add Available Items</Text>}
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  </Modal>;
+}
+
+function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderDetail; back: () => void; refresh: () => void; onRepeat: () => void }) {
   const [cancelVisible, setCancelVisible] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const cancelInFlight = useRef(false);
   const [localOrder, setLocalOrder] = useState(order);
   const [error, setError] = useState("");
 
   const handleCancel = async () => {
+    if (cancelInFlight.current) return;
+    cancelInFlight.current = true;
     setCancelLoading(true); setError("");
     try {
       const result = await customerApi<{ order?: CustomerOrderDetail } | CustomerOrderDetail>(`/api/customer/orders/${localOrder.id}/cancel`, { method: "POST" });
@@ -101,6 +253,7 @@ function OrderDetail({ order, back, refresh }: { order: CustomerOrderDetail; bac
       setError(reason instanceof Error ? reason.message : "Unable to cancel order.");
       setCancelVisible(false);
     } finally {
+      cancelInFlight.current = false;
       setCancelLoading(false);
     }
   };
@@ -115,6 +268,7 @@ function OrderDetail({ order, back, refresh }: { order: CustomerOrderDetail; bac
           
           <Text style={typography.eyebrow}>ORDER SUMMARY</Text>
           <Text style={[typography.hero, { marginBottom: spacing.lg }]}>{localOrder.storeName}</Text>
+          <Text style={[typography.caption, { marginTop: -spacing.md, marginBottom: spacing.md }]}>{date(localOrder.createdAt)}</Text>
           
           <View style={styles.confirmBox}>
             <View>
@@ -154,7 +308,7 @@ function OrderDetail({ order, back, refresh }: { order: CustomerOrderDetail; bac
                 <View key={item.id} style={styles.between}>
                   <View style={{ flex: 1, paddingRight: spacing.sm }}>
                     <Text style={typography.bodySemibold}>{item.productNameSnapshot}</Text>
-                    <Text style={typography.caption}>{money(item.productPriceSnapshot)} × {item.quantity}</Text>
+                    <Text style={typography.caption}>{item.variantNameSnapshot ?? (item.variantQuantityValueSnapshot && item.variantQuantityUnitSnapshot ? `${item.variantQuantityValueSnapshot} ${item.variantQuantityUnitSnapshot}` : "Standard")} · {money(item.productPriceSnapshot)} × {item.quantity}</Text>
                   </View>
                   <Text style={typography.bodySemibold}>{money(item.subtotal)}</Text>
                 </View>
@@ -177,8 +331,9 @@ function OrderDetail({ order, back, refresh }: { order: CustomerOrderDetail; bac
 
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md, textAlign: "center" }]}>{error}</Text>}
 
+          <Pressable accessibilityRole="button" onPress={onRepeat} style={[styles.repeatButton, { marginBottom: spacing.md }]}><Text style={styles.repeatText}>Repeat Order</Text></Pressable>
           {localOrder.status === "PLACED" && (
-            <Pressable onPress={() => setCancelVisible(true)} style={styles.cancelBtn}>
+            <Pressable accessibilityRole="button" onPress={() => setCancelVisible(true)} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel Order</Text>
             </Pressable>
           )}
@@ -219,6 +374,37 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: "center", padding: spacing.xl, backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, gap: spacing.md, marginTop: spacing.lg },
   errorBox: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.highlight, gap: spacing.xs, marginBottom: spacing.lg },
   orderCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm, ...shadows.sm },
+  orderActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+  viewOrderButton: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  viewOrderText: { color: colors.ink, fontWeight: "700", fontSize: 13 },
+  repeatButton: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.accent },
+  repeatText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
+  modalShade: { flex: 1, backgroundColor: "rgba(16,39,86,0.42)", justifyContent: "center", padding: spacing.lg },
+  repeatModal: { width: "100%", maxWidth: 430, maxHeight: "88%", alignSelf: "center", backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.lg, ...shadows.md },
+  addressChip: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card },
+  addressChipActive: { backgroundColor: colors.soft, borderColor: colors.accent },
+  addressChipText: { fontSize: 12, fontWeight: "600", color: colors.ink },
+  addressChipTextActive: { color: colors.accent },
+  previewLoading: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl },
+  previewList: { maxHeight: 250, marginTop: spacing.sm },
+  previewItem: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: spacing.md },
+  availabilityMark: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  markAvailable: { backgroundColor: colors.soft },
+  markUnavailable: { backgroundColor: colors.highlight },
+  availabilityMarkText: { color: colors.accent, fontSize: 13, fontWeight: "900" },
+  warningBox: { borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.highlight, marginBottom: spacing.sm },
+  warningText: { color: colors.danger, fontSize: 13, fontWeight: "700", lineHeight: 19 },
+  switchConfirm: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.soft, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
+  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: colors.muted, alignItems: "center", justifyContent: "center" },
+  checkboxActive: { borderColor: colors.accent, backgroundColor: colors.accent },
+  checkboxDot: { width: 8, height: 8, borderRadius: 2, backgroundColor: colors.card },
+  noticeText: { color: colors.danger, fontSize: 13, marginVertical: spacing.sm },
+  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
+  modalCancel: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  modalCancelText: { color: colors.ink, fontWeight: "700" },
+  modalAdd: { flex: 1.5, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.accent },
+  modalAddText: { color: colors.card, fontWeight: "800", fontSize: 13 },
+  buttonDisabled: { opacity: 0.45 },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 2 },
   statusBadge: { alignSelf: "flex-start", backgroundColor: colors.soft, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, marginTop: spacing.xs },
   statusBadgeCancelled: { backgroundColor: colors.highlight },

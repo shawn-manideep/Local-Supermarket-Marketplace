@@ -61,6 +61,26 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  variants?: ProductVariant[];
+}
+
+export type VariantQuantityUnit = "g" | "kg" | "ml" | "l" | "piece" | "pack" | "dozen";
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  name: string;
+  quantityValue: string;
+  quantityUnit: VariantQuantityUnit;
+  price: string;
+  stockQuantity: number;
+  availability: boolean;
+  isActive: boolean;
+  sku: string | null;
+  externalCode: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type OrderStatus =

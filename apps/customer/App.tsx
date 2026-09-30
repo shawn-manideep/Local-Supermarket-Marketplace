@@ -371,13 +371,14 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
+  const [cartUnits, setCartUnits] = useState(0);
   const navItems: Array<"home" | "cart" | "orders" | "account"> = ["home", "cart", "orders", "account"];
   return (
     <View style={styles.shell}>
       <View style={styles.content}>
-        {screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} /> 
+        {screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} resetToken={0} onCartUnitsChange={setCartUnits} />
         : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> 
-        : screen === "orders" ? <OrdersScreen initialOrderId={orderId} /> 
+        : screen === "orders" ? <OrdersScreen initialOrderId={orderId} onRepeatAdded={() => { setScreen("cart"); setOrderId(undefined); }} />
         : screen === "account" ? <AccountScreen navigate={setScreen} /> 
         : screen === "profile" ? <AccountScreen navigate={setScreen} editProfile />
         : <AddressesScreen navigate={setScreen} />}

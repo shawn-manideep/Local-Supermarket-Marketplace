@@ -22,6 +22,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   const [message, setMessage] = useState("");
   const quantityQueues = useRef<Record<string, { target: number; running: boolean }>>({});
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const checkoutInFlight = useRef(false);
 
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
@@ -86,7 +87,8 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
   };
 
   const validate = async () => {
-    if (checkoutBusy || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
+    if (checkoutInFlight.current || checkoutBusy || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
+    checkoutInFlight.current = true;
     setCheckoutBusy(true);
     setMessage("");
     try {
@@ -94,7 +96,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
       const result = await customerApi<{ order: { id: string } }>("/api/customer/orders", { method:"POST", body:JSON.stringify({ addressId, paymentMethod:"COD" }) });
       onOrderPlaced(result.order.id);
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to place order."); }
-    finally { setCheckoutBusy(false); }
+    finally { checkoutInFlight.current = false; setCheckoutBusy(false); }
   };
 
   if (loading) return <View style={[commonStyles.page, styles.center]}><ActivityIndicator color={colors.accent}/></View>;
@@ -126,6 +128,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
                 {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.cartImage} /> : <PlaceholderImage name={item.name} style={styles.cartImage} />}
                 <View style={{ flex: 1, gap: spacing.xs }}>
                   <Text style={typography.bodySemibold}>{item.name}</Text>
+                  <Text style={[typography.caption, { color: colors.accent, fontWeight: "700" }]}>{item.variantName || `${item.quantityValue} ${item.quantityUnit}`}</Text>
                   <Text style={typography.caption}>₹{item.unitPrice} each</Text>
                   <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
                   {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Unavailable</Text>}
@@ -152,7 +155,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
           ) : (
             <View style={{ gap: spacing.sm }}>
               {addresses.map((address) => (
-                <Pressable key={address.id} onPress={() => setAddressId(address.id)} style={[styles.addressCard, addressId === address.id && styles.addressCardActive]}>
+                <Pressable key={address.id} accessibilityRole="radio" accessibilityState={{ selected: addressId === address.id }} onPress={() => setAddressId(address.id)} style={[styles.addressCard, addressId === address.id && styles.addressCardActive]}>
                   <View style={[styles.radio, addressId === address.id && styles.radioActive]}>
                     {addressId === address.id && <View style={styles.radioInner} />}
                   </View>
@@ -175,7 +178,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
             {!cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>Resolve unavailable items or meet the minimum order value to checkout.</Text>}
             {!!message && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{message}</Text>}
             
-            <Pressable disabled={!cart.checkoutReady || !addressId || checkoutBusy} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy) && styles.disabled]}>
+            <Pressable accessibilityRole="button" disabled={!cart.checkoutReady || !addressId || checkoutBusy} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy) && styles.disabled]}>
               {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Place Order • ₹{cart.total}</Text>}
             </Pressable>
           </View>

@@ -9,6 +9,7 @@ import {
   categories,
   customerAddresses,
   getDb,
+  productVariants,
   products,
   storeOperatingHours,
   storeServicePincodes,
@@ -125,7 +126,27 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/products", requireR
   const list = await getDb().select(publicProduct).from(products)
     .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
    .where(and(...conditions)).orderBy(asc(products.name)).limit(100);
-  response.json({ products: list });
+  const variants = list.length
+    ? await getDb().select({
+      id: productVariants.id, productId: productVariants.productId,
+      name: productVariants.name, quantityValue: productVariants.quantityValue,
+      quantityUnit: productVariants.quantityUnit, price: productVariants.price,
+      stockQuantity: productVariants.stockQuantity, availability: productVariants.availability,
+      isActive: productVariants.isActive,
+      sku: productVariants.sku, externalCode: productVariants.externalCode,
+      sortOrder: productVariants.sortOrder, createdAt: productVariants.createdAt,
+      updatedAt: productVariants.updatedAt,
+    }).from(productVariants)
+      .where(and(inArray(productVariants.productId, list.map((product) => product.id)), eq(productVariants.isActive, true)))
+      .orderBy(asc(productVariants.sortOrder), asc(productVariants.createdAt))
+    : [];
+  const variantsByProduct = new Map<string, typeof variants>();
+  for (const variant of variants) {
+    const items = variantsByProduct.get(variant.productId) ?? [];
+    items.push(variant);
+    variantsByProduct.set(variant.productId, items);
+  }
+  response.json({ products: list.map((product) => ({ ...product, variants: variantsByProduct.get(product.id) ?? [] })) });
 }));
 
 customerMarketplaceRouter.get("/api/customer/stores/:storeId/products/:productId", requireRole("customer"), asyncHandler(async (request, response) => {
@@ -137,5 +158,17 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/products/:productId
     .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
     .where(and(eq(products.id, parsed.data.productId), eq(products.storeId, parsed.data.storeId), eq(products.isActive, true), or(isNull(products.categoryId), eq(categories.isActive, true))!)).limit(1);
   if (!product) throw new HttpError(404, "Product not available in this store");
-  response.json({ product });
+  const variants = await getDb().select({
+    id: productVariants.id, productId: productVariants.productId,
+    name: productVariants.name, quantityValue: productVariants.quantityValue,
+    quantityUnit: productVariants.quantityUnit, price: productVariants.price,
+    stockQuantity: productVariants.stockQuantity, availability: productVariants.availability,
+    isActive: productVariants.isActive,
+    sku: productVariants.sku, externalCode: productVariants.externalCode,
+    sortOrder: productVariants.sortOrder, createdAt: productVariants.createdAt,
+    updatedAt: productVariants.updatedAt,
+  }).from(productVariants)
+    .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true)))
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.createdAt));
+  response.json({ product: { ...product, variants } });
 }));

@@ -27,3 +27,10 @@ test("customer marketplace RLS uses non-recursive eligibility helpers", async ()
   assert.match(migration, /USING \(public\.customer_can_access_store\(id\)\)/);
   assert.doesNotMatch(migration, /stores_customer_discovery_select[\\s\\S]*?JOIN public\.store_service_pincodes/);
 });
+
+test("customer product list and detail expose the active flag required by the variant selector", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const projections = routes.match(/isActive: productVariants\.isActive/g) ?? [];
+  assert.equal(projections.length, 2);
+  assert.match(routes, /eq\(productVariants\.isActive, true\)/);
+});

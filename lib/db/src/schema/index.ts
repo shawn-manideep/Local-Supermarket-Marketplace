@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -41,6 +43,15 @@ export const deliveryTypeEnum = pgEnum("delivery_type", [
   "platform_partner",
 ]);
 export const paymentMethodEnum = pgEnum("payment_method", ["COD"]);
+export const quantityUnitEnum = pgEnum("quantity_unit", [
+  "g",
+  "kg",
+  "ml",
+  "l",
+  "piece",
+  "pack",
+  "dozen",
+]);
 
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -83,7 +94,9 @@ export const customerAddresses = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("customer_addresses_customer_id_idx").on(table.customerId)],
+  (table) => [
+    index("customer_addresses_customer_id_idx").on(table.customerId),
+  ],
 );
 
 export const stores = pgTable(
@@ -215,6 +228,67 @@ export const products = pgTable(
   ],
 );
 
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    quantityValue: numeric("quantity_value", {
+      precision: 12,
+      scale: 3,
+    }).notNull(),
+    quantityUnit: quantityUnitEnum("quantity_unit").notNull(),
+    price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+    stockQuantity: integer("stock_quantity").notNull().default(0),
+    availability: boolean("availability").notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
+    sku: text("sku"),
+    externalCode: text("external_code"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("product_variants_product_id_id_uidx").on(
+      table.productId,
+      table.id,
+    ),
+    uniqueIndex("product_variants_product_sku_uidx").on(
+      table.productId,
+      table.sku,
+    ),
+    uniqueIndex("product_variants_product_external_code_uidx").on(
+      table.productId,
+      table.externalCode,
+    ),
+    index("product_variants_product_sort_idx").on(
+      table.productId,
+      table.sortOrder,
+      table.id,
+    ),
+    index("product_variants_active_idx").on(
+      table.productId,
+      table.isActive,
+      table.availability,
+    ),
+    check(
+      "product_variants_quantity_value_positive_check",
+      sql`${table.quantityValue} > 0`,
+    ),
+    check(
+      "product_variants_price_nonnegative_check",
+      sql`${table.price} >= 0`,
+    ),
+    check(
+      "product_variants_stock_quantity_nonnegative_check",
+      sql`${table.stockQuantity} >= 0`,
+    ),
+  ],
+);
+
 export const carts = pgTable(
   "carts",
   {
@@ -245,14 +319,20 @@ export const cartItems = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").notNull(),
     quantity: integer("quantity").notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
-    uniqueIndex("cart_items_cart_product_uidx").on(
+    foreignKey({
+      columns: [table.productId, table.variantId],
+      foreignColumns: [productVariants.productId, productVariants.id],
+      name: "cart_items_product_variant_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("cart_items_cart_variant_uidx").on(
       table.cartId,
-      table.productId,
+      table.variantId,
     ),
     index("cart_items_product_id_idx").on(table.productId),
   ],
@@ -300,6 +380,7 @@ export const orders = pgTable(
   },
   (table) => [
     index("orders_customer_id_idx").on(table.customerId),
+    uniqueIndex("orders_customer_id_id_uidx").on(table.customerId, table.id),
     index("orders_store_id_idx").on(table.storeId),
     index("orders_status_idx").on(table.status),
     index("orders_customer_newest_idx").on(
@@ -326,7 +407,16 @@ export const orderItems = pgTable(
     productId: uuid("product_id").references(() => products.id, {
       onDelete: "set null",
     }),
+    variantId: uuid("variant_id"),
     productNameSnapshot: text("product_name_snapshot").notNull(),
+    variantNameSnapshot: text("variant_name_snapshot").notNull(),
+    variantQuantityValueSnapshot: numeric("variant_quantity_value_snapshot", {
+      precision: 12,
+      scale: 3,
+    }).notNull(),
+    variantQuantityUnitSnapshot: quantityUnitEnum(
+      "variant_quantity_unit_snapshot",
+    ).notNull(),
     productPriceSnapshot: numeric("product_price_snapshot", {
       precision: 12,
       scale: 2,
@@ -336,6 +426,15 @@ export const orderItems = pgTable(
     createdAt: createdAt(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.productId, table.variantId],
+      foreignColumns: [productVariants.productId, productVariants.id],
+      name: "order_items_product_variant_fk",
+    }).onDelete("restrict"),
+    check(
+      "order_items_variant_requires_product_check",
+      sql`${table.variantId} IS NULL OR ${table.productId} IS NOT NULL`,
+    ),
     index("order_items_order_id_idx").on(table.orderId),
     index("order_items_product_id_idx").on(table.productId),
   ],
@@ -357,5 +456,36 @@ export const orderStatusHistory = pgTable(
   },
   (table) => [
     index("order_status_history_order_id_idx").on(table.orderId),
+  ],
+);
+
+export const customerRepeatRequests = pgTable(
+  "customer_repeat_requests",
+  {
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "restrict" }),
+    idempotencyKey: uuid("idempotency_key").notNull(),
+    sourceOrderId: uuid("source_order_id").notNull(),
+    addressId: uuid("address_id").notNull(),
+    confirmStoreSwitch: boolean("confirm_store_switch")
+      .notNull()
+      .default(false),
+    response: jsonb("response")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.customerId, table.sourceOrderId],
+      foreignColumns: [orders.customerId, orders.id],
+      name: "customer_repeat_requests_customer_order_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("customer_repeat_requests_customer_key_uidx").on(
+      table.customerId,
+      table.idempotencyKey,
+    ),
+    index("customer_repeat_requests_source_order_idx").on(table.sourceOrderId),
   ],
 );

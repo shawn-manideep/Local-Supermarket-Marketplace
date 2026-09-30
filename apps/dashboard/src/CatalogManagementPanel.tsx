@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { apiRequest, type Category, type Product } from "./api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { apiRequest, type Category, type Product, type ProductVariant, type VariantQuantityUnit } from "./api";
 
 interface CatalogManagementPanelProps {
   token: string;
@@ -17,6 +17,44 @@ interface ProductDraft {
   imageUrl: string;
   categoryId: string;
   availability: boolean;
+}
+
+interface VariantDraft {
+  name: string;
+  quantityValue: string;
+  quantityUnit: VariantQuantityUnit;
+  price: string;
+  stockQuantity: string;
+  availability: boolean;
+  sku: string;
+  externalCode: string;
+  sortOrder: string;
+}
+
+const emptyVariantDraft: VariantDraft = {
+  name: "",
+  quantityValue: "1",
+  quantityUnit: "pack",
+  price: "0.00",
+  stockQuantity: "0",
+  availability: true,
+  sku: "",
+  externalCode: "",
+  sortOrder: "0",
+};
+
+function draftFromVariant(variant: ProductVariant): VariantDraft {
+  return {
+    name: variant.name,
+    quantityValue: variant.quantityValue,
+    quantityUnit: variant.quantityUnit,
+    price: variant.price,
+    stockQuantity: String(variant.stockQuantity),
+    availability: variant.availability,
+    sku: variant.sku ?? "",
+    externalCode: variant.externalCode ?? "",
+    sortOrder: String(variant.sortOrder),
+  };
 }
 
 const emptyProductDraft: ProductDraft = {
@@ -63,6 +101,13 @@ export function CatalogManagementPanel({
   const [productDraft, setProductDraft] = useState<ProductDraft>(emptyProductDraft);
   const [editingProductId, setEditingProductId] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [expandedVariantProductId, setExpandedVariantProductId] = useState("");
+  const [editingVariantId, setEditingVariantId] = useState("");
+  const [variantDraft, setVariantDraft] = useState<VariantDraft>(emptyVariantDraft);
+  const [variantSaveBusy, setVariantSaveBusy] = useState(false);
+  const [variantActionBusyId, setVariantActionBusyId] = useState("");
+  const variantSaveBusyRef = useRef(false);
+  const productSaveBusyRef = useRef(false);
 
   useEffect(() => {
     let current = true;
@@ -128,10 +173,27 @@ export function CatalogManagementPanel({
     setProducts((current) =>
       sortByName(
         current.some((item) => item.id === product.id)
-          ? current.map((item) => (item.id === product.id ? product : item))
+          ? current.map((item) => (
+            item.id === product.id
+              ? { ...item, ...product, variants: product.variants ?? item.variants }
+              : item
+          ))
           : [...current, product],
       ),
     );
+  };
+
+  const upsertVariant = (productId: string, variant: ProductVariant) => {
+    setProducts((current) => current.map((product) => {
+      if (product.id !== productId) return product;
+      const variants = product.variants ?? [];
+      return {
+        ...product,
+        variants: variants.some((item) => item.id === variant.id)
+          ? variants.map((item) => item.id === variant.id ? variant : item)
+          : [...variants, variant],
+      };
+    }));
   };
 
   const [categoryAddBusy, setCategoryAddBusy] = useState(false);
@@ -140,6 +202,68 @@ export function CatalogManagementPanel({
   const [productSaveBusy, setProductSaveBusy] = useState(false);
   const [productToggleBusyId, setProductToggleBusyId] = useState("");
   const [availabilityBusyId, setAvailabilityBusyId] = useState("");
+
+  const resetVariantForm = () => {
+    setEditingVariantId("");
+    setVariantDraft(emptyVariantDraft);
+  };
+
+  const saveVariant = async (event: React.FormEvent<HTMLFormElement>, productId: string) => {
+    event.preventDefault();
+    if (variantSaveBusyRef.current) return;
+    variantSaveBusyRef.current = true;
+    setVariantSaveBusy(true);
+    const body = {
+      name: variantDraft.name.trim(),
+      quantityValue: String(Number(variantDraft.quantityValue)),
+      quantityUnit: variantDraft.quantityUnit,
+      price: String(Number(variantDraft.price).toFixed(2)),
+      stockQuantity: Number(variantDraft.stockQuantity),
+      availability: variantDraft.availability,
+      sku: variantDraft.sku.trim() || null,
+      externalCode: variantDraft.externalCode.trim() || null,
+      sortOrder: Number(variantDraft.sortOrder),
+    };
+    try {
+      const response = await apiRequest<{ variant: ProductVariant }>(
+        editingVariantId
+          ? `/api/vendor/products/${productId}/variants/${editingVariantId}`
+          : `/api/vendor/products/${productId}/variants`,
+        token,
+        {
+          method: editingVariantId ? "PATCH" : "POST",
+          body: JSON.stringify(body),
+        },
+      );
+      upsertVariant(productId, response.variant);
+      resetVariantForm();
+      onMessage(editingVariantId ? "Variant updated." : "Variant created.", "success");
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Unable to save variant.", "error");
+    } finally {
+      variantSaveBusyRef.current = false;
+      setVariantSaveBusy(false);
+    }
+  };
+
+  const toggleVariantActive = async (productId: string, variant: ProductVariant) => {
+    if (variantActionBusyId) return;
+    const action = variant.isActive ? "deactivate" : "activate";
+    setVariantActionBusyId(variant.id);
+    try {
+      const response = await apiRequest<{ variant: ProductVariant }>(
+        `/api/vendor/products/${productId}/variants/${variant.id}/${action}`,
+        token,
+        { method: "POST" },
+      );
+      upsertVariant(productId, response.variant);
+      onMessage(`Variant ${action}d.`, "success");
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Unable to update variant.", "error");
+    } finally {
+      setVariantActionBusyId("");
+    }
+  };
 
   const addCategory = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -212,18 +336,23 @@ export function CatalogManagementPanel({
 
   const saveProduct = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (productSaveBusy) return;
+    if (productSaveBusyRef.current) return;
+    productSaveBusyRef.current = true;
     setProductSaveBusy(true);
+    const editedProduct = products.find((product) => product.id === editingProductId);
+    const hasMultipleVariants = (editedProduct?.variants?.length ?? 0) > 1;
     const body = {
       name: productDraft.name,
       description: productDraft.description.trim() || null,
       sku: productDraft.sku.trim() || null,
       externalCode: productDraft.externalCode.trim() || null,
-      price: Number(productDraft.price),
       availability: productDraft.availability,
-      stockQuantity: Number(productDraft.stockQuantity),
       imageUrl: productDraft.imageUrl.trim() || null,
       categoryId: productDraft.categoryId || null,
+      ...(!hasMultipleVariants && {
+        price: Number(productDraft.price),
+        stockQuantity: Number(productDraft.stockQuantity),
+      }),
     };
 
     try {
@@ -243,6 +372,7 @@ export function CatalogManagementPanel({
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Unable to save product.", "error");
     } finally {
+      productSaveBusyRef.current = false;
       setProductSaveBusy(false);
     }
   };
@@ -383,7 +513,7 @@ export function CatalogManagementPanel({
           <div className="vendor-card-heading vendor-product-list-heading">
             <div>
               <h3 className="vendor-subtitle">Products</h3>
-              <p className="vendor-text-muted">Manage your inventory, pricing, and availability.</p>
+              <p className="vendor-text-muted">Legacy product price and stock remain for compatibility; active variants are authoritative for sellable price and inventory.</p>
             </div>
             <label className="vendor-filter-label">
               Filter:
@@ -462,6 +592,17 @@ export function CatalogManagementPanel({
                     </button>
                     <button
                       type="button"
+                      className="vendor-secondary-button vendor-compact-button"
+                      aria-expanded={expandedVariantProductId === product.id}
+                      onClick={() => {
+                        setExpandedVariantProductId((current) => current === product.id ? "" : product.id);
+                        resetVariantForm();
+                      }}
+                    >
+                      {expandedVariantProductId === product.id ? "Hide variants" : `Variants (${product.variants?.length ?? 0})`}
+                    </button>
+                    <button
+                      type="button"
                       className={product.isActive ? "vendor-danger-button vendor-compact-button" : "vendor-primary-button vendor-compact-button"}
                       disabled={productToggleBusyId === product.id}
                       onClick={() => toggleProductActive(product)}
@@ -471,6 +612,117 @@ export function CatalogManagementPanel({
                   </div>
                 </div>
               ))}
+              {expandedVariantProductId && (() => {
+                const selectedProduct = visibleProducts.find((item) => item.id === expandedVariantProductId);
+                if (!selectedProduct) return null;
+                const orderedVariants = [...(selectedProduct.variants ?? [])]
+                  .sort((left, right) => left.sortOrder - right.sortOrder);
+                return (
+                  <section className="vendor-card" aria-label={`${selectedProduct.name} variants`} style={{ marginTop: 18, padding: 18 }}>
+                    <div className="vendor-card-heading">
+                      <div>
+                        <h3 className="vendor-subtitle">Sellable variants · {selectedProduct.name}</h3>
+                        <p className="vendor-text-muted">Each variant owns its customer-facing price, stock, and availability.</p>
+                      </div>
+                    </div>
+                    {orderedVariants.length === 0 ? (
+                      <div className="vendor-empty-state vendor-compact">
+                        <strong>No variants listed yet</strong>
+                        <span>Existing products receive a neutral Standard · 1 pack default during migration. Add another option here when needed.</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
+                        {orderedVariants.map((variant) => (
+                          <div key={variant.id} style={{ alignItems: "center", background: "var(--bg-page)", border: "1px solid var(--border-light)", borderRadius: 10, display: "flex", flexWrap: "wrap", gap: "8px 18px", justifyContent: "space-between", padding: "12px 14px" }}>
+                            <div style={{ display: "grid", gap: 3, minWidth: 130 }}>
+                              <strong>{variant.name}</strong>
+                              <span className="vendor-text-muted">{variant.quantityValue} {variant.quantityUnit} · order {variant.sortOrder}</span>
+                            </div>
+                            <strong>₹{variant.price}</strong>
+                            <span>{variant.stockQuantity} in stock</span>
+                            <span className={`vendor-status-badge vendor-status-${variant.isActive ? "active" : "inactive"}`}>
+                              {!variant.isActive ? "Inactive" : variant.availability ? "Available" : "Unavailable"}
+                            </span>
+                            <div className="vendor-row-actions">
+                              <button
+                                type="button"
+                                className="vendor-text-button"
+                                disabled={variantSaveBusy || Boolean(variantActionBusyId)}
+                                onClick={() => {
+                                  setEditingVariantId(variant.id);
+                                  setVariantDraft(draftFromVariant(variant));
+                                }}
+                              >Edit</button>
+                              <button
+                                type="button"
+                                className="vendor-text-button"
+                                disabled={variantActionBusyId === variant.id || Boolean(variantActionBusyId)}
+                                onClick={() => toggleVariantActive(selectedProduct.id, variant)}
+                              >
+                                {variantActionBusyId === variant.id ? "Working..." : variant.isActive ? "Deactivate" : "Activate"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <form onSubmit={(event) => saveVariant(event, selectedProduct.id)} style={{ borderTop: "1px solid var(--border-light)", display: "grid", gap: 14, paddingTop: 18 }}>
+                      <div className="vendor-card-heading" style={{ marginBottom: 0 }}>
+                        <div>
+                          <h4 className="vendor-subtitle">{editingVariantId ? "Edit variant" : "Add a variant"}</h4>
+                          <p className="vendor-text-muted">Name it for shoppers; keep quantity and unit as separate values.</p>
+                        </div>
+                        {editingVariantId && <button type="button" className="vendor-text-button" disabled={variantSaveBusy} onClick={resetVariantForm}>Cancel edit</button>}
+                      </div>
+                      <div className="vendor-two-column">
+                        <label className="vendor-label">Variant name
+                          <input className="vendor-input" required maxLength={120} disabled={variantSaveBusy} value={variantDraft.name} onChange={(event) => setVariantDraft((draft) => ({ ...draft, name: event.target.value }))} placeholder="e.g. Family pack" />
+                        </label>
+                        <div className="vendor-two-column">
+                          <label className="vendor-label">Quantity value
+                            <input className="vendor-input" required min="0.001" step="any" type="number" disabled={variantSaveBusy} value={variantDraft.quantityValue} onChange={(event) => setVariantDraft((draft) => ({ ...draft, quantityValue: event.target.value }))} />
+                          </label>
+                          <label className="vendor-label">Unit
+                            <select className="vendor-select" disabled={variantSaveBusy} value={variantDraft.quantityUnit} onChange={(event) => setVariantDraft((draft) => ({ ...draft, quantityUnit: event.target.value as VariantQuantityUnit }))}>
+                              <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="piece">piece</option><option value="pack">pack</option><option value="dozen">dozen</option>
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="vendor-two-column">
+                        <label className="vendor-label">Price (₹)
+                          <input className="vendor-input" required min="0" step="0.01" type="number" disabled={variantSaveBusy} value={variantDraft.price} onChange={(event) => setVariantDraft((draft) => ({ ...draft, price: event.target.value }))} />
+                        </label>
+                        <label className="vendor-label">Stock quantity
+                          <input className="vendor-input" required min="0" step="1" type="number" disabled={variantSaveBusy} value={variantDraft.stockQuantity} onChange={(event) => setVariantDraft((draft) => ({ ...draft, stockQuantity: event.target.value }))} />
+                        </label>
+                      </div>
+                      <div className="vendor-two-column">
+                        <label className="vendor-label">SKU <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+                          <input className="vendor-input" disabled={variantSaveBusy} value={variantDraft.sku} onChange={(event) => setVariantDraft((draft) => ({ ...draft, sku: event.target.value }))} />
+                        </label>
+                        <label className="vendor-label">External code <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+                          <input className="vendor-input" disabled={variantSaveBusy} value={variantDraft.externalCode} onChange={(event) => setVariantDraft((draft) => ({ ...draft, externalCode: event.target.value }))} />
+                        </label>
+                      </div>
+                      <div className="vendor-two-column" style={{ alignItems: "end" }}>
+                        <label className="vendor-label">Display order
+                          <input className="vendor-input" required min="0" step="1" type="number" disabled={variantSaveBusy} value={variantDraft.sortOrder} onChange={(event) => setVariantDraft((draft) => ({ ...draft, sortOrder: event.target.value }))} />
+                        </label>
+                        <label className="vendor-label" style={{ alignItems: "center", display: "flex", flexDirection: "row", gap: 9, padding: "12px 0" }}>
+                          <input type="checkbox" style={{ accentColor: "var(--primary)", width: 18 }} checked={variantDraft.availability} disabled={variantSaveBusy} onChange={(event) => setVariantDraft((draft) => ({ ...draft, availability: event.target.checked }))} />
+                          Available to customers
+                        </label>
+                      </div>
+                      <div className="vendor-form-actions">
+                        <button className="vendor-primary-button" type="submit" disabled={variantSaveBusy || variantActionBusyId !== ""}>
+                          {variantSaveBusy ? "Saving..." : editingVariantId ? "Save variant" : "Add variant"}
+                        </button>
+                      </div>
+                    </form>
+                  </section>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -479,7 +731,7 @@ export function CatalogManagementPanel({
           <div className="vendor-card-heading">
             <div>
               <h3 className="vendor-subtitle">{editingProductId ? "Edit Product" : "Create Product"}</h3>
-              <p className="vendor-text-muted">Fill out the product details below.</p>
+              <p className="vendor-text-muted">These legacy defaults preserve existing product records. Once variants exist, each variant controls its own customer price and stock.</p>
             </div>
             {editingProductId && (
               <button type="button" className="vendor-text-button" onClick={resetProductForm}>Cancel Edit</button>

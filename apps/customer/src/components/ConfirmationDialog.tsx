@@ -24,10 +24,10 @@ export function ConfirmationDialog({
           <Text style={typography.title2}>{title}</Text>
           <Text style={typography.body}>{message}</Text>
           <View style={styles.actions}>
-            <Pressable style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
+            <Pressable accessibilityRole="button" style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
-            <Pressable style={[styles.confirmBtn, isDestructive && styles.destructiveBtn]} onPress={onConfirm} disabled={loading}>
+            <Pressable accessibilityRole="button" style={[styles.confirmBtn, isDestructive && styles.destructiveBtn]} onPress={onConfirm} disabled={loading}>
               {loading ? <ActivityIndicator color={colors.card} /> : <Text style={styles.confirmText}>{confirmLabel}</Text>}
             </Pressable>
           </View>

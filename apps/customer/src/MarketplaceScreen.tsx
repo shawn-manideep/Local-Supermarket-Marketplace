@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, Animated, TextInput } from "react-native";
-import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerStore, type CustomerProfile } from "./lib/api";
+import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { QuantitySelector } from "./components/QuantitySelector";
 import { PlaceholderImage } from "./components/PlaceholderImage";
@@ -41,7 +41,7 @@ function SearchIcon() {
   );
 }
 
-export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { openAddresses: () => void; openCart: () => void; resetToken: number }) {
+export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [pincode, setPincode] = useState("");
   const [stores, setStores] = useState<CustomerStore[]>([]);
@@ -60,15 +60,19 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
   const [searchQuery, setSearchQuery] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState("");
   const [adding, setAdding] = useState(false);
+  const [addedNotice, setAddedNotice] = useState("");
+  const [cartUnits, setCartUnits] = useState(0);
 
   const [switchDialogVisible, setSwitchDialogVisible] = useState(false);
   const [switchDialogLoading, setSwitchDialogLoading] = useState(false);
-  const [pendingProduct, setPendingProduct] = useState<{product: CustomerProduct, qty: number} | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<{product: CustomerProduct, variant: CustomerProductVariant, qty: number} | null>(null);
 
   const discoveryGeneration = useRef(0);
   const catalogGeneration = useRef(0);
   const pendingCategoryId = useRef("");
+  const cartAddInFlight = useRef(false);
 
   const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())), [stores, searchQuery]);
   const filteredProducts = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [products, searchQuery]);
@@ -103,6 +107,15 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
   }, []);
 
   useEffect(() => { loadAddresses(); }, [loadAddresses]);
+  const refreshCart = useCallback(async () => {
+    try {
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart");
+      const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+      setCartUnits(count);
+      onCartUnitsChange?.(count);
+    } catch { /* Shopping remains available if cart summary refresh fails. */ }
+  }, [onCartUnitsChange]);
+  useEffect(() => { void refreshCart(); }, [refreshCart]);
   useEffect(() => {
     let active = true;
     customerApi<{ profile: CustomerProfile }>("/api/customer/profile")
@@ -168,43 +181,55 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
     setLoadingCatalog(true); setProduct(null); setError(""); setQuantity(1);
     try {
       const result = await customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${selected.id}?pincode=${pincode}`);
-      if (generation === catalogGeneration.current) setProduct(result.product);
+      if (generation === catalogGeneration.current) {
+        setProduct(result.product);
+        const firstAvailable = result.product.variants?.find((variant) => variant.isActive && variant.availability);
+        setSelectedVariantId(firstAvailable?.id ?? result.product.variants?.find((variant) => variant.isActive)?.id ?? "");
+      }
     } catch (reason) { if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load product."); }
     finally { if (generation === catalogGeneration.current) setLoadingCatalog(false); }
   };
 
-  const addToCart = async (selected: CustomerProduct, qty: number, confirmStoreSwitch = false) => {
-    if (adding && !confirmStoreSwitch) return;
+  const addToCart = async (selected: CustomerProduct, variant: CustomerProductVariant, qty: number, confirmStoreSwitch = false) => {
+    if (cartAddInFlight.current) return;
+    cartAddInFlight.current = true;
     setAdding(true);
     try {
-      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId:selected.id, quantity:qty, confirmStoreSwitch }) });
-      openCart();
+      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId:selected.id, variantId:variant.id, quantity:qty, confirmStoreSwitch }) });
+      setAddedNotice(`${selected.name} · ${variant.name} added to cart`);
+      setTimeout(() => setAddedNotice(""), 2600);
+      void refreshCart();
     } catch (reason) {
       const errorMsg = reason instanceof Error ? reason.message : "Unable to add product.";
       if (errorMsg === "Store switch required") {
-        setPendingProduct({ product: selected, qty });
+        setPendingProduct({ product: selected, variant, qty });
         setSwitchDialogVisible(true);
       } else {
         setError(errorMsg);
       }
     } finally { 
+      cartAddInFlight.current = false;
       setAdding(false); 
     }
   };
 
   const confirmSwitchCart = async () => {
-    if (!pendingProduct) return;
+    if (!pendingProduct || cartAddInFlight.current) return;
+    cartAddInFlight.current = true;
     setSwitchDialogLoading(true);
     try {
-      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId: pendingProduct.product.id, quantity: pendingProduct.qty, confirmStoreSwitch: true }) });
+      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId: pendingProduct.product.id, variantId: pendingProduct.variant.id, quantity: pendingProduct.qty, confirmStoreSwitch: true }) });
       setSwitchDialogVisible(false);
+      setAddedNotice(`${pendingProduct.product.name} · ${pendingProduct.variant.name} added to cart`);
+      setTimeout(() => setAddedNotice(""), 2600);
       setPendingProduct(null);
-      openCart();
+      void refreshCart();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to add product.");
       setSwitchDialogVisible(false);
       setPendingProduct(null);
     } finally {
+      cartAddInFlight.current = false;
       setSwitchDialogLoading(false);
     }
   };
@@ -212,6 +237,9 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
   let content;
 
   if (product && store) {
+    const activeVariants = (product.variants ?? []).filter((variant) => variant.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+    const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
+    const purchasable = !!selectedVariant?.availability && selectedVariant.stockQuantity > 0;
     content = (
       <ScrollView key="product-detail" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
@@ -227,10 +255,26 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
           </View>
 
           <Text style={typography.hero}>{product.name}</Text>
-          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{product.price}</Text>
+          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{selectedVariant?.price ?? product.price}</Text>
           {!!product.description && <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description}</Text>}
+          {activeVariants.length > 1 && <View style={styles.variantSection}>
+            <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Available sizes</Text>
+            <View style={{ gap: spacing.sm }}>
+              {activeVariants.map((variant) => {
+                const available = variant.availability && variant.stockQuantity > 0;
+                const selected = selectedVariantId === variant.id;
+                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityState={{ selected }} disabled={!available} onPress={() => setSelectedVariantId(variant.id)} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
+                  <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
+                  <Text style={[typography.bodySemibold, { flex: 1 }, !available && { color: colors.muted }]}>{variant.name}{!available ? " · Unavailable" : ""}</Text>
+                  <Text style={[typography.bodySemibold, { color: colors.accent }]}>₹{variant.price}</Text>
+                </Pressable>;
+              })}
+            </View>
+          </View>}
+          {activeVariants.length === 1 && <Text style={[typography.caption, { marginTop: spacing.sm }]}>{activeVariants[0].name}</Text>}
+          {activeVariants.length === 0 && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>No active variants are available.</Text>}
           
-          {product.availability && (
+          {purchasable && (
             <View style={styles.qtyRow}>
               <Text style={typography.title3}>Quantity</Text>
               <QuantitySelector quantity={quantity} onDecrease={() => setQuantity(q => Math.max(1, q - 1))} onIncrease={() => setQuantity(q => q + 1)} min={1} disabled={adding} />
@@ -239,8 +283,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
 
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md }]}>{error}</Text>}
 
-          <Pressable accessibilityRole="button" disabled={!product.availability || adding} onPress={() => void addToCart(product, quantity)} style={[styles.primaryBtn, (!product.availability || adding) && styles.disabled]}>
-            {adding ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{product.availability ? `Add ${quantity} to Cart` : "Unavailable"}</Text>}
+          <Pressable accessibilityRole="button" disabled={!purchasable || adding} onPress={() => selectedVariant && void addToCart(product, selectedVariant, quantity)} style={[styles.primaryBtn, (!purchasable || adding) && styles.disabled]}>
+            {adding ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{purchasable ? `Add ${quantity} to Cart` : "Unavailable"}</Text>}
           </Pressable>
         </View>
       </ScrollView>
@@ -286,22 +330,24 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
             </View>
           ) : (
             <View style={styles.productGrid}>
-              {filteredProducts.map((item) => (
-                <Pressable accessibilityRole="button" key={item.id} onPress={() => void showProduct(item)} style={styles.productCard}>
+              {filteredProducts.map((item) => {
+                const sellable = (item.variants ?? []).filter(variant => variant.isActive).sort((a, b) => Number(a.price) - Number(b.price));
+                const displayedPrice = sellable[0]?.price ?? item.price;
+                return <Pressable accessibilityRole="button" key={item.id} onPress={() => void showProduct(item)} style={styles.productCard}>
                   {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
                   <View style={styles.productInfo}>
                     <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
                     <Text style={typography.caption} numberOfLines={1}>{categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
-                    <Text style={[typography.title3, { color: colors.ink }]}>₹{item.price}</Text>
+                    <Text style={[typography.title3, { color: colors.ink }]}>{sellable.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
                     {!item.availability && <Text style={[typography.caption, { color: colors.danger }]}>Out of Stock</Text>}
                   </View>
-                  {item.availability && (
-                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); void addToCart(item, 1); }} style={styles.addMiniBtn}>
+                  {item.availability && item.variants?.filter(v => v.isActive && v.availability && v.stockQuantity > 0).length === 1 && (
+                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); const onlyVariant = item.variants?.find(v => v.isActive && v.availability && v.stockQuantity > 0); if (onlyVariant) void addToCart(item, onlyVariant, 1); }} style={styles.addMiniBtn}>
                       <Text style={styles.addMiniBtnText}>+ Add</Text>
                     </Pressable>
                   )}
                 </Pressable>
-              ))}
+              })}
             </View>
           )}
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{error}</Text>}
@@ -396,7 +442,14 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken }: { ope
 
   return (
     <>
-      {content}
+      <View style={{ flex: 1 }}>
+        {content}
+        {!!addedNotice && <View accessibilityRole="alert" style={styles.addedToast}><Text style={styles.addedToastText}>✓  {addedNotice}</Text></View>}
+        {cartUnits > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`Go to cart, ${cartUnits} items`} onPress={openCart} style={styles.stickyCart}>
+          <Text style={styles.stickyCartTitle}>Go to Cart</Text>
+          <Text style={styles.stickyCartCount}>{cartUnits} {cartUnits === 1 ? "Item" : "Items"}  →</Text>
+        </Pressable>}
+      </View>
       <ConfirmationDialog
         visible={switchDialogVisible}
         title="Start a New Basket?"
@@ -458,6 +511,18 @@ const styles = StyleSheet.create({
   badgeText: { ...typography.caption, color: colors.ink, fontWeight: "800" },
   closedText: { color: colors.danger },
   qtyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.card, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, marginBottom: spacing.xl },
+  variantSection: { marginTop: spacing.md, marginBottom: spacing.lg, backgroundColor: colors.card, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line },
+  variantOption: { minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  variantOptionSelected: { borderColor: colors.accent, backgroundColor: colors.soft },
+  variantUnavailable: { opacity: 0.55 },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.muted, alignItems: "center", justifyContent: "center" },
+  radioSelected: { borderColor: colors.accent },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
+  stickyCart: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: 12, minHeight: 54, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.accent, flexDirection: "row", alignItems: "center", justifyContent: "space-between", ...shadows.md },
+  stickyCartTitle: { color: colors.card, fontSize: 16, fontWeight: "800" },
+  stickyCartCount: { color: colors.card, fontSize: 14, fontWeight: "700" },
+  addedToast: { position: "absolute", bottom: 78, left: spacing.lg, right: spacing.lg, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.ink, alignItems: "center", ...shadows.sm },
+  addedToastText: { color: colors.card, fontWeight: "700", fontSize: 13 },
   disabled: { opacity: 0.5 },
   greeting: { fontSize: 13, color: colors.muted },
   promo: { backgroundColor: colors.accent, borderRadius: radius.lg, padding: 18, minHeight: 132, marginBottom: spacing.xl, justifyContent: "center", overflow: "hidden" },

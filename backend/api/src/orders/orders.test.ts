@@ -15,6 +15,7 @@ import {
   DEFAULT_COMMISSION_RATE,
   LEGAL_ORDER_TRANSITIONS,
 } from "./lifecycle.js";
+import { planRepeatLineAdditions, repeatIntentMatches } from "./routes.js";
 
 test("customer and vendor order routes require authentication", async () => {
   const id = crypto.randomUUID();
@@ -26,6 +27,8 @@ test("customer and vendor order routes require authentication", async () => {
       ["POST", "/api/customer/orders"],
       ["GET", "/api/customer/orders"],
       ["GET", `/api/customer/orders/${id}`],
+      ["GET", `/api/customer/orders/${id}/repeat-preview?addressId=${crypto.randomUUID()}`],
+      ["POST", `/api/customer/orders/${id}/repeat`],
       ["POST", `/api/customer/orders/${id}/cancel`],
       ["GET", "/api/vendor/orders"],
       ["GET", `/api/vendor/orders/${id}`],
@@ -43,6 +46,100 @@ test("customer and vendor order routes require authentication", async () => {
       server.close((error) => (error ? reject(error) : resolve())),
     );
   }
+});
+
+test("variant checkout uses current variant inventory and writes immutable variant snapshots", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const orderRoute = routes.slice(
+    routes.indexOf('ordersRouter.post("/api/customer/orders"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders/:orderId/repeat-preview"'),
+  );
+  assert.match(orderRoute, /innerJoin\(productVariants, eq\(productVariants\.id, cartItems\.variantId\)\)/);
+  assert.match(orderRoute, /moneyToCents\(variant\.price\)/);
+  assert.match(orderRoute, /variantNameSnapshot: variant\.name/);
+  assert.match(orderRoute, /variantQuantityValueSnapshot: variant\.quantityValue/);
+  assert.match(orderRoute, /variantQuantityUnitSnapshot: variant\.quantityUnit/);
+  assert.match(orderRoute, /productPriceSnapshot: variant\.price/);
+});
+
+test("repeat order previews only original variants and re-adds to cart without creating orders", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const preview = routes.slice(
+    routes.indexOf('ordersRouter.get("/api/customer/orders/:orderId/repeat-preview"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders"'),
+  );
+  assert.match(preview, /eq\(orders\.customerId, customerId\)/);
+  assert.match(preview, /variantNameSnapshot: orderItems\.variantNameSnapshot/);
+  assert.match(preview, /currentUnitPrice: productVariants\.price/);
+  assert.match(preview, /Insufficient stock/);
+  assert.match(preview, /Original product variant is no longer available/);
+  assert.match(preview, /confirmStoreSwitch/);
+  assert.match(preview, /tx\.insert\(cartItems\)/);
+  assert.doesNotMatch(preview, /tx\.insert\(orders\)/);
+});
+
+test("repeat retries are idempotent and concurrent requests serialize before key lookup", async () => {
+  const intent = {
+    sourceOrderId: crypto.randomUUID(),
+    addressId: crypto.randomUUID(),
+    confirmStoreSwitch: false,
+  };
+  assert.equal(repeatIntentMatches(intent, { ...intent }), true);
+  assert.equal(repeatIntentMatches(intent, { ...intent, confirmStoreSwitch: true }), false);
+  assert.equal(repeatIntentMatches(intent, { ...intent, addressId: crypto.randomUUID() }), false);
+  assert.equal(repeatIntentMatches(intent, { ...intent, sourceOrderId: crypto.randomUUID() }), false);
+
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const repeatPost = routes.slice(
+    routes.indexOf('ordersRouter.post("/api/customer/orders/:orderId/repeat"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders"'),
+  );
+  const lock = repeatPost.indexOf("pg_advisory_xact_lock");
+  const priorRequestRead = repeatPost.indexOf("tx.select().from(customerRepeatRequests)");
+  const returnStoredResult = repeatPost.indexOf("return previousRequest.response");
+  const firstCartMutation = repeatPost.indexOf("tx.insert(carts)");
+  assert.ok(lock >= 0 && lock < priorRequestRead && priorRequestRead < returnStoredResult);
+  assert.ok(returnStoredResult < firstCartMutation);
+  assert.match(repeatPost, /IDEMPOTENCY_KEY_REUSED/);
+  assert.match(repeatPost, /tx\.insert\(customerRepeatRequests\)/);
+  assert.match(routes, /idempotencyKey: z\.string\(\)\.uuid\(\)/);
+});
+
+test("repeat store switching is only committed when preflight finds an insertable line", async () => {
+  const current = new Map<string, number>([["variant-a", 3]]);
+  const plan = planRepeatLineAdditions([
+    { variantId: "variant-a", quantity: 2, stockQuantity: 4, available: true },
+    { variantId: "variant-b", quantity: 1, stockQuantity: 0, available: false },
+  ], current);
+  assert.deepEqual(plan, [false, false]);
+  assert.equal(current.get("variant-a"), 3);
+  const partial = planRepeatLineAdditions([
+    { variantId: "variant-c", quantity: 3, stockQuantity: 5, available: true },
+    { variantId: "variant-c", quantity: 3, stockQuantity: 5, available: true },
+  ], new Map());
+  assert.deepEqual(partial, [true, false]);
+
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const repeatPost = routes.slice(
+    routes.indexOf('ordersRouter.post("/api/customer/orders/:orderId/repeat"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders"'),
+  );
+  const zeroAdditionReturn = repeatPost.indexOf("if (additions.length === 0)");
+  const activeCartAbandon = repeatPost.indexOf("tx.update(carts)");
+  assert.ok(zeroAdditionReturn >= 0 && zeroAdditionReturn < activeCartAbandon);
+  assert.match(repeatPost, /inArray\(carts\.id, cartsToAbandon\.map/);
+  assert.match(repeatPost, /if \(addedCount === 0\) throw new HttpError/);
+});
+
+test("customer order list summaries include historical variant labels", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const customerList = routes.slice(
+    routes.indexOf('ordersRouter.get("/api/customer/orders"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders/:orderId"'),
+  );
+  assert.match(customerList, /eq\(orders\.customerId, userId\(req\)\)/);
+  assert.match(customerList, /itemSummary/);
+  assert.match(customerList, /variantNameSnapshot: orderItems\.variantNameSnapshot/);
 });
 
 test("Phase 11 rejects oversized bodies and throttles order creation", async () => {
