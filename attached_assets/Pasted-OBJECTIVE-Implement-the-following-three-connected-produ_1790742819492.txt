@@ -1,0 +1,1171 @@
+OBJECTIVE
+
+Implement the following three connected product/customer-commerce enhancements in the existing Local Supermarket Marketplace application:
+
+Change 1 — Product quantity/pack-size variants
+
+Products must support multiple configurable sellable variants such as:
+
+Rice
+├── 500 g  — ₹40
+├── 1 kg   — ₹75
+├── 2 kg   — ₹145
+└── 5 kg   — ₹350
+
+Other examples:
+
+Milk
+├── 500 ml
+└── 1 litre
+
+Eggs
+├── 6 pieces
+├── 12 pieces
+└── 30 pieces
+
+Apple
+├── 1 kg
+└── 2 kg
+
+Each product must be able to have its own independent set of variants.
+
+Change 2 — Add-to-cart browsing behavior
+
+Currently, adding an item can take the customer toward checkout.
+
+Change this behavior.
+
+After the customer selects a product variant and quantity and taps Add to Cart:
+
+DO NOT navigate directly to Checkout.
+
+The customer must remain on the current shopping screen and continue adding other products.
+
+When the cart contains items, show a persistent/sticky cart action near the bottom of the shopping screen:
+
+┌─────────────────────────────────────┐
+│ Go to Cart                 5 Items →│
+└─────────────────────────────────────┘
+
+The customer can continue shopping until they explicitly select Go to Cart.
+
+Change 3 — Previous orders + Repeat Order
+
+Customers must be able to see their previous orders and the supermarket from which each order was placed.
+
+Each previous order should provide:
+
+View Order
+Repeat Order
+
+When the customer selects Repeat Order, do NOT immediately create a new order.
+
+Instead:
+
+Previous Order
+      ↓
+Validate current store/product/variant availability
+      ↓
+Add currently available items to cart
+      ↓
+Customer reviews cart
+      ↓
+Checkout
+      ↓
+New order
+
+The previous order itself must remain unchanged.
+
+CRITICAL RULE
+
+This is an enhancement to the existing application.
+
+Do not rewrite the existing application.
+
+Preserve all existing:
+
+Authentication
+Supabase integration
+RLS
+Customer authorization
+Vendor authorization
+Admin authorization
+Store isolation
+Product/store relationships
+Cart architecture where still applicable
+Checkout validation
+Order creation
+Order lifecycle
+Order cancellation
+Historical order snapshots
+Financial calculations
+Commission calculations
+Delivery logic
+Existing customer UI design direction
+Existing Vendor Dashboard
+Existing Admin Dashboard
+
+The existing DEV checkout test has already passed:
+
+Customer
+→ Add products
+→ Cart
+→ Checkout
+→ ₹125 COD order
+→ PLACED
+→ Cancelled
+→ CANCELLED
+
+Do not break this flow.
+
+PHASE 1 — READ-ONLY ARCHITECTURE AUDIT FIRST
+
+Before changing code, inspect the existing implementation.
+
+Inspect:
+
+database/migrations/**
+backend/api/**
+apps/customer/**
+apps/dashboard/**
+packages/**
+
+Specifically identify:
+
+Product
+current products table
+product price
+product stock
+product availability
+product activation
+SKU/external code
+existing product APIs
+vendor product UI
+Cart
+carts
+cart_items
+cart APIs
+cart validation
+store switching
+cart totals
+Checkout
+checkout validation
+order creation
+price validation
+stock validation
+minimum order
+delivery fee
+transaction boundaries
+Orders
+orders
+order_items
+snapshots
+order status history
+customer order APIs
+order detail APIs
+Customer UI
+product detail
+product cards
+cart
+checkout
+orders
+order detail
+Vendor UI
+product creation
+product editing
+stock
+price
+availability
+
+Do not modify anything during the audit.
+
+After inspection, implement the changes below using the existing architecture.
+
+PHASE 2 — PRODUCT VARIANT MODEL
+
+Implement a normalized product-variant model.
+
+Recommended table:
+
+product_variants
+
+Relationship:
+
+store
+  ↓
+product
+  ↓
+product_variant
+
+A product can have zero or more variants depending on migration/business handling.
+
+PRODUCT VARIANT FIELDS
+
+Use an appropriate schema consistent with the existing database conventions.
+
+The variant needs to support at least:
+
+id
+product_id
+name
+quantity_value
+quantity_unit
+price
+stock
+availability
+is_active
+sku
+external_code
+sort_order
+created_at
+updated_at
+
+Use appropriate PostgreSQL types and constraints.
+
+Supported units
+
+Initially support:
+
+g
+kg
+ml
+l
+piece
+pack
+dozen
+
+The implementation must not assume that every product uses the same unit.
+
+Examples:
+
+500 + g
+1 + kg
+500 + ml
+1 + l
+6 + piece
+12 + piece
+1 + pack
+1 + dozen
+
+Display these appropriately:
+
+500 g
+1 kg
+500 ml
+1 litre
+6 pieces
+12 pieces
+1 pack
+1 dozen
+
+Do not store only a display string such as "500 g" as the authoritative quantity representation.
+
+VARIANT PRICE AND STOCK
+
+Price and stock must belong to the variant, not the parent product.
+
+Example:
+
+Rice
+    500 g → ₹40 → stock 20
+    1 kg  → ₹75 → stock 15
+    2 kg  → ₹145 → stock 10
+
+Do not maintain one authoritative price/stock value on the parent product for variant products.
+
+The backend must treat the variant as the sellable inventory unit.
+
+VARIANT OWNERSHIP
+
+A product variant belongs to the same store as its parent product.
+
+Never allow a vendor to create or modify a variant belonging to another store.
+
+The backend must derive store ownership from authenticated vendor context.
+
+Never trust a client-provided store_id for authorization.
+
+VARIANT SOFT DELETE
+
+Do not hard-delete variants that may have historical references.
+
+Use:
+
+is_active
+
+for discontinued/deactivated variants.
+
+Historical orders must remain readable.
+
+EXISTING PRODUCT MIGRATION
+
+Do not delete existing DEV products.
+
+Existing products must continue working after the migration.
+
+Create an appropriate default variant for existing products where necessary, preserving their current:
+
+price
+stock
+availability
+
+Do not guess a misleading real-world pack size.
+
+If the existing product does not have enough information to determine a meaningful quantity/unit, use a clearly neutral/default representation rather than inventing a pack size.
+
+Document the migration.
+
+PHASE 3 — CUSTOMER PRODUCT EXPERIENCE
+
+Update the Customer product experience.
+
+When a product has multiple variants, display the available variants.
+
+Example:
+
+Rice
+
+Available sizes
+
+○ 500 g       ₹40
+● 1 kg        ₹75
+○ 2 kg        ₹145
+○ 5 kg        ₹350
+
+The customer must select a variant before adding the product when multiple variants exist.
+
+Then:
+
+Quantity
+
+       −   1   +
+
+[ Add to Cart ]
+
+The selected values must be:
+
+product_variant_id
+quantity
+
+Do not use the variant display name as the identifier.
+
+SINGLE-VARIANT PRODUCTS
+
+If a product has exactly one active variant, the UI should remain simple.
+
+Do not unnecessarily force the customer through a variant-selection interface if there is only one available option.
+
+The UI can display the single variant and allow quantity selection.
+
+UNAVAILABLE VARIANTS
+
+If a variant is inactive or unavailable:
+
+Do not allow adding it to cart.
+Clearly show unavailable state where appropriate.
+Do not silently substitute another variant.
+PHASE 4 — CART DATA MODEL
+
+Cart items must identify the actual sellable variant.
+
+Conceptually:
+
+cart_item
+    cart_id
+    product_id
+    product_variant_id
+    quantity
+
+The exact schema may use existing conventions, but product_variant_id must identify the selected sellable variant.
+
+CART UNIQUENESS
+
+The same variant added twice should increase the existing cart-item quantity rather than create unnecessary duplicate cart rows.
+
+Conceptually:
+
+cart_id + product_variant_id
+
+identifies a cart line.
+
+However, different variants of the same product must remain separate cart lines.
+
+Example:
+
+Rice
+500 g × 2
+
+Rice
+1 kg × 1
+
+Both must be allowed in the same cart.
+
+CART DISPLAY
+
+The cart must clearly show the selected variant.
+
+Example:
+
+Rice
+1 kg
+₹75
+
+−   2   +
+
+₹150
+
+Never display only:
+
+Rice × 2
+
+when the variant information is available.
+
+CART VALIDATION
+
+Existing cart validation must now validate against the selected variant.
+
+Validate:
+
+variant exists
+variant belongs to product
+product belongs to store
+variant is active
+variant is available
+quantity is valid
+stock is sufficient
+current price is authoritative
+
+Do not trust frontend price or stock.
+
+PHASE 5 — ADD-TO-CART BEHAVIOR
+
+This is a required behavior change.
+
+Currently:
+
+Add to Cart
+    ↓
+Checkout
+
+Change to:
+
+Add to Cart
+    ↓
+Stay on current screen
+    ↓
+Continue shopping
+
+After successful addition, show a lightweight confirmation such as:
+
+✓ Added to cart
+
+Do not navigate to checkout.
+
+Do not automatically open the cart.
+
+STICKY GO-TO-CART BAR
+
+When the active cart contains one or more items, display a sticky cart action near the bottom of the shopping experience.
+
+Example:
+
+┌─────────────────────────────────────┐
+│ Go to Cart                 5 Items →│
+└─────────────────────────────────────┘
+
+Requirements:
+
+only show when cart has items
+show total item quantity
+remain visible while browsing products
+tapping it navigates to Cart
+do not bypass Cart
+do not navigate directly to Checkout
+
+Use the existing Customer navigation architecture.
+
+Do not interfere with the existing bottom navigation.
+
+Make sure the sticky bar does not cover product cards or the bottom navigation.
+
+ITEM COUNT DEFINITION
+
+Use total units, not distinct product count.
+
+Example:
+
+Rice 1 kg × 2
+Milk 1 litre × 1
+Eggs 12 pieces × 2
+
+Display:
+
+5 Items
+
+not:
+
+3 Items
+STORE SWITCHING
+
+Preserve the existing one-store-per-cart rule.
+
+If the customer is shopping from Store A and attempts to add a product from Store B:
+
+retain existing store-switch behavior
+do not silently merge carts
+do not silently destroy the current cart
+show the existing confirmation flow
+
+The sticky cart must represent the currently active cart.
+
+PHASE 6 — ORDER ITEM VARIANT SNAPSHOTS
+
+Historical orders must preserve the exact purchased variant.
+
+When creating an order, snapshot at minimum:
+
+product name
+variant name
+variant quantity
+variant unit
+variant price
+ordered quantity
+subtotal
+
+Use the existing snapshot architecture and naming conventions where appropriate.
+
+Example historical order:
+
+Rice
+1 kg × 2
+₹75 each
+₹150
+
+If the vendor later changes:
+
+1 kg → ₹82
+
+the old order must continue showing:
+
+1 kg × 2
+₹75 each
+₹150
+
+Never recalculate historical order values using current product/variant data.
+
+PHASE 7 — VENDOR VARIANT MANAGEMENT
+
+The vendor must be able to configure variants for each product.
+
+Extend the existing Vendor product management UI without redesigning the Vendor Dashboard unnecessarily.
+
+For example:
+
+Rice
+
+Variants
+
+┌──────────────────────────────────────────┐
+│ 500 g    ₹40     Stock 20     Available  │
+│ 1 kg     ₹75     Stock 15     Available  │
+│ 2 kg     ₹145    Stock 10     Available │
+│ 5 kg     ₹350    Stock 5      Available  │
+└──────────────────────────────────────────┘
+
+[ + Add Variant ]
+
+Vendor should be able to:
+
+add variant
+edit variant
+change price
+change stock
+change availability
+activate/deactivate variant
+control display order
+
+Do not add unrelated Vendor features.
+
+PHASE 8 — PREVIOUS ORDERS
+
+Enhance the existing Customer Orders screen.
+
+Each order should clearly display:
+
+store name
+order date/time
+order status
+total
+relevant item summary
+View Order
+Repeat Order where appropriate
+
+Do not fabricate product thumbnails if the existing API does not provide them.
+
+Use available real order data.
+
+PREVIOUS STORE
+
+Every previous order must retain and display its historical store identity.
+
+Do not determine historical store information from current product ownership.
+
+Use the existing order/store snapshot or authoritative order relationship.
+
+The customer must be able to identify which supermarket the previous order came from.
+
+PHASE 9 — REPEAT ORDER
+
+Implement:
+
+Repeat Order
+
+from:
+
+Orders list
+Order detail
+
+The Repeat Order action must NOT immediately place a new order.
+
+It must:
+
+Previous order
+      ↓
+Validate current store
+      ↓
+Validate current product/variant
+      ↓
+Validate current availability
+      ↓
+Validate current stock
+      ↓
+Use current price
+      ↓
+Add valid items to cart
+      ↓
+Customer reviews cart
+      ↓
+Checkout
+REPEAT ORDER MUST NOT COPY OLD PRICE
+
+If the previous order had:
+
+Rice 1 kg = ₹75
+
+and the current variant price is:
+
+Rice 1 kg = ₹82
+
+the new cart must use:
+
+₹82
+
+The historical order remains:
+
+₹75
+
+Do not overwrite historical order data.
+
+REPEAT ORDER — UNAVAILABLE ITEMS
+
+If a previous item is unavailable:
+
+Example:
+
+Rice 1 kg      ✓ Available
+Milk 1 litre   ⚠ Unavailable
+Eggs 12 pcs    ✓ Available
+
+Do not silently drop the unavailable item.
+
+Show the customer an appropriate summary:
+
+Repeat your order
+
+✓ Rice — 1 kg
+✓ Eggs — 12 pieces
+
+⚠ Milk — 1 litre
+  Currently unavailable
+
+2 items can be added to your cart.
+
+[ Add Available Items ]
+[ Cancel ]
+
+Do not automatically substitute another variant.
+
+REPEAT ORDER — DISCONTINUED VARIANT
+
+If the previous variant no longer exists/is inactive:
+
+Rice — 2 kg
+Currently unavailable
+
+Do not replace it with:
+
+1 kg
+
+or:
+
+5 kg
+
+automatically.
+
+REPEAT ORDER — STORE UNAVAILABLE
+
+If the previous store is:
+
+inactive
+suspended
+rejected
+no longer serving the customer's selected pincode
+
+the customer may still view the historical order.
+
+But Repeat Order must not create a cart for an unavailable store.
+
+Show a clear explanation.
+
+PHASE 10 — REPEAT ORDER WITH EXISTING CART
+
+This is important.
+
+If the customer already has an active cart from another supermarket:
+
+Example:
+
+Current cart:
+XYZ Supermarket
+Milk × 2
+
+Customer chooses Repeat Order from:
+
+ABC Supermarket
+
+Do not silently replace the current cart.
+
+Use the existing store-switch/cart-abandonment behavior.
+
+The customer must explicitly confirm switching stores.
+
+Preserve the existing cart lifecycle rules.
+
+PHASE 11 — BACKEND AUTHORITY
+
+The backend remains authoritative.
+
+Never trust the client for:
+
+variant price
+variant stock
+variant availability
+product ownership
+store ownership
+store pincode
+delivery fee
+minimum order
+order total
+commission
+historical snapshots
+order status
+
+At checkout, revalidate all relevant values immediately before order creation, just as the existing architecture already does.
+
+PHASE 12 — SECURITY
+
+Preserve existing authorization boundaries.
+
+Vendor:
+
+    ↓
+resolved store
+    ↓
+product ownership
+    ↓
+variant ownership
+
+Customer:
+
+    ↓
+own cart
+    ↓
+own orders
+
+Do not introduce client-controlled ownership fields.
+
+Do not allow:
+
+customer → arbitrary order
+vendor A → vendor B product/variant
+PHASE 13 — DATABASE SAFETY
+
+Before applying migrations:
+
+inspect existing migrations
+use the next migration number
+do not rewrite previously applied migrations
+do not delete production/DEV data
+preserve historical orders
+preserve existing cart/order behavior
+ensure foreign keys and indexes are appropriate
+ensure constraints prevent invalid variant relationships
+
+Do not modify Supabase production.
+
+Use the existing DEV project for testing.
+
+PHASE 14 — TESTING
+
+After implementation, test the following.
+
+Variant tests
+Rice
+500 g
+1 kg
+2 kg
+5 kg
+
+Verify each can be selected.
+
+Milk
+500 ml
+1 litre
+Eggs
+6 pieces
+12 pieces
+30 pieces
+Apple
+1 kg
+2 kg
+
+Verify different products can have different variants.
+
+CART TEST
+
+Verify:
+
+Rice 1 kg × 2
+Rice 500 g × 1
+
+appear as two separate cart lines.
+
+Verify:
+
+Rice 1 kg × 2
+
+remains one cart line when quantity is increased.
+
+ADD-TO-CART TEST
+
+Verify:
+
+Product
+→ Select variant
+→ Select quantity
+→ Add to Cart
+
+does NOT navigate to Checkout.
+
+Verify customer remains shopping.
+
+Verify sticky:
+
+Go to Cart — X Items
+
+appears.
+
+Verify tapping it opens Cart.
+
+CHECKOUT REGRESSION TEST
+
+Repeat the already-working DEV flow:
+
+Login
+→ Select address
+→ Store
+→ Variant
+→ Add to cart
+→ Go to Cart
+→ Checkout
+→ COD
+→ Place order
+
+Verify exactly one order is created.
+
+CANCELLATION REGRESSION TEST
+
+Verify:
+
+PLACED
+→ Cancel
+→ CANCELLED
+
+still works.
+
+Do not break the existing confirmation dialog.
+
+REPEAT ORDER TEST
+
+Create/use a completed historical DEV order containing multiple variants.
+
+Example:
+
+Rice 1 kg × 2
+Milk 1 litre × 1
+Eggs 12 pieces × 1
+
+Then:
+
+Orders
+→ Repeat Order
+
+Verify items are placed into the cart using current prices.
+
+Verify the old order remains unchanged.
+
+PRICE CHANGE TEST
+
+Change a DEV variant price.
+
+Repeat an old order.
+
+Verify:
+
+Historical order = old price
+New repeated cart = current price
+UNAVAILABLE VARIANT TEST
+
+Make one previously ordered variant unavailable.
+
+Repeat the order.
+
+Verify:
+
+Available items → can be added
+Unavailable item → clearly shown
+
+Do not silently substitute.
+
+STOCK TEST
+
+If:
+
+1 kg Rice stock = 2
+
+and Repeat Order requires:
+
+1 kg Rice × 3
+
+the backend must prevent an invalid cart/order.
+
+STORE SWITCH TEST
+
+Have an active cart from Store A.
+
+Repeat an order from Store B.
+
+Verify the customer is explicitly asked before switching stores.
+
+Do not silently discard the current cart.
+
+DUPLICATE SUBMISSION PROTECTION
+
+Verify duplicate protection for:
+
+Add to Cart
+Repeat Order
+Checkout
+Place Order
+Cancel Order
+Save Variant
+Update Variant
+
+No duplicate requests/orders should be created by rapid repeated taps.
+
+IMPORTANT — DO NOT BREAK CURRENT CUSTOMER UI
+
+The existing Customer UI reference design has already been finalized.
+
+Do not redesign the application again.
+
+For the new controls, follow the existing approved Customer visual language:
+
+blue theme
+rounded cards
+existing typography
+existing spacing
+existing bottom navigation
+existing buttons
+existing product-card style
+
+The new Variant selector and sticky cart bar must look like they belong to the approved design.
+
+Do not introduce an unrelated design system.
+
+IMPORTANT — DO NOT MODIFY UNRELATED AREAS
+
+Do not change:
+
+Admin functionality
+Admin UI
+Admin database architecture
+
+Vendor functionality unrelated to product variants
+
+Delivery architecture
+
+Commission architecture
+
+Authentication architecture
+
+Supabase RLS architecture
+
+Railway configuration
+
+Vercel configuration
+
+Git configuration
+
+Only make the minimum changes required for:
+
+Product Variants
+Cart behavior
+Repeat Orders
+TEST DATA
+
+Use the existing DEV Supabase project.
+
+Do not use production.
+
+Do not create fake production records.
+
+Any test orders created in DEV may remain there, but report them.
+
+FINAL REPORT
+
+When complete, provide a precise report containing:
+
+1. Database changes
+
+List:
+
+migration file(s)
+tables added/changed
+columns added/changed
+indexes
+constraints
+2. Backend changes
+
+List every API endpoint:
+
+existing endpoint modified
+new endpoint
+
+Explain why.
+
+3. Customer UI changes
+
+List every changed Customer file.
+
+4. Vendor UI changes
+
+List every changed Vendor file.
+
+5. Cart changes
+
+Explain exactly how variant + quantity are represented.
+
+6. Repeat Order behavior
+
+Explain:
+
+available item handling
+unavailable item handling
+price changes
+store switching
+existing cart handling
+7. Tests
+
+Report exact results:
+
+TypeScript: PASS/FAIL
+Database migration: PASS/FAIL
+API tests: X/X
+Variant tests: PASS/FAIL
+Cart tests: PASS/FAIL
+Checkout regression: PASS/FAIL
+Order creation: PASS/FAIL
+Cancellation: PASS/FAIL
+Repeat order: PASS/FAIL
+Unavailable variant: PASS/FAIL
+Price change: PASS/FAIL
+Stock validation: PASS/FAIL
+Store switching: PASS/FAIL
+Duplicate submission: PASS/FAIL
+
+Do not claim PASS unless actually tested.
+
+FINAL ACCEPTANCE CRITERIA
+
+The implementation is complete only when all of these are true:
+
+✓ Product can have multiple configurable variants
+
+✓ Variant has its own price
+
+✓ Variant has its own stock
+
+✓ Variant has its own availability
+
+✓ Customer can select variant
+
+✓ Customer can select quantity
+
+✓ Cart remembers variant + quantity
+
+✓ Different variants can coexist in the same cart
+
+✓ Add to Cart does NOT redirect to Checkout
+
+✓ Customer can continue shopping
+
+✓ Sticky Go to Cart action appears
+
+✓ Cart count shows total units
+
+✓ Existing one-store cart rule remains intact
+
+✓ Orders preserve historical variant snapshots
+
+✓ Previous orders show their supermarket
+
+✓ Repeat Order is available
+
+✓ Repeat Order does NOT immediately place an order
+
+✓ Repeat Order uses current prices
+
+✓ Repeat Order validates current availability
+
+✓ Repeat Order validates current stock
+
+✓ Unavailable items are clearly identified
+
+✓ No automatic substitutions
+
+✓ Existing cart/store-switch rules remain intact
+
+✓ Existing checkout flow still works
+
+✓ Existing order creation still works
+
+✓ Existing cancellation still works
+
+✓ No duplicate orders
+
+✓ Existing authentication/security/RLS remain intact
+
+✓ No unrelated architecture changes
+
+Do not declare this complete until the existing checkout/order/cancellation regression test and the new variant/cart/repeat-order tests have actually passed.
