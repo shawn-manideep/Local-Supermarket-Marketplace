@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest, type Store, type StoreStatus } from "./api";
 import { OrderOperations } from "./OrderOperations";
+import { AdminMasterCatalogPanel } from "./AdminMasterCatalogPanel";
 
 interface AdminStorePanelProps {
   token: string;
@@ -17,6 +18,7 @@ const statusActions: Partial<Record<StoreStatus, { label: string; path: string; 
 };
 
 export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
+  const [activeWorkspace, setActiveWorkspace] = useState<"stores" | "catalog">("stores");
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [commission, setCommission] = useState("");
@@ -85,6 +87,11 @@ export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
 
   return (
     <section className="management-section">
+      <div className="mode-tabs" role="tablist" aria-label="Admin workspaces">
+        <button className={activeWorkspace === "stores" ? "active" : ""} role="tab" aria-selected={activeWorkspace === "stores"} type="button" onClick={() => setActiveWorkspace("stores")}>Stores & orders</button>
+        <button className={activeWorkspace === "catalog" ? "active" : ""} role="tab" aria-selected={activeWorkspace === "catalog"} type="button" onClick={() => setActiveWorkspace("catalog")}>Master catalog</button>
+      </div>
+      {activeWorkspace === "catalog" ? <AdminMasterCatalogPanel token={token} onMessage={onMessage} /> : <>
       <div className="section-heading">
         <div>
           <p className="eyebrow">Admin workspace</p>
@@ -170,6 +177,7 @@ export function AdminStorePanel({ token, onMessage }: AdminStorePanelProps) {
         </div>
       </div>
       <OrderOperations onMessage={onMessage} stores={stores} token={token} vendor={false} />
+      </>}
     </section>
   );
 }

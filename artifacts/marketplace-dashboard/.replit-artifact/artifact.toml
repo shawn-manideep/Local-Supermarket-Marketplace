@@ -15,9 +15,9 @@ localPort = 25422
 run = "VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=$REPLIT_DEV_DOMAIN pnpm --filter @workspace/dashboard exec vite --host 0.0.0.0 --port $PORT --strictPort"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/marketplace-dashboard", "run", "build" ]
+build = ["bash","-lc","VITE_SUPABASE_URL=\"$SUPABASE_URL\" VITE_SUPABASE_ANON_KEY=\"$SUPABASE_ANON_KEY\" pnpm --filter @workspace/dashboard run build"]
 serve = "static"
-publicDir = "artifacts/marketplace-dashboard/dist/public"
+publicDir = "apps/dashboard/dist"
 
 [[services.production.rewrites]]
 from = "/*"

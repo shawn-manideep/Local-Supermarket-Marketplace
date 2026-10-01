@@ -46,6 +46,18 @@ test("variant cart identity uses distinct product variant ids and variant invent
   assert.match(routes, /eq\(productVariants\.id, cartItems\.variantId\)/);
 });
 
+test("cart response uses current master presentation with store overrides and legacy fallback", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const cartResponseRoute = routes.slice(
+    routes.indexOf("export async function cartResponse"),
+    routes.indexOf('customerCartRouter.get("/api/customer/cart"'),
+  );
+  assert.match(cartResponseRoute, /coalesce\(\$\{masterProducts\.name\}, \$\{products\.name\}\)/);
+  assert.match(cartResponseRoute, /coalesce\(\$\{products\.description\}, \$\{masterProducts\.description\}\)/);
+  assert.match(cartResponseRoute, /coalesce\(\$\{products\.imageUrl\}, \$\{masterProducts\.image\}\)/);
+  assert.match(cartResponseRoute, /leftJoin\(masterProducts, eq\(masterProducts\.id, products\.masterProductId\)\)/);
+});
+
 test("money calculations remain integer-cent based", () => {
   assert.equal(moneyToCents("12.30"), 1230n);
   assert.equal(centsToMoney(1230n), "12.30");

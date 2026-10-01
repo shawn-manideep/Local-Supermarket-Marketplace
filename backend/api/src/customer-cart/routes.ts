@@ -7,7 +7,7 @@ import {
   customerCheckoutValidationSchema,
 } from "@workspace/validation";
 import {
-  cartItems, carts, customerAddresses, getDb, productVariants, products,
+  cartItems, carts, customerAddresses, getDb, masterProducts, productVariants, products,
   storeServicePincodes, stores,
 } from "@workspace/db";
 import { requireRole } from "../auth/index.js";
@@ -42,14 +42,18 @@ export async function cartResponse(ownerId: string) {
   const cart = await activeCart(ownerId);
   if (!cart) return null;
   const rows = await getDb().select({
-    id: cartItems.id, productId: products.id, name: products.name,
-    imageUrl: products.imageUrl, quantity: cartItems.quantity,
+    id: cartItems.id, productId: products.id,
+    name: sql<string>`coalesce(${masterProducts.name}, ${products.name})`.as("name"),
+    description: sql<string | null>`coalesce(${products.description}, ${masterProducts.description})`.as("description"),
+    imageUrl: sql<string | null>`coalesce(${products.imageUrl}, ${masterProducts.image})`.as("imageUrl"),
+    quantity: cartItems.quantity,
     variantId: productVariants.id, variantName: productVariants.name,
     quantityValue: productVariants.quantityValue, quantityUnit: productVariants.quantityUnit,
     unitPrice: productVariants.price, availability: productVariants.availability,
     isActive: productVariants.isActive, stockQuantity: productVariants.stockQuantity,
     productAvailability: products.availability, productIsActive: products.isActive,
   }).from(cartItems).innerJoin(products, eq(products.id, cartItems.productId))
+    .leftJoin(masterProducts, eq(masterProducts.id, products.masterProductId))
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
     .where(eq(cartItems.cartId, cart.id)).orderBy(asc(products.name)).limit(100);
   const items = rows.map(({ isActive, stockQuantity, productAvailability, productIsActive, ...item }) => ({

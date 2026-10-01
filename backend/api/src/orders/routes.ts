@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { Router, type Request } from "express";
 import { z } from "zod";
 import {
-  carts, cartItems, categories, customerAddresses, customerRepeatRequests, getDb, orderItems, productVariants,
+  carts, cartItems, categories, customerAddresses, customerRepeatRequests, getDb, masterProducts, orderItems, productVariants,
   orderStatusHistory, orders, products, storeServicePincodes, stores,
 } from "@workspace/db";
 import {
@@ -201,6 +201,18 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     }
     if (rows.some(({ item, variant }) => item.quantity > variant.stockQuantity))
       throw new HttpError(409, "Requested quantity exceeds available stock");
+    // Read and share-lock current canonical names after the cart/product/variant rows are locked.
+    // Keep master data out of the FOR UPDATE join so PostgreSQL never locks its nullable side.
+    const masterProductIds = [...new Set(rows
+      .map(({ product }) => product.masterProductId)
+      .filter((id): id is string => id !== null))];
+    const currentMasterProducts = masterProductIds.length
+      ? await tx.select({ id: masterProducts.id, name: masterProducts.name })
+        .from(masterProducts)
+        .where(inArray(masterProducts.id, masterProductIds))
+        .for("share")
+      : [];
+    const masterNameById = new Map(currentMasterProducts.map(({ id, name }) => [id, name]));
     const subtotal = rows.reduce((sum, { item, variant }) =>
       sum + moneyToCents(variant.price) * BigInt(item.quantity), 0n);
     const fee = moneyToCents(store.stores.deliveryFee);
@@ -218,7 +230,8 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     }).returning();
     if (!order) throw new HttpError(500, "Unable to create order");
     await tx.insert(orderItems).values(rows.map(({ item, product, variant }) => ({
-      orderId: order.id, productId: product.id, productNameSnapshot: product.name,
+      orderId: order.id, productId: product.id,
+      productNameSnapshot: (product.masterProductId && masterNameById.get(product.masterProductId)) ?? product.name,
       variantId: variant.id, variantNameSnapshot: variant.name,
       variantQuantityValueSnapshot: variant.quantityValue,
       variantQuantityUnitSnapshot: variant.quantityUnit,

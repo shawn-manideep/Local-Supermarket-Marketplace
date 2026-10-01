@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Router, type Request, type Response } from "express";
 import {
   categoryCreateSchema,
@@ -7,7 +7,6 @@ import {
   categoryUpdateSchema,
   productAvailabilitySchema,
   productCategorySchema,
-  productCreateSchema,
   productIdParamSchema,
   productPriceSchema,
   productStockQuantitySchema,
@@ -16,10 +15,11 @@ import {
   productVariantUpdateSchema,
   productUpdateSchema,
 } from "@workspace/validation";
-import { categories, getDb, productVariants, products } from "@workspace/db";
+import { categories, getDb, masterProducts, productVariants, products } from "@workspace/db";
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, isUniqueViolation, validationDetails } from "../http.js";
+import { withMasterCatalogWriteLock } from "../master-catalog/duplicate-review.js";
 import { categoryOwnershipPredicate, productOwnershipPredicate } from "./ownership.js";
 
 export const catalogManagementRouter = Router();
@@ -40,6 +40,16 @@ function categoryNotFound() {
 
 function productNotFound() {
   return new HttpError(404, "Product not found in vendor store");
+}
+
+export async function updateOwnedProductAndChildren<T>(
+  updateOwnedProduct: () => Promise<T | undefined>,
+  updateChildren: () => Promise<void>,
+) {
+  const product = await updateOwnedProduct();
+  if (!product) throw productNotFound();
+  await updateChildren();
+  return product;
 }
 
 async function requireCategoryInStore(storeId: string, categoryId: string) {
@@ -77,16 +87,30 @@ async function variantsForProducts(productIds: string[], activeOnly = false) {
   return byProduct;
 }
 
-async function productWithVariants(product: typeof products.$inferSelect) {
-  const byProduct = await variantsForProducts([product.id]);
-  return { ...product, variants: byProduct.get(product.id) ?? [] };
+function productWithMasterFallback(
+  product: typeof products.$inferSelect,
+  master: typeof masterProducts.$inferSelect | undefined,
+) {
+  if (!master) return { ...product, brand: null };
+  return {
+    ...product,
+    name: master.name,
+    description: product.description ?? master.description,
+    imageUrl: product.imageUrl ?? master.image,
+    descriptionOverride: product.description,
+    imageOverride: product.imageUrl,
+    brand: master.brand,
+    masterCategoryId: master.masterCategoryId,
+    attributes: master.attributes,
+  };
 }
 
-async function requireVariantInProduct(productId: string, variantId: string) {
-  const [variant] = await getDb().select().from(productVariants)
-    .where(and(eq(productVariants.productId, productId), eq(productVariants.id, variantId))).limit(1);
-  if (!variant) throw new HttpError(404, "Variant not found in vendor product");
-  return variant;
+async function productWithVariants(product: typeof products.$inferSelect) {
+  const byProduct = await variantsForProducts([product.id]);
+  const [master] = product.masterProductId
+    ? await getDb().select().from(masterProducts).where(eq(masterProducts.id, product.masterProductId)).limit(1)
+    : [];
+  return { ...productWithMasterFallback(product, master), variants: byProduct.get(product.id) ?? [] };
 }
 
 function categoryId(request: Request) {
@@ -203,7 +227,17 @@ catalogManagementRouter.get(
     }
     const productList = await getDb().select().from(products).where(and(...conditions)).orderBy(asc(products.name)).limit(100);
     const byProduct = await variantsForProducts(productList.map((product) => product.id));
-    response.json({ products: productList.map((product) => ({ ...product, variants: byProduct.get(product.id) ?? [] })) });
+    const linkedIds = productList.flatMap((product) => product.masterProductId ? [product.masterProductId] : []);
+    const masters = linkedIds.length
+      ? await getDb().select().from(masterProducts).where(inArray(masterProducts.id, linkedIds))
+      : [];
+    const masterById = new Map(masters.map((master) => [master.id, master]));
+    response.json({
+      products: productList.map((product) => ({
+        ...productWithMasterFallback(product, masterById.get(product.masterProductId ?? "")),
+        variants: byProduct.get(product.id) ?? [],
+      })),
+    });
   }),
 );
 
@@ -218,46 +252,8 @@ catalogManagementRouter.get(
 catalogManagementRouter.post(
   "/api/vendor/products",
   requireRole("vendor"),
-  asyncHandler(async (request, response) => {
-    const parsed = productCreateSchema.safeParse(request.body);
-    if (!parsed.success) {
-      sendValidationError(response, parsed.error);
-      return;
-    }
-    const storeId = vendorStoreId(request);
-    if (parsed.data.categoryId) await requireCategoryInStore(storeId, parsed.data.categoryId);
-    try {
-      const product = await getDb().transaction(async (transaction) => {
-        const [created] = await transaction.insert(products).values({
-          storeId,
-          categoryId: parsed.data.categoryId ?? null,
-          name: parsed.data.name,
-          description: parsed.data.description ?? null,
-          sku: parsed.data.sku ?? null,
-          externalCode: parsed.data.externalCode ?? null,
-          price: parsed.data.price.toFixed(2),
-          availability: parsed.data.availability ?? true,
-          stockQuantity: parsed.data.stockQuantity ?? 0,
-          imageUrl: parsed.data.imageUrl ?? null,
-        }).returning();
-        await transaction.insert(productVariants).values({
-          productId: created.id,
-          name: "Standard",
-          quantityValue: "1",
-          quantityUnit: "pack",
-          price: created.price,
-          stockQuantity: created.stockQuantity,
-          availability: created.availability,
-          sku: null,
-          externalCode: null,
-          sortOrder: 0,
-        });
-        return created;
-      });
-      response.status(201).json({ product: await productWithVariants(product) });
-    } catch (error) {
-      uniqueError(error, "That SKU or external code already exists in this store");
-    }
+  asyncHandler(async (_request, _response) => {
+    throw new HttpError(409, "New store products must be selected from the Master Catalog");
   }),
 );
 
@@ -272,13 +268,6 @@ catalogManagementRouter.patch(
     }
     const storeId = vendorStoreId(request);
     const id = productId(request);
-    await requireProductInStore(storeId, id);
-    const existingVariants = await getDb().select().from(productVariants)
-      .where(eq(productVariants.productId, id));
-    if ((parsed.data.price !== undefined || parsed.data.stockQuantity !== undefined) && existingVariants.length > 1) {
-      throw new HttpError(409, "Update price and stock on individual variants when a product has multiple active variants");
-    }
-    if (parsed.data.categoryId) await requireCategoryInStore(storeId, parsed.data.categoryId);
     const { price, ...otherUpdates } = parsed.data;
     const updates = {
       ...otherUpdates,
@@ -286,18 +275,40 @@ catalogManagementRouter.patch(
       updatedAt: new Date(),
     };
     try {
-      const product = await getDb().transaction(async (transaction) => {
-        const [updated] = await transaction.update(products).set(updates)
-          .where(productOwnershipPredicate(storeId, id)).returning();
-        if (existingVariants.length === 1 && (price !== undefined || parsed.data.stockQuantity !== undefined)) {
-          await transaction.update(productVariants).set({
-            ...(price === undefined ? {} : { price: price.toFixed(2) }),
-            ...(parsed.data.stockQuantity === undefined ? {} : { stockQuantity: parsed.data.stockQuantity }),
-            updatedAt: new Date(),
-          }).where(eq(productVariants.id, existingVariants[0].id));
-        }
-        return updated;
-      });
+      const product = await getDb().transaction(async (transaction) =>
+        withMasterCatalogWriteLock(transaction, async () => {
+          const [existing] = await transaction.select().from(products)
+            .where(productOwnershipPredicate(storeId, id)).limit(1);
+          if (!existing) throw productNotFound();
+          if (existing.masterProductId && parsed.data.name !== undefined) {
+            const [master] = await transaction.select({ name: masterProducts.name })
+              .from(masterProducts).where(eq(masterProducts.id, existing.masterProductId)).limit(1);
+            if (parsed.data.name !== master?.name) {
+              throw new HttpError(409, "The name of a Master Catalog product is canonical and cannot be changed by a vendor");
+            }
+          }
+          const existingVariants = await transaction.select().from(productVariants)
+            .where(eq(productVariants.productId, id));
+          if ((price !== undefined || parsed.data.stockQuantity !== undefined) && existingVariants.length > 1) {
+            throw new HttpError(409, "Update price and stock on individual variants when a product has multiple active variants");
+          }
+          if (parsed.data.categoryId) {
+            const [category] = await transaction.select().from(categories)
+              .where(categoryOwnershipPredicate(storeId, parsed.data.categoryId)).limit(1);
+            if (!category) throw categoryNotFound();
+          }
+          const [updated] = await transaction.update(products).set(updates)
+            .where(productOwnershipPredicate(storeId, id)).returning();
+          if (existingVariants.length === 1 && (price !== undefined || parsed.data.stockQuantity !== undefined)) {
+            await transaction.update(productVariants).set({
+              ...(price === undefined ? {} : { price: price.toFixed(2) }),
+              ...(parsed.data.stockQuantity === undefined ? {} : { stockQuantity: parsed.data.stockQuantity }),
+              updatedAt: new Date(),
+            }).where(eq(productVariants.id, existingVariants[0].id));
+          }
+          return updated;
+        }),
+      );
       response.json({ product: await productWithVariants(product) });
     } catch (error) {
       uniqueError(error, "That SKU or external code already exists in this store");
@@ -315,14 +326,22 @@ catalogManagementRouter.post(
       return;
     }
     const id = productId(request);
-    await requireProductInStore(vendorStoreId(request), id);
+    const storeId = vendorStoreId(request);
     try {
-      const [variant] = await getDb().insert(productVariants).values({
-        ...parsed.data,
-        productId: id,
-        quantityValue: Number(parsed.data.quantityValue).toFixed(3),
-        price: parsed.data.price.toFixed(2),
-      }).returning();
+      const variant = await getDb().transaction(async (transaction) =>
+        withMasterCatalogWriteLock(transaction, async () => {
+          const [product] = await transaction.select({ id: products.id }).from(products)
+            .where(productOwnershipPredicate(storeId, id)).limit(1);
+          if (!product) throw productNotFound();
+          const [created] = await transaction.insert(productVariants).values({
+            ...parsed.data,
+            productId: id,
+            quantityValue: Number(parsed.data.quantityValue).toFixed(3),
+            price: parsed.data.price.toFixed(2),
+          }).returning();
+          return created;
+        }),
+      );
       response.status(201).json({ variant });
     } catch (error) {
       uniqueError(error, "That SKU or external code already exists for this product");
@@ -341,19 +360,32 @@ catalogManagementRouter.patch(
       sendValidationError(response, parsed.error);
       return;
     }
-    await requireProductInStore(vendorStoreId(request), params.data.productId);
-    await requireVariantInProduct(params.data.productId, params.data.variantId);
+    const storeId = vendorStoreId(request);
     const { price, quantityValue, ...otherUpdates } = parsed.data;
     try {
-      const [variant] = await getDb().update(productVariants).set({
-        ...otherUpdates,
-        ...(price === undefined ? {} : { price: price.toFixed(2) }),
-        ...(quantityValue === undefined ? {} : { quantityValue: Number(quantityValue).toFixed(3) }),
-        updatedAt: new Date(),
-      }).where(and(
-        eq(productVariants.id, params.data.variantId),
-        eq(productVariants.productId, params.data.productId),
-      )).returning();
+      const variant = await getDb().transaction(async (transaction) =>
+        withMasterCatalogWriteLock(transaction, async () => {
+          const [product] = await transaction.select({ id: products.id }).from(products)
+            .where(productOwnershipPredicate(storeId, params.data.productId)).limit(1);
+          if (!product) throw productNotFound();
+          const [existing] = await transaction.select().from(productVariants)
+            .where(and(
+              eq(productVariants.id, params.data.variantId),
+              eq(productVariants.productId, params.data.productId),
+            )).limit(1);
+          if (!existing) throw new HttpError(404, "Variant not found in vendor product");
+          const [updated] = await transaction.update(productVariants).set({
+            ...otherUpdates,
+            ...(price === undefined ? {} : { price: price.toFixed(2) }),
+            ...(quantityValue === undefined ? {} : { quantityValue: Number(quantityValue).toFixed(3) }),
+            updatedAt: new Date(),
+          }).where(and(
+            eq(productVariants.id, params.data.variantId),
+            eq(productVariants.productId, params.data.productId),
+          )).returning();
+          return updated;
+        }),
+      );
       response.json({ variant });
     } catch (error) {
       uniqueError(error, "That SKU or external code already exists for this product");
@@ -364,14 +396,22 @@ catalogManagementRouter.patch(
 async function setVariantActive(request: Request, response: Response, isActive: boolean) {
   const parsed = productVariantIdParamSchema.safeParse(request.params);
   if (!parsed.success) throw new HttpError(400, "Invalid product or variant ID", validationDetails(parsed.error));
-  await requireProductInStore(vendorStoreId(request), parsed.data.productId);
-  const [variant] = await getDb().update(productVariants)
-    .set({ isActive, updatedAt: new Date() })
-    .where(and(
-      eq(productVariants.id, parsed.data.variantId),
-      eq(productVariants.productId, parsed.data.productId),
-    )).returning();
-  if (!variant) throw new HttpError(404, "Variant not found in vendor product");
+  const storeId = vendorStoreId(request);
+  const variant = await getDb().transaction(async (transaction) =>
+    withMasterCatalogWriteLock(transaction, async () => {
+      const [product] = await transaction.select({ id: products.id }).from(products)
+        .where(productOwnershipPredicate(storeId, parsed.data.productId)).limit(1);
+      if (!product) throw productNotFound();
+      const [updated] = await transaction.update(productVariants)
+        .set({ isActive, updatedAt: new Date() })
+        .where(and(
+          eq(productVariants.id, parsed.data.variantId),
+          eq(productVariants.productId, parsed.data.productId),
+        )).returning();
+      if (!updated) throw new HttpError(404, "Variant not found in vendor product");
+      return updated;
+    }),
+  );
   response.json({ variant });
 }
 
@@ -388,11 +428,41 @@ catalogManagementRouter.post(
 
 async function setProductActive(request: Request, response: Response, isActive: boolean) {
   const storeId = vendorStoreId(request);
-  const [product] = await getDb().update(products)
-    .set({ isActive, updatedAt: new Date() })
-    .where(productOwnershipPredicate(storeId, productId(request)))
-    .returning();
-  if (!product) throw productNotFound();
+  const id = productId(request);
+  const product = await getDb().transaction(async (transaction) =>
+    withMasterCatalogWriteLock(transaction, async () => {
+      const [existing] = await transaction.select().from(products)
+        .where(productOwnershipPredicate(storeId, id)).limit(1);
+      if (!existing) throw productNotFound();
+      if (isActive && existing.masterProductId) {
+        const [configuredVariant] = await transaction.select({ id: productVariants.id })
+          .from(productVariants)
+          .where(and(
+            eq(productVariants.productId, id),
+            eq(productVariants.isActive, true),
+            sql`${productVariants.price} > 0`,
+          )).limit(1);
+        if (!configuredVariant) {
+          throw new HttpError(409, "Configure at least one active selling variant with a price before activating this listing");
+        }
+        const [duplicate] = await transaction.select({ id: products.id }).from(products)
+          .where(and(
+            eq(products.storeId, storeId),
+            eq(products.masterProductId, existing.masterProductId),
+            eq(products.isActive, true),
+            sql`${products.id} <> ${id}`,
+          )).limit(1);
+        if (duplicate) {
+          throw new HttpError(409, "Another active listing for this Master Product already exists in this store");
+        }
+      }
+      const [updated] = await transaction.update(products)
+        .set({ isActive, updatedAt: new Date() })
+        .where(productOwnershipPredicate(storeId, id))
+        .returning();
+      return updated;
+    }),
+  );
   response.json({ product: await productWithVariants(product) });
 }
 
@@ -413,18 +483,23 @@ async function updateProductField<T extends Record<string, unknown>>(
   const storeId = vendorStoreId(request);
   const id = productId(request);
   const product = await getDb().transaction(async (transaction) => {
-    const [updated] = await transaction.update(products)
-      .set({ [field]: parsed.data![field], updatedAt: new Date() })
-      .where(productOwnershipPredicate(storeId, id))
-      .returning();
-    if (field === "availability") {
-      await transaction.update(productVariants)
-        .set({ availability: parsed.data![field] as boolean, updatedAt: new Date() })
-        .where(eq(productVariants.productId, id));
-    }
-    return updated;
+    return updateOwnedProductAndChildren(
+      async () => {
+        const [updated] = await transaction.update(products)
+          .set({ [field]: parsed.data![field], updatedAt: new Date() })
+          .where(productOwnershipPredicate(storeId, id))
+          .returning();
+        return updated;
+      },
+      async () => {
+        if (field === "availability") {
+          await transaction.update(productVariants)
+            .set({ availability: parsed.data![field] as boolean, updatedAt: new Date() })
+            .where(eq(productVariants.productId, id));
+        }
+      },
+    );
   });
-  if (!product) throw productNotFound();
   response.json({ product: await productWithVariants(product) });
 }
 
@@ -434,17 +509,22 @@ catalogManagementRouter.patch("/api/vendor/products/:productId/price", requireRo
   if (!parsed.success) { sendValidationError(response, parsed.error); return; }
   const storeId = vendorStoreId(request);
   const id = productId(request);
-  await requireProductInStore(storeId, id);
-  const variants = await getDb().select().from(productVariants).where(eq(productVariants.productId, id));
-  if (variants.length > 1) throw new HttpError(409, "Update price on individual variants when a product has multiple variants");
-  const product = await getDb().transaction(async (transaction) => {
-    const [updated] = await transaction.update(products).set({ price: parsed.data.price.toFixed(2), updatedAt: new Date() })
-      .where(productOwnershipPredicate(storeId, id)).returning();
-    if (variants.length === 1) await transaction.update(productVariants)
-      .set({ price: parsed.data.price.toFixed(2), updatedAt: new Date() })
-      .where(eq(productVariants.id, variants[0].id));
-    return updated;
-  });
+  const product = await getDb().transaction(async (transaction) =>
+    withMasterCatalogWriteLock(transaction, async () => {
+      const [existing] = await transaction.select().from(products)
+        .where(productOwnershipPredicate(storeId, id)).limit(1);
+      if (!existing) throw productNotFound();
+      const variants = await transaction.select().from(productVariants)
+        .where(eq(productVariants.productId, id));
+      if (variants.length > 1) throw new HttpError(409, "Update price on individual variants when a product has multiple variants");
+      const [updated] = await transaction.update(products).set({ price: parsed.data.price.toFixed(2), updatedAt: new Date() })
+        .where(productOwnershipPredicate(storeId, id)).returning();
+      if (variants.length === 1) await transaction.update(productVariants)
+        .set({ price: parsed.data.price.toFixed(2), updatedAt: new Date() })
+        .where(eq(productVariants.id, variants[0].id));
+      return updated;
+    }),
+  );
   response.json({ product: await productWithVariants(product) });
 }));
 catalogManagementRouter.patch("/api/vendor/products/:productId/stock-quantity", requireRole("vendor"), asyncHandler(async (request, response) => {

@@ -1,6 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { authRouter } from "./auth/index.js";
 import { catalogManagementRouter } from "./catalog-management/index.js";
+import { masterCatalogRouter } from "./master-catalog/index.js";
 import { customerManagementRouter } from "./customer-management/index.js";
 import { customerMarketplaceRouter } from "./customer-marketplace/index.js";
 import { customerCartRouter } from "./customer-cart/index.js";
@@ -8,6 +9,25 @@ import { HttpError } from "./http.js";
 import { storeManagementRouter } from "./store-management/index.js";
 import { ordersRouter } from "./orders/index.js";
 import { createApiRateLimit } from "./security.js";
+
+export type IntegrationErrorDiagnostic = {
+  causeCode?: string;
+  causeMessage?: string;
+};
+
+let integrationErrorObserver: ((diagnostic: IntegrationErrorDiagnostic) => void) | undefined;
+
+export function observeIntegrationErrors(
+  observer: (diagnostic: IntegrationErrorDiagnostic) => void,
+) {
+  if (process.env.RUN_MASTER_CATALOG_INTEGRATION !== "1") {
+    throw new Error("Integration error observation requires RUN_MASTER_CATALOG_INTEGRATION=1.");
+  }
+  integrationErrorObserver = observer;
+  return () => {
+    if (integrationErrorObserver === observer) integrationErrorObserver = undefined;
+  };
+}
 
 function isMalformedJsonError(error: unknown) {
   return (
@@ -86,6 +106,7 @@ export function createApp() {
   app.use(authRouter);
   app.use(storeManagementRouter);
   app.use(catalogManagementRouter);
+  app.use(masterCatalogRouter);
   app.use(customerManagementRouter);
   app.use(customerMarketplaceRouter);
   app.use(customerCartRouter);
@@ -113,6 +134,20 @@ export function createApp() {
           ...(error.details ? { details: error.details } : {}),
         });
         return;
+      }
+
+      if (process.env.RUN_MASTER_CATALOG_INTEGRATION === "1" && integrationErrorObserver) {
+        const cause = typeof error === "object" && error !== null && "cause" in error
+          ? (error as { cause?: unknown }).cause
+          : error;
+        if (typeof cause === "object" && cause !== null) {
+          const diagnostic: IntegrationErrorDiagnostic = {};
+          const code = "code" in cause ? (cause as { code?: unknown }).code : undefined;
+          const message = "message" in cause ? (cause as { message?: unknown }).message : undefined;
+          if (typeof code === "string") diagnostic.causeCode = code;
+          if (typeof message === "string") diagnostic.causeMessage = message;
+          integrationErrorObserver(diagnostic);
+        }
       }
 
       const detail = error instanceof Error ? error.stack ?? error.message : String(error);

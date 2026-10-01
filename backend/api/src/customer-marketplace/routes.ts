@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { Router, type Request } from "express";
+import { z } from "zod";
 import {
-  customerCatalogQuerySchema,
   customerStoreIdParamSchema,
   customerStoreProductParamSchema,
 } from "@workspace/validation";
@@ -9,6 +9,7 @@ import {
   categories,
   customerAddresses,
   getDb,
+  masterProducts,
   productVariants,
   products,
   storeOperatingHours,
@@ -28,8 +29,54 @@ const publicStore = {
 };
 const publicProduct = {
   id: products.id, storeId: products.storeId, categoryId: products.categoryId,
-  name: products.name, description: products.description, price: products.price,
-  availability: products.availability, imageUrl: products.imageUrl,
+  masterProductId: products.masterProductId,
+  name: sql<string>`coalesce(${masterProducts.name}, ${products.name})`.as("name"),
+  description: sql<string | null>`coalesce(${products.description}, ${masterProducts.description})`.as("description"),
+  price: products.price, availability: products.availability,
+  imageUrl: sql<string | null>`coalesce(${products.imageUrl}, ${masterProducts.image})`.as("imageUrl"),
+  brand: masterProducts.brand, categoryName: categories.name,
+};
+export const customerProductQuerySchema = z.object({
+  pincode: z.string().trim().regex(/^[1-9]\d{5}$/, "Use a valid six-digit Indian pincode"),
+  search: z.string().trim().max(120).optional(),
+  categoryId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(24),
+}).strict();
+
+const customerVariantFields = {
+  id: productVariants.id, productId: productVariants.productId,
+  name: productVariants.name, quantityValue: productVariants.quantityValue,
+  quantityUnit: productVariants.quantityUnit, price: productVariants.price,
+  availability: productVariants.availability, isActive: productVariants.isActive,
+  sortOrder: productVariants.sortOrder,
+  purchasable: sql<boolean>`${productVariants.isActive} = true AND ${productVariants.availability} = true AND ${productVariants.stockQuantity} > 0`,
+};
+
+type PublicProduct = {
+  id: string;
+  storeId: string;
+  categoryId: string | null;
+  masterProductId: string | null;
+  name: string;
+  description: string | null;
+  price: string;
+  availability: boolean;
+  imageUrl: string | null;
+  brand: string | null;
+  categoryName: string | null;
+};
+type PublicVariant = {
+  id: string;
+  productId: string;
+  name: string;
+  quantityValue: string;
+  quantityUnit: string;
+  price: string;
+  availability: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  purchasable: boolean;
 };
 
 function customerId(request: Request) {
@@ -39,12 +86,42 @@ function customerId(request: Request) {
 }
 
 async function discoveryContext(request: Request) {
-  const parsed = customerCatalogQuerySchema.safeParse(request.query);
+  const parsed = customerProductQuerySchema.safeParse(request.query);
   if (!parsed.success) throw new HttpError(400, "Invalid discovery query", validationDetails(parsed.error));
   const [address] = await getDb().select({ id: customerAddresses.id }).from(customerAddresses)
     .where(and(eq(customerAddresses.customerId, customerId(request)), eq(customerAddresses.pincode, parsed.data.pincode))).limit(1);
   if (!address) throw new HttpError(404, "No saved customer address uses this pincode");
   return parsed.data;
+}
+
+function searchPattern(search: string | undefined) {
+  if (!search) return undefined;
+  return `%${search.replace(/[\\%_]/g, "\\$&")}%`;
+}
+
+async function customerVariantsFor(productIds: string[]) {
+  if (!productIds.length) return [] as PublicVariant[];
+  const variants = await getDb().select(customerVariantFields).from(productVariants)
+    .where(and(inArray(productVariants.productId, productIds), eq(productVariants.isActive, true)))
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.createdAt));
+  return variants as PublicVariant[];
+}
+
+function addCustomerVariants<T extends PublicProduct>(list: T[], variants: PublicVariant[]) {
+  const variantsByProduct = new Map<string, PublicVariant[]>();
+  for (const variant of variants) {
+    const items = variantsByProduct.get(variant.productId) ?? [];
+    items.push(variant);
+    variantsByProduct.set(variant.productId, items);
+  }
+  return list.map((product) => {
+    const productVariants = variantsByProduct.get(product.id) ?? [];
+    return {
+      ...product,
+      purchasable: product.availability && productVariants.some((variant) => variant.purchasable),
+      variants: productVariants,
+    };
+  });
 }
 
 async function visibleStore(storeId: string, pincode: string) {
@@ -123,30 +200,81 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/products", requireR
     or(isNull(products.categoryId), eq(categories.isActive, true))!,
   ];
   if (query.categoryId) conditions.push(eq(products.categoryId, query.categoryId));
-  const list = await getDb().select(publicProduct).from(products)
+  const pattern = searchPattern(query.search);
+  if (pattern) conditions.push(or(
+    ilike(masterProducts.name, pattern),
+    ilike(products.name, pattern),
+    ilike(masterProducts.brand, pattern),
+    ilike(categories.name, pattern),
+    sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
+  )!);
+  const db = getDb();
+  const [countResult] = await db.select({ total: count() }).from(products)
     .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
-   .where(and(...conditions)).orderBy(asc(products.name)).limit(100);
-  const variants = list.length
-    ? await getDb().select({
-      id: productVariants.id, productId: productVariants.productId,
-      name: productVariants.name, quantityValue: productVariants.quantityValue,
-      quantityUnit: productVariants.quantityUnit, price: productVariants.price,
-      stockQuantity: productVariants.stockQuantity, availability: productVariants.availability,
-      isActive: productVariants.isActive,
-      sku: productVariants.sku, externalCode: productVariants.externalCode,
-      sortOrder: productVariants.sortOrder, createdAt: productVariants.createdAt,
-      updatedAt: productVariants.updatedAt,
-    }).from(productVariants)
-      .where(and(inArray(productVariants.productId, list.map((product) => product.id)), eq(productVariants.isActive, true)))
-      .orderBy(asc(productVariants.sortOrder), asc(productVariants.createdAt))
-    : [];
-  const variantsByProduct = new Map<string, typeof variants>();
-  for (const variant of variants) {
-    const items = variantsByProduct.get(variant.productId) ?? [];
-    items.push(variant);
-    variantsByProduct.set(variant.productId, items);
-  }
-  response.json({ products: list.map((product) => ({ ...product, variants: variantsByProduct.get(product.id) ?? [] })) });
+    .leftJoin(masterProducts, eq(masterProducts.id, products.masterProductId))
+    .where(and(...conditions));
+  const list = await db.select(publicProduct).from(products)
+    .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
+    .leftJoin(masterProducts, eq(masterProducts.id, products.masterProductId))
+    .where(and(...conditions))
+    .orderBy(asc(sql<string>`coalesce(${masterProducts.name}, ${products.name})`))
+    .limit(query.pageSize)
+    .offset((query.page - 1) * query.pageSize);
+  const variants = await customerVariantsFor(list.map((item) => item.id));
+  response.json({
+    products: addCustomerVariants(list as PublicProduct[], variants),
+    pagination: { page: query.page, pageSize: query.pageSize, total: countResult?.total ?? 0 },
+  });
+}));
+
+customerMarketplaceRouter.get("/api/customer/products", requireRole("customer"), asyncHandler(async (request, response) => {
+  const query = await discoveryContext(request);
+  const conditions = [
+    eq(products.isActive, true),
+    eq(stores.status, "ACTIVE"),
+    eq(storeServicePincodes.pincode, query.pincode),
+    or(isNull(products.categoryId), eq(categories.isActive, true))!,
+  ];
+  if (query.categoryId) conditions.push(or(
+    eq(products.categoryId, query.categoryId),
+    eq(categories.masterCategoryId, query.categoryId),
+    eq(masterProducts.masterCategoryId, query.categoryId),
+  )!);
+  const pattern = searchPattern(query.search);
+  if (pattern) conditions.push(or(
+    ilike(masterProducts.name, pattern),
+    ilike(products.name, pattern),
+    ilike(masterProducts.brand, pattern),
+    ilike(categories.name, pattern),
+    sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
+  )!);
+  const db = getDb();
+  const [countResult] = await db.select({ total: count() }).from(products)
+    .innerJoin(stores, eq(stores.id, products.storeId))
+    .innerJoin(storeServicePincodes, eq(storeServicePincodes.storeId, stores.id))
+    .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
+    .leftJoin(masterProducts, eq(masterProducts.id, products.masterProductId))
+    .where(and(...conditions));
+  const list = await db.select({
+    ...publicProduct,
+    storeName: stores.name,
+  }).from(products)
+    .innerJoin(stores, eq(stores.id, products.storeId))
+    .innerJoin(storeServicePincodes, eq(storeServicePincodes.storeId, stores.id))
+    .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
+    .leftJoin(masterProducts, eq(masterProducts.id, products.masterProductId))
+    .where(and(...conditions))
+    .orderBy(asc(sql<string>`coalesce(${masterProducts.name}, ${products.name})`), asc(stores.name))
+    .limit(query.pageSize)
+    .offset((query.page - 1) * query.pageSize);
+  const variants = await customerVariantsFor(list.map((item) => item.id));
+  response.json({
+    products: addCustomerVariants(list as PublicProduct[], variants).map((item, index) => ({
+      ...item,
+      storeName: list[index].storeName,
+    })),
+    pagination: { page: query.page, pageSize: query.pageSize, total: countResult?.total ?? 0 },
+  });
 }));
 
 customerMarketplaceRouter.get("/api/customer/stores/:storeId/products/:productId", requireRole("customer"), asyncHandler(async (request, response) => {
@@ -156,19 +284,9 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/products/:productId
   await visibleStore(parsed.data.storeId, pincode);
   const [product] = await getDb().select(publicProduct).from(products)
     .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.storeId, products.storeId)))
+    .leftJoin(masterProducts, eq(masterProducts.id, products.masterProductId))
     .where(and(eq(products.id, parsed.data.productId), eq(products.storeId, parsed.data.storeId), eq(products.isActive, true), or(isNull(products.categoryId), eq(categories.isActive, true))!)).limit(1);
   if (!product) throw new HttpError(404, "Product not available in this store");
-  const variants = await getDb().select({
-    id: productVariants.id, productId: productVariants.productId,
-    name: productVariants.name, quantityValue: productVariants.quantityValue,
-    quantityUnit: productVariants.quantityUnit, price: productVariants.price,
-    stockQuantity: productVariants.stockQuantity, availability: productVariants.availability,
-    isActive: productVariants.isActive,
-    sku: productVariants.sku, externalCode: productVariants.externalCode,
-    sortOrder: productVariants.sortOrder, createdAt: productVariants.createdAt,
-    updatedAt: productVariants.updatedAt,
-  }).from(productVariants)
-    .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true)))
-    .orderBy(asc(productVariants.sortOrder), asc(productVariants.createdAt));
-  response.json({ product: { ...product, variants } });
+  const variants = await customerVariantsFor([product.id]);
+  response.json({ product: addCustomerVariants([product as PublicProduct], variants)[0] });
 }));

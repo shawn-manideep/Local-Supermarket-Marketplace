@@ -1,6 +1,6 @@
 # Local Supermarket Marketplace
 
-Phase 4 vendor catalog-management foundation for the customer app, dashboard, Supabase database, and authentication.
+Customer marketplace, vendor/admin dashboard, Supabase-backed commerce, and Master Catalog foundation.
 
 ## Run & Operate
 
@@ -11,7 +11,7 @@ Phase 4 vendor catalog-management foundation for the customer app, dashboard, Su
 - `pnpm run build` — typecheck + build all workspace packages
 - `pnpm --filter @workspace/db run generate` — generate a Drizzle migration from the database schema
 - `pnpm --filter @workspace/db run check` — validate Drizzle migration consistency
-- `pnpm --filter @workspace/db run migrate` — apply migrations to Supabase using `SUPABASE_DB_URL`
+- Migration application — follow the target-specific procedure in [Supabase migration history](.agents/memory/supabase-migration-history.md).
 - `pnpm --filter @workspace/api run test` — run focused store/catalog HTTP and validation tests
 
 ## Stack
@@ -38,11 +38,12 @@ Phase 4 vendor catalog-management foundation for the customer app, dashboard, Su
 
 - Phase 1 intentionally uses pnpm workspaces because the provided project foundation already uses pnpm.
 - Supabase credentials are required before applying migrations or exercising authenticated requests.
-- Customer discovery/catalog, search, carts, checkout, orders, payments, and delivery remain deferred to later phases.
+- Master Catalog extends existing store-owned products and variants; it never replaces commerce identities or historical snapshots.
+- Master changes use additive migrations, explicit vendor selection, and store-specific selling configuration. No synthetic default variant is created for new master selections.
 
 ## Product
 
-The customer marketplace is not implemented yet. Phase 4 establishes vendor-owned category and product management only.
+The customer marketplace supports store discovery, catalog browsing, cart/checkout, COD orders, and repeat orders. Master Catalog adds canonical product management and global discovery while purchasing remains store-specific.
 
 ## User preferences
 
@@ -50,7 +51,7 @@ No additional preferences recorded.
 
 ## Gotchas
 
-Do not add customer catalog/discovery, search, cart, checkout, order, payment, or delivery functionality before its designated phase.
+Do not redesign authentication, checkout, orders, or repeat orders in the Master Catalog phase. Stock reservation/deduction, payment gateways, and Delivery Partner remain out of scope.
 
 ## Pointers
 

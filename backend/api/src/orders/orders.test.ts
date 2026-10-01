@@ -62,6 +62,23 @@ test("variant checkout uses current variant inventory and writes immutable varia
   assert.match(orderRoute, /productPriceSnapshot: variant\.price/);
 });
 
+test("new order snapshots use the locked product's current master name without rewriting old snapshots", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const orderRoute = routes.slice(
+    routes.indexOf('ordersRouter.post("/api/customer/orders"'),
+    routes.indexOf('ordersRouter.get("/api/customer/orders/:orderId/repeat-preview"'),
+  );
+  const lockedRows = orderRoute.indexOf("const rows = await tx.select({ item: cartItems, product: products, variant: productVariants })");
+  const lockedRowsEnd = orderRoute.indexOf('.for("update");', lockedRows);
+  const currentMasterRead = orderRoute.indexOf("from(masterProducts)", lockedRowsEnd);
+  const newSnapshotWrite = orderRoute.indexOf("tx.insert(orderItems)");
+  assert.ok(lockedRows >= 0 && lockedRowsEnd > lockedRows && currentMasterRead > lockedRowsEnd);
+  assert.ok(newSnapshotWrite > currentMasterRead);
+  assert.match(orderRoute, /productNameSnapshot: \(product\.masterProductId && masterNameById\.get\(product\.masterProductId\)\) \?\? product\.name/);
+  assert.doesNotMatch(orderRoute, /tx\.update\(orderItems\)/);
+  assert.match(routes, /productNameSnapshot: orderItems\.productNameSnapshot/);
+});
+
 test("repeat order previews only original variants and re-adds to cart without creating orders", async () => {
   const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
   const preview = routes.slice(

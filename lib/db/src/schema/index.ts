@@ -51,6 +51,8 @@ export const quantityUnitEnum = pgEnum("quantity_unit", [
   "piece",
   "pack",
   "dozen",
+  "bottle",
+  "box",
 ]);
 
 const createdAt = () =>
@@ -173,6 +175,39 @@ export const storeOperatingHours = pgTable(
   ],
 );
 
+export const masterCategories = pgTable(
+  "master_categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("master_categories_active_name_idx").on(table.isActive, table.name)],
+);
+
+export const masterProducts = pgTable(
+  "master_products",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    masterCategoryId: uuid("master_category_id").notNull()
+      .references(() => masterCategories.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    image: text("image"),
+    brand: text("brand"),
+    attributes: jsonb("attributes").$type<Record<string, string>>().notNull().default({}),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("master_products_category_idx").on(table.masterCategoryId),
+    index("master_products_active_name_idx").on(table.isActive, table.name),
+  ],
+);
+
 export const categories = pgTable(
   "categories",
   {
@@ -181,6 +216,8 @@ export const categories = pgTable(
       .notNull()
       .references(() => stores.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    masterCategoryId: uuid("master_category_id")
+      .references(() => masterCategories.id, { onDelete: "restrict" }),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -200,6 +237,8 @@ export const products = pgTable(
       .notNull()
       .references(() => stores.id, { onDelete: "restrict" }),
     categoryId: uuid("category_id"),
+    masterProductId: uuid("master_product_id")
+      .references(() => masterProducts.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     description: text("description"),
     sku: text("sku"),
@@ -225,7 +264,24 @@ export const products = pgTable(
     ),
     index("products_store_id_idx").on(table.storeId),
     index("products_category_id_idx").on(table.categoryId),
+    index("products_master_product_idx").on(table.masterProductId),
   ],
+);
+
+export const masterMappingAudit = pgTable(
+  "master_mapping_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "restrict" }),
+    previousMasterProductId: uuid("previous_master_product_id")
+      .references(() => masterProducts.id, { onDelete: "restrict" }),
+    masterProductId: uuid("master_product_id").notNull()
+      .references(() => masterProducts.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id").notNull().references(() => userProfiles.id, { onDelete: "restrict" }),
+    reason: text("reason").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index("master_mapping_audit_product_idx").on(table.productId, table.createdAt)],
 );
 
 export const productVariants = pgTable(

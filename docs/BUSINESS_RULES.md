@@ -50,7 +50,9 @@ Arbitrary status updates are not exposed.
 ## Store-owned catalog
 
 - Categories and products belong to exactly one store.
-- There is no global category or product master and no `store_products` table.
+- Platform-level `master_categories` and `master_products` supply canonical
+  catalog data. The existing store-owned products remain listings; there is no
+  replacement `store_products` table or shared `master_variants` structure.
 - Identically named products in different stores are independent records.
 - A product may be uncategorized or assigned only to a category from its own
   store.
@@ -100,6 +102,40 @@ Arbitrary status updates are not exposed.
   store.
 - Active unavailable products remain visible and clearly unavailable.
 - Catalog browsing never merges products between stores.
+
+## Master Catalog foundation
+
+- Master identity follows the product-family model. Pack sizes are selling
+  variants; materially different brands/types/specifications remain distinct.
+- Vendors search the complete eligible catalog with backend pagination, without
+  choosing a category first. Category is an optional filter.
+- New vendor additions use canonical selection or the same validated canonical
+  creation flow after reviewed global duplicate checks.
+- New selections reuse an existing listing and serialize concurrent additions.
+  No uniqueness constraint is imposed on legacy duplicate listings.
+- New selections start inactive with no artificial selling variant. Vendors
+  explicitly configure a real variant before activation. A required legacy
+  product-price placeholder is not a published selling offer.
+- Canonical names/brands remain master-controlled. Local description/image
+  overrides are nullable; null means inherit the current canonical default.
+  Store categories remain independent merchandising groups.
+- Master archive blocks new selections, not existing store eligibility; it does
+  not delete or cascade-deactivate listings, variants, carts, or orders.
+- Store removal deactivates the listing and preserves IDs and configuration for
+  deliberate reuse/reactivation.
+- Legacy unmapped products/categories continue working. Mapping is privileged,
+  reasoned and append-only audited; a different physical product is not a
+  clerical correction or a reorder substitution.
+- Customer global discovery includes only authorized, active store offers for
+  the saved-address pincode. Purchases remain tied to the selected store and the
+  original product/variant IDs.
+- Customer catalog responses include server-derived purchasability, not SKU,
+  external codes, exact stock or internal timestamps. Current stock is still
+  validated by cart/checkout/order APIs.
+- Units also support bottle and box. No automatic conversion, stock reservation
+  or deduction is introduced.
+- Existing historical snapshots remain immutable; current canonical names are
+  resolved for cart presentation and newly created order snapshots only.
 
 ## Cart and checkout preparation
 

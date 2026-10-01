@@ -49,16 +49,32 @@ export interface CustomerCategory {
 export interface CustomerProduct {
   id: string;
   storeId: string;
+  storeName?: string;
   categoryId: string | null;
+  masterProductId: string | null;
   name: string;
   description: string | null;
+  brand: string | null;
+  categoryName: string | null;
   price: string;
   availability: boolean;
+  purchasable: boolean;
   imageUrl: string | null;
   variants?: CustomerProductVariant[];
 }
 
-export type CustomerQuantityUnit = "g" | "kg" | "ml" | "l" | "piece" | "pack" | "dozen";
+export interface CustomerProductPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface CustomerProductSearchResponse {
+  products: CustomerProduct[];
+  pagination: CustomerProductPagination;
+}
+
+export type CustomerQuantityUnit = "g" | "kg" | "ml" | "l" | "piece" | "pack" | "dozen" | "bottle" | "box";
 export interface CustomerProductVariant {
   id: string;
   productId: string;
@@ -66,14 +82,10 @@ export interface CustomerProductVariant {
   quantityValue: string;
   quantityUnit: CustomerQuantityUnit;
   price: string;
-  stockQuantity: number;
   availability: boolean;
   isActive: boolean;
-  sku: string | null;
-  externalCode: string | null;
   sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
+  purchasable: boolean;
 }
 
 export interface CustomerCartItem {

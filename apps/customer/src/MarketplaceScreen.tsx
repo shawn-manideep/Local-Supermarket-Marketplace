@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, Animated, TextInput } from "react-native";
-import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
+import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductPagination, type CustomerProductSearchResponse, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { QuantitySelector } from "./components/QuantitySelector";
 import { PlaceholderImage } from "./components/PlaceholderImage";
@@ -32,6 +32,27 @@ const StoreSkeleton = () => (
   </View>
 );
 
+function PaginationControls({ pagination, onPageChange }: { pagination: CustomerProductPagination | null; onPageChange: (page: number) => void }) {
+  if (!pagination) return null;
+  const pages = Math.ceil(pagination.total / pagination.pageSize);
+  return (
+    <View style={styles.pagination}>
+      <Text style={typography.caption}>
+        {pagination.total === 0 ? "No products" : `Showing ${(pagination.page - 1) * pagination.pageSize + 1}–${Math.min(pagination.page * pagination.pageSize, pagination.total)} of ${pagination.total}`}
+      </Text>
+      {pages > 1 && <>
+        <Pressable accessibilityRole="button" disabled={pagination.page <= 1} onPress={() => onPageChange(pagination.page - 1)} style={[styles.pageButton, pagination.page <= 1 && styles.disabled]}>
+          <Text style={styles.pageButtonText}>Previous</Text>
+        </Pressable>
+        <Text style={typography.caption}>Page {pagination.page} of {pages}</Text>
+        <Pressable accessibilityRole="button" disabled={pagination.page >= pages} onPress={() => onPageChange(pagination.page + 1)} style={[styles.pageButton, pagination.page >= pages && styles.disabled]}>
+          <Text style={styles.pageButtonText}>Next</Text>
+        </Pressable>
+      </>}
+    </View>
+  );
+}
+
 function SearchIcon() {
   return (
     <View style={{ width: 16, height: 16, position: "relative", marginRight: spacing.xs }}>
@@ -50,6 +71,12 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const [categories, setCategories] = useState<CustomerCategory[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [products, setProducts] = useState<CustomerProduct[]>([]);
+  const [storePagination, setStorePagination] = useState<CustomerProductPagination | null>(null);
+  const [globalProducts, setGlobalProducts] = useState<CustomerProduct[]>([]);
+  const [globalPagination, setGlobalPagination] = useState<CustomerProductPagination | null>(null);
+  const [globalPage, setGlobalPage] = useState(1);
+  const [storePage, setStorePage] = useState(1);
+  const [loadingGlobalProducts, setLoadingGlobalProducts] = useState(false);
   const [product, setProduct] = useState<CustomerProduct | null>(null);
   
   const [loadingAddresses, setLoadingAddresses] = useState(true);
@@ -58,6 +85,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const [error, setError] = useState("");
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [storeSearchQuery, setStoreSearchQuery] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState("");
@@ -71,15 +99,16 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   const discoveryGeneration = useRef(0);
   const catalogGeneration = useRef(0);
+  const globalSearchGeneration = useRef(0);
   const pendingCategoryId = useRef("");
   const cartAddInFlight = useRef(false);
 
-  const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())), [stores, searchQuery]);
-  const filteredProducts = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [products, searchQuery]);
+  const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(storeSearchQuery.toLowerCase())), [stores, storeSearchQuery]);
 
   const clearCatalog = () => {
     ++catalogGeneration.current;
-    setCategories([]); setProducts([]); setProduct(null); setCategoryId(""); setSearchQuery("");
+    setCategories([]); setProducts([]); setStorePagination(null); setProduct(null); setCategoryId(""); setSearchQuery("");
+    setGlobalProducts([]); setGlobalPagination(null); setGlobalPage(1); setStorePage(1);
   };
 
   const selectStore = (nextStore: CustomerStore | null) => {
@@ -148,31 +177,101 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   useEffect(() => {
     if (!store) return;
     const generation = ++catalogGeneration.current;
-    setLoadingCatalog(true); setError(""); setCategoryId(pendingCategoryId.current); setProduct(null); setCategories([]); setProducts([]);
+    const nextCategoryId = pendingCategoryId.current || categoryId;
+    pendingCategoryId.current = "";
+    if (nextCategoryId !== categoryId) setCategoryId(nextCategoryId);
+    setLoadingCatalog(true); setError(""); setCategories([]); setProducts([]);
+    const productQuery = new URLSearchParams({ pincode, page: String(storePage), pageSize: "24" });
+    if (nextCategoryId) productQuery.set("categoryId", nextCategoryId);
     Promise.all([
       customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${store.id}/categories?pincode=${pincode}`),
-      customerApi<{ products: CustomerProduct[] }>(`/api/customer/stores/${store.id}/products?pincode=${pincode}`),
+      customerApi<CustomerProductSearchResponse>(`/api/customer/stores/${store.id}/products?${productQuery}`),
     ]).then(([categoryResult, productResult]) => {
       if (generation === catalogGeneration.current) {
         setCategories(categoryResult.categories);
-         setProducts(pendingCategoryId.current ? productResult.products.filter(item => item.categoryId === pendingCategoryId.current) : productResult.products);
+        setProducts(productResult.products);
+        setStorePagination(productResult.pagination);
          pendingCategoryId.current = "";
       }
     }).catch((reason) => {
       if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load catalog.");
     }).finally(() => { if (generation === catalogGeneration.current) setLoadingCatalog(false); });
-  }, [store, pincode]);
+  }, [store, pincode, categoryId, storePage]);
+
+  useEffect(() => {
+    const search = searchQuery.trim();
+    if (!pincode || !search) {
+      ++globalSearchGeneration.current;
+      setGlobalProducts([]);
+      setGlobalPagination(null);
+      setLoadingGlobalProducts(false);
+      return;
+    }
+    const generation = ++globalSearchGeneration.current;
+    setGlobalProducts([]);
+    setGlobalPagination(null);
+    setLoadingGlobalProducts(true);
+    setError("");
+    const timer = setTimeout(() => {
+      const query = new URLSearchParams({
+        pincode,
+        search,
+        page: String(globalPage),
+        pageSize: "24",
+      });
+      customerApi<CustomerProductSearchResponse>(`/api/customer/products?${query}`)
+        .then((result) => {
+          if (generation === globalSearchGeneration.current) {
+            setGlobalProducts(result.products);
+            setGlobalPagination(result.pagination);
+          }
+        })
+        .catch((reason) => {
+          if (generation === globalSearchGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to search products.");
+        })
+        .finally(() => {
+          if (generation === globalSearchGeneration.current) setLoadingGlobalProducts(false);
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [pincode, searchQuery, globalPage]);
 
   const filterProducts = async (nextCategoryId: string) => {
     if (!store) return;
+    setCategoryId(nextCategoryId);
+    setStorePage(1);
+    setProduct(null);
+    setError("");
+  };
+
+  const selectGlobalOffer = async (offer: CustomerProduct) => {
     const generation = ++catalogGeneration.current;
-    setCategoryId(nextCategoryId); setLoadingCatalog(true); setProducts([]); setError("");
-    const suffix = nextCategoryId ? `&categoryId=${nextCategoryId}` : "";
+    setLoadingCatalog(true);
+    setError("");
     try {
-      const result = await customerApi<{ products: CustomerProduct[] }>(`/api/customer/stores/${store.id}/products?pincode=${pincode}${suffix}`);
-      if (generation === catalogGeneration.current) setProducts(result.products);
-    } catch (reason) { if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to filter products."); }
-    finally { if (generation === catalogGeneration.current) setLoadingCatalog(false); }
+      const [storeResult, categoriesResult, productResult] = await Promise.all([
+        customerApi<{ store: CustomerStore }>(`/api/customer/stores/${offer.storeId}?pincode=${pincode}`),
+        customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${offer.storeId}/categories?pincode=${pincode}`),
+        customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${offer.storeId}/products/${offer.id}?pincode=${pincode}`),
+      ]);
+      if (generation === catalogGeneration.current) {
+        setStore(storeResult.store);
+        setCategories(categoriesResult.categories);
+        setCategoryId(productResult.product.categoryId ?? "");
+        setStorePage(1);
+        setProducts([]);
+        setStorePagination(null);
+        setProduct(productResult.product);
+        setSearchQuery("");
+        setGlobalProducts([]);
+        setSelectedVariantId(productResult.product.variants?.find((variant) => variant.purchasable)?.id ?? "");
+        setQuantity(1);
+      }
+    } catch (reason) {
+      if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to open this product.");
+    } finally {
+      if (generation === catalogGeneration.current) setLoadingCatalog(false);
+    }
   };
 
   const showProduct = async (selected: CustomerProduct) => {
@@ -183,7 +282,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       const result = await customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${selected.id}?pincode=${pincode}`);
       if (generation === catalogGeneration.current) {
         setProduct(result.product);
-        const firstAvailable = result.product.variants?.find((variant) => variant.isActive && variant.availability);
+        const firstAvailable = result.product.variants?.find((variant) => variant.purchasable);
         setSelectedVariantId(firstAvailable?.id ?? result.product.variants?.find((variant) => variant.isActive)?.id ?? "");
       }
     } catch (reason) { if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load product."); }
@@ -234,12 +333,70 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     }
   };
 
+  const productSearchField = (placeholder: string) => (
+    <View style={[styles.searchBar, { marginTop: spacing.lg }]}>
+      <SearchIcon />
+      <TextInput
+        accessibilityLabel="Search products across nearby stores"
+        style={styles.searchInput}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        value={searchQuery}
+        onChangeText={(value) => { setSearchQuery(value); setGlobalPage(1); }}
+      />
+    </View>
+  );
+
   let content;
 
-  if (product && store) {
+  if (searchQuery.trim() && pincode) {
+    content = (
+      <ScrollView key="global-product-search" contentContainerStyle={commonStyles.page}>
+        <View style={commonStyles.container}>
+          <View style={styles.storeHeading}>
+            <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>⌕</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.title2}>Search all nearby stores</Text>
+              <Text style={typography.caption}>Available listings serving {pincode}</Text>
+            </View>
+            {!!store && <Pressable accessibilityRole="button" onPress={() => setSearchQuery("")}><Text style={styles.backText}>Back to {store.name}</Text></Pressable>}
+          </View>
+          {productSearchField("Search groceries across nearby stores...")}
+          {!!error && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{error}</Text>}
+          {loadingGlobalProducts ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : globalProducts.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={typography.title3}>No products found</Text>
+              <Text style={typography.body}>{searchQuery.trim() ? "Try another product, brand, or search term." : "Start typing to search products."}</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={[typography.title3, { marginVertical: spacing.md }]}>{globalPagination?.total ?? globalProducts.length} matching store offers</Text>
+              <View style={styles.productGrid}>
+                {globalProducts.map((item) => {
+                  const availableVariants = (item.variants ?? []).filter((variant) => variant.isActive).sort((a, b) => Number(a.price) - Number(b.price));
+                  const displayedPrice = availableVariants[0]?.price ?? item.price;
+                  return <Pressable accessibilityRole="button" key={`${item.storeId}:${item.id}`} onPress={() => void selectGlobalOffer(item)} style={styles.productCard}>
+                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
+                    <View style={styles.productInfo}>
+                      <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
+                      {!!item.brand && <Text style={typography.caption} numberOfLines={1}>{item.brand}</Text>}
+                      <Text style={typography.caption} numberOfLines={1}>{item.storeName} · {item.categoryName ?? "Groceries"}</Text>
+                      <Text style={[typography.title3, { color: colors.ink }]}>{availableVariants.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
+                      {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Currently unavailable</Text>}
+                    </View>
+                  </Pressable>;
+                })}
+              </View>
+              <PaginationControls pagination={globalPagination} onPageChange={setGlobalPage} />
+            </>
+          )}
+        </View>
+      </ScrollView>
+    );
+  } else if (product && store) {
     const activeVariants = (product.variants ?? []).filter((variant) => variant.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
     const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
-    const purchasable = !!selectedVariant?.availability && selectedVariant.stockQuantity > 0;
+    const purchasable = product.availability && !!selectedVariant?.purchasable;
     content = (
       <ScrollView key="product-detail" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
@@ -249,8 +406,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           
           <View style={styles.productHero}>
             {product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.heroImage} resizeMode="cover" /> : <PlaceholderImage name={product.name} style={styles.heroImage} />}
-            <View style={[styles.badge, !product.availability && styles.closed]}>
-              <Text style={[styles.badgeText, !product.availability && styles.closedText]}>{product.availability ? "In Stock" : "Out of Stock"}</Text>
+            <View style={[styles.badge, !product.purchasable && styles.closed]}>
+              <Text style={[styles.badgeText, !product.purchasable && styles.closedText]}>{product.purchasable ? "In Stock" : "Out of Stock"}</Text>
             </View>
           </View>
 
@@ -261,7 +418,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Available sizes</Text>
             <View style={{ gap: spacing.sm }}>
               {activeVariants.map((variant) => {
-                const available = variant.availability && variant.stockQuantity > 0;
+                const available = product.availability && variant.purchasable;
                 const selected = selectedVariantId === variant.id;
                 return <Pressable key={variant.id} accessibilityRole="radio" accessibilityState={{ selected }} disabled={!available} onPress={() => setSelectedVariantId(variant.id)} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
                   <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
@@ -302,12 +459,9 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{store.description ?? `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Closed"} · Serves {pincode}</Text></View>
           </View>
+          {productSearchField("Search products across all nearby stores...")}
 
           {!!categoryId && <View style={styles.categoryHeader}><Pressable onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? "Products"}</Text></View>}
-          <View style={[styles.searchBar, { marginTop: spacing.lg }]}>
-            <SearchIcon />
-            <TextInput style={styles.searchInput} placeholder={categoryId ? "Search this category..." : "Search products in this store..."} placeholderTextColor={colors.muted} value={searchQuery} onChangeText={setSearchQuery} />
-          </View>
 
           {(
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: spacing.md, marginHorizontal: -spacing.lg }} contentContainerStyle={{ paddingHorizontal: spacing.lg }}>
@@ -323,26 +477,26 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           )}
           <Text style={[typography.title3, { marginBottom: spacing.md }]}>{categoryId ? "Products" : "Popular Products"}</Text>
 
-          {loadingCatalog ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : filteredProducts.length === 0 ? (
+          {loadingCatalog ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : products.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={typography.title3}>No products found</Text>
               <Text style={typography.body}>Try adjusting your search or category.</Text>
             </View>
           ) : (
             <View style={styles.productGrid}>
-              {filteredProducts.map((item) => {
+              {products.map((item) => {
                 const sellable = (item.variants ?? []).filter(variant => variant.isActive).sort((a, b) => Number(a.price) - Number(b.price));
                 const displayedPrice = sellable[0]?.price ?? item.price;
                 return <Pressable accessibilityRole="button" key={item.id} onPress={() => void showProduct(item)} style={styles.productCard}>
                   {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
                   <View style={styles.productInfo}>
                     <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
-                    <Text style={typography.caption} numberOfLines={1}>{categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
+                    <Text style={typography.caption} numberOfLines={1}>{item.categoryName ?? categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
                     <Text style={[typography.title3, { color: colors.ink }]}>{sellable.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
-                    {!item.availability && <Text style={[typography.caption, { color: colors.danger }]}>Out of Stock</Text>}
+                    {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Out of Stock</Text>}
                   </View>
-                  {item.availability && item.variants?.filter(v => v.isActive && v.availability && v.stockQuantity > 0).length === 1 && (
-                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); const onlyVariant = item.variants?.find(v => v.isActive && v.availability && v.stockQuantity > 0); if (onlyVariant) void addToCart(item, onlyVariant, 1); }} style={styles.addMiniBtn}>
+                  {item.purchasable && item.variants?.filter(v => v.purchasable).length === 1 && (
+                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); const onlyVariant = item.variants?.find(v => v.purchasable); if (onlyVariant) void addToCart(item, onlyVariant, 1); }} style={styles.addMiniBtn}>
                       <Text style={styles.addMiniBtnText}>+ Add</Text>
                     </Pressable>
                   )}
@@ -350,6 +504,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
               })}
             </View>
           )}
+          <PaginationControls pagination={storePagination} onPageChange={setStorePage} />
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{error}</Text>}
         </View>
       </ScrollView>
@@ -374,9 +529,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </Pressable>
           </View>
 
-          <View style={[styles.searchBar, { marginBottom: spacing.xl }]}>
+          {productSearchField("Search products across nearby stores...")}
+          <View style={[styles.searchBar, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
             <SearchIcon />
-            <TextInput style={styles.searchInput} placeholder="Search supermarkets..." placeholderTextColor={colors.muted} value={searchQuery} onChangeText={setSearchQuery} />
+            <TextInput style={styles.searchInput} placeholder="Search supermarkets..." placeholderTextColor={colors.muted} value={storeSearchQuery} onChangeText={setStoreSearchQuery} />
           </View>
 
           <View style={styles.promo}>
@@ -412,8 +568,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           ) : filteredStores.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={typography.title2}>No supermarkets found</Text>
-              <Text style={typography.body}>{searchQuery ? "Try a different search term." : "We don't serve this area yet. Try another address."}</Text>
-              {!searchQuery && <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Change Location</Text></Pressable>}
+              <Text style={typography.body}>{storeSearchQuery ? "Try a different supermarket name." : "We don't serve this area yet. Try another address."}</Text>
+              {!storeSearchQuery && <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Change Location</Text></Pressable>}
             </View>
           ) : (
             <View style={{ gap: spacing.lg }}>
@@ -473,6 +629,9 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
   locationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingHorizontal: spacing.md, height: 52, ...shadows.sm },
+  pagination: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginVertical: spacing.lg },
+  pageButton: { backgroundColor: colors.soft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  pageButtonText: { ...typography.caption, color: colors.accent, fontWeight: "700" },
   searchInput: { flex: 1, height: "100%", marginLeft: spacing.xs, ...typography.bodySemibold, color: colors.ink },
   storeCard: { backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
   storeCardInner: { flexDirection: "row", gap: spacing.md, alignItems: "center" },

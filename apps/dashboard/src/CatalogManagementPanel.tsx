@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest, type Category, type Product, type ProductVariant, type VariantQuantityUnit } from "./api";
+import { VendorMasterCatalogPanel } from "./VendorMasterCatalogPanel";
 
 interface CatalogManagementPanelProps {
   token: string;
@@ -72,12 +73,16 @@ const emptyProductDraft: ProductDraft = {
 function draftFromProduct(product: Product): ProductDraft {
   return {
     name: product.name,
-    description: product.description ?? "",
+    description: product.masterProductId
+      ? product.descriptionOverride ?? ""
+      : product.description ?? "",
     sku: product.sku ?? "",
     externalCode: product.externalCode ?? "",
     price: product.price,
     stockQuantity: String(product.stockQuantity),
-    imageUrl: product.imageUrl ?? "",
+    imageUrl: product.masterProductId
+      ? product.imageOverride ?? ""
+      : product.imageUrl ?? "",
     categoryId: product.categoryId ?? "",
     availability: product.availability,
   };
@@ -158,6 +163,8 @@ export function CatalogManagementPanel({
           : products.filter((product) => product.categoryId === categoryFilter),
     [categoryFilter, products],
   );
+  const currentEditingProduct = products.find((product) => product.id === editingProductId);
+  const editingMappedProduct = Boolean(currentEditingProduct?.masterProductId);
 
   const upsertCategory = (category: Category) => {
     setCategories((current) =>
@@ -337,23 +344,50 @@ export function CatalogManagementPanel({
   const saveProduct = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (productSaveBusyRef.current) return;
-    productSaveBusyRef.current = true;
-    setProductSaveBusy(true);
     const editedProduct = products.find((product) => product.id === editingProductId);
     const hasMultipleVariants = (editedProduct?.variants?.length ?? 0) > 1;
-    const body = {
-      name: productDraft.name,
-      description: productDraft.description.trim() || null,
-      sku: productDraft.sku.trim() || null,
-      externalCode: productDraft.externalCode.trim() || null,
-      availability: productDraft.availability,
-      imageUrl: productDraft.imageUrl.trim() || null,
-      categoryId: productDraft.categoryId || null,
-      ...(!hasMultipleVariants && {
-        price: Number(productDraft.price),
-        stockQuantity: Number(productDraft.stockQuantity),
-      }),
-    };
+    const body: Record<string, unknown> = editedProduct?.masterProductId
+      ? {
+        ...(productDraft.description.trim() !== (editedProduct.descriptionOverride ?? "")
+          ? { description: productDraft.description.trim() || null }
+          : {}),
+        ...(productDraft.imageUrl.trim() !== (editedProduct.imageOverride ?? "")
+          ? { imageUrl: productDraft.imageUrl.trim() || null }
+          : {}),
+        ...(productDraft.sku.trim() !== (editedProduct.sku ?? "")
+          ? { sku: productDraft.sku.trim() || null }
+          : {}),
+        ...(productDraft.externalCode.trim() !== (editedProduct.externalCode ?? "")
+          ? { externalCode: productDraft.externalCode.trim() || null }
+          : {}),
+        ...(productDraft.availability !== editedProduct.availability
+          ? { availability: productDraft.availability }
+          : {}),
+        ...((productDraft.categoryId || null) !== editedProduct.categoryId
+          ? { categoryId: productDraft.categoryId || null }
+          : {}),
+      }
+      : {
+        name: productDraft.name,
+        description: productDraft.description.trim() || null,
+        sku: productDraft.sku.trim() || null,
+        externalCode: productDraft.externalCode.trim() || null,
+        availability: productDraft.availability,
+        imageUrl: productDraft.imageUrl.trim() || null,
+        categoryId: productDraft.categoryId || null,
+        ...(!hasMultipleVariants && {
+          price: Number(productDraft.price),
+          stockQuantity: Number(productDraft.stockQuantity),
+        }),
+      };
+
+    if (Object.keys(body).length === 0) {
+      onMessage("No store listing changes to save.", "success");
+      resetProductForm();
+      return;
+    }
+    productSaveBusyRef.current = true;
+    setProductSaveBusy(true);
 
     try {
       const response = await apiRequest<{ product: Product }>(
@@ -379,6 +413,11 @@ export function CatalogManagementPanel({
 
   const toggleProductActive = async (product: Product) => {
     if (productToggleBusyId) return;
+    if (!product.isActive && product.masterProductId && !(product.variants ?? []).some((variant) => variant.isActive)) {
+      onMessage("Add and save a real selling variant before activating this listing.", "error");
+      setExpandedVariantProductId(product.id);
+      return;
+    }
     if (
       product.isActive &&
       !window.confirm("Deactivate this product? It will remain stored for historical references.")
@@ -432,6 +471,21 @@ export function CatalogManagementPanel({
     return <div className="vendor-loading">Loading catalog environment...</div>;
   }
 
+  const handleMasterProductAdded = (product: Product) => {
+    upsertProduct(product);
+    setCategoryFilter("all");
+    setExpandedVariantProductId(product.id);
+    setEditingVariantId("");
+    setVariantDraft(emptyVariantDraft);
+    if (product.masterProductId) {
+      setEditingProductId(product.id);
+      setProductDraft(draftFromProduct(product));
+    }
+    window.setTimeout(() => {
+      document.querySelector(`[aria-label="${CSS.escape(product.name)} variants"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  };
+
   return (
     <div className="vendor-catalog-section">
       <div className="vendor-section-header vendor-catalog-header">
@@ -444,6 +498,8 @@ export function CatalogManagementPanel({
           <span><strong>{products.length}</strong> Products</span>
         </div>
       </div>
+
+      <VendorMasterCatalogPanel token={token} onAdded={handleMasterProductAdded} onMessage={onMessage} />
 
       <div className="vendor-card vendor-category-panel">
         <div className="vendor-card-heading">
@@ -529,7 +585,7 @@ export function CatalogManagementPanel({
           {visibleProducts.length === 0 ? (
             <div className="vendor-empty-state vendor-compact">
               <strong>No products found</strong>
-              <span>Add a product below or adjust your category filter.</span>
+              <span>Find a shared grocery above or adjust your category filter.</span>
             </div>
           ) : (
             <div className="vendor-product-table">
@@ -607,7 +663,7 @@ export function CatalogManagementPanel({
                       disabled={productToggleBusyId === product.id}
                       onClick={() => toggleProductActive(product)}
                     >
-                      {productToggleBusyId === product.id ? "Working..." : product.isActive ? "Deactivate" : "Activate"}
+                       {productToggleBusyId === product.id ? "Working..." : product.isActive ? "Deactivate" : product.masterProductId ? "Publish listing" : "Activate"}
                     </button>
                   </div>
                 </div>
@@ -628,7 +684,7 @@ export function CatalogManagementPanel({
                     {orderedVariants.length === 0 ? (
                       <div className="vendor-empty-state vendor-compact">
                         <strong>No variants listed yet</strong>
-                        <span>Existing products receive a neutral Standard · 1 pack default during migration. Add another option here when needed.</span>
+                         <span>This listing has no sellable options yet. Create the actual unit your store sells.</span>
                       </div>
                     ) : (
                       <div style={{ display: "grid", gap: 8, marginBottom: 18 }}>
@@ -684,7 +740,7 @@ export function CatalogManagementPanel({
                           </label>
                           <label className="vendor-label">Unit
                             <select className="vendor-select" disabled={variantSaveBusy} value={variantDraft.quantityUnit} onChange={(event) => setVariantDraft((draft) => ({ ...draft, quantityUnit: event.target.value as VariantQuantityUnit }))}>
-                              <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="piece">piece</option><option value="pack">pack</option><option value="dozen">dozen</option>
+                               <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option><option value="piece">piece</option><option value="pack">pack</option><option value="dozen">dozen</option><option value="bottle">bottle</option><option value="box">box</option>
                             </select>
                           </label>
                         </div>
@@ -698,10 +754,10 @@ export function CatalogManagementPanel({
                         </label>
                       </div>
                       <div className="vendor-two-column">
-                        <label className="vendor-label">SKU <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+                        <label className="vendor-label">Variant SKU <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
                           <input className="vendor-input" disabled={variantSaveBusy} value={variantDraft.sku} onChange={(event) => setVariantDraft((draft) => ({ ...draft, sku: event.target.value }))} />
                         </label>
-                        <label className="vendor-label">External code <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+                        <label className="vendor-label">Variant external code <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
                           <input className="vendor-input" disabled={variantSaveBusy} value={variantDraft.externalCode} onChange={(event) => setVariantDraft((draft) => ({ ...draft, externalCode: event.target.value }))} />
                         </label>
                       </div>
@@ -727,11 +783,12 @@ export function CatalogManagementPanel({
           )}
         </div>
 
+        {editingProductId && (
         <form className="vendor-card vendor-form-card vendor-product-form" onSubmit={saveProduct}>
           <div className="vendor-card-heading">
             <div>
-              <h3 className="vendor-subtitle">{editingProductId ? "Edit Product" : "Create Product"}</h3>
-              <p className="vendor-text-muted">These legacy defaults preserve existing product records. Once variants exist, each variant controls its own customer price and stock.</p>
+              <h3 className="vendor-subtitle">Edit {editingMappedProduct ? "Store Listing" : "Legacy Product"}</h3>
+              <p className="vendor-text-muted">{editingMappedProduct ? "Master name and brand stay canonical. Blank presentation overrides inherit the shared catalog; your store listing codes remain independent from variant codes." : "Legacy product details remain editable. Once variants exist, each variant controls its own customer price and stock."}</p>
             </div>
             {editingProductId && (
               <button type="button" className="vendor-text-button" onClick={resetProductForm}>Cancel Edit</button>
@@ -741,13 +798,13 @@ export function CatalogManagementPanel({
             Product Name
             <input
               className="vendor-input"
-              disabled={productSaveBusy}
+              disabled={productSaveBusy || editingMappedProduct}
               onChange={(event) => setProductDraft((draft) => ({ ...draft, name: event.target.value }))}
               required
               value={productDraft.name}
             />
           </label>
-          <div className="vendor-two-column">
+          {!editingMappedProduct && <div className="vendor-two-column">
             <label className="vendor-label">
               Price (₹)
               <input
@@ -776,7 +833,7 @@ export function CatalogManagementPanel({
                 value={productDraft.stockQuantity}
               />
             </label>
-          </div>
+          </div>}
           <label className="vendor-label">
             Category
             <select
@@ -795,7 +852,7 @@ export function CatalogManagementPanel({
           </label>
           <div className="vendor-two-column">
             <label className="vendor-label">
-              SKU <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+              {editingMappedProduct ? "Store listing SKU" : "SKU"} <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
               <input
                 className="vendor-input"
                 disabled={productSaveBusy}
@@ -804,7 +861,7 @@ export function CatalogManagementPanel({
               />
             </label>
             <label className="vendor-label">
-              External Code <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+              {editingMappedProduct ? "Store listing external code" : "External Code"} <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
               <input
                 className="vendor-input"
                 disabled={productSaveBusy}
@@ -814,7 +871,7 @@ export function CatalogManagementPanel({
             </label>
           </div>
           <label className="vendor-label">
-            Image URL <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+            {editingMappedProduct ? "Store image override (blank inherits catalog image)" : "Image URL"} <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
             <input
               className="vendor-input"
               disabled={productSaveBusy}
@@ -824,7 +881,7 @@ export function CatalogManagementPanel({
             />
           </label>
           <label className="vendor-label">
-            Description <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
+            {editingMappedProduct ? "Store description override (blank inherits catalog description)" : "Description"} <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
             <textarea
               className="vendor-textarea"
               disabled={productSaveBusy}
@@ -835,11 +892,12 @@ export function CatalogManagementPanel({
           </label>
           
           <div className="vendor-form-actions" style={{ marginTop: '8px' }}>
-             <button className="vendor-primary-button" type="submit" disabled={productSaveBusy}>
-               {productSaveBusy ? "Saving..." : editingProductId ? "Save Product Changes" : "Create Product"}
+              <button className="vendor-primary-button" type="submit" disabled={productSaveBusy}>
+                {productSaveBusy ? "Saving..." : "Save Store Listing"}
              </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

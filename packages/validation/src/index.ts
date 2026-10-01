@@ -232,7 +232,7 @@ const variantQuantityValueSchema = z.preprocess(
 const variantFieldsSchema = {
   name: catalogNameSchema,
   quantityValue: variantQuantityValueSchema,
-  quantityUnit: z.enum(["g", "kg", "ml", "l", "piece", "pack", "dozen"]),
+  quantityUnit: z.enum(["g", "kg", "ml", "l", "piece", "pack", "dozen", "bottle", "box"]),
   price: catalogPriceSchema,
   stockQuantity: stockQuantitySchema,
   availability: z.boolean(),
@@ -277,6 +277,81 @@ export const productVariantIdParamSchema = z.object({
 
 export const productCategorySchema = z.object({
   categoryId: catalogUuidSchema.nullable(),
+}).strict();
+
+const masterCatalogTextSchema = z.string().trim().max(2_000).nullable().optional();
+const masterCatalogImageSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().trim().url().max(2_048).nullable().optional(),
+);
+const masterCatalogAttributesSchema = z.record(
+  z.string().trim().min(1).max(80),
+  z.string().trim().max(500),
+).default({});
+
+export const masterCategoryIdParamSchema = z.object({
+  masterCategoryId: catalogUuidSchema,
+}).strict();
+
+export const masterProductIdParamSchema = z.object({
+  masterProductId: catalogUuidSchema,
+}).strict();
+
+export const adminMasterRecordIdParamSchema = z.object({
+  id: catalogUuidSchema,
+}).strict();
+
+export const masterCatalogQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  categoryId: catalogUuidSchema.optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+}).strict();
+
+export const masterCatalogCanonicalProductSchema = z.object({
+  masterCategoryId: catalogUuidSchema,
+  name: z.string().trim().min(1).max(200),
+  description: masterCatalogTextSchema,
+  image: masterCatalogImageSchema,
+  brand: z.string().trim().max(200).nullable().optional(),
+  attributes: masterCatalogAttributesSchema,
+}).strict();
+
+export const masterProductDuplicateCheckSchema = masterCatalogCanonicalProductSchema;
+
+export const masterProductCreateAfterReviewSchema =
+  masterCatalogCanonicalProductSchema.extend({
+    confirmedNoMatch: z.literal(true),
+    duplicateReviewToken: z.string().min(32).max(4_096),
+  }).strict();
+
+export const masterCategoryCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+}).strict();
+
+export const masterCategoryUpdateSchema = masterCategoryCreateSchema;
+
+export const masterProductAdminUpdateSchema = z.object({
+  masterCategoryId: catalogUuidSchema.optional(),
+  name: z.string().trim().min(1).max(200).optional(),
+  description: masterCatalogTextSchema,
+  image: masterCatalogImageSchema,
+  brand: z.string().trim().max(200).nullable().optional(),
+  attributes: z.record(
+    z.string().trim().min(1).max(80),
+    z.string().trim().max(500),
+  ).optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: "At least one master product field is required",
+});
+
+export const addMasterProductToStoreSchema = z.object({
+  categoryId: catalogUuidSchema.nullable().optional(),
+}).strict();
+
+export const masterProductMappingUpdateSchema = z.object({
+  masterProductId: catalogUuidSchema,
+  reason: z.string().trim().min(1).max(1_000),
 }).strict();
 
 const customerText = (maximum: number) => z.string().trim().min(1).max(maximum);

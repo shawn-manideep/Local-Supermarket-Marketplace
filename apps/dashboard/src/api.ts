@@ -49,22 +49,50 @@ export interface Category {
 export interface Product {
   id: string;
   storeId: string;
+  masterProductId?: string | null;
   categoryId: string | null;
   name: string;
   description: string | null;
+  descriptionOverride?: string | null;
   sku: string | null;
   externalCode: string | null;
   price: string;
   availability: boolean;
   stockQuantity: number;
   imageUrl: string | null;
+  imageOverride?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
   variants?: ProductVariant[];
 }
 
-export type VariantQuantityUnit = "g" | "kg" | "ml" | "l" | "piece" | "pack" | "dozen";
+export type VariantQuantityUnit = "g" | "kg" | "ml" | "l" | "piece" | "pack" | "dozen" | "bottle" | "box";
+
+export interface MasterCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MasterProduct {
+  id: string;
+  masterCategoryId: string;
+  name: string;
+  description: string | null;
+  image: string | null;
+  brand: string | null;
+  attributes: Record<string, string>;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  categoryName?: string;
+  categoryIsActive?: boolean;
+  canAddToStore?: boolean;
+  exactIdentity?: boolean;
+}
 
 export interface ProductVariant {
   id: string;

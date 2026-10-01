@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { createApp } from "../app.js";
+import { HttpError } from "../http.js";
+import { updateOwnedProductAndChildren } from "./routes.js";
 
 async function withServer(
   run: (baseUrl: string) => Promise<void>,
@@ -21,6 +23,30 @@ async function withServer(
     });
   }
 }
+
+test("an unowned product aborts before child variant writes and transaction commit", async () => {
+  const committedEffects: string[] = [];
+  const transaction = async <T>(operation: (pendingEffects: string[]) => Promise<T>) => {
+    const pendingEffects: string[] = [];
+    try {
+      const result = await operation(pendingEffects);
+      committedEffects.push(...pendingEffects);
+      return result;
+    } catch (error) {
+      pendingEffects.length = 0;
+      throw error;
+    }
+  };
+
+  await assert.rejects(
+    transaction((pendingEffects) => updateOwnedProductAndChildren(
+      async () => undefined,
+      async () => { pendingEffects.push("variant availability changed"); },
+    )),
+    (error: unknown) => error instanceof HttpError && error.statusCode === 404,
+  );
+  assert.deepEqual(committedEffects, []);
+});
 
 test("vendor catalog routes require authentication", async () => {
   await withServer(async (baseUrl) => {

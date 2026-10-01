@@ -45,7 +45,7 @@ test("catalog product creation accepts nullable category and fixed precision pri
 });
 
 test("product variant validation preserves normalized quantity and accepts supported units", () => {
-  for (const quantityUnit of ["g", "kg", "ml", "l", "piece", "pack", "dozen"]) {
+  for (const quantityUnit of ["g", "kg", "ml", "l", "piece", "pack", "dozen", "bottle", "box"]) {
     const result = productVariantCreateSchema.safeParse({
       name: "Large",
       quantityValue: "0.500",
