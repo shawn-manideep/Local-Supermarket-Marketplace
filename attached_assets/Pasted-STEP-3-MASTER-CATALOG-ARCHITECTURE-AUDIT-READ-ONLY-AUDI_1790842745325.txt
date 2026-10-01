@@ -1,0 +1,671 @@
+STEP 3 — MASTER CATALOG ARCHITECTURE AUDIT
+READ-ONLY AUDIT ONLY — DO NOT MODIFY CODE, DATABASE, MIGRATIONS, UI, APIs, OR CONFIGURATION
+
+We are continuing the controlled architecture audit for the Local Supermarket Marketplace project.
+
+IMPORTANT:
+- This is an AUDIT ONLY.
+- DO NOT write or modify any code.
+- DO NOT create migrations.
+- DO NOT modify the database.
+- DO NOT change APIs.
+- DO NOT change frontend components.
+- DO NOT install packages.
+- DO NOT run destructive commands.
+- DO NOT reset, seed, delete, rename, or alter data.
+- DO NOT implement the Master Catalog.
+- Do not make unrelated changes.
+- Inspect the current repository as it exists.
+- Report findings only.
+
+PROJECT DIRECTION ALREADY APPROVED:
+The marketplace must move from the current store-owned product/catalog architecture toward a platform-level MASTER CATALOG.
+
+The intended business model is:
+
+PLATFORM MASTER CATALOG
+        ↓
+Vendor selects existing master category/item
+        ↓
+"Add to My Store"
+        ↓
+Vendor-specific store product/selection
+        ↓
+Vendor manages price, stock, quantity, unit, variants, availability
+        ↓
+Customer sees only products selected by that particular store
+
+IMPORTANT BUSINESS RULES:
+
+1. Platform administrators/platform data should control the common grocery catalog.
+2. Common grocery categories and products should NOT be independently created from scratch by every vendor.
+3. Vendor A selecting a product must NOT automatically make that product available in Vendor B's store.
+4. Vendor must explicitly select/add a master product to their own store.
+5. Vendor-specific information must remain isolated per store.
+6. Vendor must be able to manage their own:
+   - selling price
+   - stock
+   - available quantity
+   - selling unit
+   - pack/quantity configuration
+   - availability
+   - variants where applicable
+7. Customer catalog must show products belonging to the selected store only.
+8. Existing historical order data, order item snapshots, IDs, prices, quantities, and historical records MUST remain intact during any future migration.
+9. Existing architecture should be changed ADDITIVELY wherever possible rather than destructively replacing historical structures.
+10. This Master Catalog work must remain separate from the Delivery Partner work and other future phases.
+
+PREVIOUS AUDIT FINDINGS:
+
+STEP 1 established that the current architecture has:
+- Customer Expo application
+- Vendor/admin dashboard
+- Express/TypeScript backend
+- Drizzle/PostgreSQL
+- Supabase Auth/DB
+- Existing store-owned categories/products
+- Existing product_variants architecture
+- Existing cart/order/reorder functionality
+- No master_categories/master_products/store_products architecture currently identified
+- Existing historical order/snapshot structures that must be protected
+
+STEP 2 AUTHENTICATION ARCHITECTURE WAS APPROVED:
+- Supabase Auth remains authoritative for passwords, UUIDs, sessions and tokens.
+- Username is the login identifier.
+- A private server-side username registry will resolve usernames to the authoritative Supabase identity.
+- Vendor registration/approval remains a separate permission decision.
+- Delivery Partner will be handled in a later dedicated phase.
+- Do not modify authentication as part of this audit.
+
+YOUR TASK:
+
+Perform a complete READ-ONLY audit of the CURRENT repository specifically for the MASTER CATALOG architecture.
+
+Do not implement anything.
+
+==================================================
+A. CURRENT DATABASE / SCHEMA AUDIT
+==================================================
+
+Inspect all relevant database schema and migration files.
+
+Identify and document:
+
+1. Current category tables
+   - table names
+   - columns
+   - primary keys
+   - foreign keys
+   - ownership relationships
+   - status/availability fields
+   - timestamps
+
+2. Current product/item tables
+   - table names
+   - columns
+   - primary keys
+   - foreign keys
+   - store/vendor ownership
+   - category relationship
+   - product status
+   - pricing fields
+   - stock fields
+   - unit fields
+   - quantity fields
+
+3. Current product variant tables
+   - exact table name
+   - fields
+   - product relationship
+   - price
+   - stock
+   - availability
+   - unit support
+   - pack/quantity support
+   - whether variants are store-specific or shared
+
+4. Identify whether the repository already contains anything resembling:
+   - master_categories
+   - master_products
+   - global_products
+   - catalog_items
+   - store_products
+   - vendor_products
+   - product_selections
+   - vendor_catalog
+   - category mappings
+   - product mappings
+
+If none exist, explicitly state that.
+
+5. Identify all foreign-key relationships between:
+   - stores
+   - categories
+   - products
+   - variants
+   - carts
+   - cart items
+   - orders
+   - order items
+   - historical snapshots
+
+6. Identify whether deleting/changing a product or category could affect historical orders.
+
+7. Identify any database constraints that would make an additive Master Catalog migration difficult.
+
+==================================================
+B. CURRENT API / BACKEND AUDIT
+==================================================
+
+Inspect backend routes, services, repositories, controllers, validation schemas and queries related to:
+
+- categories
+- products
+- product variants
+- stores
+- vendor catalog
+- customer catalog
+- search
+- product listing
+- product creation
+- product update
+- product deletion
+- stock
+- availability
+- cart
+- checkout
+- orders
+
+Document:
+
+1. How vendors currently create products.
+2. How vendors currently create categories.
+3. Whether a vendor can currently create arbitrary product/category records.
+4. How products are associated with stores.
+5. How customers retrieve products.
+6. How the selected store affects product visibility.
+7. Whether customer APIs currently return products from one store or multiple stores.
+8. Whether API authorization prevents Vendor A from modifying Vendor B's products.
+9. Whether any endpoint assumes that every product is directly owned by a store.
+10. Whether existing APIs can support an additive Master Catalog architecture without breaking historical behavior.
+
+For every important finding, provide:
+- file path
+- function/route/service name
+- what it currently does
+- why it matters for Master Catalog migration
+
+==================================================
+C. CURRENT FRONTEND / UI AUDIT
+==================================================
+
+Inspect customer and vendor/admin frontend code related to catalog management.
+
+Specifically identify:
+
+VENDOR SIDE:
+- category screens
+- product screens
+- add product flow
+- edit product flow
+- stock/price management
+- variant management
+- availability management
+- store selection
+
+CUSTOMER SIDE:
+- home/catalog
+- category browsing
+- store browsing
+- product listing
+- product detail
+- variant selection
+- search/filter
+
+Document the current user flow.
+
+Especially determine whether the current vendor UI follows:
+
+CURRENT:
+Vendor → Create Category → Create Product
+
+or already supports:
+
+DESIRED:
+Master Catalog → Select Category → Select Product → Add to My Store → Manage Store Product
+
+Do not redesign the UI yet.
+
+==================================================
+D. STORE ISOLATION AUDIT
+==================================================
+
+This is critical.
+
+Trace how store isolation currently works.
+
+Verify whether:
+
+- Product belongs to one store.
+- Vendor can only see their own store products.
+- Vendor can only modify their own store products.
+- Customer selecting Store A can see Store A products only.
+- Store B cannot accidentally inherit Store A selections.
+- Cart items preserve store/product relationships.
+- Orders preserve the original store/product relationship.
+
+Identify any current query that could accidentally expose products across stores.
+
+Do not fix anything.
+
+==================================================
+E. MASTER CATALOG TARGET ARCHITECTURE ANALYSIS
+==================================================
+
+Based ONLY on the current codebase and the approved business rules above, propose the MINIMAL target data architecture needed for a future implementation.
+
+Do NOT implement it.
+
+Evaluate whether the following conceptual structure fits the existing application:
+
+1. master_categories
+   - platform-level common grocery categories
+
+2. master_products
+   - platform-level canonical grocery products
+   - linked to master category
+
+3. store_products / vendor_products
+   - store-specific selection of a master product
+   - one store chooses whether the product is available in its store
+   - vendor controls store-specific commercial data
+
+4. product_variants
+   - determine whether variants should remain attached to store_products
+   - or whether some variant definition belongs at master level and commercial data belongs at store level
+
+5. Historical order snapshots
+   - must remain independent enough that future master catalog changes do not rewrite historical orders
+
+For each proposed entity, explain:
+- purpose
+- relationship to existing tables
+- whether a new table is actually necessary
+- what existing table could potentially be reused
+- migration risk
+- historical-data risk
+
+DO NOT automatically accept the conceptual names above.
+Determine the smallest architecture that fits the actual repository.
+
+==================================================
+F. MASTER PRODUCT VS STORE PRODUCT RESPONSIBILITY
+==================================================
+
+Clearly separate PLATFORM data from VENDOR/STORE data.
+
+Create a table like:
+
+| Data | Platform Master | Store/Vendor |
+|------|-----------------|--------------|
+| Product name | ? | ? |
+| Category | ? | ? |
+| Product image | ? | ? |
+| Description | ? | ? |
+| Brand | ? | ? |
+| Selling price | ? | ? |
+| Stock | ? | ? |
+| Available quantity | ? | ? |
+| Selling unit | ? | ? |
+| Pack size | ? | ? |
+| Availability | ? | ? |
+| Store-specific SKU | ? | ? |
+| Store-specific visibility | ? | ? |
+
+For every row, explain the recommendation based on the current architecture and business rules.
+
+==================================================
+G. PRODUCT VARIANT / UNIT AUDIT
+==================================================
+
+Audit the existing variant implementation carefully.
+
+The intended marketplace must support examples such as:
+
+Rice:
+- 500 g
+- 1 kg
+- 2 kg
+- 5 kg
+
+Milk:
+- 500 ml
+- 1 L
+
+Eggs:
+- 6
+- 12
+- 30
+
+Apples:
+- 1 kg
+- 2 kg
+
+The system currently has normalized product_variants support.
+
+Determine:
+
+1. Which parts already work.
+2. Which units are currently supported.
+3. Whether kg/g/ml/l/piece/pack/dozen are supported.
+4. Whether bottle and box are supported.
+5. Whether variant price and stock are store-specific.
+6. Whether two stores can have different prices for the same master product variant.
+7. Whether two stores can have different stock for the same product.
+8. Whether the current schema supports this cleanly.
+9. Whether pack/quantity needs new fields or can use existing fields.
+10. Whether shared master variants would create stock/price isolation problems.
+
+Do not modify anything.
+
+==================================================
+H. SEARCH / DISCOVERY IMPACT
+==================================================
+
+Audit product search and discovery.
+
+Determine:
+
+- Where product search gets its data.
+- Whether it searches store-owned products.
+- Whether it could search master products accidentally.
+- Whether customer search is store-scoped.
+- Whether future Master Catalog data could leak into customer search before a vendor adds it to their store.
+- What backend/frontend areas would need changes later.
+
+Again, do not implement.
+
+==================================================
+I. CART / CHECKOUT / ORDER COMPATIBILITY
+==================================================
+
+Trace:
+
+Master Product
+→ Store Product
+→ Variant
+→ Cart Item
+→ Order Item
+→ Historical Snapshot
+
+Determine whether the current cart/order architecture assumes product IDs are store-owned.
+
+Identify exactly what future Master Catalog migration would need to preserve.
+
+Check especially:
+- cart item foreign keys
+- order item foreign keys
+- variant references
+- price snapshots
+- product name snapshots
+- unit snapshots
+- quantity snapshots
+- store snapshots
+- historical order independence
+
+Do not modify data or schema.
+
+==================================================
+J. RLS / AUTHORIZATION / TENANT ISOLATION
+==================================================
+
+Inspect database RLS policies and backend authorization.
+
+Determine:
+
+1. Who can read master catalog data.
+2. Who can create/update/delete master catalog data.
+3. Who can select a master product for a store.
+4. Whether vendors could manipulate another vendor's store-product record.
+5. Whether customers can access master catalog data directly.
+6. Whether master catalog should be publicly readable or API-mediated.
+7. Whether existing RLS assumptions are based on products being store-owned.
+
+Do not change RLS.
+
+==================================================
+K. MIGRATION STRATEGY ANALYSIS
+==================================================
+
+Design a READ-ONLY migration strategy.
+
+The goal is:
+
+CURRENT:
+Store → Category → Product → Variant
+
+FUTURE:
+Master Category → Master Product
+                         ↓
+                    Store Product
+                         ↓
+                      Variant
+                         ↓
+                    Cart / Order
+
+Determine:
+
+1. Which current tables should remain.
+2. Which tables should become legacy.
+3. Which new tables would be required.
+4. Whether existing products can be mapped into master products.
+5. How duplicate products across stores should be handled.
+6. How historical orders remain untouched.
+7. How existing carts should behave during migration.
+8. Whether migration should happen in phases.
+9. Whether backward compatibility is needed.
+10. How to avoid downtime or destructive migration.
+
+DO NOT perform the migration.
+
+==================================================
+L. DUPLICATE / CANONICAL PRODUCT ANALYSIS
+==================================================
+
+Determine how the current system identifies products.
+
+For example, if multiple stores have:
+
+"Fortune Sunflower Oil 1L"
+
+determine whether they are:
+- separate product records
+- same product with different store ownership
+- identified by SKU
+- identified by name
+- no canonical identity
+
+Do NOT invent a canonical matching rule.
+
+If the current system does not have sufficient information to safely merge products, explicitly say so.
+
+==================================================
+M. ADMIN / MASTER CATALOG OWNERSHIP
+==================================================
+
+Determine how platform administrators currently operate.
+
+Identify:
+
+- admin role
+- admin dashboard
+- admin authorization
+- existing product/category management
+- whether admins can currently create or edit global catalog data
+- whether there is already an appropriate admin surface for Master Catalog management
+
+Do not create or modify admin functionality.
+
+==================================================
+N. TESTING IMPACT
+==================================================
+
+Identify the existing tests related to:
+
+- categories
+- products
+- variants
+- stores
+- vendor isolation
+- customer catalog
+- cart
+- checkout
+- orders
+- stock
+
+Then list the future tests that would be required for Master Catalog implementation.
+
+Especially include:
+
+1. Vendor A adds master product.
+2. Vendor B does not automatically receive it.
+3. Vendor A changes price.
+4. Vendor B has a different price.
+5. Vendor A stock reaches zero.
+6. Vendor B still has stock.
+7. Customer selecting Vendor A sees A's selected products only.
+8. Customer selecting Vendor B sees B's selected products only.
+9. Master product changes do not alter historical orders.
+10. Removing a store product does not delete the master product.
+11. Historical order snapshots remain unchanged.
+12. Variant isolation works across stores.
+
+==================================================
+O. FILE-BY-FILE IMPACT MAP
+==================================================
+
+Produce a categorized file impact map.
+
+Use:
+
+HIGH IMPACT
+MEDIUM IMPACT
+LOW IMPACT
+NO CHANGE EXPECTED
+
+Include exact file paths where possible.
+
+Categories:
+
+- Database schema
+- Database migrations
+- Backend routes
+- Backend services
+- Validation
+- Shared types
+- API client
+- Vendor dashboard
+- Customer app
+- Cart
+- Checkout
+- Orders
+- Search
+- Tests
+- Documentation
+
+Do not modify any file.
+
+==================================================
+P. RISKS / QUESTIONS / UNRESOLVED DECISIONS
+==================================================
+
+List all risks and decisions that must be settled BEFORE implementation.
+
+Do not silently make business decisions.
+
+Examples to investigate:
+
+- Who owns master catalog creation?
+- Can vendors request missing master products?
+- Can master products be archived?
+- Can a master product be renamed?
+- Can master product images change?
+- How are duplicate products handled?
+- Are variants globally defined or store-specific?
+- Can vendors customize product names?
+- Can vendors customize images?
+- Can vendors add a product-specific SKU?
+- What happens when a master product is discontinued?
+- What happens to existing store products?
+- What happens to historical orders?
+- Can a vendor remove a product from their store without deleting the master product?
+
+Separate:
+LOCKED FROM BUSINESS REQUIREMENTS
+CURRENTLY SUPPORTED
+NOT SUPPORTED
+REQUIRES BUSINESS DECISION
+
+==================================================
+Q. FINAL RECOMMENDATION
+==================================================
+
+At the end provide:
+
+1. CURRENT ARCHITECTURE SUMMARY
+2. MASTER CATALOG GAP SUMMARY
+3. RECOMMENDED MINIMAL TARGET ARCHITECTURE
+4. EXISTING TABLES TO PRESERVE
+5. NEW TABLES POTENTIALLY REQUIRED
+6. TABLES/FEATURES THAT SHOULD NOT BE TOUCHED
+7. MIGRATION RISKS
+8. API IMPACT
+9. FRONTEND IMPACT
+10. TESTING IMPACT
+11. OPEN BUSINESS DECISIONS
+12. RECOMMENDED NEXT IMPLEMENTATION STEP
+
+IMPORTANT:
+The recommended next implementation step must be a READ-ONLY follow-up or a narrowly scoped implementation step only after this audit is reviewed and approved.
+
+DO NOT implement anything in this step.
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+Return ONE structured audit report.
+
+Use these exact headings:
+
+# STEP 3 — MASTER CATALOG ARCHITECTURE AUDIT
+
+## 1. Executive Summary
+## 2. Current Database Architecture
+## 3. Current Product/Category Ownership
+## 4. Current API Architecture
+## 5. Current Frontend Architecture
+## 6. Store Isolation Audit
+## 7. Existing Variant / Unit Architecture
+## 8. Search / Discovery Audit
+## 9. Cart / Checkout / Order Compatibility
+## 10. RLS / Authorization Audit
+## 11. Master Catalog Target Architecture
+## 12. Platform vs Store Responsibility Matrix
+## 13. Migration Strategy
+## 14. Duplicate / Canonical Product Analysis
+## 15. Admin / Master Catalog Ownership
+## 16. Testing Impact
+## 17. File-by-File Impact Map
+## 18. Risks
+## 19. Open Business Decisions
+## 20. Final Recommendation
+## 21. Exact Files Inspected
+
+For every important technical finding, include exact file paths.
+
+At the end explicitly state:
+
+AUDIT STATUS: READ-ONLY — NO CODE MODIFIED
+
+Do not make any changes while producing this report.
