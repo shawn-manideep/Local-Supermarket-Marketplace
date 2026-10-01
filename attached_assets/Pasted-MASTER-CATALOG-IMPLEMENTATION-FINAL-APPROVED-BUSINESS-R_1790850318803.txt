@@ -1,0 +1,945 @@
+MASTER CATALOG IMPLEMENTATION — FINAL APPROVED BUSINESS RULES
+==============================================================
+
+PROJECT:
+Local Supermarket Marketplace
+
+IMPORTANT:
+The architecture audits and business-decision audits are already completed.
+
+This prompt is now AUTHORIZATION TO IMPLEMENT the approved Master Catalog phase.
+
+Do NOT perform another generic architecture audit.
+Do NOT redesign unrelated modules.
+Do NOT modify unrelated projects.
+Do NOT implement Delivery Partner, authentication redesign, payment, stock reservation/deduction, or other future phases in this task.
+
+Implement ONLY the Master Catalog + Vendor Store Product foundation described below.
+
+==============================================================
+1. CORE ARCHITECTURE — MUST PRESERVE
+==============================================================
+
+Use the existing architecture.
+
+Existing stack:
+- Customer: Expo / React Native / React Native Web
+- Dashboard: React / Vite / TypeScript
+- Backend: Node / Express / TypeScript
+- Database: PostgreSQL / Supabase
+- ORM: Drizzle
+- Existing product_variants must remain
+- Existing carts/orders/order history must remain compatible
+
+DO NOT create a replacement `store_products` table.
+
+The existing store-owned `products` table remains the vendor/store listing.
+
+Add only the required Master Catalog structures and relationships.
+
+Target structure:
+
+master_categories
+    ↓
+master_products
+    ↓
+existing store-owned products
+    ↓
+existing product_variants
+    ↓
+cart / order / order history
+
+Existing historical IDs and order snapshots MUST be preserved.
+
+==============================================================
+2. MASTER CATEGORY
+==============================================================
+
+Create/maintain:
+
+master_categories
+
+Minimum fields:
+
+- id
+- name
+- is_active
+- created_at
+- updated_at
+
+Master Categories are platform-level catalog data.
+
+IMPORTANT:
+
+There must be NO physical DELETE operation for Master Categories.
+
+Allowed lifecycle:
+
+ACTIVE
+ARCHIVED
+
+Archive instead of delete.
+
+Archived categories must remain in the database so historical relationships remain valid.
+
+==============================================================
+3. MASTER PRODUCT
+==============================================================
+
+Create/maintain:
+
+master_products
+
+Minimum fields:
+
+- id
+- master_category_id
+- name
+- description
+- image
+- brand
+- is_active
+- created_at
+- updated_at
+
+Do NOT put vendor-specific commercial data in master_products.
+
+Master Product must NOT own:
+
+- vendor price
+- vendor stock
+- vendor availability
+- vendor SKU
+- vendor external code
+
+Those remain store/listing/variant responsibilities.
+
+IMPORTANT:
+
+There must be NO physical DELETE operation for Master Products.
+
+Allowed lifecycle:
+
+ACTIVE
+ARCHIVED
+
+Archive instead of delete.
+
+==============================================================
+4. EXISTING STORE PRODUCT RELATIONSHIP
+==============================================================
+
+Extend the existing store-owned product model with:
+
+master_product_id
+
+It must remain nullable during migration.
+
+Existing products must NOT be destroyed or recreated simply to introduce Master Catalog.
+
+Existing product IDs must remain unchanged.
+
+Existing order_items and historical snapshots must remain unchanged.
+
+Existing product_variants must continue to belong to the existing store product.
+
+Do NOT create master_variants in this phase.
+
+==============================================================
+5. CATEGORY RELATIONSHIP
+==============================================================
+
+Existing store categories must remain supported.
+
+If appropriate, add:
+
+categories.master_category_id
+
+This relationship may remain nullable.
+
+IMPORTANT:
+
+Do NOT force existing store categories to become identical to Master Categories.
+
+Master Category = platform taxonomy.
+
+Store Category = vendor's local merchandising organization.
+
+A vendor may organize products differently inside their own store.
+
+==============================================================
+6. VENDOR MUST NOT NEED TO KNOW THE CATEGORY
+==============================================================
+
+This is a very important UX requirement.
+
+Vendor search MUST be GLOBAL.
+
+The vendor should NOT have to select a category before searching for a product.
+
+Example:
+
+Vendor searches:
+
+"basmati"
+
+The system should search the complete eligible Master Catalog.
+
+Results may include:
+
+- Basmati Rice
+- India Gate Basmati Rice
+- Fortune Basmati Rice
+- etc.
+
+Category should be available as a FILTER, not as a prerequisite for searching.
+
+The vendor should be able to:
+
+Search globally
+→ find product
+→ select product
+→ Add to My Store
+
+This is required to reduce duplicate product creation.
+
+==============================================================
+7. VENDOR MASTER CATALOG FLOW
+==============================================================
+
+Vendor flow:
+
+Master Catalog
+→ Global Search
+→ Product Results
+→ Select Product
+→ Add to My Store
+→ Configure Store Product
+→ Configure Selling Variant
+→ Set Price
+→ Set Stock
+→ Set Availability
+→ Save / Publish
+
+Do NOT automatically create:
+
+"Standard / 1 pack"
+
+or any artificial default selling variant.
+
+The vendor must configure the actual selling unit/variant.
+
+Examples:
+
+Rice:
+- 500 g
+- 1 kg
+- 2 kg
+- 5 kg
+
+Milk:
+- 500 ml
+- 1 L
+
+Eggs:
+- 6 pieces
+- 12 pieces
+- 30 pieces
+
+Apple:
+- 1 kg
+- 2 kg
+
+==============================================================
+8. DUPLICATE PREVENTION
+==============================================================
+
+A vendor must NOT accidentally create duplicate store listings for the same Master Product.
+
+For NEW selections:
+
+One active listing per store per Master Product.
+
+If the vendor tries to add a Master Product that is already present in that store:
+
+DO NOT create another product.
+
+Instead:
+
+- show the existing listing
+- allow the vendor to manage/configure it
+- explain that the product is already in My Store
+
+Do NOT impose a database uniqueness constraint that could break existing legacy duplicate records until legacy data has been safely reviewed.
+
+Application-level duplicate protection is required for new additions.
+
+==============================================================
+9. VENDOR CANNOT FIND AN ITEM
+==============================================================
+
+IMPORTANT CHANGE TO THE EARLIER PLAN:
+
+If the vendor cannot find a product in the global Master Catalog, the vendor MUST be allowed to create/request the missing product using the SAME canonical product structure.
+
+Do NOT create a separate incompatible "vendor product" format.
+
+The creation structure must use the same fields and validation rules as the Master Product structure.
+
+Example:
+
+Vendor searches:
+"Organic Jaggery"
+
+No suitable product found.
+
+Show:
+
+"Can't find your product? Create Product"
+
+The vendor can enter the canonical product information.
+
+However, BEFORE creating a new Master Product:
+
+PERFORM A GLOBAL DUPLICATE CHECK.
+
+Search across the entire Master Catalog for possible matches.
+
+If likely matches exist:
+
+Show them to the vendor.
+
+Example:
+
+Possible existing products:
+- Organic Jaggery Powder
+- Organic Jaggery Block
+- Jaggery Powder 1 kg
+
+Ask the vendor whether one of these is the required product.
+
+Only allow creation of a new Master Product after the duplicate-check flow confirms that an existing product is not suitable.
+
+The objective is:
+
+NO unnecessary duplicate Master Products.
+
+==============================================================
+10. MASTER PRODUCT CREATION
+==============================================================
+
+If a genuinely new product is created, it becomes a platform Master Product.
+
+Do NOT create a vendor-specific master/product identity that bypasses the Master Catalog model.
+
+The newly created Master Product must follow:
+
+master_products
+→ vendor store product
+→ product_variants
+
+The same canonical validation rules must apply whether the Master Product was originally created by platform administration or through the approved vendor product-creation flow.
+
+==============================================================
+11. MASTER PRODUCT IDENTITY
+==============================================================
+
+Use the Product Family model.
+
+Pack size is a variant, NOT a separate Master Product.
+
+Examples:
+
+MASTER PRODUCT:
+Rice
+
+VARIANTS:
+500 g
+1 kg
+2 kg
+5 kg
+
+MASTER PRODUCT:
+Milk
+
+VARIANTS:
+500 ml
+1 L
+
+However, materially different retail products should remain separate Master Products.
+
+Differences such as:
+
+- brand
+- product type
+- grade
+- flavour
+- formulation
+- materially different specification
+
+may define separate Master Products.
+
+Do NOT automatically merge products.
+
+==============================================================
+12. VENDOR OVERRIDES
+==============================================================
+
+Use the following business rule:
+
+MASTER = canonical product identity/default information.
+
+STORE PRODUCT = vendor-specific commercial listing.
+
+Recommended ownership:
+
+MASTER CONTROLLED:
+- Product identity
+- Brand
+- Canonical product name
+
+STORE CONTROLLED:
+- Price
+- Stock
+- Availability
+- Selling variants
+- Vendor SKU/external code
+- Local merchandising category
+
+Permitted store-specific presentation overrides may include:
+- description
+- image
+
+Do not allow a vendor to change a Master Product into a fundamentally different product.
+
+If it is a genuinely different product, create/select a different Master Product.
+
+Historical order snapshots must never be rewritten.
+
+==============================================================
+13. ARCHIVE RULES
+==============================================================
+
+Master Product:
+
+ACTIVE
+ARCHIVED
+
+Master Category:
+
+ACTIVE
+ARCHIVED
+
+ARCHIVING MUST NOT PHYSICALLY DELETE DATA.
+
+When a Master Product is archived:
+
+- it cannot be newly selected by vendors
+- existing store listings are NOT automatically deleted
+- existing historical orders remain untouched
+
+When a Master Category is archived:
+
+- it cannot be used for new catalog selection
+- existing store products/categories are NOT automatically deleted
+- historical data remains untouched
+
+Do not cascade-delete store products, variants, carts, or orders.
+
+==============================================================
+14. REMOVE FROM MY STORE
+==============================================================
+
+Vendor "Remove from My Store" must NOT physically delete the product.
+
+It should deactivate the store listing.
+
+Preserve:
+
+- product ID
+- master_product_id
+- variants
+- configuration
+- historical orders
+- historical snapshots
+
+If the vendor later wants the product again:
+
+reuse/reactivate the existing listing where appropriate.
+
+Do not create unnecessary duplicate products.
+
+==============================================================
+15. LEGACY PRODUCTS
+==============================================================
+
+Existing products without master_product_id must continue working during migration.
+
+DO NOT break existing stores.
+
+DO NOT mass-delete existing products.
+
+DO NOT rewrite historical order relationships.
+
+Legacy products can be mapped to Master Products through a controlled process.
+
+New vendor catalog additions should use the Master Catalog flow.
+
+==============================================================
+16. LEGACY CATEGORIES
+==============================================================
+
+Existing categories must continue working.
+
+Do not force a destructive migration.
+
+Existing categories may remain unmapped to a Master Category.
+
+Store category organization remains vendor-specific.
+
+==============================================================
+17. MAPPING CORRECTIONS
+==============================================================
+
+Master Product mapping corrections must be controlled.
+
+If a product was mapped incorrectly due to a clerical error:
+
+- privileged/admin correction is allowed
+- correction must be auditable
+
+If it is actually a different product:
+
+DO NOT silently change the identity of an existing commerce record.
+
+Use the correct Master Product and deactivate/correct the incorrect listing where appropriate.
+
+Historical orders must remain unchanged.
+
+==============================================================
+18. SEARCH — GLOBAL FOR BOTH SIDES
+==============================================================
+
+VENDOR SEARCH:
+
+Global Master Catalog search.
+
+Search should NOT require category selection.
+
+Search fields should support useful grocery discovery such as:
+
+- product name
+- brand
+- relevant product attributes
+
+Category should be a filter.
+
+Use backend search with pagination.
+
+Do NOT load only the first 100 products and perform incomplete client-side filtering.
+
+CUSTOMER SEARCH:
+
+Customer search should also be GLOBAL.
+
+Customer should NOT have to know which category contains the product.
+
+Example:
+
+Customer searches:
+
+"rice"
+
+Results should discover matching products across the catalog.
+
+However:
+
+GLOBAL DISCOVERY ≠ GLOBAL PURCHASING.
+
+Customer can only purchase products that are actually available from the applicable store.
+
+Store-specific:
+
+- price
+- availability
+- selling variants
+- stock validation
+
+must remain store-specific.
+
+==============================================================
+19. CUSTOMER CATALOG DATA EXPOSURE
+==============================================================
+
+Customer APIs must expose only information required for shopping.
+
+Allowed:
+
+- product name
+- description
+- image
+- brand
+- category display information
+- selling variant
+- quantity
+- unit
+- price
+- availability
+
+Do NOT expose unnecessary internal fields such as:
+
+- internal SKU
+- external codes
+- exact internal stock quantity
+- internal timestamps
+- unnecessary administrative fields
+
+Customer should receive availability/purchasability information, not internal inventory implementation details.
+
+Backend must continue validating actual stock/orderability server-side.
+
+==============================================================
+20. SELLING UNITS
+==============================================================
+
+The system must continue supporting existing units:
+
+- g
+- kg
+- ml
+- l
+- piece
+- pack
+- dozen
+
+For this implementation, ALSO support:
+
+- bottle
+- box
+
+Do NOT implement automatic conversion between units in this phase.
+
+Do NOT implement shared bulk inventory conversion in this phase.
+
+Example:
+
+1 box ≠ automatically converted to pieces.
+
+That can be a future enhancement.
+
+==============================================================
+21. PRICE / STOCK / AVAILABILITY
+==============================================================
+
+Vendor owns commercial configuration.
+
+Master Catalog must never contain vendor-specific:
+
+- price
+- stock
+- availability
+
+Each store maintains its own independent commercial values.
+
+Stock behavior beyond the existing implementation is NOT part of this Master Catalog phase.
+
+Do not implement stock reservation/deduction in this task.
+
+Preserve the current stock behavior and leave the dedicated stock phase for later.
+
+==============================================================
+22. HISTORICAL ORDER PROTECTION
+==============================================================
+
+This is mandatory.
+
+Never modify historical:
+
+- order item IDs
+- product references
+- variant references
+- price snapshots
+- product-name snapshots
+- quantity snapshots
+- totals
+- order status history
+
+Master Catalog changes must never rewrite historical commerce data.
+
+==============================================================
+23. DATABASE MIGRATION SAFETY
+==============================================================
+
+Use additive migrations.
+
+Before changing schema:
+
+inspect the existing migrations/schema.
+
+Do not rewrite old migrations that may already be applied.
+
+Create new migration(s).
+
+Preserve existing data.
+
+Required structural changes should be limited to the approved Master Catalog model.
+
+==============================================================
+24. API REQUIREMENTS
+==============================================================
+
+Implement the necessary backend APIs for:
+
+1. Global Master Catalog search
+2. Master Product details
+3. Master Category retrieval
+4. Vendor Add to My Store
+5. Duplicate detection
+6. Vendor product configuration
+7. Vendor store product activation/deactivation
+8. Master Product archive/unarchive where authorized
+9. Master Category archive/unarchive where authorized
+10. Missing product canonical creation flow
+11. Customer global product search
+12. Store-specific product availability/details
+
+Enforce authorization server-side.
+
+Never rely only on frontend hiding buttons.
+
+==============================================================
+25. FRONTEND REQUIREMENTS
+==============================================================
+
+VENDOR:
+
+Provide a simple catalog experience:
+
+Master Catalog
+→ Search globally
+→ Filter by category if desired
+→ Product result
+→ Add to My Store
+→ Configure
+→ Save
+
+Do NOT force:
+
+Select Category
+→ Search Product
+
+Instead:
+
+Search Product first.
+
+CUSTOMER:
+
+Provide global product search.
+
+Customer should not need to understand the category hierarchy.
+
+==============================================================
+26. NO MASTER DATA DELETE
+==============================================================
+
+This is a hard requirement.
+
+There must be NO UI or API that physically deletes:
+
+- Master Categories
+- Master Products
+
+Do not create DELETE endpoints for them.
+
+Use archive/deactivate lifecycle instead.
+
+If an admin attempts to remove a master record:
+
+the system must provide archive/deactivate behavior instead.
+
+==============================================================
+27. DO NOT BREAK EXISTING FEATURES
+==============================================================
+
+Before implementation, inspect the current implementation of:
+
+- authentication
+- customer catalog
+- vendor dashboard
+- products
+- categories
+- product_variants
+- cart
+- checkout
+- orders
+- repeat/reorder
+- RLS/security
+
+Do not unnecessarily modify these systems.
+
+Existing functionality must continue to work.
+
+==============================================================
+28. SECURITY
+==============================================================
+
+Maintain current customer/vendor/admin isolation.
+
+Vendor A must never see or modify Vendor B's:
+
+- store products
+- prices
+- stock
+- availability
+- orders
+
+Customer global search must not bypass store-level access rules.
+
+Admin/platform catalog operations require appropriate authorization.
+
+All mutation endpoints must validate ownership and role server-side.
+
+==============================================================
+29. TESTING REQUIREMENTS
+==============================================================
+
+Add/update tests for at least:
+
+1. Master Category creation
+2. Master Product creation
+3. Master Product archive
+4. Master Category archive
+5. No Master Product physical deletion
+6. No Master Category physical deletion
+7. Global vendor search
+8. Global customer search
+9. Vendor finds product without knowing category
+10. Vendor adds Master Product to own store
+11. Vendor cannot add same Master Product twice as an active listing
+12. Vendor A cannot modify Vendor B's listing
+13. Vendor creates genuinely missing product
+14. Duplicate check prevents obvious duplicate Master Product
+15. Product variants remain store-specific
+16. Price remains store-specific
+17. Stock remains store-specific
+18. Existing legacy products continue working
+19. Existing legacy categories continue working
+20. Historical orders remain unchanged
+21. Archived Master Product cannot be newly selected
+22. Archived Master Category cannot be newly selected
+23. Removed store product is deactivated, not deleted
+24. Re-activation does not create unnecessary duplicate listing
+25. Customer does not receive internal SKU/external code/exact stock/timestamps
+
+==============================================================
+30. IMPLEMENTATION ORDER
+==============================================================
+
+Implement in this order:
+
+PHASE 1
+Database migrations.
+
+PHASE 2
+Master Catalog backend models/services.
+
+PHASE 3
+Global vendor Master Catalog search.
+
+PHASE 4
+Vendor Add to My Store flow.
+
+PHASE 5
+Vendor configuration of price/stock/unit/variant/availability.
+
+PHASE 6
+Duplicate prevention and missing-product creation flow.
+
+PHASE 7
+Archive/deactivate lifecycle.
+
+PHASE 8
+Customer global search.
+
+PHASE 9
+Customer API field allowlist/security correction.
+
+PHASE 10
+Frontend integration.
+
+PHASE 11
+Automated tests.
+
+PHASE 12
+Run typecheck/build/test and report results.
+
+==============================================================
+31. VERY IMPORTANT — NO UNRELATED CHANGES
+==============================================================
+
+Do NOT:
+
+- redesign authentication
+- implement Delivery Partner
+- implement payment gateway
+- implement stock reservation
+- implement stock deduction
+- redesign checkout
+- redesign orders
+- redesign Reorder
+- modify unrelated PoultryOne projects
+- modify unrelated business-service projects
+- introduce Mapping Desk / Control Tower / complex reconciliation concepts
+- introduce unnecessary abstraction layers
+- create a second product system
+- create master_variants
+- create store_products replacement table
+
+Keep the implementation simple and aligned with the existing application.
+
+==============================================================
+32. BEFORE CODING
+==============================================================
+
+First inspect the current repository and identify the exact files that will be changed.
+
+Then provide a SHORT implementation plan containing:
+
+1. Files to modify
+2. New migration(s)
+3. Backend routes/services
+4. Frontend screens/components
+5. Tests
+6. Any unavoidable compatibility changes
+
+DO NOT modify code until this plan is internally validated against the existing architecture.
+
+Then implement the approved scope.
+
+==============================================================
+33. FINAL VERIFICATION REPORT
+==============================================================
+
+After implementation, report:
+
+A. Database changes
+B. Backend changes
+C. Frontend changes
+D. Search behavior
+E. Duplicate prevention behavior
+F. Missing-product behavior
+G. Archive behavior
+H. Customer data exposure
+I. Legacy compatibility
+J. Tests executed
+K. Typecheck result
+L. Build result
+M. Any remaining issues
+
+Clearly separate:
+
+IMPLEMENTED
+from
+NOT IMPLEMENTED / FUTURE PHASE
+
+Do not claim functionality is complete unless it is actually implemented and verified.
