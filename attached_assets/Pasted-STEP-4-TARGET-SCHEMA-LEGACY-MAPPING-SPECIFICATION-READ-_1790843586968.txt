@@ -1,0 +1,820 @@
+STEP 4 — TARGET SCHEMA & LEGACY MAPPING SPECIFICATION
+READ-ONLY SPECIFICATION AUDIT — DO NOT MODIFY CODE, DATABASE, MIGRATIONS, UI, APIs, OR CONFIGURATION
+
+We have completed and approved:
+
+STEP 1 — Architecture Audit
+STEP 2 — Authentication Architecture Audit
+STEP 3 — Master Catalog Architecture Audit
+
+STEP 3 CONFIRMED:
+
+The current marketplace uses:
+
+Store
+→ Category
+→ Product
+→ Product Variant
+→ Cart
+→ Order
+
+The approved future direction is:
+
+Master Category
+→ Master Product
+→ explicit vendor selection
+→ existing Store Product
+→ existing Product Variant
+→ Cart
+→ Order
+→ Historical Snapshot
+
+IMPORTANT ARCHITECTURAL DECISION:
+
+DO NOT create a replacement `store_products` table unless this audit proves it is absolutely necessary.
+
+The existing `products` table should continue representing the vendor/store-specific listing.
+
+The Master Catalog should be introduced ADDITIVELY.
+
+Existing:
+- product IDs
+- variant IDs
+- cart references
+- order references
+- historical snapshots
+- store ownership
+- existing commerce behavior
+
+must remain intact.
+
+THIS STEP IS READ-ONLY.
+
+DO NOT:
+- modify code
+- create migrations
+- alter schema
+- modify database
+- modify UI
+- modify APIs
+- install packages
+- rename files
+- delete files
+- change configuration
+- seed data
+- migrate data
+- execute destructive commands
+- implement Master Catalog
+
+Your task is to produce an exact technical specification that another engineer could later implement safely.
+
+==================================================
+1. OBJECTIVE
+==================================================
+
+Define the smallest safe database architecture required to introduce:
+
+1. Master Categories
+2. Master Products
+3. Vendor "Add to My Store"
+4. Store-specific product listings
+5. Store-specific pricing
+6. Store-specific stock
+7. Store-specific variants
+8. Store-specific availability
+9. Historical order preservation
+
+The specification must be based on the CURRENT repository.
+
+Do not invent existing functionality.
+
+==================================================
+2. CURRENT SCHEMA BASELINE
+==================================================
+
+Inspect the current schema again.
+
+Focus on:
+
+- categories
+- products
+- product_variants
+- stores
+- carts
+- cart_items
+- orders
+- order_items
+- order_status_history
+- user_profiles
+- RLS policies
+- triggers
+- constraints
+- indexes
+
+For each relevant table provide:
+
+| Table | Current Purpose | Must Preserve? | Future Change |
+|------|-----------------|-----------------|---------------|
+
+Include exact file paths and line references where possible.
+
+==================================================
+3. DEFINE `master_categories`
+==================================================
+
+Design a proposed `master_categories` table.
+
+Do NOT create it.
+
+Specify:
+
+- column name
+- PostgreSQL data type
+- nullable/not-null
+- primary key
+- unique constraints
+- indexes
+- status/lifecycle fields
+- timestamps
+- optional image/icon fields if actually required
+- audit fields if required
+
+For every column explain WHY it exists.
+
+Do not add unnecessary fields.
+
+Example structure to evaluate:
+
+master_categories
+- id
+- name
+- slug
+- description
+- image_url
+- is_active
+- created_at
+- updated_at
+
+DO NOT blindly use this example.
+
+Determine the minimum required structure from the project.
+
+==================================================
+4. DEFINE `master_products`
+==================================================
+
+Design a proposed `master_products` table.
+
+Determine the minimum required fields.
+
+Evaluate:
+
+- id
+- master_category_id
+- name
+- slug
+- description
+- image_url
+- brand
+- status
+- is_active
+- created_at
+- updated_at
+
+Do not automatically include every field.
+
+For each field explain:
+
+- why required
+- whether platform-owned
+- whether vendor may override it
+- whether it should be nullable
+- whether it requires an index
+- whether it affects historical data
+
+IMPORTANT:
+
+A master product must represent a canonical platform product identity.
+
+It must NOT contain:
+
+- vendor price
+- vendor stock
+- vendor availability
+- vendor-specific inventory
+- vendor-specific selling price
+
+unless the audit proves there is an unavoidable reason.
+
+==================================================
+5. EXISTING `categories` TABLE
+==================================================
+
+Determine the exact change needed to the current `categories` table.
+
+Evaluate whether we should add:
+
+master_category_id
+
+and how it should interact with:
+
+store_id
+category_id
+name
+is_active
+
+Preserve the existing:
+
+products(store_id, category_id)
+→ categories(store_id, id)
+
+relationship unless there is a proven reason not to.
+
+IMPORTANT:
+
+Do not replace store categories with global categories.
+
+The intended relationship is:
+
+Master Category
+      ↓
+Store Category Membership
+      ↓
+Store Product
+
+A vendor selecting a master product must NOT automatically expose every product in that master category.
+
+==================================================
+6. EXISTING `products` TABLE
+==================================================
+
+Determine the exact additive changes required to the existing `products` table.
+
+Evaluate:
+
+master_product_id
+
+and whether any additional fields are necessary.
+
+The current `products` table must continue to represent:
+
+STORE-SPECIFIC LISTING
+
+It must retain:
+
+- id
+- store_id
+- category_id
+- existing commercial fields
+- existing references
+- existing ownership constraints
+
+Determine whether:
+
+(store_id, master_product_id)
+
+should be unique.
+
+Do NOT make this a final decision unless supported by business requirements.
+
+If it requires a business decision, clearly mark it as such.
+
+==================================================
+7. PRODUCT VARIANTS
+==================================================
+
+Do not redesign the existing variant architecture unnecessarily.
+
+Determine:
+
+- whether variants remain attached to `products`
+- whether master variants are required
+- whether master variants should be deferred
+- whether current quantity_value + quantity_unit are sufficient
+- whether price remains store-specific
+- whether stock remains store-specific
+- whether availability remains store-specific
+
+Use these examples:
+
+Rice:
+500 g
+1 kg
+2 kg
+5 kg
+
+Milk:
+500 ml
+1 L
+
+Eggs:
+6 pieces
+12 pieces
+30 pieces
+
+Apples:
+1 kg
+2 kg
+
+The target must allow:
+
+Store A:
+Rice 1kg = ₹X
+Stock = A stock
+
+Store B:
+Rice 1kg = ₹Y
+Stock = B stock
+
+without shared commercial values.
+
+==================================================
+8. MASTER PRODUCT VS STORE PRODUCT RESPONSIBILITY
+==================================================
+
+Produce an exact responsibility matrix:
+
+| Field/Data | Master | Store Product | Variant | Historical Snapshot |
+|---|---|---|---|---|
+
+Include:
+
+- product identity
+- name
+- description
+- image
+- brand
+- category
+- price
+- stock
+- quantity
+- selling unit
+- pack size
+- availability
+- SKU
+- external code
+- visibility
+- active/archive status
+
+Do not merely mark Yes/No.
+
+Explain the source of truth for each field.
+
+==================================================
+9. VENDOR "ADD TO MY STORE" DATA FLOW
+==================================================
+
+Define the future transaction conceptually.
+
+Example:
+
+Vendor
+→ selects Master Category
+→ selects Master Product
+→ Add to My Store
+→ create/reuse store category membership
+→ create store product listing
+→ create initial variant/default configuration
+→ vendor sets commercial values
+→ listing becomes eligible according to approved rules
+
+DO NOT implement this.
+
+Determine:
+
+- which rows are created
+- which rows are reused
+- which IDs are generated
+- which records belong to the vendor
+- what transaction boundaries are required
+- what happens if the vendor already added the product
+- what happens if the master product is inactive
+- what happens if the master category is inactive
+
+Do not assume a zero-price product should automatically become purchasable.
+
+==================================================
+10. LEGACY PRODUCT MAPPING
+==================================================
+
+This is critical.
+
+The current database contains store-owned products that have no master identity.
+
+Design a mapping strategy WITHOUT executing it.
+
+Classify existing products into:
+
+A. Confidently matchable
+B. Ambiguous
+C. No matching master product
+D. Intentionally legacy/unmapped
+
+Explain how each class should be handled.
+
+IMPORTANT:
+
+Do NOT propose automatic matching based only on:
+
+- product name
+- similar spelling
+- price
+- SKU
+- pack label
+
+The Step 3 audit established that the current repository does not have enough information for safe automatic canonical merging.
+
+Each existing store product must retain its original ID.
+
+Never merge two store product rows into one.
+
+==================================================
+11. LEGACY CATEGORY MAPPING
+==================================================
+
+Apply the same analysis to categories.
+
+Determine:
+
+- how existing store categories map to master categories
+- how duplicates are handled
+- what happens to ambiguous categories
+- whether multiple store categories may point to one master category
+- whether a store category can remain temporarily unmapped
+
+Do not delete or rename existing categories.
+
+==================================================
+12. HISTORICAL ORDER SAFETY
+==================================================
+
+Trace:
+
+master_product_id
+→ products.id
+→ product_variants.id
+→ cart_items
+→ order_items
+→ historical snapshots
+
+Determine exactly which historical fields must NEVER be rewritten.
+
+Verify:
+
+- product IDs
+- variant IDs
+- product names
+- variant names
+- quantity/unit
+- unit price
+- quantity
+- subtotal
+- order total
+- store relationship
+
+Also identify historical information that is NOT currently snapshotted.
+
+Do not claim fields are immutable if the current schema does not actually protect them.
+
+==================================================
+13. CART COMPATIBILITY
+==================================================
+
+Determine how the new master reference affects:
+
+- cart creation
+- cart item creation
+- quantity updates
+- variant selection
+- store switching
+- stock validation
+- checkout
+
+The master product must NOT replace the current:
+
+product_id
+variant_id
+
+commerce references.
+
+Explain why.
+
+==================================================
+14. REORDER COMPATIBILITY
+==================================================
+
+Trace the existing Repeat/Re-order implementation.
+
+Determine how Master Catalog changes affect:
+
+- historical product identity
+- current product availability
+- current price
+- current stock
+- variant eligibility
+- discontinued products
+- removed store listings
+
+Re-order must NOT silently substitute a different master product.
+
+==================================================
+15. RLS / DATABASE SECURITY
+==================================================
+
+Design the future security model conceptually.
+
+Determine:
+
+MASTER:
+- who can read
+- who can create
+- who can update
+- who can archive
+
+STORE:
+- who can select a master product
+- who can edit store product
+- who can edit variants
+- who can edit price
+- who can edit stock
+
+CUSTOMER:
+- what catalog data can be read
+
+ADMIN:
+- what master catalog operations are allowed
+
+Do not change RLS.
+
+Explicitly explain which existing policies can remain unchanged and which future policies would be required.
+
+==================================================
+16. CONSTRAINTS AND INDEXES
+==================================================
+
+Specify proposed constraints/indexes for:
+
+master_categories
+master_products
+categories.master_category_id
+products.master_product_id
+
+Evaluate:
+
+- uniqueness
+- foreign keys
+- ON DELETE behavior
+- indexes
+- duplicate selection prevention
+- active filtering
+
+Pay special attention to:
+
+(store_id, master_product_id)
+
+Do not implement these constraints.
+
+If a constraint depends on an unresolved business decision, mark it:
+
+REQUIRES BUSINESS DECISION
+
+==================================================
+17. LIFECYCLE RULES
+==================================================
+
+Define the distinction between:
+
+Master Product ACTIVE
+Master Product ARCHIVED
+Store Product ACTIVE
+Store Product INACTIVE
+Variant AVAILABLE
+Variant UNAVAILABLE
+
+Explain what happens when:
+
+1. Master product is archived.
+2. Vendor listing is inactive.
+3. Variant becomes unavailable.
+4. Master category is archived.
+5. Vendor removes product from their store.
+6. Vendor later adds it again.
+7. Customer has it in cart.
+8. Customer attempts reorder.
+
+Do not implement lifecycle behavior.
+
+Identify unresolved business decisions.
+
+==================================================
+18. PRODUCT OVERRIDES
+==================================================
+
+The Step 3 audit identified unresolved questions around vendor overrides.
+
+Analyze:
+
+- product name
+- image
+- description
+- brand
+- category
+- product codes
+
+For each determine whether:
+
+A. Master-only
+B. Vendor override allowed
+C. Store-specific field
+D. Requires business decision
+
+Do NOT silently decide business policy.
+
+==================================================
+19. MISSING PRODUCT WORKFLOW
+==================================================
+
+Analyze what should happen when a vendor cannot find a required product in Master Catalog.
+
+Do NOT implement.
+
+Determine whether the architecture may eventually require:
+
+master_product_requests
+
+or similar.
+
+Specify:
+
+- who creates request
+- who reviews
+- who approves
+- whether vendor can continue selling before approval
+- relationship to master product
+
+Mark all business decisions clearly.
+
+==================================================
+20. EXACT FUTURE SCHEMA DIAGRAM
+==================================================
+
+Produce an ASCII ER-style diagram.
+
+It should clearly show:
+
+master_categories
+      ↓
+master_products
+      ↓
+categories
+      ↓
+products
+      ↓
+product_variants
+      ↓
+cart_items
+      ↓
+order_items
+
+Also show:
+
+stores
+customers
+orders
+
+Clearly mark:
+
+MASTER-OWNED
+STORE-OWNED
+HISTORICAL
+
+==================================================
+21. EXACT MIGRATION ORDER
+==================================================
+
+Define the future migration sequence without executing it.
+
+For example:
+
+Migration 1:
+Create master tables.
+
+Migration 2:
+Add nullable master references.
+
+Migration 3:
+Create reviewed master records.
+
+Migration 4:
+Map legacy records.
+
+Migration 5:
+Introduce vendor selection.
+
+Migration 6:
+Update customer reads.
+
+Migration 7:
+Restrict legacy creation.
+
+But DO NOT blindly use this sequence.
+
+Determine the safest order based on the actual repository.
+
+For every migration state:
+
+- purpose
+- affected tables
+- backward compatibility
+- rollback considerations
+- data risk
+
+==================================================
+22. IMPLEMENTATION BOUNDARY
+==================================================
+
+Separate clearly:
+
+PHASE 1 — DATABASE FOUNDATION
+
+PHASE 2 — ADMIN MASTER CATALOG
+
+PHASE 3 — VENDOR MASTER CATALOG / ADD TO MY STORE
+
+PHASE 4 — CUSTOMER CATALOG COMPATIBILITY
+
+PHASE 5 — LEGACY RESTRICTION
+
+PHASE 6 — TESTING
+
+Do not implement any phase.
+
+==================================================
+23. EXACT FILE IMPACT
+==================================================
+
+Produce a future implementation impact map:
+
+HIGH
+MEDIUM
+LOW
+NO CHANGE
+
+Include exact paths for:
+
+- schema
+- migrations
+- backend catalog routes
+- customer marketplace
+- cart
+- orders
+- repeat/reorder
+- validation
+- shared types
+- API clients
+- Vendor UI
+- Admin UI
+- Customer UI
+- tests
+- documentation
+
+==================================================
+24. FINAL SPECIFICATION
+==================================================
+
+End with these exact sections:
+
+# STEP 4 — FINAL TARGET SCHEMA
+
+## A. New Tables
+## B. Existing Tables To Extend
+## C. Existing Tables To Preserve
+## D. Fields To Add
+## E. Foreign Keys
+## F. Indexes
+## G. Constraints
+## H. Store Isolation Rules
+## I. Master/Store Ownership Rules
+## J. Historical Data Protection
+## K. Legacy Mapping Strategy
+## L. Vendor Add-to-My-Store Flow
+## M. Variant Strategy
+## N. Lifecycle Strategy
+## O. Open Business Decisions
+## P. Implementation Sequence
+## Q. File Impact Map
+## R. Risks
+
+Then provide:
+
+## FINAL RECOMMENDATION
+
+State whether the proposed architecture can be implemented safely as an additive change while preserving existing IDs and historical records.
+
+IMPORTANT:
+
+Do NOT modify anything.
+
+At the very end state exactly:
+
+AUDIT STATUS: READ-ONLY — NO CODE MODIFIED
