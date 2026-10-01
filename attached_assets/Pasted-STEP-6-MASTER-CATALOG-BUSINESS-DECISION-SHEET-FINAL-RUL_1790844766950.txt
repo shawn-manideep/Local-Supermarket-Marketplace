@@ -1,0 +1,811 @@
+STEP 6 — MASTER CATALOG BUSINESS DECISION SHEET & FINAL RULES AUDIT
+
+ROLE:
+You are acting as a senior Product Manager, Business Analyst, Database Architect, and QA Architect for the Local Supermarket Marketplace project.
+
+IMPORTANT:
+This is a READ-ONLY business-rules exercise.
+
+DO NOT:
+- Modify any code
+- Create or alter database tables
+- Create migrations
+- Change APIs
+- Change frontend
+- Change authentication
+- Change existing product/order/cart behavior
+- Commit anything
+- Install packages
+- Run destructive commands
+- Implement any recommendation
+
+Your task is ONLY to prepare a final, implementation-ready BUSINESS DECISION SHEET for the Master Catalog feature.
+
+==================================================
+PROJECT CONTEXT
+==================================================
+
+The approved architecture from Steps 1–5 is:
+
+Platform Master Catalog
+    ↓
+Explicit Vendor Selection
+    ↓
+Existing Store-Owned Product
+    ↓
+Existing Store-Owned Variants
+    ↓
+Cart / Order / Historical Snapshots
+
+The following architecture is already approved and MUST NOT be reconsidered:
+
+1. Use master_categories.
+2. Use master_products.
+3. Existing categories remain store-owned.
+4. Existing products remain store-owned listings.
+5. Existing product_variants remain store-owned selling variants.
+6. Add nullable master references to existing categories/products.
+7. Do NOT create a replacement store_products table.
+8. Do NOT move price or stock to master_products.
+9. Do NOT change cart/order identity structure.
+10. Do NOT rewrite historical order snapshots.
+11. Vendor selections must be explicit.
+12. Vendor A selecting a master product must NOT automatically make it available in Vendor B's store.
+13. Customer shopping must always begin from the selected store's products.
+14. Re-order must preserve original product/variant IDs and must never substitute another product.
+15. Store-specific price and stock remain independent.
+16. No implementation has been authorized yet.
+
+The Step 5 audit confirmed that implementation cannot begin until the remaining behavior-critical business decisions are explicitly resolved.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Create a FINAL BUSINESS DECISION REGISTER that converts every unresolved Step 5 decision into one of these statuses:
+
+- LOCKED
+- APPROVED FOR MVP
+- APPROVED FOR LATER
+- DEFERRED
+- NOT IN MVP
+
+Do NOT silently choose a recommendation.
+
+Where a decision is still genuinely unresolved, mark:
+
+REQUIRES BUSINESS DECISION
+
+Do not invent business requirements merely to make the document look complete.
+
+==================================================
+PART 1 — CANONICAL PRODUCT IDENTITY
+==================================================
+
+Determine and document the exact rule for:
+
+A. Is the Master Catalog based on:
+
+Option A:
+Product family
+
+Example:
+Rice
+  → 500 g
+  → 1 kg
+  → 5 kg
+
+OR
+
+Option B:
+Each packaged retail identity is a separate master.
+
+Example:
+Rice 500 g
+Rice 1 kg
+Rice 5 kg
+
+Document:
+
+- Which model is approved.
+- Whether pack size is a variant.
+- Whether brand is part of product identity.
+- Whether type/grade/flavour/specification is part of identity.
+- Examples:
+  - Rice
+  - Basmati Rice
+  - Fortune Basmati Rice
+  - Aashirvaad Atta
+  - Milk
+  - Eggs
+  - Shampoo
+  - Biscuits
+
+Do NOT merge products merely because their names are similar.
+
+==================================================
+PART 2 — MASTER PRODUCT → STORE LISTING RULE
+==================================================
+
+Define:
+
+- Can one vendor have only one store listing for a master product?
+- Can a vendor have multiple listings for the same master?
+- What happens if the vendor already has multiple legacy listings?
+- What happens when the vendor selects an already-selected master?
+- Should the system reuse the existing listing?
+- Should an inactive listing be reactivated?
+- Should a new listing ever be created?
+
+Provide exact expected behavior for:
+
+NEW SELECTION
+DUPLICATE SELECTION
+INACTIVE EXISTING LISTING
+LEGACY DUPLICATES
+RE-ADD AFTER REMOVAL
+
+Do not add a database uniqueness constraint unless the business rule explicitly authorizes it.
+
+==================================================
+PART 3 — VENDOR OVERRIDES
+==================================================
+
+Define ownership of every customer-visible field.
+
+Create a table for:
+
+- Product Name
+- Description
+- Image
+- Brand
+- Category
+- Product SKU
+- Variant SKU
+- External Code
+
+For each field define:
+
+1. Master-owned
+2. Store-owned
+3. Master default + vendor override
+4. Copied once at selection
+5. Dynamic master value
+6. Not supported in MVP
+
+Important:
+
+Do not assume that copying a master value automatically creates an override system.
+
+If vendor overrides are allowed, define:
+
+- How the override is stored.
+- What happens when the master value changes.
+- Whether the vendor value remains unchanged.
+- How a vendor can return to the master value.
+- Whether historical orders are affected.
+
+==================================================
+PART 4 — MASTER CATEGORY VS STORE CATEGORY
+==================================================
+
+Define the exact relationship between:
+
+MASTER CATEGORY
+and
+STORE CATEGORY.
+
+Answer:
+
+1. Is store category merely a local merchandising/grouping category?
+2. Must every store category map to one master category?
+3. Can multiple store categories map to the same master category?
+4. Can a store category contain products from multiple master categories?
+5. When a vendor adds a master product, does the system automatically create/use a store category?
+6. Can the vendor choose the store category?
+7. Can the vendor create a new local category?
+8. Can legacy categories remain unmapped?
+9. Can intentionally independent merchandising categories remain unmapped?
+
+Do not change the existing same-store category relationship.
+
+==================================================
+PART 5 — ADD TO MY STORE FLOW
+==================================================
+
+Define the exact vendor workflow.
+
+Compare these:
+
+A. Immediate publish
+B. Create draft
+C. Configure first, then create listing
+
+Select ONLY the approved behavior if it is already supported by project requirements.
+
+For the approved flow define the exact sequence.
+
+Example structure:
+
+Master Catalog
+→ Category
+→ Select Product
+→ Add to My Store
+→ Configure Selling Variant
+→ Enter Price
+→ Enter Stock
+→ Select Unit
+→ Set Availability
+→ Save
+→ Product becomes visible to customers
+
+But DO NOT assume this example is approved.
+
+Define exactly what fields are mandatory.
+
+==================================================
+PART 6 — PRODUCT PUBLICATION RULES
+==================================================
+
+Define separately:
+
+1. Record creation
+2. Vendor management visibility
+3. Customer catalog visibility
+4. Purchasability
+
+Determine whether a product can be:
+
+- Created with zero stock.
+- Published with zero stock.
+- Published with zero price.
+- Published with unavailable status.
+- Published without a configured variant.
+- Published without a category.
+- Published without image.
+- Published without description.
+
+Do not invent a non-zero price requirement unless explicitly approved.
+
+==================================================
+PART 7 — DEFAULT VARIANT
+==================================================
+
+The current system creates:
+
+Standard
+Quantity = 1
+Unit = pack
+
+This must NOT automatically become the future Master Catalog rule.
+
+Determine:
+
+- Should Add to My Store automatically create a default variant?
+- Or must the vendor explicitly configure the first real selling variant?
+- Is "1 pack" ever an acceptable selling configuration?
+- Examples:
+  - Rice → 1 kg
+  - Milk → 1 L
+  - Eggs → 12 pieces
+  - Apple → 1 kg
+  - Soap → 1 piece
+  - Biscuits → 100 g / pack
+
+These are examples only. Do not treat them as universal rules.
+
+==================================================
+PART 8 — STORE PRICE / STOCK
+==================================================
+
+This rule is already LOCKED:
+
+MASTER PRODUCT:
+- No store price
+- No store stock
+- No store availability
+
+STORE VARIANT:
+- Quantity
+- Unit
+- Price
+- Stock
+- Availability
+
+Confirm that the final business sheet preserves this boundary.
+
+Also document:
+
+- One store's price changes must not affect another.
+- One store's stock changes must not affect another.
+- Historical order price remains unchanged.
+- Re-order uses current price and availability of the original variant.
+
+Do not introduce shared master inventory.
+
+==================================================
+PART 9 — MASTER PRODUCT ARCHIVE
+==================================================
+
+Define separately:
+
+A. Can a vendor select an archived master?
+
+B. What happens to an already-selected store listing when the master is archived?
+
+Possible policies:
+
+- Existing listing continues selling.
+- Existing listing becomes unavailable.
+- Existing listing requires explicit vendor/admin continuation.
+- Other explicitly defined policy.
+
+Do not assume archive should cascade into store products.
+
+Define effects on:
+
+- Vendor catalog
+- Customer catalog
+- Cart
+- Checkout
+- Re-order
+- Existing orders
+- Historical data
+
+==================================================
+PART 10 — MASTER CATEGORY ARCHIVE
+==================================================
+
+Define what happens when a master category is archived.
+
+Separate:
+
+NEW SELECTION
+EXISTING STORE CATEGORY
+EXISTING STORE PRODUCTS
+CUSTOMER DISCOVERY
+CART
+CHECKOUT
+RE-ORDER
+HISTORICAL ORDERS
+
+Do not automatically cascade archive state to local categories/products unless explicitly approved.
+
+==================================================
+PART 11 — REMOVE FROM MY STORE
+==================================================
+
+Define the exact meaning of:
+
+REMOVE FROM MY STORE
+
+The following preservation rule is already LOCKED:
+
+- Product ID remains.
+- Variant IDs remain.
+- Historical orders remain unchanged.
+- Re-order lineage remains unchanged.
+- Hard deletion is not allowed.
+
+Determine:
+
+- Does Remove deactivate the product?
+- Does it also deactivate variants?
+- Does stock remain stored?
+- Does price remain stored?
+- Can it be re-added?
+- Does re-add reuse the same listing?
+- Does re-add require vendor confirmation?
+- Does re-add reset price/stock/variants?
+
+==================================================
+PART 12 — LEGACY PRODUCTS
+==================================================
+
+Existing products may initially have:
+
+master_product_id = NULL
+
+Define:
+
+- Can they continue selling?
+- Can vendors continue editing them?
+- Can vendors create NEW unmapped products?
+- Who maps legacy products?
+- Can vendors map their own products?
+- Is admin/platform approval required?
+- Is there a deadline/cutover?
+- What happens to products that cannot be confidently mapped?
+
+IMPORTANT:
+
+Never auto-map based only on:
+- Name
+- SKU
+- External code
+
+Never merge existing product IDs merely to satisfy Master Catalog rules.
+
+==================================================
+PART 13 — LEGACY CATEGORIES
+==================================================
+
+Existing categories may initially have:
+
+master_category_id = NULL
+
+Define:
+
+- Can they continue being used?
+- Can new products use them?
+- Must they eventually be mapped?
+- Who maps them?
+- Can a category intentionally remain unmapped?
+- What happens to broad/general categories?
+
+Preserve existing IDs, names, and product relationships.
+
+==================================================
+PART 14 — MAPPING CORRECTION
+==================================================
+
+Define two different cases:
+
+A. Clerical mapping mistake
+
+Example:
+Product was correctly a particular product, but linked to the wrong master.
+
+B. Semantic replacement
+
+Example:
+Product was actually a different product and the master identity itself is wrong.
+
+Define:
+
+- Who can correct a mapping?
+- Is approval required?
+- Must the correction be audited?
+- Can a vendor silently change the master?
+- When must a new product/variant ID be created?
+- What happens to existing carts?
+- What happens to re-order?
+- What happens to historical orders?
+
+Historical order snapshots MUST remain unchanged.
+
+==================================================
+PART 15 — MISSING MASTER PRODUCT
+==================================================
+
+If a vendor cannot find a required product in the Master Catalog:
+
+Define:
+
+- Can vendor request a new master product?
+- Is this MVP?
+- Who reviews it?
+- Who creates the master?
+- Can vendor temporarily create a local product?
+- Can vendor sell before approval?
+- What happens if the request is rejected?
+
+If a request workflow is deferred, explicitly state the approved temporary process.
+
+==================================================
+PART 16 — MASTER CONTENT CHANGES
+==================================================
+
+Define what happens when an admin changes:
+
+- Master name
+- Description
+- Image
+- Brand
+- Category
+
+For each field define:
+
+- Existing store listings update automatically?
+- Existing listings retain old value?
+- Vendor override prevents update?
+- Vendor can manually refresh?
+- Customer sees master value dynamically?
+- Historical orders remain unchanged?
+
+Do not use one generic rule if different fields require different behavior.
+
+==================================================
+PART 17 — CUSTOMER CATALOG
+==================================================
+
+This is LOCKED:
+
+Customer shopping inventory must always be:
+
+Selected Store
+→ Store Products
+→ Store Variants
+
+NOT:
+
+Global Master Catalog
+→ Customer inventory
+
+Confirm that:
+
+- Unselected master products never appear.
+- Vendor A's selected product never appears in Vendor B's store automatically.
+- Master metadata can only enrich an already-authorized store listing.
+- Customer APIs must preserve store isolation.
+- Vendor-only fields must not be exposed to customers.
+
+==================================================
+PART 18 — SEARCH
+==================================================
+
+This separation is LOCKED:
+
+Vendor:
+Master Catalog Search
+
+Customer:
+Selected Store Product Search
+
+Define:
+
+- Vendor master search fields.
+- Customer search fields.
+- Whether search is backend or frontend.
+- Pagination expectations.
+- Whether searching should cover the complete inventory or only the first loaded page.
+
+Do not create one global search endpoint that exposes master inventory to customers.
+
+==================================================
+PART 19 — SKU / BARCODE / GTIN
+==================================================
+
+Current system has:
+
+- Store product SKU/external code.
+- Variant SKU/external code.
+
+There is currently no validated canonical GTIN/barcode model.
+
+Define whether GTIN/barcode is:
+
+- Required for MVP.
+- Deferred.
+- Not required.
+
+If deferred, explicitly state:
+
+DO NOT use vendor SKU/external code as canonical Master Catalog identity.
+
+==================================================
+PART 20 — UNITS / PACKS
+==================================================
+
+Current supported units:
+
+- g
+- kg
+- ml
+- l
+- piece
+- pack
+- dozen
+
+Bottle and Box are currently unsupported.
+
+Define whether:
+
+- Bottle is required for MVP.
+- Box is required for MVP.
+- Both are deferred.
+
+Do not redesign inventory conversion.
+
+The current system does NOT support automatic conversion/shared bulk stock between variants.
+
+Do not introduce that unless explicitly approved.
+
+==================================================
+PART 21 — FINAL MVP SCOPE
+==================================================
+
+Create a final table:
+
+FEATURE | MVP | LATER | NOT PLANNED | NOTES
+
+Include at minimum:
+
+- Master categories
+- Master products
+- Vendor selection
+- Vendor master search
+- Store listing creation
+- Store variants
+- Vendor price
+- Vendor stock
+- Vendor availability
+- Vendor overrides
+- Store categories
+- Product mapping
+- Category mapping
+- Product removal
+- Product re-add
+- Archive behavior
+- Missing product requests
+- GTIN/barcode
+- Bottle
+- Box
+- Content propagation
+- Duplicate prevention
+- Legacy product handling
+
+==================================================
+PART 22 — FINAL BUSINESS DECISION REGISTER
+==================================================
+
+Produce ONE final table with these columns:
+
+ID
+Decision
+Approved Rule
+Status
+MVP / Later
+Affected Areas
+Implementation Impact
+QA Impact
+
+Every decision must have one of:
+
+LOCKED
+APPROVED FOR MVP
+APPROVED FOR LATER
+DEFERRED
+NOT IN MVP
+REQUIRES BUSINESS DECISION
+
+Do not hide unresolved decisions.
+
+==================================================
+PART 23 — IMPLEMENTATION GATE
+==================================================
+
+At the end answer exactly:
+
+IMPLEMENTATION STATUS:
+- READY
+OR
+- NOT READY
+
+If NOT READY:
+List ONLY the remaining decisions that absolutely block implementation.
+
+If READY:
+Provide the exact implementation scope that is authorized, but DO NOT implement it.
+
+==================================================
+PART 24 — CONFLICT CHECK
+==================================================
+
+Compare the resulting business decision sheet against:
+
+- Step 1 Architecture Audit
+- Step 2 Authentication Audit
+- Step 3 Master Catalog Architecture Audit
+- Step 4 Target Schema & Legacy Mapping Specification
+- Step 5 Master Catalog Business Rules Audit
+
+Identify any conflict.
+
+Use this format:
+
+CONFLICT ID
+Existing Rule
+New Decision
+Conflict?
+Required Resolution
+
+Do not silently resolve conflicts.
+
+==================================================
+PART 25 — FILE IMPACT PREVIEW
+==================================================
+
+Without modifying files, identify which areas would eventually be affected by the approved Master Catalog decisions:
+
+- Database schema
+- Migrations
+- Backend catalog routes
+- Vendor APIs
+- Customer marketplace APIs
+- Validation
+- RLS/security
+- Vendor dashboard
+- Customer app
+- Search
+- Product/variant management
+- Tests
+- Documentation
+
+For each, explain the expected type of change.
+
+==================================================
+STRICT SAFETY RULES
+==================================================
+
+DO NOT:
+
+- Modify code.
+- Modify migrations.
+- Create tables.
+- Create columns.
+- Change APIs.
+- Change UI.
+- Commit changes.
+- Push to GitHub.
+- Install packages.
+- Reset the database.
+- Seed data.
+- Rename existing products.
+- Rename existing categories.
+- Merge existing products.
+- Automatically map products.
+- Automatically map categories.
+- Add uniqueness constraints.
+- Change order IDs.
+- Change variant IDs.
+- Change historical snapshots.
+
+This is a BUSINESS DECISION / SPECIFICATION AUDIT ONLY.
+
+==================================================
+OUTPUT FORMAT
+==================================================
+
+Return a single structured report with:
+
+1. Executive Summary
+2. Canonical Product Identity Decision
+3. Store Listing Decision
+4. Vendor Override Decision
+5. Category Relationship Decision
+6. Add to My Store Decision
+7. Publication Rules
+8. Default Variant Decision
+9. Store Price/Stock Rules
+10. Master Product Archive Rules
+11. Master Category Archive Rules
+12. Remove/Re-add Rules
+13. Legacy Product Rules
+14. Legacy Category Rules
+15. Mapping Correction Rules
+16. Missing Master Product Rules
+17. Content Propagation Rules
+18. Customer Catalog Rules
+19. Search Rules
+20. SKU/GTIN Rules
+21. Unit/Pack Rules
+22. Final MVP Scope
+23. Final Business Decision Register
+24. Conflict Check
+25. Implementation Gate
+26. File Impact Preview
+27. Final Recommendation
+
+FINAL REQUIREMENT:
+
+This report must be precise enough that a developer can later implement the Master Catalog without making business assumptions.
+
+If a rule is not actually approved by the existing project requirements, mark it:
+
+REQUIRES BUSINESS DECISION
+
+Do not convert your own recommendation into an approved requirement.
+
+AUDIT STATUS:
+READ-ONLY — NO CODE MODIFIED
