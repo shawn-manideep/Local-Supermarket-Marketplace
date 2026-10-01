@@ -1,0 +1,704 @@
+STEP 7 — MASTER CATALOG FINAL IMPLEMENTATION-READINESS & DECISION INPUT AUDIT
+
+ROLE:
+Act as the Senior Product Manager, Business Analyst, Database Architect, Backend Architect, Frontend Architect, Security Architect, and QA Lead for the Local Supermarket Marketplace.
+
+IMPORTANT:
+THIS IS STILL A READ-ONLY AUDIT.
+
+DO NOT MODIFY ANYTHING.
+
+DO NOT:
+- Modify source code
+- Modify database schema
+- Create migrations
+- Create tables or columns
+- Modify APIs
+- Modify frontend
+- Modify authentication
+- Modify RLS
+- Modify validation
+- Install packages
+- Run database writes
+- Seed data
+- Commit
+- Push to GitHub
+- Fix bugs
+- Implement any recommendation
+
+==================================================
+PURPOSE
+==================================================
+
+Steps 1–6 have already audited the architecture and identified the remaining Master Catalog business decisions.
+
+The purpose of Step 7 is NOT to redesign the architecture.
+
+The purpose is to produce ONE FINAL IMPLEMENTATION-READINESS DOCUMENT containing:
+
+1. What is already LOCKED.
+2. What can be treated as APPROVED based on the existing project requirements.
+3. What still requires an explicit business decision.
+4. What decisions are necessary before coding.
+5. What decisions can safely be deferred.
+6. The exact implementation scope once decisions are approved.
+7. A final checklist that can be used to authorize implementation.
+
+Do not make decisions on behalf of the business.
+
+==================================================
+SOURCE OF TRUTH
+==================================================
+
+Use the following as authoritative project context:
+
+STEP 1:
+Architecture Audit
+
+STEP 2:
+Authentication Architecture Audit
+
+STEP 3:
+Master Catalog Architecture Audit
+
+STEP 4:
+Target Schema & Legacy Mapping Specification
+
+STEP 5:
+Master Catalog Business Rules Audit
+
+STEP 6:
+Master Catalog Business Decision Sheet & Final Rules Audit
+
+Also use the original project requirements already present in the repository/documentation.
+
+IMPORTANT:
+
+If a requirement is explicitly locked by the project, mark it LOCKED.
+
+If a requirement is only a recommendation from a previous audit, DO NOT convert it into an approved rule.
+
+If the source material does not resolve a question, mark:
+
+REQUIRES BUSINESS DECISION
+
+Do not fill gaps using assumptions.
+
+==================================================
+PART 1 — LOCKED REQUIREMENTS
+==================================================
+
+Create a definitive list of all requirements that are already locked.
+
+At minimum verify:
+
+### Architecture
+
+- master_categories
+- master_products
+- nullable master references
+- existing categories remain store-owned
+- existing products remain store-owned
+- existing product_variants remain store-owned
+- no replacement store_products table
+- cart/order structure preserved
+- historical snapshots preserved
+- existing IDs preserved
+
+### Vendor isolation
+
+- Vendor A selecting a master does not add it to Vendor B.
+- Vendor selection is explicit.
+- Vendor owns only its own listing/configuration.
+
+### Customer catalog
+
+LOCKED:
+
+Selected Store
+→ Store Products
+→ Store Variants
+
+Never:
+
+Global Master Catalog
+→ Customer inventory
+
+### Commercial ownership
+
+LOCKED:
+
+Master:
+- no price
+- no stock
+- no availability
+
+Store Variant:
+- quantity
+- unit
+- price
+- stock
+- availability
+
+### Re-order
+
+- Original product/variant IDs remain authoritative.
+- No substitutions.
+- Current price/availability/stock are evaluated.
+- Historical snapshots remain unchanged.
+
+### Authentication
+
+- Master Catalog implementation must not alter the approved authentication architecture.
+
+==================================================
+PART 2 — ORIGINAL USER REQUIREMENTS
+==================================================
+
+Extract the original Master Catalog-related business requirements already established for this supermarket project.
+
+Do NOT invent new requirements.
+
+At minimum check for these:
+
+1. Platform provides the common grocery catalog.
+2. Vendors do not create common master products from scratch.
+3. Vendor selects a master item and adds it to their store.
+4. Vendor A selection must not automatically appear in Vendor B.
+5. Vendor manages store-specific:
+   - price
+   - stock
+   - available quantity
+   - selling unit
+   - pack/quantity configuration
+   - availability
+6. Customers see only products belonging to the selected store.
+7. Different vendors can sell the same master item at different prices.
+8. Different vendors can have independent stock.
+9. Product variants must support grocery selling configurations such as:
+   - 500 g
+   - 1 kg
+   - 2 kg
+   - 5 kg
+   - 500 ml
+   - 1 L
+   - 6 pieces
+   - 12 pieces
+   - 30 pieces
+10. Re-order must use original product/variant identity and must not substitute products.
+
+For each requirement state:
+
+SOURCE
+STATUS
+IMPLEMENTATION CONSEQUENCE
+
+If any item cannot be confirmed from the available source material, mark it unresolved instead of guessing.
+
+==================================================
+PART 3 — BUSINESS DECISIONS THAT ACTUALLY BLOCK CODING
+==================================================
+
+Create a table:
+
+DECISION
+WHY IT MATTERS
+CURRENT STATUS
+BLOCKS MVP?
+OPTIONS
+
+Only include decisions that genuinely affect implementation.
+
+Use these categories:
+
+### Product identity
+
+- Product family vs packaged retail identity.
+- Brand boundary.
+- Type/grade/flavour/specification boundary.
+- Pack-size treatment.
+
+### Store listing
+
+- One listing vs multiple listings.
+- Duplicate selection behavior.
+- Existing inactive listing behavior.
+- Legacy duplicate behavior.
+- Re-add behavior.
+
+### Categories
+
+- Master taxonomy vs local merchandising grouping.
+- Mapping requirement.
+- Vendor category selection.
+- Legacy category treatment.
+- Mixed category handling.
+
+### Vendor content
+
+- Name ownership.
+- Description ownership.
+- Image ownership.
+- Brand ownership.
+- Category ownership.
+- Override mechanism.
+- Propagation behavior.
+
+### Add-to-My-Store
+
+- Immediate publish vs draft vs configure-first.
+- Mandatory configuration.
+- Publication rules.
+- First variant behavior.
+
+### Archive
+
+- Existing listing after master archive.
+- Existing listing after master category archive.
+- Customer catalog.
+- Cart.
+- Checkout.
+- Re-order.
+
+### Legacy
+
+- Continued selling.
+- Continued editing.
+- New unmapped products.
+- Mapping authority.
+- Cutover.
+
+### Mapping correction
+
+- Clerical correction.
+- Semantic replacement.
+- Approval/audit.
+- Existing carts.
+- Re-order.
+
+### Missing master
+
+- Vendor request.
+- Admin intake.
+- Temporary selling.
+- Rejection handling.
+
+### Search
+
+- Vendor search fields.
+- Customer search fields.
+- Complete inventory vs loaded page.
+- Pagination.
+
+### Security
+
+- Customer-visible field allowlist.
+- SKU.
+- External code.
+- Stock.
+- Timestamps.
+
+### Optional future scope
+
+- GTIN/barcode.
+- Bottle.
+- Box.
+
+==================================================
+PART 4 — MINIMUM MVP DECISIONS
+==================================================
+
+Separate the decisions into:
+
+A. MUST DECIDE BEFORE CODING
+
+B. CAN BE DEFERRED WITHOUT BLOCKING MVP
+
+C. ALREADY LOCKED
+
+D. FUTURE ENHANCEMENT
+
+Do not classify something as deferrable if its absence would make the core Master Catalog workflow ambiguous or unsafe.
+
+==================================================
+PART 5 — PROPOSED MINIMUM MVP BEHAVIOR
+==================================================
+
+This section must NOT invent business decisions.
+
+Instead:
+
+For every unresolved behavior, show:
+
+CURRENT QUESTION
+KNOWN OPTIONS
+WHAT THE CODE WOULD NEED TO KNOW
+
+Example:
+
+Duplicate selection:
+- Existing listing reuse
+- Reject duplicate
+- Multiple listings
+
+Implementation requires one explicit choice.
+
+Do this for every blocking decision.
+
+==================================================
+PART 6 — IMPLEMENTATION CONTRACT
+==================================================
+
+Without modifying code, describe what the future implementation contract would look like AFTER the business decisions are approved.
+
+Cover:
+
+### Database
+
+Expected master tables:
+- master_categories
+- master_products
+
+Expected nullable references:
+- categories.master_category_id
+- products.master_product_id
+
+Existing tables preserved:
+- categories
+- products
+- product_variants
+- carts
+- cart_items
+- orders
+- order_items
+- order_status_history
+- repeat-order structures
+
+Do not add any additional table unless the approved business decisions later require it.
+
+### Backend
+
+Future responsibilities:
+
+- Master Catalog administration.
+- Master search.
+- Vendor master selection.
+- Store listing creation/configuration.
+- Duplicate handling.
+- Legacy mapping.
+- Lifecycle handling.
+- Customer catalog enrichment.
+- Security/allowlist enforcement.
+
+### Frontend
+
+Future areas:
+
+- Vendor Master Catalog.
+- Category browsing.
+- Master product selection.
+- Add to My Store.
+- Product configuration.
+- My Store products.
+- Product/variant management.
+
+### Customer
+
+Future customer behavior:
+
+- Selected-store catalog only.
+- Master metadata may enrich authorized store listings.
+- No global master shopping inventory.
+
+### Security
+
+Future requirements:
+
+- Vendor can modify only own store listings.
+- Vendor cannot modify master records unless explicitly authorized.
+- Customer cannot access another store's products.
+- Customer cannot access vendor-only metadata.
+- Mapping changes require appropriate authorization.
+
+==================================================
+PART 7 — MIGRATION SAFETY CONTRACT
+==================================================
+
+Document the migration rules that MUST remain true:
+
+1. Existing IDs remain unchanged.
+2. Existing order IDs remain unchanged.
+3. Existing variant IDs remain unchanged.
+4. Historical snapshots remain unchanged.
+5. Existing product/category names are not automatically rewritten.
+6. Existing products may initially have NULL master_product_id.
+7. Existing categories may initially have NULL master_category_id.
+8. No automatic name-based mapping.
+9. No automatic SKU-based mapping.
+10. No automatic external-code mapping.
+11. No merging of existing rows merely to satisfy Master Catalog uniqueness.
+12. Existing migration files must not be rewritten.
+13. New migrations must be forward-only.
+
+==================================================
+PART 8 — QA ACCEPTANCE FRAMEWORK
+==================================================
+
+Prepare the final acceptance-test categories that will be required AFTER implementation.
+
+Include:
+
+### Vendor isolation
+
+- Vendor A selects product.
+- Vendor B does nothing.
+- B does not receive A's product.
+
+### Same master / different price
+
+- Vendor A and B select same master.
+- A price differs from B.
+- Both remain independent.
+
+### Same master / different stock
+
+- A has zero stock.
+- B has stock.
+- A unavailable.
+- B unaffected.
+
+### Variants
+
+Test:
+
+- different weights
+- different volumes
+- pieces
+- packs
+- multiple variants
+
+### Duplicate selection
+
+Test according to the eventual approved policy.
+
+### Removal/re-add
+
+Test according to eventual approved policy.
+
+### Archive
+
+Test:
+
+- master archive
+- category archive
+- existing listing
+- cart
+- checkout
+- reorder
+
+### Legacy
+
+Test:
+
+- unmapped products
+- unmapped categories
+- mapping
+- correction
+- ambiguous mapping
+
+### Security
+
+Test:
+
+- direct authenticated API calls
+- cross-store access
+- vendor attempting to modify another vendor
+- vendor attempting to modify master
+- customer attempting to access master-only inventory
+- private metadata exposure
+
+### Re-order
+
+Test:
+
+- exact original IDs
+- current price
+- current availability
+- current stock
+- no substitution
+- historical snapshot preservation
+
+==================================================
+PART 9 — SECURITY MISMATCH
+==================================================
+
+The Step 6 audit found:
+
+Current customer variant responses expose:
+
+- SKU
+- external code
+- stock
+- timestamps
+
+while docs/SECURITY.md indicates public projections omit those fields.
+
+Do NOT fix this now.
+
+Document it as:
+
+SECURITY REVIEW ITEM
+
+Then specify:
+
+- current behavior
+- documented expectation
+- affected endpoint/file
+- why it must be resolved before production
+- whether it blocks Master Catalog MVP implementation or can be handled as a parallel security task
+
+Do not silently choose which side is correct.
+
+==================================================
+PART 10 — FINAL DECISION INPUT FORM
+==================================================
+
+Create a concise decision form for the business owner.
+
+For each unresolved blocking decision provide:
+
+DECISION ID
+QUESTION
+OPTION A
+OPTION B
+OPTION C
+RECOMMENDED BY PRIOR AUDIT (IF ANY)
+WHY IT MATTERS
+BUSINESS OWNER CHOICE
+
+IMPORTANT:
+
+The "RECOMMENDED BY PRIOR AUDIT" field must clearly say:
+
+RECOMMENDATION ONLY — NOT APPROVED
+
+Do not convert it into the selected answer.
+
+The final choice field must remain:
+
+PENDING BUSINESS APPROVAL
+
+==================================================
+PART 11 — FINAL IMPLEMENTATION AUTHORIZATION CHECKLIST
+==================================================
+
+Create a checklist:
+
+[ ] Canonical product identity approved
+[ ] Pack-size rule approved
+[ ] Listing uniqueness approved
+[ ] Duplicate selection approved
+[ ] Category relationship approved
+[ ] Vendor override rules approved
+[ ] Content propagation approved
+[ ] Add-to-My-Store workflow approved
+[ ] Publication rules approved
+[ ] First variant rules approved
+[ ] Archive rules approved
+[ ] Remove/re-add rules approved
+[ ] Legacy product policy approved
+[ ] Legacy category policy approved
+[ ] Mapping correction policy approved
+[ ] Missing product policy approved
+[ ] Search contract approved
+[ ] Customer metadata allowlist approved
+[ ] GTIN decision recorded
+[ ] Bottle/Box decision recorded
+[ ] Security mismatch assigned/resolved
+[ ] Implementation scope explicitly authorized
+
+Then calculate:
+
+IMPLEMENTATION READY:
+YES / NO
+
+If NO:
+List exactly which unchecked items prevent implementation.
+
+==================================================
+PART 12 — FINAL IMPLEMENTATION SCOPE
+==================================================
+
+At the end produce:
+
+IF BUSINESS APPROVES ALL REQUIRED DECISIONS, THE IMPLEMENTATION WILL COVER:
+
+1. Database foundation
+2. Master catalog
+3. Vendor selection
+4. Store listing configuration
+5. Variants
+6. Category mapping
+7. Legacy mapping
+8. Vendor catalog UI
+9. Customer catalog enrichment
+10. Search
+11. Security
+12. QA
+13. Migration verification
+
+For each item specify:
+
+- Included
+- Excluded
+- Depends on decision
+
+==================================================
+CRITICAL RULE
+==================================================
+
+Do NOT produce another generic architecture audit.
+
+Do NOT repeat Steps 1–6 unnecessarily.
+
+The goal is to create a concise, actionable bridge between:
+
+BUSINESS DECISIONS
+        ↓
+APPROVED SPECIFICATION
+        ↓
+IMPLEMENTATION
+
+If something is unresolved, expose it clearly.
+
+If something is locked, do not reopen it.
+
+If something is only recommended, label it as recommendation.
+
+If something is outside MVP, do not accidentally include it.
+
+==================================================
+FINAL OUTPUT
+==================================================
+
+Return:
+
+1. Executive Summary
+2. Locked Requirements
+3. Original User Requirements
+4. Blocking Business Decisions
+5. Deferrable Decisions
+6. Future Enhancements
+7. Implementation Contract
+8. Migration Safety Contract
+9. QA Acceptance Framework
+10. Security Review Item
+11. Business Decision Input Form
+12. Implementation Authorization Checklist
+13. Final Implementation Scope
+14. FINAL IMPLEMENTATION STATUS
+
+At the very end write exactly:
+
+AUDIT STATUS:
+READ-ONLY — NO CODE MODIFIED
