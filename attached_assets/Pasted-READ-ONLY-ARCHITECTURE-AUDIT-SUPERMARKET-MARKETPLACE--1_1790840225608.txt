@@ -1,0 +1,910 @@
+READ-ONLY ARCHITECTURE AUDIT — SUPERMARKET MARKETPLACE
+=======================================================
+
+IMPORTANT:
+This is an AUDIT ONLY.
+
+DO NOT modify, create, delete, rename, migrate, refactor, format, or rewrite ANY code, database schema, migration, configuration, UI, API, authentication logic, or documentation.
+
+DO NOT run database migrations.
+
+DO NOT install or uninstall packages.
+
+DO NOT change environment variables.
+
+DO NOT commit or push anything.
+
+DO NOT attempt to implement any of the new requirements.
+
+Your job in this step is ONLY to inspect the existing project and produce a factual architecture audit.
+
+The GitHub repository is the current source of truth:
+Local-Supermarket-Marketplace
+
+The project already contains substantial completed functionality. Protect all existing completed work. Do not assume the existing architecture can simply be replaced.
+
+=======================================================
+1. CURRENT PROJECT TO INSPECT
+=======================================================
+
+Inspect the complete repository structure, including:
+
+- apps/customer
+- apps/dashboard
+- backend/api
+- packages/*
+- database/*
+- docs/*
+- root configuration
+- package.json
+- pnpm-workspace.yaml
+- TypeScript configuration
+- Vite/Expo configuration
+- environment configuration
+- existing deployment configuration
+
+Identify the actual implementation currently present.
+
+Do not rely only on documentation.
+Verify important findings directly from the source code, database schema/migrations, APIs, routes, middleware, and frontend components.
+
+=======================================================
+2. AUTHENTICATION / USER IDENTITY AUDIT
+=======================================================
+
+The EXISTING implementation was originally designed around Supabase email/password authentication.
+
+The NEW BUSINESS REQUIREMENT is:
+
+CUSTOMER REGISTRATION:
+- Username
+- Password
+- Confirm Password
+
+VENDOR REGISTRATION:
+- Shop Name
+- Username
+- Password
+- Confirm Password
+
+Login:
+- Username
+- Password
+
+Email/Gmail must NOT be required as the user's login identity.
+Phone must NOT be required as the user's login identity.
+
+Forgot Password is required.
+
+AUDIT ONLY:
+
+Determine exactly how authentication currently works.
+
+Inspect:
+
+- Supabase Auth usage
+- auth.users dependency
+- user_profiles
+- customers
+- stores/vendor identity
+- roles
+- requireAuth
+- requireRole
+- registration APIs
+- login APIs
+- session restoration
+- frontend auth screens
+- password reset implementation
+- database foreign keys
+- RLS policies
+- unique constraints
+- username fields, if any
+- vendor ownership logic
+
+Answer:
+
+A. What currently works?
+B. What currently depends on email authentication?
+C. What database structures would need to change for username login?
+D. Can Supabase Auth support the desired username/password experience without exposing custom password storage?
+E. What is the safest migration approach?
+F. What existing functionality could be affected?
+G. Which existing authentication components should be preserved?
+
+IMPORTANT:
+Do NOT implement the authentication redesign yet.
+
+Do NOT recommend storing plaintext passwords or application-managed password hashes unless absolutely necessary and explicitly justified.
+
+=======================================================
+3. PRODUCT / CATALOG ARCHITECTURE AUDIT
+=======================================================
+
+The ORIGINAL architecture used store-owned products.
+
+The NEW BUSINESS REQUIREMENT changes this.
+
+NEW REQUIREMENT:
+
+The platform must have a PREBUILT MASTER GROCERY CATALOG.
+
+Example master categories include:
+
+- Pulses / Dals
+- Rice & Grains
+- Atta / Flour / Millets
+- Oils / Ghee
+- Spices / Masalas
+- Sugar / Salt / Sweeteners
+- Dry Fruits / Nuts
+- Tea / Coffee / Beverages
+- Biscuits / Snacks
+- Dairy / Refrigerated
+- Breakfast / Instant Foods
+- Fresh Fruits / Vegetables
+- Bakery
+- Meat / Chicken / Fish where applicable
+- Eggs
+- Frozen Foods
+- Cleaning / Household
+- Personal Care
+- Baby Care
+- Pooja Items
+- Stationery
+- Pet Care
+- etc.
+
+Vendor workflow:
+
+1. Vendor opens Master Catalog.
+2. Vendor selects a category/item.
+3. Vendor clicks "Add to My Store".
+4. That item becomes part of that vendor's own catalog.
+5. Vendor A selecting an item must NOT automatically make it available in Vendor B's store.
+
+Vendor must then manage:
+
+- selling price
+- stock
+- available quantity
+- selling unit
+- pack/quantity configuration
+- availability
+- other store-specific selling information
+
+AUDIT THE CURRENT IMPLEMENTATION.
+
+Inspect:
+
+- categories table
+- products table
+- any product/category relationship
+- store_products if it exists
+- product ownership
+- category ownership
+- APIs
+- routes
+- vendor dashboard
+- customer catalog APIs
+- customer catalog UI
+- RLS
+- migrations
+- foreign keys
+- historical order snapshots
+
+Determine:
+
+A. How products are currently owned.
+B. Whether the existing architecture can support a platform Master Catalog.
+C. What database model would be required.
+D. How vendor-specific selection should be represented.
+E. Which existing tables can be preserved.
+F. Which tables/relationships would need migration.
+G. How historical orders can remain immutable.
+H. What existing APIs/UI would be affected.
+
+DO NOT implement anything.
+
+=======================================================
+4. PRODUCT VARIANT / PACK SIZE AUDIT
+=======================================================
+
+The NEW REQUIREMENT requires configurable selling options.
+
+Examples:
+
+Rice:
+- 500g
+- 1kg
+- 2kg
+- 5kg
+
+Milk:
+- 500ml
+- 1 litre
+
+Eggs:
+- 6 pieces
+- 12 pieces
+- 30 pieces
+
+Apple:
+- 1kg
+- 2kg
+
+Vendor may configure:
+
+- kg
+- gram
+- litre
+- ml
+- piece
+- pack
+- bottle
+- box
+- dozen
+- etc.
+
+Pack relationships may exist, for example:
+
+1kg → 25 packs
+2kg → 20 packs
+5kg → 5 packs
+
+AUDIT:
+
+Check whether the current database supports product variants.
+
+Inspect:
+
+- products
+- cart_items
+- order_items
+- stock fields
+- quantity fields
+- price fields
+- SKU/external code
+- availability
+- frontend product selection
+- cart calculations
+- checkout validation
+- order snapshots
+
+Determine:
+
+A. What currently represents a product quantity?
+B. Whether variants already exist.
+C. Whether variants need a new normalized table.
+D. How stock should be associated with a variant.
+E. How price should be associated with a variant.
+F. How cart_items should reference a variant.
+G. How order_items should preserve historical variant information.
+
+DO NOT implement variants yet.
+
+=======================================================
+5. STOCK MANAGEMENT AUDIT
+=======================================================
+
+NEW REQUIREMENT:
+
+Example:
+
+Toor Dal stock = 100 kg.
+
+Customer orders 50 kg.
+
+Available stock should become 50 kg according to the final stock rule.
+
+When stock reaches 0:
+
+- item/variant becomes unavailable
+- customer cannot order it
+- customer sees the correct availability
+
+AUDIT THE CURRENT STOCK IMPLEMENTATION.
+
+The existing MVP was intentionally designed so that checkout revalidates stock but does NOT yet deduct/reserve stock.
+
+Confirm whether that is still true.
+
+Inspect:
+
+- stock columns
+- cart validation
+- checkout validation
+- order creation
+- transaction boundaries
+- row locks
+- advisory locks
+- order cancellation
+- vendor acceptance
+- rejection
+- inventory updates
+- concurrency protection
+
+Determine exactly where stock could safely be deducted/reserved later.
+
+DO NOT change stock behavior.
+
+Also explicitly identify the decision that still needs to be made:
+
+Should stock be:
+
+1. reserved/deducted when customer places the order,
+OR
+2. deducted only when vendor accepts the order,
+OR
+3. handled another way?
+
+Do not choose silently. Report the architectural implications of each option.
+
+=======================================================
+6. CART ARCHITECTURE AUDIT
+=======================================================
+
+Existing business rule:
+
+ONE ACTIVE CART = ONE SUPERMARKET.
+
+Switching supermarkets abandons the previous active cart.
+
+NEW UX:
+
+- Cart should not appear as a permanent bottom-navigation tab/menu.
+- Cart functionality must remain.
+- Customer must always know that items have been added.
+- Add to Cart must NOT automatically redirect to checkout.
+- Customer should remain on the shopping page.
+- A contextual cart bar/action should allow the customer to go to Cart.
+- Cart display should show total item/unit count.
+- Customer can continue shopping.
+- Customer can then review cart and checkout.
+
+AUDIT:
+
+Inspect:
+
+- cart schema
+- cart lifecycle
+- cart_items
+- store switching
+- add-to-cart
+- quantity changes
+- cart totals
+- checkout
+- customer navigation
+- bottom navigation
+- contextual cart UI, if present
+
+Determine what already works and what would need UI/API changes.
+
+DO NOT modify anything.
+
+=======================================================
+7. REORDER / REPEAT ORDER AUDIT
+=======================================================
+
+NEW CUSTOMER REQUIREMENT:
+
+After login, the customer should see "Re-order" rather than the current "Orders" concept where appropriate.
+
+Reorder means:
+
+- customer views a previous order
+- selects Repeat/Re-order
+- eligible previous items are added to a NEW/current cart
+- customer can continue shopping
+- customer can Add More Items
+- customer reviews cart
+- customer checks out normally
+
+Reorder must NOT immediately place an order.
+
+When repeating an old order:
+
+- use current product/variant availability
+- use current prices
+- use current stock
+- do not alter historical order data
+- unavailable items must be clearly identified
+- no automatic substitutions
+- if the previous store is inactive or no longer serves the customer's pincode, reorder should be blocked with an explanation
+- if another store is already in the active cart, use the existing store-switch confirmation logic
+
+AUDIT whether any reorder implementation currently exists.
+
+If not, identify the required backend and frontend changes.
+
+DO NOT implement.
+
+=======================================================
+8. ORDER LIFECYCLE AUDIT
+=======================================================
+
+Existing lifecycle:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Exceptions:
+
+REJECTED
+CANCELLED
+
+Existing rules include:
+
+- vendor can reject only from PLACED
+- customer can cancel only from PLACED
+- backend enforces transitions
+- order status history exists
+- historical order snapshots exist
+
+NEW requirement adds a real Delivery Partner role.
+
+Required flow:
+
+CUSTOMER
+→ ORDER
+→ VENDOR
+→ DELIVERY PARTNER
+→ CUSTOMER
+
+Expected flow:
+
+Customer places order
+→ Vendor accepts
+→ Vendor prepares
+→ READY
+→ Delivery Partner receives assignment
+→ Delivery Partner accepts duty
+→ Pickup
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+AUDIT:
+
+- orders
+- order_items
+- order_status_history
+- lifecycle transition rules
+- vendor actions
+- customer actions
+- existing vendor-owned delivery implementation
+- delivery fields
+- delivery_type
+- delivery_contact_name
+- delivery_contact_phone
+- any delivery assignment concepts
+
+Determine exactly what can be reused and what must change.
+
+DO NOT implement the Delivery Partner yet.
+
+=======================================================
+9. DELIVERY PARTNER ARCHITECTURE AUDIT
+=======================================================
+
+NEW ROLE:
+
+Delivery Partner
+
+Separate portal/login.
+
+Delivery Partner authentication:
+
+- Username
+- Password
+- Forgot Password
+- no Gmail/email required for login
+- no phone required for login
+
+Delivery Partner account has:
+
+- active/inactive
+- assigned duties/orders
+- delivery history
+
+Required dashboard information:
+
+- Today's Deliveries
+- order
+- store
+- customer area
+- status
+- new assignments
+- waiting pickup
+- picked up
+- currently delivering
+- completed
+- cancelled/rejected assignments
+- today's completed
+- pending
+
+Required assignment flow:
+
+READY
+→ Delivery Partner receives in-app assignment
+→ Partner accepts duty
+→ Pickup
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Backend must prevent one delivery partner from manipulating another partner's assignments.
+
+AUDIT whether ANY of this already exists.
+
+Inspect:
+
+- roles
+- database tables
+- APIs
+- authorization
+- frontend routes
+- dashboard
+- order assignment
+- delivery status
+- RLS
+- indexes
+- notifications
+
+Report what exists and what does not.
+
+DO NOT implement.
+
+=======================================================
+10. VENDOR ORDER MANAGEMENT AUDIT
+=======================================================
+
+NEW REQUIREMENT:
+
+When a new order appears in the Vendor Portal, the vendor should immediately see:
+
+- order details
+- customer fulfillment information
+- items
+- quantities
+- prices
+- total
+- delivery information
+- current status
+
+Primary actions must be immediately accessible:
+
+ACCEPT | REJECT
+
+They should not require excessive scrolling.
+
+AUDIT the existing vendor order UI and backend.
+
+Identify:
+
+- current order list
+- order detail
+- action placement
+- lifecycle API
+- duplicate-submit protection
+- authorization
+- ownership checks
+- timeline
+- future-state handling
+- error handling
+
+DO NOT redesign or modify.
+
+=======================================================
+11. CUSTOMER HOME / CATALOG AUDIT
+=======================================================
+
+NEW requirements:
+
+Customer Home should have:
+
+- correct screen sizing/resolution
+- correct scrolling
+- visible back/return navigation where required
+- category/shop filtering
+- Recently Ordered / Re-order information
+- Recent Store where appropriate
+- available supermarkets
+
+Store catalog must show ONLY:
+
+- selected supermarket
+- products selected by that supermarket
+- current availability
+
+Example:
+
+Store A:
+Toor Dal
+Urad Dal
+Moong Dal
+
+Store B:
+Toor Dal only
+
+AUDIT the current implementation.
+
+Also identify the existing issue where item card price and Add button overlap.
+
+DO NOT modify the UI.
+
+=======================================================
+12. VENDOR CATALOG UI AUDIT
+=======================================================
+
+Required conceptual flow:
+
+Master Catalog
+→ Category
+→ Products
+→ Add to My Store
+→ My Store Products
+→ Manage:
+
+- price
+- stock
+- available quantity
+- unit
+- pack/quantity configuration
+- availability
+
+Audit the current Vendor dashboard.
+
+Identify which screens/components already exist and which would need to change.
+
+DO NOT modify.
+
+=======================================================
+13. DATABASE MIGRATION IMPACT
+=======================================================
+
+Inspect ALL existing migrations.
+
+List:
+
+- migration filename
+- purpose
+- affected tables
+- relevant constraints
+- RLS policies
+- privileges
+- indexes
+
+Then identify the NEW migrations that would eventually be needed for:
+
+A. username-based authentication support
+B. Master Catalog
+C. vendor catalog selection
+D. product variants
+E. variant-level stock
+F. delivery partners
+G. delivery assignments
+H. delivery assignment status/history
+I. in-app delivery notifications if database-backed
+J. reorder support if additional structures are needed
+
+Do NOT create the migrations.
+
+Only describe them.
+
+=======================================================
+14. SECURITY / RLS AUDIT
+=======================================================
+
+Because the architecture is moving toward three portals:
+
+CUSTOMER
+VENDOR
+DELIVERY PARTNER
+
+plus:
+
+ADMIN
+
+Audit authorization boundaries.
+
+For each role, report what the user can currently access.
+
+Pay special attention to:
+
+- vendor isolation
+- customer isolation
+- order ownership
+- delivery partner assignment ownership
+- master catalog visibility
+- vendor-specific catalog visibility
+- admin privileges
+- service-role usage
+- RLS
+- API authorization
+- IDOR risks
+
+Do not modify security rules.
+
+=======================================================
+15. DEPLOYMENT / ENVIRONMENT AUDIT
+=======================================================
+
+Inspect current deployment configuration.
+
+Target architecture remains:
+
+Frontend:
+- Vercel
+
+Backend:
+- Railway
+
+Database/Auth/Storage:
+- Supabase
+
+Repository:
+- GitHub
+
+Customer:
+- Expo / React Native / Web
+
+Vendor/Admin:
+- React/Vite dashboard
+
+Potential Delivery Partner:
+- same dashboard or separate portal depending on current architecture
+
+Determine:
+
+- current build commands
+- current environment variables
+- API URL configuration
+- Supabase configuration
+- Vercel configuration
+- Railway configuration
+- Expo configuration
+- whether any old/unrelated project configuration exists
+- whether any PoultryOne configuration exists and MUST NOT be reused
+- whether customer and dashboard can be deployed independently
+
+DO NOT change deployment configuration.
+
+=======================================================
+16. PROTECTED COMPLETED FUNCTIONALITY
+=======================================================
+
+Explicitly identify the functionality that is already implemented and should be preserved unless a new requirement genuinely requires modification.
+
+At minimum inspect:
+
+- customer authentication/session
+- customer profile
+- customer addresses
+- store discovery by pincode
+- store service pincodes
+- store operating hours
+- categories
+- products
+- availability
+- cart
+- one-store-per-cart rule
+- checkout validation
+- order creation
+- order lifecycle
+- order history
+- vendor store management
+- vendor order management
+- admin store management
+- RLS/security
+- historical order snapshots
+- existing tests
+
+Report any known limitations or incomplete areas.
+
+=======================================================
+17. REQUIRED FINAL OUTPUT
+=======================================================
+
+Your final response MUST be an AUDIT REPORT ONLY.
+
+Use exactly these sections:
+
+1. CURRENT ARCHITECTURE SUMMARY
+
+2. CURRENT AUTHENTICATION ARCHITECTURE
+
+3. CURRENT PRODUCT/CATALOG ARCHITECTURE
+
+4. CURRENT PRODUCT VARIANT / PACK ARCHITECTURE
+
+5. CURRENT STOCK ARCHITECTURE
+
+6. CURRENT CART ARCHITECTURE
+
+7. CURRENT REORDER CAPABILITY
+
+8. CURRENT ORDER LIFECYCLE
+
+9. CURRENT DELIVERY ARCHITECTURE
+
+10. CURRENT DELIVERY PARTNER SUPPORT
+
+11. CURRENT VENDOR ORDER MANAGEMENT
+
+12. CURRENT CUSTOMER HOME / CATALOG
+
+13. CURRENT DATABASE / MIGRATION STRUCTURE
+
+14. CURRENT RLS / SECURITY MODEL
+
+15. CURRENT DEPLOYMENT ARCHITECTURE
+
+16. COMPLETED FUNCTIONALITY THAT MUST BE PROTECTED
+
+17. GAP ANALYSIS AGAINST THE NEW REQUIREMENTS
+
+18. DATABASE MIGRATION IMPACT
+
+19. API IMPACT
+
+20. FRONTEND IMPACT
+
+21. AUTHENTICATION MIGRATION IMPACT
+
+22. STOCK MANAGEMENT DECISION REQUIRED
+
+23. RECOMMENDED IMPLEMENTATION SEQUENCE
+
+24. RISKS / DEPENDENCIES
+
+25. ITEMS THAT MUST NOT BE CHANGED
+
+26. FILE-BY-FILE IMPACT MAP
+
+For the FILE-BY-FILE IMPACT MAP, list actual files from the repository.
+
+For every important file, classify it as:
+
+- PRESERVE
+- MODIFY LATER
+- NEW FILE LATER
+- POTENTIALLY REMOVE LATER
+- NEEDS REVIEW
+
+Do NOT actually change any of these files.
+
+=======================================================
+18. VERY IMPORTANT FINAL RULE
+=======================================================
+
+DO NOT IMPLEMENT ANYTHING IN THIS STEP.
+
+DO NOT "FIX" ANYTHING YOU FIND.
+
+DO NOT make schema changes.
+
+DO NOT make auth changes.
+
+DO NOT make UI changes.
+
+DO NOT make migration changes.
+
+DO NOT make deployment changes.
+
+DO NOT install packages.
+
+DO NOT commit.
+
+DO NOT push.
+
+DO NOT use Replit credits for implementation.
+
+Only inspect and report.
+
+The purpose of this audit is to allow us to review the architecture together before we authorize the NEXT implementation step.
+
+At the end, explicitly state:
+
+"AUDIT ONLY — NO FILES, DATABASES, MIGRATIONS, CONFIGURATION, OR DEPLOYMENT SETTINGS WERE MODIFIED."

@@ -3,7 +3,7 @@
 
 :root {
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #203027;
+  color: #1738de;
   background: #f4f7f2;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -34,7 +34,7 @@ body {
   background: #fff;
   border: 1px solid #dce8dd;
   border-radius: 22px;
-  box-shadow: 0 22px 70px rgb(37 67 48 / 10%);
+  box-shadow: 0 22px 70px rgb(21, 83, 209/ 10%);
   margin: 7vh auto 0;
   max-width: 480px;
   padding: 34px;
@@ -42,9 +42,9 @@ body {
 
 .auth-mark {
   align-items: center;
-  background: #173f2b;
+  background: #275ad3;
   border-radius: 12px;
-  color: #f3c663;
+  color: #f4f3f0;
   display: flex;
   font-family: "Space Mono", monospace;
   font-size: 14px;
@@ -178,7 +178,7 @@ p {
 }
 
 .eyebrow {
-  color: #4c7960;
+  color: #1a40d5;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -227,7 +227,7 @@ p {
 }
 
 .muted {
-  color: #718078;
+  color: #05030c;
   font-size: 14px;
 }
 
@@ -342,7 +342,7 @@ input,
 textarea,
 select {
   background: #fbfdfb;
-  border: 1px solid #cbdace;
+  border: 1px solid #2631cf;
   border-radius: 9px;
   color: #203027;
   font: inherit;
@@ -354,8 +354,8 @@ select {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: #4e9666;
-  box-shadow: 0 0 0 3px rgb(78 150 102 / 15%);
+  border-color: #261bc0;
+  box-shadow: 0 0 0 3px rgb(29, 59, 211/ 15%);
   outline: none;
 }
 
@@ -398,8 +398,8 @@ button {
 }
 
 .primary-button {
-  background: #34764d;
-  border: 1px solid #34764d;
+  background: #1e3bcc;
+  border: 1px solid #2e4fd1;
   color: #fff;
 }
 
