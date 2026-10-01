@@ -1,0 +1,799 @@
+STEP 5 — MASTER CATALOG BUSINESS RULES & IMPLEMENTATION DECISIONS AUDIT
+READ-ONLY — DO NOT MODIFY CODE, DATABASE, MIGRATIONS, UI, APIs, OR CONFIGURATION
+
+We have completed and approved:
+
+STEP 1 — Architecture Audit
+STEP 2 — Authentication Architecture Audit
+STEP 3 — Master Catalog Architecture Audit
+STEP 4 — Target Schema & Legacy Mapping Specification
+
+STEP 4 established the following technical foundation:
+
+NEW:
+- master_categories
+- master_products
+
+ADDITIVE REFERENCES:
+- categories.master_category_id
+- products.master_product_id
+
+PRESERVE:
+- existing products as store-specific listings
+- existing product_variants
+- existing cart/order references
+- existing historical snapshots
+- existing store ownership
+- existing authentication architecture
+
+DO NOT create a replacement store_products table.
+
+IMPORTANT:
+This step is NOT an implementation step.
+
+DO NOT:
+- modify code
+- create migrations
+- alter schema
+- modify database
+- modify UI
+- modify APIs
+- install packages
+- seed data
+- migrate data
+- rename files
+- delete files
+- change configuration
+- run destructive commands
+
+The purpose of this step is to resolve the remaining BUSINESS RULES and produce an exact decision specification BEFORE implementation.
+
+==================================================
+1. SOURCE OF TRUTH
+==================================================
+
+Use ONLY:
+
+1. The current repository.
+2. Approved requirements from Steps 1–4.
+3. Existing implementation behavior.
+
+Do not invent business requirements.
+
+Where the repository or approved requirements do not establish a rule, mark:
+
+REQUIRES BUSINESS DECISION
+
+Do not silently decide it.
+
+==================================================
+2. CANONICAL PRODUCT GRANULARITY
+==================================================
+
+Determine the implications of these two possible models:
+
+MODEL A:
+One master product represents a product family.
+
+Example:
+Rice
+  → 500 g
+  → 1 kg
+  → 2 kg
+  → 5 kg
+
+MODEL B:
+Each packaged retail product is a separate master product.
+
+Example:
+Rice 500 g
+Rice 1 kg
+Rice 2 kg
+Rice 5 kg
+
+Do NOT choose one merely from general knowledge.
+
+Analyze the repository's existing variant model and the approved requirements.
+
+Determine which model is technically compatible with:
+
+- existing product_variants
+- vendor pricing
+- vendor stock
+- reorder
+- historical snapshots
+- store isolation
+
+If the business requirements do not conclusively establish the answer, state:
+
+REQUIRES BUSINESS DECISION
+
+Then recommend what needs to be decided before implementation.
+
+==================================================
+3. ONE MASTER PRODUCT PER STORE OR MULTIPLE?
+==================================================
+
+Analyze:
+
+A vendor selects:
+Master Product X
+→ Add to My Store
+
+Should the same vendor/store be allowed to have:
+
+A. One store listing for that master product
+OR
+B. Multiple store listings for the same master product?
+
+Consider:
+
+- variants
+- duplicate products
+- legacy products
+- reorder
+- stock
+- SKU
+- customer experience
+- migration safety
+
+Do not impose a uniqueness constraint.
+
+Clearly identify:
+
+CURRENTLY SUPPORTED
+RECOMMENDED
+REQUIRES BUSINESS DECISION
+
+==================================================
+4. VENDOR OVERRIDES
+==================================================
+
+Determine how vendor-specific customization should work.
+
+Evaluate each:
+
+- Product name
+- Description
+- Image
+- Brand
+- Category
+- SKU
+- External code
+
+For each classify:
+
+1. Master-owned
+2. Store-owned
+3. Variant-owned
+4. Override allowed
+5. Requires business decision
+
+IMPORTANT:
+
+Do not silently implement an override mechanism.
+
+The existing `products.name`, `description`, `image_url`, `sku`, and `external_code` must be considered carefully because legacy data already uses them.
+
+Determine how a future master product should interact with those existing fields without breaking existing records.
+
+==================================================
+5. MASTER CATEGORY VS STORE CATEGORY
+==================================================
+
+Analyze the relationship:
+
+Master Category
+↓
+Store Category
+↓
+Store Product
+
+Determine:
+
+1. Can multiple store categories map to one master category?
+2. Can one store category contain products from multiple master categories?
+3. Should vendor category grouping be independent from master taxonomy?
+4. Should Add to My Store automatically create a store category?
+5. Should vendor select a category during Add to My Store?
+6. Can vendor create a local category that is not mapped to a master category?
+7. What happens to legacy categories?
+
+Do not assume category behavior.
+
+Identify unresolved decisions.
+
+==================================================
+6. ADD TO MY STORE BEHAVIOR
+==================================================
+
+Define the exact future business behavior of:
+
+Master Product
+→ Add to My Store
+
+Analyze these possibilities:
+
+OPTION A:
+Click immediately creates a published/purchasable listing.
+
+OPTION B:
+Click creates a draft listing requiring vendor configuration before publication.
+
+OPTION C:
+Click opens configuration and creates the listing only after required commercial values are entered.
+
+Determine which behavior is compatible with the current schema.
+
+Pay special attention to:
+
+- existing product `price` requirements
+- product-level stock
+- variants
+- availability
+- zero price
+- zero stock
+- customer visibility
+
+Do not implement the flow.
+
+==================================================
+7. REQUIRED PRODUCT CONFIGURATION
+==================================================
+
+Determine what a vendor MUST provide before a selected product can become purchasable.
+
+Evaluate:
+
+- price
+- stock
+- quantity
+- unit
+- variant
+- availability
+- image
+- name
+- SKU
+
+Distinguish:
+
+REQUIRED FOR LISTING CREATION
+
+vs
+
+REQUIRED FOR CUSTOMER PUBLICATION
+
+vs
+
+OPTIONAL
+
+Do not invent requirements not supported by the project.
+
+==================================================
+8. PRODUCT WITHOUT VARIANT
+==================================================
+
+The current implementation creates a default Standard `1 pack` variant when creating a product.
+
+Analyze whether the future Master Catalog should continue this behavior.
+
+Determine:
+
+1. Should every store product have at least one variant?
+2. Should Add to My Store create a default variant?
+3. Should the vendor configure the first variant manually?
+4. Is a synthetic "1 pack" appropriate for all grocery products?
+
+Use examples:
+
+- Rice
+- Milk
+- Eggs
+- Apple
+- Shampoo
+- Soap
+- Biscuits
+
+Do not implement a new default.
+
+Mark unresolved decisions.
+
+==================================================
+9. STORE-SPECIFIC PRICE AND STOCK
+==================================================
+
+This is LOCKED:
+
+Master Product:
+NO shared price
+NO shared stock
+
+Store listing / variant:
+YES price
+YES stock
+
+Verify that this remains consistent across:
+
+- product
+- variant
+- cart
+- checkout
+- reorder
+- order
+- historical snapshot
+
+Identify any current root-level product price/stock behavior that could conflict with this model.
+
+Do not fix it.
+
+==================================================
+10. MASTER PRODUCT ARCHIVE
+==================================================
+
+Analyze:
+
+Master Product ACTIVE
+vs
+Master Product ARCHIVED
+
+What should happen to vendors who already selected it?
+
+Possible behaviors to evaluate:
+
+A. Existing listings continue selling.
+B. Existing listings automatically become unavailable.
+C. Existing listings remain available only if explicitly configured.
+D. Other behavior already supported by requirements.
+
+Do not choose unless supported.
+
+Separate:
+
+NEW SELECTION eligibility
+
+from
+
+EXISTING STORE LISTING eligibility.
+
+==================================================
+11. MASTER CATEGORY ARCHIVE
+==================================================
+
+Analyze:
+
+Master Category ACTIVE
+vs
+Master Category ARCHIVED.
+
+Determine impact on:
+
+- existing store categories
+- existing store products
+- customer catalog
+- vendor catalog
+- Add to My Store
+- cart
+- reorder
+- checkout
+
+Do not implement cascading changes.
+
+Determine whether category archive should affect existing store listings or only future selections.
+
+Mark business decision if unresolved.
+
+==================================================
+12. REMOVE FROM MY STORE
+==================================================
+
+Define future behavior when vendor wants to remove a product from their store.
+
+Evaluate:
+
+- delete
+- deactivate
+- archive
+- hide
+
+Must preserve:
+
+- product ID
+- variant ID
+- historical orders
+- reorder lineage
+
+Determine how re-adding the same master product should work later.
+
+Do not implement.
+
+==================================================
+13. LEGACY PRODUCTS
+==================================================
+
+Current products may have:
+
+master_product_id = NULL
+
+Determine what should happen to unmapped legacy products.
+
+Classify:
+
+A. Continue selling temporarily
+B. Vendor must map before continuing
+C. Admin must map
+D. Legacy products become read-only
+E. Other
+
+Do not choose without evidence.
+
+Analyze implications for:
+
+- customers
+- carts
+- orders
+- reorder
+- vendor management
+- future Master Catalog restriction
+
+==================================================
+14. LEGACY CATEGORIES
+==================================================
+
+Same analysis for:
+
+categories.master_category_id = NULL
+
+Determine:
+
+- whether legacy categories can remain
+- whether they can contain new products
+- whether they can be sold through customer catalog
+- whether they must eventually map
+- who can map them
+
+Do not migrate anything.
+
+==================================================
+15. PRODUCT MAPPING CORRECTION
+==================================================
+
+Step 4 proposed reviewed mapping.
+
+Determine what happens if:
+
+Store Product A
+was mapped to
+Master Product X
+
+and later an administrator discovers it should be:
+
+Master Product Y
+
+Analyze impact on:
+
+- existing customers
+- cart
+- reorder
+- historical orders
+- product identity
+- variants
+
+IMPORTANT:
+
+Do not silently allow semantic reassignment.
+
+Determine whether mapping should be:
+
+- immutable
+- correctable with audit
+- correctable only when no active commerce dependency exists
+- another approved model
+
+Mark unresolved decisions.
+
+==================================================
+16. MISSING MASTER PRODUCT REQUEST
+==================================================
+
+Analyze future behavior when a vendor cannot find a product.
+
+Potential conceptual flow:
+
+Vendor
+→ Request Product
+→ Admin Review
+→ Master Product Created/Rejected
+→ Vendor can select it
+
+Determine whether this is required for MVP.
+
+Do not implement.
+
+If not required, explain what happens to a vendor when the required product does not exist.
+
+==================================================
+17. MASTER PRODUCT CONTENT CHANGES
+==================================================
+
+Analyze what happens if Admin changes:
+
+- name
+- description
+- image
+- brand
+- category
+
+after vendors have already selected the product.
+
+Evaluate:
+
+A. Existing store listings update automatically.
+B. Existing store listings retain copied values.
+C. Customer reads dynamically resolve master values.
+D. Vendor overrides exist.
+E. Other behavior.
+
+Do not choose without requirements.
+
+Pay special attention to historical snapshots.
+
+==================================================
+18. CUSTOMER CATALOG RULE
+==================================================
+
+LOCK THIS ARCHITECTURAL PRINCIPLE:
+
+Customer sees:
+
+Selected Store
+→ Store Products
+→ Store Variants
+
+NOT:
+
+Customer
+→ Master Products
+
+Verify that future Master Catalog implementation does not accidentally expose:
+
+- unselected products
+- archived master products
+- products from another store
+- vendor-only master metadata
+
+Do not modify anything.
+
+==================================================
+19. SEARCH RULES
+==================================================
+
+Separate:
+
+VENDOR MASTER SEARCH
+
+from
+
+CUSTOMER STORE SEARCH
+
+Determine:
+
+Vendor:
+Master Catalog search
+
+Customer:
+Selected Store product search
+
+Ensure future design cannot accidentally use the Master Catalog as the customer shopping inventory.
+
+Do not implement search changes.
+
+==================================================
+20. SKU / EXTERNAL CODE
+==================================================
+
+Analyze:
+
+Master Product SKU?
+Store Product SKU?
+Variant SKU?
+External code?
+
+The current system has store/product-specific codes.
+
+Determine whether Master Catalog requires canonical SKU/GTIN/barcode fields.
+
+Do not invent fields unless necessary.
+
+If barcode/GTIN is not currently supported, mark:
+
+NOT CURRENTLY SUPPORTED
+
+Do not automatically use SKU as canonical identity.
+
+==================================================
+21. UNIT / PACK / VARIANT RULES
+==================================================
+
+Confirm the current supported units:
+
+g
+kg
+ml
+l
+piece
+pack
+dozen
+
+Confirm:
+
+Bottle and Box are NOT currently supported.
+
+Analyze whether adding Bottle/Box belongs to:
+
+- Master Catalog phase
+- Variant phase
+- separate future enhancement
+
+Do not implement.
+
+Also confirm that:
+
+Master Product
+does NOT own store stock.
+
+Store Variant
+owns commercial quantity/unit/price/stock.
+
+==================================================
+22. STORE ISOLATION TEST SCENARIOS
+==================================================
+
+Create exact future acceptance scenarios:
+
+Scenario 1:
+Vendor A adds Rice.
+
+Expected:
+Vendor B does not receive Rice automatically.
+
+Scenario 2:
+Vendor A price = ₹X.
+Vendor B price = ₹Y.
+
+Expected:
+Both remain independent.
+
+Scenario 3:
+Vendor A stock = 0.
+Vendor B stock > 0.
+
+Expected:
+A unavailable, B unaffected.
+
+Scenario 4:
+Admin changes Master Product name.
+
+Expected:
+Behavior depends on approved propagation/override rule.
+
+Scenario 5:
+Vendor removes product.
+
+Expected:
+Historical orders remain unchanged.
+
+Scenario 6:
+Customer reorders old item.
+
+Expected:
+Exact historical product/variant lineage; no substitution.
+
+Scenario 7:
+Master product is archived.
+
+Expected:
+Behavior depends on approved existing-listing policy.
+
+Do not execute tests.
+
+==================================================
+23. BUSINESS DECISION REGISTER
+==================================================
+
+Create a table:
+
+| Decision | Current Evidence | Options | Recommended Resolution | Status |
+
+Include at least:
+
+1. Canonical product granularity
+2. One vs multiple store listings
+3. Vendor name override
+4. Vendor image override
+5. Vendor description override
+6. Vendor category override
+7. Add to My Store behavior
+8. Required commercial configuration
+9. Default variant behavior
+10. Master archive behavior
+11. Master category archive behavior
+12. Remove from My Store
+13. Legacy product selling policy
+14. Legacy category policy
+15. Mapping correction
+16. Missing product request
+17. Master content propagation
+18. Canonical SKU/GTIN
+19. Bottle/Box units
+
+For every decision, distinguish:
+
+LOCKED
+CURRENTLY SUPPORTED
+RECOMMENDED
+REQUIRES BUSINESS DECISION
+NOT CURRENTLY SUPPORTED
+
+Do not present a recommendation as an already approved requirement.
+
+==================================================
+24. IMPLEMENTATION GATE
+==================================================
+
+At the end determine:
+
+CAN IMPLEMENTATION START?
+
+Only answer YES if all behavior-critical decisions are sufficiently defined.
+
+If NO:
+
+List the exact decisions that must be resolved first.
+
+If YES:
+
+List the exact implementation phase that should begin.
+
+DO NOT implement anything.
+
+==================================================
+25. FINAL OUTPUT FORMAT
+==================================================
+
+Return exactly:
+
+# STEP 5 — MASTER CATALOG BUSINESS RULES AUDIT
+
+## 1. Executive Summary
+## 2. Canonical Product Granularity
+## 3. Store Listing Uniqueness
+## 4. Vendor Overrides
+## 5. Master vs Store Categories
+## 6. Add to My Store
+## 7. Required Product Configuration
+## 8. Default Variant Behavior
+## 9. Store Price and Stock
+## 10. Master Product Archive
+## 11. Master Category Archive
+## 12. Remove From My Store
+## 13. Legacy Products
+## 14. Legacy Categories
+## 15. Mapping Correction
+## 16. Missing Master Product
+## 17. Master Content Changes
+## 18. Customer Catalog Rules
+## 19. Search Rules
+## 20. SKU / External Code
+## 21. Unit / Pack / Variant Rules
+## 22. Acceptance Scenarios
+## 23. Business Decision Register
+## 24. Implementation Gate
+## 25. Final Recommendation
+
+For every important conclusion, include exact repository file paths where applicable.
+
+Do not create or modify any files.
+
+At the very end state exactly:
+
+AUDIT STATUS: READ-ONLY — NO CODE MODIFIED
