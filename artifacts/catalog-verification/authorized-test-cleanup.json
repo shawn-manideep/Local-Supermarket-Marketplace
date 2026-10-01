@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-10-01T14:51:44.439Z",
+  "scope": "Authorized development test-data cleanup through the existing Admin API under normal Supabase QA Admin sign-in. No browser launched and no automated browser test.",
+  "archivedTestMasters": [
+    {
+      "id": "e7257028-b1c8-456a-a133-8ce5f6ba70b0",
+      "name": "Virelune3ecab25a2ebd4603971430916598aaa2",
+      "detailsMarker": "Luthomora1e2009dc2ff64cbf93dfaf9c2bf3e58b",
+      "createdAt": "2026-10-01T14:23:52.163875Z",
+      "retainedInactiveZeroVariantDraftId": "c501db2e-c588-4fbf-bb7f-8b2cbc045056"
+    },
+    {
+      "id": "122bc762-ccd1-482f-8558-b12ea0a80f7e",
+      "name": "Virelunec2cf149439c340049b1dd811aaf3f051",
+      "detailsMarker": "Luthomora74b805364bdd437dbd11a8344287c6df",
+      "createdAt": "2026-10-01T14:31:55.383117Z",
+      "retainedInactiveZeroVariantDraftId": "75d1fccb-006a-4fb5-9976-932a2a36880b"
+    }
+  ],
+  "exactOwnershipGuardsPassed": true,
+  "archiveConfirmedReadOnly": true,
+  "allEightCommerceTablesUnchanged": true,
+  "allOtherCatalogRowsUnchanged": true,
+  "onlyAllowedMasterActiveAndTimestampFieldsChanged": true,
+  "allCatalogAndCommerceRowCountsUnchanged": true,
+  "counts": {
+    "activeCategories": 25,
+    "classifiedActiveGroceryMasters": 181,
+    "activeMasterProducts": 182,
+    "totalMasterProductsIncludingArchived": 195,
+    "activePendingMasters": 1,
+    "orders": 18
+  },
+  "unattributedPendingMasterUntouched": true,
+  "manualUIAcceptance": "Pending. API cleanup is not browser or manual UI proof.",
+  "cleanupPassed": true
+}

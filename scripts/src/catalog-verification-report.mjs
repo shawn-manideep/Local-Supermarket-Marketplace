@@ -3,6 +3,11 @@ import path from "node:path";
 
 const directory = "artifacts/catalog-verification";
 const report = JSON.parse(await fs.readFile(path.join(directory, "report.json"), "utf8"));
+const cleanupProof = await fs.readFile(path.join(directory, "authorized-test-cleanup.json"), "utf8")
+  .then(JSON.parse).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+    return null;
+  });
 const counts = { ...(report.historicalEvidence?.counts ?? {}), ...(report.counts ?? {}) };
 const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -33,7 +38,7 @@ const items = [
   ["API and database test results", '<p>Final API suite: 79 passed, 0 failed, 1 opt-in integration test skipped. Authenticated browser verification and read-only database checks are reported separately, not inferred from unit tests.</p>', /snapshot|unchanged|ownership|privacy|payload|database|orders|commerce|rollback|stale/i],
   ["Typecheck results", "<p>Workspace typecheck passed. After the review fixes, validation, API and dashboard typechecks also passed; unchanged customer/artifact checks remain valid.</p>", null],
   ["Build results", "<p>Workspace builds and Expo customer web export passed. API and dashboard builds passed again after the review fixes. Existing non-blocking bundle-size/source-map warnings remain. Production was not published.</p>", null],
-  ["Remaining issues and cleanup", `<p>${report.passed ? "Authenticated acceptance passed." : "Authenticated acceptance is incomplete; failed checks are listed below."}</p><ul>${(report.issues ?? []).map((issue) => `<li>${escape(issue)}</li>`).join("") || "<li>No additional issues recorded.</li>"}</ul><p>Cleanup: ${escape(JSON.stringify(report.cleanup ?? {}))}</p>`, /cleanup|restore|deactivat|retain|archiv/i],
+  ["Remaining issues and cleanup", `<p>${report.passed ? "Authenticated acceptance passed." : "Authenticated acceptance remains incomplete. Rice-card selection, Admin search and Customer variant selection require manual UI verification; no more automated browser tests were run."}</p>${cleanupProof?.cleanupPassed ? "<p>Authorized cleanup subsequently passed through the existing Admin API, not browser automation: both positively identified test masters are archived. All other catalog rows and all eight commerce tables remained unchanged. The unrelated pending master was untouched. This does not establish manual Admin UI acceptance.</p><p>The following issues and cleanup flags describe the earlier failed browser run, before the separately recorded API cleanup:</p>" : ""}<ul>${(report.issues ?? []).map((issue) => `<li>${escape(issue)}</li>`).join("") || "<li>No additional issues recorded.</li>"}</ul><p>Historical browser cleanup flags: ${escape(JSON.stringify(report.cleanup ?? {}))}</p>`, /cleanup|restore|deactivat|retain|archiv/i],
 ];
 let images = "";
 for (const filename of report.screenshots ?? []) {
@@ -60,6 +65,9 @@ if (!report.passed) {
     ? `<p>Read-only development status after interrupted verification. These are not final accepted counts; two proven test-created pending masters still need safe Admin UI cleanup.</p><pre>${escape(snapshot)}</pre>`
     : "<p>Final count snapshot not yet recorded. Cleanup is incomplete.</p>";
 }
+if (cleanupProof?.cleanupPassed) {
+  finalCounts = `<p>Read-only confirmation after authorized Admin API cleanup. Manual UI acceptance is still pending; cleanup did not modify any unrelated development records.</p><pre>${escape(JSON.stringify(cleanupProof, null, 2))}</pre>`;
+}
 if (!finalCounts && counts.masterProductsTotalAfter !== undefined) {
   finalCounts = `<pre>${escape(JSON.stringify({
     activeMasterCategories: counts.masterCategoriesAfter,
@@ -78,6 +86,7 @@ figcaption{color:#526777;font-size:14px}pre{white-space:pre-wrap;overflow-wrap:a
 <p>${report.passed ? "Passed" : "Incomplete"} · ${allAssertions.filter((item) => item.passed).length}/${allAssertions.length} browser/database assertions passed.</p>
 ${report.historicalEvidence ? `<p>Vendor catalog evidence was verified earlier at ${escape(report.historicalEvidence.priorReportModifiedAt)} and retained explicitly; subsequent flows were verified in the continued run.</p>` : ""}
 <p>${report.passed ? "Normal authenticated vendor, customer and Admin journeys passed." : "Authenticated Vendor B checks passed only in part. Customer selection and Admin management were not accepted in this run."} No authentication, checkout, orders, reorder, payments, Delivery Partner or stock-deduction code changes. Production was not published.</p></header>
+${cleanupProof?.cleanupPassed ? "<article><h2>Latest status: safe test cleanup completed; manual UI verification pending</h2><p>The two positively identified test masters were archived through the existing Admin API. This evidence is separate from the historical browser assertions. No additional automated browser test was run.</p></article>" : ""}
 ${items.map(([title, text, pattern], index) => `<article><h2>${index + 1}. ${escape(title)}</h2>${text}${pattern ? `<ul>${summarize(pattern)}</ul>` : ""}</article>`).join("")}
 <article><h2>${report.passed ? "Final database counts" : "Read-only status after interrupted verification"}</h2>${finalCounts || "<p>Final count snapshot not yet recorded.</p>"}</article>
 <article><h2>All recorded acceptance checks</h2><ul>${summarize(/./)}</ul></article>${images}</main></html>`;
