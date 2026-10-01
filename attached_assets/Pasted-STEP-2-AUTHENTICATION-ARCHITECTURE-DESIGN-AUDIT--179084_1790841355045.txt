@@ -1,0 +1,890 @@
+STEP 2 — AUTHENTICATION ARCHITECTURE DESIGN AUDIT
+=================================================
+
+IMPORTANT:
+THIS IS A READ-ONLY ARCHITECTURE/DESIGN AUDIT.
+
+DO NOT MODIFY ANYTHING.
+
+Do NOT:
+- edit source code
+- create files
+- delete files
+- rename files
+- modify database schema
+- create migrations
+- run migrations
+- modify Supabase
+- modify RLS policies
+- modify environment variables
+- install packages
+- uninstall packages
+- modify UI
+- modify APIs
+- modify authentication behavior
+- commit changes
+- push changes
+- create database records
+- change DEV data
+
+Do not "fix" anything you discover.
+
+The only output required from this task is an architecture/design report.
+
+=================================================
+PROJECT CONTEXT
+=================================================
+
+The project is the existing Local Supermarket Marketplace.
+
+The previous READ-ONLY architecture audit confirmed:
+
+- Customer authentication currently uses Supabase email/password.
+- Dashboard authentication currently uses Supabase email/password.
+- Supabase owns passwords, sessions, access tokens and refresh tokens.
+- `user_profiles.id` references `auth.users.id`.
+- Customer identity is linked to the Supabase Auth UUID.
+- Vendor store ownership uses `stores.owner_user_id`.
+- Current roles are:
+  - customer
+  - vendor
+  - admin
+- There is currently no public vendor registration workflow.
+- There is currently no username field or username lookup layer.
+- There is currently no username/password login flow.
+- There is currently no forgot-password UI/API flow.
+- There is currently no Delivery Partner role.
+- Existing customer/vendor/order/store functionality must be preserved.
+
+Previous audit also established that existing Auth UUIDs and Supabase-managed credentials must NOT be replaced unnecessarily.
+
+=================================================
+NEW BUSINESS REQUIREMENT
+=================================================
+
+The marketplace now requires username-based account access.
+
+CUSTOMER REGISTRATION:
+
+- Username
+- Password
+- Confirm Password
+
+CUSTOMER LOGIN:
+
+- Username
+- Password
+
+VENDOR REGISTRATION:
+
+- Shop Name
+- Username
+- Password
+- Confirm Password
+
+VENDOR LOGIN:
+
+- Username
+- Password
+
+DELIVERY PARTNER REGISTRATION/ACCOUNT:
+
+- Username
+- Password
+- Confirm Password
+
+DELIVERY PARTNER LOGIN:
+
+- Username
+- Password
+
+ADMIN:
+
+Existing admin authentication and provisioning must continue to work.
+
+IMPORTANT:
+
+Email/Gmail must NOT be required as the user's login identity.
+
+Phone must NOT be required as the user's login identity.
+
+The application must NOT start storing plaintext passwords.
+
+The application must NOT replace Supabase Auth with a custom password system unless there is a compelling architectural reason that is explicitly demonstrated.
+
+Forgot Password is required.
+
+=================================================
+PRIMARY ARCHITECTURAL GOAL
+=================================================
+
+Find the safest architecture that allows the USER EXPERIENCE to be:
+
+Username + Password
+
+while preserving:
+
+- Supabase Auth where safely possible
+- existing Auth UUIDs
+- existing customer/vendor relationships
+- existing stores
+- existing orders
+- existing carts
+- existing historical snapshots
+- existing RLS/security boundaries
+- existing sessions where practical
+- existing API Bearer-token authentication
+- existing role resolution
+
+The goal is to change the LOGIN IDENTITY EXPERIENCE,
+not unnecessarily replace the application's underlying identity system.
+
+=================================================
+1. INSPECT CURRENT AUTH IMPLEMENTATION
+=================================================
+
+Inspect the actual source code.
+
+At minimum inspect:
+
+- `apps/customer/App.tsx`
+- customer auth screens/components
+- `apps/customer/src/lib/supabase.ts`
+- customer auth/API helpers
+- `apps/dashboard/src/App.tsx`
+- dashboard auth screens/components
+- `apps/dashboard/src/supabase.ts`
+- `backend/api/src/auth/routes.ts`
+- `backend/api/src/auth/middleware.ts`
+- `backend/api/src/auth/config.ts`
+- `backend/api/src/auth/types.ts`
+- `backend/api/src/auth/index.ts`
+- `user_profiles` schema
+- `customers` schema
+- `stores` schema
+- all relevant migrations
+- RLS policies
+- database triggers related to Auth/profile creation
+- role handling
+- existing tests
+
+Do not change these files.
+
+Report the actual implementation, not assumptions.
+
+=================================================
+2. CURRENT SUPABASE AUTH FLOW
+=================================================
+
+Document the current flow precisely.
+
+Explain:
+
+Customer:
+
+Registration
+→ Supabase Auth
+→ user profile
+→ customer record
+→ session
+→ API Bearer token
+
+Login
+→ Supabase Auth
+→ access token
+→ backend
+→ `requireAuth`
+→ role resolution
+
+Vendor:
+
+Explain how vendor identity currently relates to:
+
+- auth.users
+- user_profiles
+- stores
+- stores.owner_user_id
+
+Admin:
+
+Explain how admin identity is currently provisioned and authorized.
+
+Also document:
+
+- session persistence
+- refresh token behavior
+- logout
+- authentication state restoration
+- role resolution
+- `/api/auth/me`
+
+=================================================
+3. USERNAME ARCHITECTURE OPTIONS
+=================================================
+
+Analyze possible ways to provide username/password UX while preserving Supabase Auth.
+
+At minimum evaluate these approaches:
+
+OPTION A:
+Username mapped to an internal Supabase Auth email-style identifier.
+
+OPTION B:
+Username mapped through a secure server-side identity lookup before calling Supabase Auth.
+
+OPTION C:
+Separate custom authentication/password system.
+
+OPTION D:
+Any other architecture you believe is materially safer or more appropriate.
+
+For EVERY option provide:
+
+- how registration would work
+- how login would work
+- how password verification would work
+- where the password would be stored
+- whether Supabase continues managing passwords
+- whether Auth UUIDs remain unchanged
+- how sessions/tokens work
+- how logout works
+- how `/api/auth/me` works
+- how role resolution works
+- security implications
+- recovery implications
+- migration complexity
+- impact on existing users
+- impact on existing customers
+- impact on existing vendors
+- impact on future Delivery Partners
+- impact on Admin
+- impact on RLS
+- impact on API middleware
+- impact on frontend
+- major risks
+- operational complexity
+
+Do not implement any option.
+
+=================================================
+4. RECOMMEND THE ARCHITECTURE
+=================================================
+
+After comparing the options, recommend ONE architecture for this project.
+
+The recommendation must prioritize:
+
+1. Security
+2. Preservation of existing Auth UUIDs
+3. Preservation of existing Supabase-managed password handling where possible
+4. Minimal disruption to completed functionality
+5. Simple future support for:
+   - customer
+   - vendor
+   - delivery partner
+   - admin
+6. Secure password recovery
+7. Low migration risk
+8. Clear backend authorization boundaries
+9. Minimal unnecessary infrastructure
+10. Avoiding a custom password database
+
+IMPORTANT:
+
+Do not recommend an architecture merely because it is easier to code.
+
+Explain WHY the selected architecture fits the existing implementation.
+
+=================================================
+5. USERNAME DATA MODEL
+=================================================
+
+Design the proposed username data model.
+
+Determine whether username should be:
+
+- stored directly in `user_profiles`
+OR
+- stored in a separate identity/username table
+OR
+- handled another way.
+
+Consider:
+
+- normalized username
+- display username
+- case sensitivity
+- uniqueness
+- reserved usernames
+- minimum/maximum length
+- allowed characters
+- spaces
+- special characters
+- changing username
+- username immutability
+- duplicate usernames
+- deleted/deactivated accounts
+- role-specific usernames
+- whether usernames are globally unique across all roles
+
+IMPORTANT:
+
+Do not create the table or migration.
+
+Only recommend the structure.
+
+Provide proposed fields and relationships.
+
+=================================================
+6. USERNAME NORMALIZATION
+=================================================
+
+Define the recommended normalization rules.
+
+For example, determine whether:
+
+`Sharanya`
+
+and
+
+`sharanya`
+
+should be treated as the same username.
+
+Determine how uniqueness should be enforced safely at the database level.
+
+Also consider:
+
+- leading/trailing spaces
+- Unicode
+- special characters
+- reserved system names
+- duplicate usernames
+- malicious/confusing usernames
+
+Do not implement validation yet.
+
+=================================================
+7. REGISTRATION FLOW
+=================================================
+
+Design the future registration flow.
+
+CUSTOMER:
+
+Username
+Password
+Confirm Password
+
+Explain:
+
+Frontend validation
+→ API/backend processing
+→ Supabase Auth interaction
+→ profile creation
+→ customer creation
+→ session
+→ response
+
+VENDOR:
+
+Shop Name
+Username
+Password
+Confirm Password
+
+Explain:
+
+Frontend
+→ backend
+→ identity creation
+→ profile
+→ vendor role
+→ store creation
+→ ownership relationship
+→ session
+
+DELIVERY PARTNER:
+
+Username
+Password
+Confirm Password
+
+Explain future creation/provisioning.
+
+IMPORTANT:
+
+Do not implement.
+
+Also identify which roles should be allowed to self-register and which must be provisioned/admin-controlled.
+
+=================================================
+8. PASSWORD SECURITY
+=================================================
+
+Explain how passwords should be handled.
+
+The final architecture must NOT:
+
+- store plaintext passwords
+- expose password hashes to frontend
+- allow client-side password verification
+- bypass Supabase password verification without strong justification
+- place service-role credentials in frontend code
+
+Explain where password verification should occur.
+
+=================================================
+9. FORGOT PASSWORD / RECOVERY
+=================================================
+
+This is a major architectural issue because the requested login identity is username rather than email/phone.
+
+Analyze safe recovery options.
+
+At minimum evaluate:
+
+A. Optional verified email recovery
+B. Optional verified phone recovery
+C. Recovery codes
+D. Admin-assisted recovery
+E. Combination of methods
+F. Any other secure method
+
+IMPORTANT:
+
+The login identity may be username-only, but password recovery still needs a secure proof-of-ownership mechanism.
+
+Do NOT silently assume that username alone is sufficient for password recovery.
+
+For each option explain:
+
+- security
+- usability
+- implementation complexity
+- abuse risks
+- account takeover risks
+- impact on users who have no email/phone
+- impact on Supabase Auth
+
+Then recommend the recovery model.
+
+=================================================
+10. VENDOR SHOP CREATION
+=================================================
+
+The new vendor registration requires:
+
+Shop Name
+Username
+Password
+Confirm Password
+
+Analyze how this should integrate with the existing:
+
+`stores`
+`stores.owner_user_id`
+`user_profiles`
+role system
+
+Determine:
+
+- when the store should be created
+- whether store status should start as PENDING_APPROVAL
+- whether vendor should be able to log in before approval
+- whether the vendor session should exist before store approval
+- how admin approval interacts with registration
+- how duplicate shop names should be handled
+- how duplicate usernames should be handled
+
+Do not implement.
+
+=================================================
+11. DELIVERY PARTNER IDENTITY
+=================================================
+
+The future system will introduce:
+
+`delivery_partner`
+
+as a new role.
+
+Analyze how it should fit into the existing identity architecture.
+
+Determine whether the role should be:
+
+- stored in the existing role enum
+- represented by a profile table
+- represented by a dedicated role/profile relationship
+- another approach
+
+The future Delivery Partner must have:
+
+- username
+- password
+- active/inactive state
+- assigned delivery duties
+- delivery history
+
+Determine how the authenticated user's identity should be linked to those records.
+
+Do not implement.
+
+=================================================
+12. ADMIN COMPATIBILITY
+=================================================
+
+Existing Admin authentication must continue to work.
+
+Analyze whether introducing username login will:
+
+- affect existing admin users
+- require admin usernames
+- allow admin login through the same username system
+- require a migration
+- affect role resolution
+- affect RLS
+- affect `/api/auth/me`
+
+Recommend the safest compatibility strategy.
+
+Do not change admin accounts.
+
+=================================================
+13. EXISTING USER MIGRATION
+=================================================
+
+Analyze how existing email/password users could be migrated.
+
+Existing users must NOT lose:
+
+- Auth UUID
+- password
+- customer record
+- addresses
+- orders
+- cart data
+- role relationships
+
+Determine:
+
+- whether existing users should receive usernames
+- whether usernames should be mandatory immediately
+- whether migration should be gradual
+- how username collisions would be handled
+- what happens to users who have not selected a username
+
+Do not migrate any users.
+
+=================================================
+14. SESSION / TOKEN IMPACT
+=================================================
+
+Determine whether username login changes:
+
+- Supabase access tokens
+- refresh tokens
+- session persistence
+- AsyncStorage
+- browser sessions
+- API Bearer tokens
+- `requireAuth`
+- role resolution
+- `/api/auth/me`
+
+The desired result is:
+
+Username is the LOGIN identifier.
+
+Supabase Auth UUID remains the AUTHORITATIVE identity.
+
+=================================================
+15. RLS / SECURITY IMPACT
+=================================================
+
+Analyze whether username lookup creates any security risks.
+
+Pay special attention to:
+
+- username enumeration
+- account existence disclosure
+- IDOR
+- user ID exposure
+- role escalation
+- vendor impersonation
+- delivery partner impersonation
+- password reset abuse
+- rate limiting
+- brute-force protection
+
+Determine which checks must remain server-side.
+
+Do not change RLS.
+
+=================================================
+16. API DESIGN
+=================================================
+
+Design the future API contract conceptually.
+
+Do not implement.
+
+Describe proposed endpoints for:
+
+Customer:
+
+- registration
+- username login
+- forgot password
+- password reset
+- current user
+
+Vendor:
+
+- registration
+- username login
+- forgot password
+- password reset
+
+Delivery Partner:
+
+- login
+- password recovery
+- current profile
+
+Admin:
+
+- compatibility with existing authentication
+
+For each endpoint describe:
+
+- method
+- purpose
+- authentication state
+- request fields
+- response concept
+- validation
+- rate limiting
+- security considerations
+
+Do not create routes.
+
+=================================================
+17. FRONTEND IMPACT
+=================================================
+
+Identify the actual files that would eventually need changes.
+
+Separate them into:
+
+CUSTOMER
+VENDOR/ADMIN
+DELIVERY PARTNER
+SHARED/BACKEND
+
+For each file explain why it would change.
+
+Do not change files.
+
+=================================================
+18. TESTING STRATEGY
+=================================================
+
+Design the tests required AFTER implementation.
+
+Include:
+
+Registration:
+
+- valid username
+- duplicate username
+- case variation
+- invalid username
+- password mismatch
+- weak password
+- invalid shop name
+
+Login:
+
+- valid username/password
+- wrong password
+- unknown username
+- inactive account
+- wrong role
+- session restoration
+- logout
+
+Recovery:
+
+- valid recovery
+- invalid recovery
+- expired recovery
+- reused recovery
+- brute-force protection
+- username enumeration protection
+
+Authorization:
+
+- customer cannot access vendor
+- vendor cannot access another vendor
+- delivery partner cannot access another partner
+- delivery partner cannot access vendor/admin resources
+- admin retains proper access
+
+Migration:
+
+- existing user retains UUID
+- existing orders remain linked
+- existing addresses remain linked
+- existing vendor store remains linked
+- existing sessions are handled safely
+
+Do not run these tests now.
+
+=================================================
+19. MIGRATION PLAN
+=================================================
+
+Provide a future migration sequence ONLY.
+
+Example structure:
+
+Migration A:
+username identity structure
+
+Migration B:
+existing user mapping
+
+Migration C:
+delivery partner role/profile foundation
+
+etc.
+
+Do not create any migration files.
+
+For each migration explain:
+
+- purpose
+- affected tables
+- backward compatibility
+- data risk
+- rollback considerations
+
+=================================================
+20. DECISIONS WE MUST LOCK BEFORE CODING
+=================================================
+
+At the end, provide a short section:
+
+"AUTHENTICATION DECISIONS REQUIRED"
+
+List ONLY decisions that genuinely require approval before implementation.
+
+Examples may include:
+
+- username global uniqueness
+- username normalization
+- whether usernames can be changed
+- recovery mechanism
+- vendor self-registration vs admin approval
+- delivery partner provisioning
+- existing-user username migration strategy
+
+Do not ask unnecessary questions.
+
+=================================================
+21. FINAL REQUIRED OUTPUT FORMAT
+=================================================
+
+Return ONLY a structured architecture report.
+
+Use these exact headings:
+
+1. EXECUTIVE SUMMARY
+
+2. CURRENT AUTHENTICATION VERIFIED
+
+3. CURRENT IDENTITY RELATIONSHIPS
+
+4. USERNAME ARCHITECTURE OPTIONS
+
+5. RECOMMENDED AUTHENTICATION ARCHITECTURE
+
+6. USERNAME DATA MODEL
+
+7. USERNAME NORMALIZATION RULES
+
+8. CUSTOMER REGISTRATION DESIGN
+
+9. VENDOR REGISTRATION DESIGN
+
+10. DELIVERY PARTNER IDENTITY DESIGN
+
+11. ADMIN COMPATIBILITY
+
+12. PASSWORD SECURITY MODEL
+
+13. FORGOT PASSWORD / RECOVERY DESIGN
+
+14. EXISTING USER MIGRATION
+
+15. SESSION AND TOKEN IMPACT
+
+16. RLS / SECURITY IMPACT
+
+17. FUTURE API DESIGN
+
+18. FRONTEND FILE IMPACT
+
+19. TESTING STRATEGY
+
+20. FUTURE MIGRATION SEQUENCE
+
+21. AUTHENTICATION DECISIONS REQUIRED
+
+22. RISKS AND DEPENDENCIES
+
+23. FILE-BY-FILE IMPACT MAP
+
+For the FILE-BY-FILE IMPACT MAP use actual repository files and classify each as:
+
+- PRESERVE
+- MODIFY LATER
+- NEW FILE LATER
+- NEEDS REVIEW
+
+=================================================
+FINAL ABSOLUTE RULE
+=================================================
+
+THIS TASK IS READ-ONLY.
+
+DO NOT IMPLEMENT ANYTHING.
+
+DO NOT MODIFY FILES.
+
+DO NOT MODIFY DATABASE.
+
+DO NOT CREATE MIGRATIONS.
+
+DO NOT MODIFY SUPABASE.
+
+DO NOT MODIFY RLS.
+
+DO NOT INSTALL PACKAGES.
+
+DO NOT COMMIT.
+
+DO NOT PUSH.
+
+DO NOT CREATE USERS.
+
+DO NOT CHANGE DEV DATA.
+
+Do not use implementation tools simply because you found a problem.
+
+The purpose of this task is ONLY to produce the authentication architecture design that we will review before authorizing implementation.
+
+At the very end state exactly:
+
+"AUTHENTICATION DESIGN AUDIT ONLY — NO FILES, DATABASES, MIGRATIONS, USERS, CONFIGURATION, OR AUTHENTICATION SETTINGS WERE MODIFIED."
