@@ -294,7 +294,7 @@ export class BrowserCDP {
     return false;
   }
   async rect(page, expression, scroll = false) {
-    if (scroll) await this.evaluate(page, `(() => { const e = ${expression}; e?.scrollIntoView({ block: "center", inline: "nearest" }); return !!e; })()`);
+    if (scroll) await this.evaluate(page, `(() => { const e = ${expression}; e?.scrollIntoView({ behavior: "instant", block: "center", inline: "nearest" }); return !!e; })()`);
     return this.evaluate(page, `(() => {
       const e = ${expression};
       if (!e) return null;
@@ -333,6 +333,13 @@ export class BrowserCDP {
   }
   async fillSelector(page, selector, value) {
     await this.clickSelector(page, selector);
+    const focused = await this.evaluate(page, `(() => {
+      const e = document.querySelector(${JSON.stringify(selector)});
+      if (!e || e.disabled) return false;
+      e.focus({ preventScroll: true });
+      return document.activeElement === e;
+    })()`);
+    if (!focused) throw new Error("Expected browser input could not receive focus.");
     await this.key(page, "a", 2);
     if (value === "") await this.key(page, "Backspace");
     else await this.send("Input.insertText", { text: value }, page.sessionId);

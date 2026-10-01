@@ -1,7 +1,7 @@
 {
   "title": "Master Catalog authenticated browser verification",
   "passed": false,
-  "startedAt": "2026-10-01T13:49:41.211Z",
+  "startedAt": "2026-10-01T14:31:48.849Z",
   "assertions": [
     {
       "name": "QA-marked admin, Vendor B, Customer B, active Store B, and saved pincode fixtures verified read-only",
@@ -12,7 +12,7 @@
       "passed": true
     },
     {
-      "name": "read-only Master Catalog baseline has 25 active categories and the current 183 active / 190 total master products",
+      "name": "read-only Master Catalog baseline retains 25 active categories and 181 classified active grocery masters; pending and archived test records are counted separately",
       "passed": true
     },
     {
@@ -84,11 +84,39 @@
       "passed": true
     },
     {
-      "name": "vendor Master Catalog labels an unclassified family New product",
-      "passed": false
+      "name": "UI-created master is pending classification and mapped to one unavailable store draft",
+      "passed": true
     },
     {
-      "name": "missing product creation through the vendor UI",
+      "name": "vendor global search finds the new unclassified family with a simple New product label",
+      "passed": true
+    },
+    {
+      "name": "new store draft starts with zero selling variants and is immediately configurable",
+      "passed": true
+    },
+    {
+      "name": "real rice Master Catalog search remains global and category-unfiltered",
+      "passed": true
+    },
+    {
+      "name": "vendor pagination preserves the active browse filter and returns to its original page",
+      "passed": true
+    },
+    {
+      "name": "an unlisted real seeded rice identity is available without modifying existing store products",
+      "passed": true
+    },
+    {
+      "name": "Master Catalog category filter is optional and initially unselected",
+      "passed": true
+    },
+    {
+      "name": "the chosen unlisted rice identity is visible in the live catalog before adding it",
+      "passed": true
+    },
+    {
+      "name": "choose an unlisted real rice master",
       "passed": false
     },
     {
@@ -102,25 +130,28 @@
     "knownScreenshotHarnessMasterFound": 1,
     "masterCategories": 25,
     "masterProductsActiveBefore": 183,
-    "masterProductsTotalBefore": 190,
-    "unidentifiedPendingMastersRetained": 1,
+    "masterProductsTotalBefore": 194,
+    "unidentifiedPendingMastersRetained": 2,
     "baselineOrders": 18,
-    "priorHarnessMastersArchived": 1
+    "uniquePendingMasterCreated": 1
   },
   "screenshots": [
     "vendor-master-catalog-rice.png",
     "vendor-basmati-duplicate-review.png",
     "vendor-missing-no-match-review.png",
-    "failure-vendor-master-catalog-labels-an-unclassified-family-new-product.png"
+    "failure-choose-an-unlisted-real-rice-master.png",
+    "failure-admin-ui-cleanup.png"
   ],
   "issues": [
-    "1 pre-existing active pending Master Product(s) could not be attributed to this harness and were intentionally left untouched."
+    "At run start, two active pending masters were not identified by the older harness marker. A later strict-marker audit identified one as a newer test draft; the other remains unattributed and untouched.",
+    "Admin UI cleanup did not complete safely: The proven Admin cleanup row was not visible after exact-name search.",
+    "Post-run read-only check: two proven test-created pending masters are still active. The separate, unrelated pending master was not archived. Customer selection and the Admin acceptance flow were not verified."
   ],
   "cleanup": {
     "ownStoreListingDeactivated": false,
     "ownListingVariantsRetained": false,
     "uniqueMasterArchived": false,
-    "priorHarnessMastersArchived": 1
+    "priorHarnessMastersArchived": 0
   },
   "historicalEvidence": {
     "mode": "prior vendor catalog pass retained; not rerun in this continuation",
@@ -246,5 +277,9 @@
       "vendor-master-catalog-rice.png"
     ],
     "note": "These assertions and artifacts are historical evidence from the prior authenticated run. They are not counted as current assertions."
+  },
+  "adminCleanupFailure": {
+    "stage": "Admin UI cleanup",
+    "reason": "The proven Admin cleanup row was not visible after exact-name search."
   }
 }

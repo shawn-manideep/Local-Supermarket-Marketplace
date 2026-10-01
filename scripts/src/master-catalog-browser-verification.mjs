@@ -50,7 +50,8 @@ async function loadPriorCatalogEvidence() {
     throw new Error("--resume-after-vendor-catalog requires a readable prior catalog verification report.");
   }
 
-  const assertions = Array.isArray(priorReport.assertions) ? priorReport.assertions : [];
+  const priorEvidence = priorReport.historicalEvidence ?? priorReport;
+  const assertions = Array.isArray(priorEvidence.assertions) ? priorEvidence.assertions : [];
   const lastIndex = assertions.findIndex(item => item.name === lastReusableCatalogAssertion);
   const retainedAssertions = lastIndex >= 0 ? assertions.slice(0, lastIndex + 1) : [];
   if (retainedAssertions.length !== 24 || retainedAssertions.some(item => item.passed !== true)) {
@@ -58,7 +59,7 @@ async function loadPriorCatalogEvidence() {
   }
 
   const screenshots = [];
-  for (const name of Array.isArray(priorReport.screenshots) ? priorReport.screenshots : []) {
+  for (const name of Array.isArray(priorEvidence.screenshots) ? priorEvidence.screenshots : []) {
     if (typeof name !== "string" || path.basename(name) !== name ||
         !/^vendor-(?:master-catalog|catalog).*\.png$/i.test(name)) continue;
     try {
@@ -71,9 +72,9 @@ async function loadPriorCatalogEvidence() {
 
   return {
     assertions: retainedAssertions.map(item => ({ name: item.name, passed: true })),
-    counts: { ...(priorReport.counts ?? {}) },
+    counts: { ...(priorEvidence.counts ?? {}) },
     screenshots,
-    priorReportModifiedAt: reportStat.mtime.toISOString(),
+    priorReportModifiedAt: priorEvidence.priorReportModifiedAt ?? reportStat.mtime.toISOString(),
   };
 }
 
@@ -197,12 +198,12 @@ async function run() {
     report.counts.masterCategories = seedCounts.rows[0].active_categories;
     report.counts.masterProductsActiveBefore = seedCounts.rows[0].active_masters;
     report.counts.masterProductsTotalBefore = seedCounts.rows[0].total_masters;
-    record(checks, "read-only Master Catalog baseline has 25 active categories and the current 183 active / 190 total master products",
+    record(checks, "read-only Master Catalog baseline retains 25 active categories and 181 classified active grocery masters; pending and archived test records are counted separately",
       seedCounts.rows[0].active_categories === 25 &&
-      seedCounts.rows[0].active_masters === 183 &&
-      seedCounts.rows[0].total_masters === 190);
+      seedCounts.rows[0].active_masters - seedCounts.rows[0].active_pending_masters === 181 &&
+      seedCounts.rows[0].total_masters >= 190);
     const unidentifiedPending = Math.max(
-      0, seedCounts.rows[0].active_pending_masters - priorHarnessMasters.length,
+      0, seedCounts.rows[0].active_pending_masters - priorHarnessMasters.filter(master => master.is_active).length,
     );
     report.counts.unidentifiedPendingMastersRetained = unidentifiedPending;
     if (unidentifiedPending > 0) {
@@ -340,7 +341,7 @@ async function run() {
     );
     const pendingDraftSafe = pendingDraft.rowCount === 1 &&
       pendingDraft.rows[0].is_active === false && pendingDraft.rows[0].variant_count === 0;
-    record(checks, "newly classified and archived test master keeps its original inactive Store B draft with no variants",
+    record(checks, "newly archived unclassified test master keeps its original inactive Store B draft with no variants",
       pendingDraftSafe);
     report.cleanup.uniqueMasterArchived = Boolean(missingProduct.archived);
 
@@ -411,16 +412,26 @@ async function run() {
       configuredListing = error.listingProduct;
       privateScreenshotText.push(configuredListing.name);
     }
+    if (error?.adminPage) {
+      failurePage = error.adminPage;
+      const reason = typeof error.adminSafeReason === "string"
+        ? error.adminSafeReason
+        : "Admin UI verification stopped before confirming the required view.";
+      report.adminFailure = { stage: activeStage, reason };
+      report.issues.push(`Admin UI verification stopped at ${activeStage}: ${reason}`);
+    }
     report.passed = false;
     const lastFailure = [...checks].reverse().find(check => !check.passed);
     const failureName = error?.failedAssertion ?? lastFailure?.name ?? activeStage;
     if (!checks.some(check => check.name === failureName && !check.passed)) {
       checks.push({ name: failureName, passed: false });
     }
-    await captureFailureScreenshot(
-      browser, failurePage, artifactDir, report, failureName,
-      privateScreenshotText,
-    );
+    if (!error?.adminFailureScreenshotCaptured) {
+      await captureFailureScreenshot(
+        browser, failurePage, artifactDir, report, failureName,
+        privateScreenshotText,
+      );
+    }
     await writeSanitizedReport(artifactDir, report, checks);
     reportWrittenBeforeClose = true;
   } finally {
@@ -453,6 +464,7 @@ async function run() {
           const cleanup = await cleanupOwnMaster({
             browser,
             page: adminPage,
+            pool,
             dashboardUrl: origin ? new URL("/", origin).href : "",
             adminEmail: accounts?.admin.email,
             adminPassword,

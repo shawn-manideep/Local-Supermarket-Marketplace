@@ -1,0 +1,13 @@
+{
+  "scope": "Development database; read-only check after interrupted browser verification. Cleanup is incomplete, so these are not accepted final counts.",
+  "date": "2026-10-01",
+  "activeMasterCategories": 25,
+  "classifiedActiveGroceryMasters": 181,
+  "activePendingMasters": 3,
+  "activePendingMastersWithExactQATestMarkers": 2,
+  "unattributedPendingMastersRetained": 1,
+  "totalMasterProductsIncludingArchived": 195,
+  "activeMasterProducts": 184,
+  "deactivatedInterruptedStoreListingsWithFourRetainedVariants": 1,
+  "orders": 18
+}

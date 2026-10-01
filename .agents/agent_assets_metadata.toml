@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "IgkDiwARNK-ZV6xMZjIIt"
+uri = "file://artifacts/catalog-verification/report.html"
+type = "html"
+title = "Master Catalog verification — incomplete"
+description = "18-item development evidence report with authenticated vendor results, screenshots, current read-only counts, and the remaining customer/Admin and cleanup blockers. No production deployment."
+logical_id = "2c62a7b6-4f21-4103-be6f-2ea6426adf88"
+content_hash = "sha256:f7565de0d575c33a89897169a1b88cac1ecd5dfb424b5936df3ec683bd2918a4"
+size = 733857
+mtime_ms = 1790865387449
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/2c62a7b6-4f21-4103-be6f-2ea6426adf88/f168e509-8c13-4149-88f3-ed9d1d34a977"
+storage_version_token = "1790865404788160"
+content_type = "text/html"

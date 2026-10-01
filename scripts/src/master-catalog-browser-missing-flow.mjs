@@ -302,12 +302,6 @@ export async function runVendorMissingProductFlow({
     assert(checks, "new product creation immediately opens its store configuration without category selection",
       openedConfiguration);
     result.storeListingCreated = openedConfiguration;
-    const pendingVendorCard = await browser.wait(page, `Array.from(document.querySelectorAll('[data-testid^="card-master-product-"]'))
-      .some(element => element.querySelector('h3')?.innerText.trim() === ${quote(result.name)} &&
-        element.querySelector('.vendor-master-category')?.innerText.trim() === 'New product')`, 12000);
-    assert(checks, "vendor Master Catalog labels an unclassified family New product",
-      pendingVendorCard);
-
     const persisted = await pool.query(
       `SELECT m.id::text AS master_id, m.master_category_id::text AS category_id,
               m.is_active AS master_active, p.id::text AS listing_id,
@@ -323,6 +317,16 @@ export async function runVendorMissingProductFlow({
       persisted.rows[0].master_active === true && persisted.rows[0].listing_id &&
       persisted.rows[0].listing_active === false);
     result.masterProductId = persisted.rows[0].master_id;
+    // Creation opens My Store configuration. Search explicitly before checking
+    // the separate paginated Master Catalog, rather than assuming its old page
+    // contains the newly created family.
+    await browser.fillSelector(page, "#master-product-search", "");
+    await browser.fillSelector(page, "#master-product-search", result.name);
+    const pendingVendorCard = await browser.wait(page, `Array.from(document.querySelectorAll('[data-testid^="card-master-product-"]'))
+      .some(element => element.querySelector('h3')?.innerText.trim() === ${quote(result.name)} &&
+        element.querySelector('.vendor-master-category')?.textContent.trim() === 'New product')`, 12000);
+    assert(checks, "vendor global search finds the new unclassified family with a simple New product label",
+      pendingVendorCard);
     const variants = await pool.query(
       "SELECT count(*)::int AS total FROM public.product_variants WHERE product_id = $1",
       [persisted.rows[0].listing_id],

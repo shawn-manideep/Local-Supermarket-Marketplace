@@ -158,6 +158,7 @@ export async function runVendorVariantFlow({
       assert(checks, "vendor pagination preserves the active browse filter and returns to its original page",
         paginationPreserved);
       const riceCandidate = rice.cards.find(card =>
+        /rice$/i.test(card.name) &&
         !ownedNames.has(card.name) && !ownedMasterIds.has(card.id));
       targetName = riceCandidate?.name ?? "";
       targetMasterId = riceCandidate?.id ?? "";
@@ -178,7 +179,8 @@ export async function runVendorVariantFlow({
             name: element.querySelector('h3')?.innerText.trim() ?? '',
             id: (element.getAttribute('data-testid') || '').replace('card-master-product-', ''),
           }))`);
-        const candidate = cards.find(card => !ownedNames.has(card.name) && !ownedMasterIds.has(card.id));
+        const candidate = cards.find(card => /rice$/i.test(card.name) &&
+          !ownedNames.has(card.name) && !ownedMasterIds.has(card.id));
         targetName = candidate?.name ?? "";
         targetMasterId = candidate?.id ?? "";
       }
@@ -194,8 +196,14 @@ export async function runVendorVariantFlow({
     const categoryBeforeSearch = await inputValue(browser, page, "#master-category-filter");
     assert(checks, "Master Catalog category filter is optional and initially unselected",
       categoryBeforeSearch === "");
-    const card = `Array.from(document.querySelectorAll('[data-testid^="card-master-product-"]'))
-      .find(element => element.querySelector('h3')?.innerText.trim() === ${quote(targetName)})`;
+    // Pagination may still be settling after a search. Navigate to the exact
+    // chosen identity, then prove the live card's ID and name before adding.
+    await browser.fillSelector(page, "#master-product-search", targetName);
+    const card = `document.querySelector('[data-testid="card-master-product-${targetMasterId}"]')`;
+    const liveCard = await browser.wait(page,
+      `${card}?.querySelector('h3')?.textContent.trim() === ${quote(targetName)}`, 15000);
+    assert(checks, "the chosen unlisted rice identity is visible in the live catalog before adding it",
+      liveCard);
     const addPoint = await findButtonPoint(browser, page, "Add to My Store", card);
     await browser.clickAt(page, addPoint);
     result.created = true;
@@ -294,6 +302,9 @@ export async function runVendorVariantFlow({
     step = "reload and verify listing persistence and system ordering";
     onStage(step);
     await browser.send("Page.reload", { ignoreCache: true }, page.sessionId);
+    // Avoid matching the old document's Catalog button while the reload is
+    // starting and then clicking a document whose context has been destroyed.
+    await wait(750);
     const dashboardReloaded = await browser.wait(page,
       "!!Array.from(document.querySelectorAll('button')).find(button => button.innerText.trim() === 'Catalog')", 15000);
     assert(checks, "vendor authenticated catalog survives page reload", dashboardReloaded);
@@ -303,7 +314,7 @@ export async function runVendorVariantFlow({
     const rowLoaded = await browser.wait(page, `${persistedRowExpression} != null`, 12000);
     assert(checks, "one store listing is rehydrated after browser reload", rowLoaded);
     const variantsButton = `Array.from((${persistedRowExpression}).querySelectorAll('button'))
-      .find(button => button.innerText.trim() === 'Variants (4)')`;
+      .find(button => /^(?:Selling )?variants\\s*\\(4\\)$/i.test(button.textContent.trim()))`;
     await browser.clickAt(page, await browser.rect(page, variantsButton, true));
     const editorReloaded = await browser.wait(page, `!!document.querySelector(${quote(editor)})`, 8000);
     assert(checks, "all selling variants reopen under the same reloaded store listing", editorReloaded);
