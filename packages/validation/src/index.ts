@@ -243,7 +243,7 @@ const variantFieldsSchema = {
 } as const;
 
 export const productVariantCreateSchema = z.object({
-  name: variantFieldsSchema.name,
+  name: variantFieldsSchema.name.optional(),
   quantityValue: variantFieldsSchema.quantityValue,
   quantityUnit: variantFieldsSchema.quantityUnit,
   price: variantFieldsSchema.price,
@@ -269,6 +269,117 @@ export const productVariantUpdateSchema = z.object({
 }).strict().refine((value) => Object.keys(value).length > 0, {
   message: "At least one permitted variant field is required",
 });
+
+const productVariantBatchEntrySchema = z.object({
+  id: catalogUuidSchema.optional(),
+  expectedUpdatedAt: z.string().datetime({ offset: true }).optional(),
+  quantityValue: variantFieldsSchema.quantityValue,
+  quantityUnit: variantFieldsSchema.quantityUnit,
+  price: variantFieldsSchema.price,
+  stockQuantity: variantFieldsSchema.stockQuantity,
+  availability: variantFieldsSchema.availability,
+  isActive: variantFieldsSchema.isActive.optional(),
+  sku: variantFieldsSchema.sku,
+  externalCode: variantFieldsSchema.externalCode,
+}).strict();
+
+export const productVariantBatchUpdateSchema = z.object({
+  variants: z.array(productVariantBatchEntrySchema).min(1),
+  publish: z.boolean().optional(),
+}).strict().superRefine((value, context) => {
+  const ids = value.variants.flatMap((variant) => variant.id ? [variant.id] : []);
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["variants"],
+      message: "A variant ID may only be supplied once",
+    });
+  }
+  value.variants.forEach((variant, index) => {
+    if (!variant.id && variant.expectedUpdatedAt !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["variants", index, "expectedUpdatedAt"],
+        message: "expectedUpdatedAt is only allowed for an existing variant",
+      });
+    }
+  });
+});
+
+export type QuantityUnit = z.infer<typeof variantFieldsSchema.quantityUnit>;
+
+export interface VariantDisplayValue {
+  quantityValue: number | string;
+  quantityUnit: QuantityUnit;
+  createdAt: Date | string;
+  sortOrder?: number;
+  id?: string;
+}
+
+export function formatVariantName(quantityValue: number | string, quantityUnit: QuantityUnit) {
+  const quantity = Number(quantityValue);
+  const formattedQuantity = Number.isFinite(quantity)
+    ? String(Number(quantity.toFixed(3)))
+    : String(quantityValue);
+  const unit = quantityUnit === "l" ? "L" : quantityUnit;
+  const pluralUnit = quantity !== 1
+    ? ({
+      piece: "pieces",
+      pack: "packs",
+      bottle: "bottles",
+      box: "boxes",
+    } as Partial<Record<QuantityUnit, string>>)[quantityUnit]
+    : undefined;
+  const displayedUnit = pluralUnit ?? unit;
+  return `${formattedQuantity} ${displayedUnit}`;
+}
+
+function variantComparisonGroup(unit: QuantityUnit) {
+  if (unit === "g" || unit === "kg") return "mass";
+  if (unit === "ml" || unit === "l") return "volume";
+  return unit;
+}
+
+function comparableVariantQuantity(variant: VariantDisplayValue) {
+  const quantity = Number(variant.quantityValue);
+  if (variant.quantityUnit === "kg") return quantity * 1_000;
+  if (variant.quantityUnit === "l") return quantity * 1_000;
+  return quantity;
+}
+
+function creationTime(variant: VariantDisplayValue) {
+  const value = variant.createdAt instanceof Date
+    ? variant.createdAt.getTime()
+    : Date.parse(variant.createdAt);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function sortVariantsForDisplay<T extends VariantDisplayValue>(variants: readonly T[]) {
+  const creationOrder = [...variants].sort((left, right) => {
+    const difference = creationTime(left) - creationTime(right);
+    return difference ||
+      (left.sortOrder ?? 0) - (right.sortOrder ?? 0) ||
+      (left.id ?? "").localeCompare(right.id ?? "");
+  });
+  const groupSlots = new Map<string, number[]>();
+  for (const [index, variant] of creationOrder.entries()) {
+    const group = variantComparisonGroup(variant.quantityUnit);
+    const slots = groupSlots.get(group) ?? [];
+    slots.push(index);
+    groupSlots.set(group, slots);
+  }
+
+  const ordered = [...creationOrder];
+  for (const slots of groupSlots.values()) {
+    const groupVariants = slots.map((index) => creationOrder[index]);
+    groupVariants.sort((left, right) =>
+      comparableVariantQuantity(left) - comparableVariantQuantity(right));
+    slots.forEach((slot, index) => {
+      ordered[slot] = groupVariants[index];
+    });
+  }
+  return ordered;
+}
 
 export const productVariantIdParamSchema = z.object({
   productId: catalogUuidSchema,
@@ -317,13 +428,19 @@ export const masterCatalogCanonicalProductSchema = z.object({
   attributes: masterCatalogAttributesSchema,
 }).strict();
 
-export const masterProductDuplicateCheckSchema = masterCatalogCanonicalProductSchema;
+export const masterCatalogVendorProductSchema = masterCatalogCanonicalProductSchema
+  .omit({ masterCategoryId: true })
+  .extend({
+    masterCategoryId: catalogUuidSchema.nullable().optional().transform((value) => value ?? null),
+  })
+  .strict();
 
 export const masterProductCreateAfterReviewSchema =
-  masterCatalogCanonicalProductSchema.extend({
+  masterCatalogVendorProductSchema.extend({
     confirmedNoMatch: z.literal(true),
     duplicateReviewToken: z.string().min(32).max(4_096),
   }).strict();
+export const masterProductDuplicateCheckSchema = masterCatalogVendorProductSchema;
 
 export const masterCategoryCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -332,7 +449,7 @@ export const masterCategoryCreateSchema = z.object({
 export const masterCategoryUpdateSchema = masterCategoryCreateSchema;
 
 export const masterProductAdminUpdateSchema = z.object({
-  masterCategoryId: catalogUuidSchema.optional(),
+  masterCategoryId: catalogUuidSchema.nullable().optional(),
   name: z.string().trim().min(1).max(200).optional(),
   description: masterCatalogTextSchema,
   image: masterCatalogImageSchema,

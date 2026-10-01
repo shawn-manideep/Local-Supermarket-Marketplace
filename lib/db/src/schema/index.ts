@@ -191,7 +191,7 @@ export const masterProducts = pgTable(
   "master_products",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    masterCategoryId: uuid("master_category_id").notNull()
+    masterCategoryId: uuid("master_category_id")
       .references(() => masterCategories.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     description: text("description"),

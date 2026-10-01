@@ -41,6 +41,9 @@ test("unchanged category assignments do not require an archived category to be a
   assert.equal(isNewMasterCategoryAssignment(archivedCategoryId, archivedCategoryId), false);
   assert.equal(isNewMasterCategoryAssignment(archivedCategoryId, undefined), false);
   assert.equal(isNewMasterCategoryAssignment(archivedCategoryId, "55555555-5555-4555-8555-555555555555"), true);
+  assert.equal(isNewMasterCategoryAssignment(null, undefined), false);
+  assert.equal(isNewMasterCategoryAssignment(null, null), false);
+  assert.equal(isNewMasterCategoryAssignment(null, archivedCategoryId), true);
 });
 
 test("duplicate review token is bound to canonical input, candidates, signature, and expiry", () => {
@@ -95,6 +98,54 @@ test("reviewed-candidate proof changes when candidate content changes without ch
     reviewedCandidateProof(candidate),
     reviewedCandidateProof({ ...candidate, attributes: { grade: "Short grain" } }),
   );
+});
+
+test("pending candidate proof binds NULL category and status while retaining archived candidates", () => {
+  const pendingCandidate = {
+    id: "33333333-3333-4333-8333-333333333333",
+    masterCategoryId: null,
+    name: "Pending product",
+    description: null,
+    image: null,
+    brand: null,
+    attributes: {},
+    isActive: true,
+    categoryName: null,
+    categoryIsActive: null,
+  };
+  const proof = reviewedCandidateProof(pendingCandidate);
+  assert.notEqual(
+    proof,
+    reviewedCandidateProof({ ...pendingCandidate, masterCategoryId: canonicalProduct.masterCategoryId }),
+  );
+  assert.notEqual(
+    proof,
+    reviewedCandidateProof({ ...pendingCandidate, categoryIsActive: false }),
+  );
+  assert.notEqual(
+    proof,
+    reviewedCandidateProof({ ...pendingCandidate, isActive: false }),
+  );
+});
+
+test("duplicate-review token normalizes omitted category to NULL and binds that pending input", () => {
+  const pendingProduct: CanonicalProductInput = { ...canonicalProduct, masterCategoryId: null };
+  const omittedCategory = {
+    ...pendingProduct,
+    masterCategoryId: undefined as unknown as null,
+  };
+  const token = createDuplicateReviewToken(omittedCategory, [], {
+    now: 1_000,
+    secret: "unit-test-signing-secret",
+  });
+  assert.equal(verifyDuplicateReviewToken(token, pendingProduct, [], {
+    now: 2_000,
+    secret: "unit-test-signing-secret",
+  }), true);
+  assert.equal(verifyDuplicateReviewToken(token, canonicalProduct, [], {
+    now: 2_000,
+    secret: "unit-test-signing-secret",
+  }), false);
 });
 
 test("catalog write helper acquires the shared advisory lock before concurrent mutations proceed", async () => {

@@ -11,9 +11,12 @@ import {
   productPriceSchema,
   productStockQuantitySchema,
   productVariantCreateSchema,
+  productVariantBatchUpdateSchema,
   productVariantIdParamSchema,
   productVariantUpdateSchema,
   productUpdateSchema,
+  formatVariantName,
+  sortVariantsForDisplay,
 } from "@workspace/validation";
 import { categories, getDb, masterProducts, productVariants, products } from "@workspace/db";
 import { requireRole } from "../auth/index.js";
@@ -50,6 +53,44 @@ export async function updateOwnedProductAndChildren<T>(
   if (!product) throw productNotFound();
   await updateChildren();
   return product;
+}
+
+export function ensureBatchVariantIdsBelongToProduct(
+  submittedIds: readonly string[],
+  existingIds: readonly string[],
+) {
+  const ownedIds = new Set(existingIds);
+  if (submittedIds.some((id) => !ownedIds.has(id))) {
+    throw new HttpError(404, "Variant not found in vendor product");
+  }
+}
+
+export function ensureBatchVariantExpectedVersionsCurrent(
+  variants: readonly { id?: string; expectedUpdatedAt?: string }[],
+  existingById: ReadonlyMap<string, { updatedAt: Date }>,
+) {
+  for (const variant of variants) {
+    if (!variant.id || variant.expectedUpdatedAt === undefined) continue;
+    const existing = existingById.get(variant.id);
+    if (!existing) throw new HttpError(404, "Variant not found in vendor product");
+    if (Date.parse(variant.expectedUpdatedAt) !== existing.updatedAt.getTime()) {
+      throw new HttpError(409, "Catalog changed. Refresh the catalog and try again.");
+    }
+  }
+}
+
+export function ensurePublishedBatchVariantsHavePositivePrices(
+  variants: readonly { id?: string; isActive?: boolean; price: number }[],
+  existingById: ReadonlyMap<string, { isActive: boolean }>,
+  mustRemainPurchasable: boolean,
+) {
+  if (!mustRemainPurchasable) return;
+  for (const variant of variants) {
+    const isActive = variant.isActive ?? (variant.id ? existingById.get(variant.id)?.isActive : undefined) ?? true;
+    if (isActive && variant.price <= 0) {
+      throw new HttpError(400, "Active selling variants need a price greater than zero");
+    }
+  }
 }
 
 async function requireCategoryInStore(storeId: string, categoryId: string) {
@@ -111,6 +152,60 @@ async function productWithVariants(product: typeof products.$inferSelect) {
     ? await getDb().select().from(masterProducts).where(eq(masterProducts.id, product.masterProductId)).limit(1)
     : [];
   return { ...productWithMasterFallback(product, master), variants: byProduct.get(product.id) ?? [] };
+}
+
+async function applyProductVariantDisplayOrder(
+  transaction: { select: (...args: any[]) => any; update: (...args: any[]) => any },
+  productId: string,
+) {
+  const variants: (typeof productVariants.$inferSelect)[] = await transaction.select().from(productVariants)
+    .where(eq(productVariants.productId, productId));
+  const ordered = sortVariantsForDisplay(variants);
+  for (const [sortOrder, variant] of ordered.entries()) {
+    if (variant.sortOrder !== sortOrder) {
+      await transaction.update(productVariants).set({ sortOrder, updatedAt: new Date() })
+        .where(and(
+          eq(productVariants.id, variant.id),
+          eq(productVariants.productId, productId),
+        ));
+    }
+  }
+}
+
+async function assertProductCanBeActivated(
+  transaction: { select: (...args: any[]) => any },
+  storeId: string,
+  product: typeof products.$inferSelect,
+) {
+  if (!product.masterProductId) return;
+  const activeVariants = await transaction.select({
+    id: productVariants.id,
+    quantityValue: productVariants.quantityValue,
+    price: productVariants.price,
+  })
+    .from(productVariants)
+    .where(and(
+      eq(productVariants.productId, product.id),
+      eq(productVariants.isActive, true),
+    ));
+  const configuredVariants = activeVariants.filter((variant: { quantityValue: string; price: string }) =>
+    Number(variant.quantityValue) > 0 && Number(variant.price) > 0);
+  if (!configuredVariants.length) {
+    throw new HttpError(409, "Configure at least one active selling variant with a price before activating this listing");
+  }
+  if (configuredVariants.length !== activeVariants.length) {
+    throw new HttpError(409, "Every active selling variant needs a valid quantity and price before publishing");
+  }
+  const [duplicate] = await transaction.select({ id: products.id }).from(products)
+    .where(and(
+      eq(products.storeId, storeId),
+      eq(products.masterProductId, product.masterProductId),
+      eq(products.isActive, true),
+      sql`${products.id} <> ${product.id}`,
+    )).limit(1);
+  if (duplicate) {
+    throw new HttpError(409, "Another active listing for this Master Product already exists in this store");
+  }
 }
 
 function categoryId(request: Request) {
@@ -289,6 +384,14 @@ catalogManagementRouter.patch(
           }
           const existingVariants = await transaction.select().from(productVariants)
             .where(eq(productVariants.productId, id));
+          if (
+            existing.isActive &&
+            price !== undefined &&
+            price <= 0 &&
+            existingVariants.some((variant) => variant.isActive)
+          ) {
+            throw new HttpError(400, "Active selling variants need a price greater than zero");
+          }
           if ((price !== undefined || parsed.data.stockQuantity !== undefined) && existingVariants.length > 1) {
             throw new HttpError(409, "Update price and stock on individual variants when a product has multiple active variants");
           }
@@ -316,6 +419,96 @@ catalogManagementRouter.patch(
   }),
 );
 
+catalogManagementRouter.put(
+  "/api/vendor/products/:productId/variants/batch",
+  requireRole("vendor"),
+  asyncHandler(async (request, response) => {
+    const parsed = productVariantBatchUpdateSchema.safeParse(request.body);
+    if (!parsed.success) {
+      sendValidationError(response, parsed.error);
+      return;
+    }
+    const id = productId(request);
+    const storeId = vendorStoreId(request);
+    try {
+      const product = await getDb().transaction(async (transaction) =>
+        withMasterCatalogWriteLock(transaction, async () => {
+          const [ownedProduct] = await transaction.select().from(products)
+            .where(productOwnershipPredicate(storeId, id)).limit(1);
+          if (!ownedProduct) throw productNotFound();
+          const existingVariants = await transaction.select().from(productVariants)
+            .where(eq(productVariants.productId, id)).for("update");
+          const existingById = new Map(existingVariants.map((variant) => [variant.id, variant]));
+          ensureBatchVariantIdsBelongToProduct(
+            parsed.data.variants.flatMap((variant) => variant.id ? [variant.id] : []),
+            existingVariants.map((variant) => variant.id),
+          );
+          ensureBatchVariantExpectedVersionsCurrent(parsed.data.variants, existingById);
+
+          ensurePublishedBatchVariantsHavePositivePrices(
+            parsed.data.variants,
+            existingById,
+            parsed.data.publish === true || ownedProduct.isActive,
+          );
+
+          for (const [variantIndex, variant] of parsed.data.variants.entries()) {
+            const existing = variant.id ? existingById.get(variant.id) : undefined;
+            const commonValues = {
+              ...(!existing ||
+                Number(existing.quantityValue) !== Number(variant.quantityValue) ||
+                existing.quantityUnit !== variant.quantityUnit
+                ? { name: formatVariantName(variant.quantityValue, variant.quantityUnit) }
+                : {}),
+              quantityValue: Number(variant.quantityValue).toFixed(3),
+              quantityUnit: variant.quantityUnit,
+              price: variant.price.toFixed(2),
+              stockQuantity: variant.stockQuantity,
+              availability: variant.availability,
+              ...(variant.isActive === undefined
+                ? (existing ? {} : { isActive: true })
+                : { isActive: variant.isActive }),
+              ...(variant.sku === undefined ? {} : { sku: variant.sku }),
+              ...(variant.externalCode === undefined ? {} : { externalCode: variant.externalCode }),
+              updatedAt: new Date(),
+            };
+            if (existing) {
+              await transaction.update(productVariants).set(commonValues)
+                .where(and(
+                  eq(productVariants.id, existing.id),
+                  eq(productVariants.productId, id),
+                ));
+            } else {
+              await transaction.insert(productVariants).values({
+                ...commonValues,
+                name: formatVariantName(variant.quantityValue, variant.quantityUnit),
+                productId: id,
+                sku: variant.sku ?? null,
+                externalCode: variant.externalCode ?? null,
+                sortOrder: existingVariants.length + variantIndex,
+              });
+            }
+          }
+
+          await applyProductVariantDisplayOrder(transaction, id);
+          if (parsed.data.publish) {
+            await assertProductCanBeActivated(transaction, storeId, ownedProduct);
+            const [published] = await transaction.update(products).set({
+              isActive: true,
+              availability: true,
+              updatedAt: new Date(),
+            }).where(productOwnershipPredicate(storeId, id)).returning();
+            return published;
+          }
+          return ownedProduct;
+        }),
+      );
+      response.json({ product: await productWithVariants(product) });
+    } catch (error) {
+      uniqueError(error, "That SKU or external code already exists for this product");
+    }
+  }),
+);
+
 catalogManagementRouter.post(
   "/api/vendor/products/:productId/variants",
   requireRole("vendor"),
@@ -330,16 +523,26 @@ catalogManagementRouter.post(
     try {
       const variant = await getDb().transaction(async (transaction) =>
         withMasterCatalogWriteLock(transaction, async () => {
-          const [product] = await transaction.select({ id: products.id }).from(products)
+          const [product] = await transaction.select().from(products)
             .where(productOwnershipPredicate(storeId, id)).limit(1);
           if (!product) throw productNotFound();
+          if (product.isActive && parsed.data.isActive && parsed.data.price <= 0) {
+            throw new HttpError(400, "Active selling variants need a price greater than zero");
+          }
+          const existingVariants = await transaction.select({ id: productVariants.id })
+            .from(productVariants).where(eq(productVariants.productId, id));
           const [created] = await transaction.insert(productVariants).values({
             ...parsed.data,
+            name: formatVariantName(parsed.data.quantityValue, parsed.data.quantityUnit),
             productId: id,
             quantityValue: Number(parsed.data.quantityValue).toFixed(3),
             price: parsed.data.price.toFixed(2),
+            sortOrder: existingVariants.length,
           }).returning();
-          return created;
+          await applyProductVariantDisplayOrder(transaction, id);
+          const [orderedVariant] = await transaction.select().from(productVariants)
+            .where(and(eq(productVariants.id, created.id), eq(productVariants.productId, id))).limit(1);
+          return orderedVariant;
         }),
       );
       response.status(201).json({ variant });
@@ -361,11 +564,17 @@ catalogManagementRouter.patch(
       return;
     }
     const storeId = vendorStoreId(request);
-    const { price, quantityValue, ...otherUpdates } = parsed.data;
+    const {
+      price,
+      quantityValue,
+      name: _ignoredName,
+      sortOrder: _ignoredSortOrder,
+      ...otherUpdates
+    } = parsed.data;
     try {
       const variant = await getDb().transaction(async (transaction) =>
         withMasterCatalogWriteLock(transaction, async () => {
-          const [product] = await transaction.select({ id: products.id }).from(products)
+          const [product] = await transaction.select().from(products)
             .where(productOwnershipPredicate(storeId, params.data.productId)).limit(1);
           if (!product) throw productNotFound();
           const [existing] = await transaction.select().from(productVariants)
@@ -374,15 +583,33 @@ catalogManagementRouter.patch(
               eq(productVariants.productId, params.data.productId),
             )).limit(1);
           if (!existing) throw new HttpError(404, "Variant not found in vendor product");
+          const quantityOrUnitChanged = quantityValue !== undefined || parsed.data.quantityUnit !== undefined;
+          const nextQuantity = quantityValue ?? existing.quantityValue;
+          const nextUnit = parsed.data.quantityUnit ?? existing.quantityUnit;
+          const nextActive = parsed.data.isActive ?? existing.isActive;
+          const nextPrice = price ?? Number(existing.price);
+          if (product.isActive && nextActive && nextPrice <= 0) {
+            throw new HttpError(400, "Active selling variants need a price greater than zero");
+          }
           const [updated] = await transaction.update(productVariants).set({
             ...otherUpdates,
             ...(price === undefined ? {} : { price: price.toFixed(2) }),
             ...(quantityValue === undefined ? {} : { quantityValue: Number(quantityValue).toFixed(3) }),
+            ...(quantityOrUnitChanged ? { name: formatVariantName(nextQuantity, nextUnit) } : {}),
             updatedAt: new Date(),
           }).where(and(
             eq(productVariants.id, params.data.variantId),
             eq(productVariants.productId, params.data.productId),
           )).returning();
+          if (quantityOrUnitChanged) {
+            await applyProductVariantDisplayOrder(transaction, params.data.productId);
+            const [orderedVariant] = await transaction.select().from(productVariants)
+              .where(and(
+                eq(productVariants.id, updated.id),
+                eq(productVariants.productId, params.data.productId),
+              )).limit(1);
+            return orderedVariant;
+          }
           return updated;
         }),
       );
@@ -399,9 +626,24 @@ async function setVariantActive(request: Request, response: Response, isActive: 
   const storeId = vendorStoreId(request);
   const variant = await getDb().transaction(async (transaction) =>
     withMasterCatalogWriteLock(transaction, async () => {
-      const [product] = await transaction.select({ id: products.id }).from(products)
+      const [product] = await transaction.select().from(products)
         .where(productOwnershipPredicate(storeId, parsed.data.productId)).limit(1);
       if (!product) throw productNotFound();
+      if (isActive && product.isActive) {
+        const [existing] = await transaction.select({
+          id: productVariants.id,
+          quantityValue: productVariants.quantityValue,
+          price: productVariants.price,
+        }).from(productVariants)
+          .where(and(
+            eq(productVariants.id, parsed.data.variantId),
+            eq(productVariants.productId, parsed.data.productId),
+          )).limit(1);
+        if (!existing) throw new HttpError(404, "Variant not found in vendor product");
+        if (Number(existing.quantityValue) <= 0 || Number(existing.price) <= 0) {
+          throw new HttpError(409, "Configure a valid quantity and positive price before activating this variant");
+        }
+      }
       const [updated] = await transaction.update(productVariants)
         .set({ isActive, updatedAt: new Date() })
         .where(and(
@@ -434,28 +676,7 @@ async function setProductActive(request: Request, response: Response, isActive: 
       const [existing] = await transaction.select().from(products)
         .where(productOwnershipPredicate(storeId, id)).limit(1);
       if (!existing) throw productNotFound();
-      if (isActive && existing.masterProductId) {
-        const [configuredVariant] = await transaction.select({ id: productVariants.id })
-          .from(productVariants)
-          .where(and(
-            eq(productVariants.productId, id),
-            eq(productVariants.isActive, true),
-            sql`${productVariants.price} > 0`,
-          )).limit(1);
-        if (!configuredVariant) {
-          throw new HttpError(409, "Configure at least one active selling variant with a price before activating this listing");
-        }
-        const [duplicate] = await transaction.select({ id: products.id }).from(products)
-          .where(and(
-            eq(products.storeId, storeId),
-            eq(products.masterProductId, existing.masterProductId),
-            eq(products.isActive, true),
-            sql`${products.id} <> ${id}`,
-          )).limit(1);
-        if (duplicate) {
-          throw new HttpError(409, "Another active listing for this Master Product already exists in this store");
-        }
-      }
+      if (isActive) await assertProductCanBeActivated(transaction, storeId, existing);
       const [updated] = await transaction.update(products)
         .set({ isActive, updatedAt: new Date() })
         .where(productOwnershipPredicate(storeId, id))
@@ -517,6 +738,9 @@ catalogManagementRouter.patch("/api/vendor/products/:productId/price", requireRo
       const variants = await transaction.select().from(productVariants)
         .where(eq(productVariants.productId, id));
       if (variants.length > 1) throw new HttpError(409, "Update price on individual variants when a product has multiple variants");
+      if (existing.isActive && parsed.data.price <= 0 && variants.some((variant) => variant.isActive)) {
+        throw new HttpError(400, "Active selling variants need a price greater than zero");
+      }
       const [updated] = await transaction.update(products).set({ price: parsed.data.price.toFixed(2), updatedAt: new Date() })
         .where(productOwnershipPredicate(storeId, id)).returning();
       if (variants.length === 1) await transaction.update(productVariants)

@@ -1,0 +1,250 @@
+{
+  "title": "Master Catalog authenticated browser verification",
+  "passed": false,
+  "startedAt": "2026-10-01T13:49:41.211Z",
+  "assertions": [
+    {
+      "name": "QA-marked admin, Vendor B, Customer B, active Store B, and saved pincode fixtures verified read-only",
+      "passed": true
+    },
+    {
+      "name": "only masters matching the exact randomized legacy harness name and matching brand/details/description markers are cleanup candidates",
+      "passed": true
+    },
+    {
+      "name": "read-only Master Catalog baseline has 25 active categories and the current 183 active / 190 total master products",
+      "passed": true
+    },
+    {
+      "name": "unattributed pre-existing pending masters are retained without blocking feature verification",
+      "passed": true
+    },
+    {
+      "name": "read-only baseline contains the documented 18 existing orders",
+      "passed": true
+    },
+    {
+      "name": "eight commerce tables and five Master/store-catalog tables are snapshotted read-only",
+      "passed": true
+    },
+    {
+      "name": "read-only eligible-store set exists for Customer B saved pincode 560001",
+      "passed": true
+    },
+    {
+      "name": "Vendor B dashboard login form is loaded",
+      "passed": true
+    },
+    {
+      "name": "Vendor B normal UI session reaches the dashboard",
+      "passed": true
+    },
+    {
+      "name": "vendor Master Catalog shows real search and optional category controls",
+      "passed": true
+    },
+    {
+      "name": "a fresh unlisted product search returns no Master Catalog match",
+      "passed": true
+    },
+    {
+      "name": "Add New Product uses ordinary grocery fields with no category or JSON input",
+      "passed": true
+    },
+    {
+      "name": "global duplicate review identifies the seeded exact Basmati Rice identity",
+      "passed": true
+    },
+    {
+      "name": "an exact existing product cannot be confirmed as a duplicate new identity",
+      "passed": true
+    },
+    {
+      "name": "global name-and-details duplicate review returns the explicit no-match message",
+      "passed": true
+    },
+    {
+      "name": "explicit no-match confirmation uses the required user-facing wording and starts unchecked",
+      "passed": true
+    },
+    {
+      "name": "new product creation stays disabled until explicit no-match confirmation",
+      "passed": true
+    },
+    {
+      "name": "active Rice & Grains category is available for later admin classification",
+      "passed": true
+    },
+    {
+      "name": "vendor explicitly confirms that the product is not already in the catalog",
+      "passed": true
+    },
+    {
+      "name": "new product creation immediately opens its store configuration without category selection",
+      "passed": true
+    },
+    {
+      "name": "vendor Master Catalog labels an unclassified family New product",
+      "passed": false
+    },
+    {
+      "name": "missing product creation through the vendor UI",
+      "passed": false
+    },
+    {
+      "name": "only the harness-owned new Master Product is archived through Admin UI during cleanup",
+      "passed": false
+    }
+  ],
+  "counts": {
+    "historicalVendorCatalogAssertions": 24,
+    "provenPriorHarnessMasters": 1,
+    "knownScreenshotHarnessMasterFound": 1,
+    "masterCategories": 25,
+    "masterProductsActiveBefore": 183,
+    "masterProductsTotalBefore": 190,
+    "unidentifiedPendingMastersRetained": 1,
+    "baselineOrders": 18,
+    "priorHarnessMastersArchived": 1
+  },
+  "screenshots": [
+    "vendor-master-catalog-rice.png",
+    "vendor-basmati-duplicate-review.png",
+    "vendor-missing-no-match-review.png",
+    "failure-vendor-master-catalog-labels-an-unclassified-family-new-product.png"
+  ],
+  "issues": [
+    "1 pre-existing active pending Master Product(s) could not be attributed to this harness and were intentionally left untouched."
+  ],
+  "cleanup": {
+    "ownStoreListingDeactivated": false,
+    "ownListingVariantsRetained": false,
+    "uniqueMasterArchived": false,
+    "priorHarnessMastersArchived": 1
+  },
+  "historicalEvidence": {
+    "mode": "prior vendor catalog pass retained; not rerun in this continuation",
+    "priorReportModifiedAt": "2026-10-01T13:43:23.423Z",
+    "assertionCount": 24,
+    "assertions": [
+      {
+        "name": "QA-marked admin, Vendor B, Customer B, active Store B, and saved pincode fixtures verified read-only",
+        "passed": true
+      },
+      {
+        "name": "only masters matching the exact randomized legacy harness name and matching brand/details/description markers are cleanup candidates",
+        "passed": true
+      },
+      {
+        "name": "read-only Master Catalog baseline has 25 active categories and the current 183 active / 190 total master products",
+        "passed": true
+      },
+      {
+        "name": "unattributed pre-existing pending masters are retained without blocking feature verification",
+        "passed": true
+      },
+      {
+        "name": "read-only baseline contains the documented 18 existing orders",
+        "passed": true
+      },
+      {
+        "name": "eight commerce tables and five Master/store-catalog tables are snapshotted read-only",
+        "passed": true
+      },
+      {
+        "name": "read-only eligible-store set exists for Customer B saved pincode 560001",
+        "passed": true
+      },
+      {
+        "name": "Vendor B dashboard login form is loaded",
+        "passed": true
+      },
+      {
+        "name": "Vendor B normal UI session reaches the dashboard",
+        "passed": true
+      },
+      {
+        "name": "vendor Master Catalog shows real search and optional category controls",
+        "passed": true
+      },
+      {
+        "name": "vendor category dropdown contains all 25 active Master Categories after asynchronous load",
+        "passed": true
+      },
+      {
+        "name": "vendor category filter is initially optional and unselected",
+        "passed": true
+      },
+      {
+        "name": "initial vendor catalog displays actual Master Products for rice",
+        "passed": true
+      },
+      {
+        "name": "vendor catalog pagination advances to the next real page",
+        "passed": true
+      },
+      {
+        "name": "vendor catalog pagination preserves the all-category browse state",
+        "passed": true
+      },
+      {
+        "name": "vendor catalog returns to the first browse page without losing catalog results",
+        "passed": true
+      },
+      {
+        "name": "vendor global search returns real products for rice without category selection",
+        "passed": true
+      },
+      {
+        "name": "vendor global search returns real products for milk without category selection",
+        "passed": true
+      },
+      {
+        "name": "vendor global search returns real products for eggs without category selection",
+        "passed": true
+      },
+      {
+        "name": "vendor global search returns real products for Amul without category selection",
+        "passed": true
+      },
+      {
+        "name": "vendor global search returns real products for biryani without category selection",
+        "passed": true
+      },
+      {
+        "name": "the active Rice & Grains category is available for optional browsing",
+        "passed": true
+      },
+      {
+        "name": "vendor can browse real Master Products by an optional active category",
+        "passed": true
+      },
+      {
+        "name": "global product search clears or ignores a previously chosen category",
+        "passed": true
+      }
+    ],
+    "counts": {
+      "provenPriorHarnessMasters": 1,
+      "knownScreenshotHarnessMasterFound": 1,
+      "masterCategories": 25,
+      "masterProductsActiveBefore": 183,
+      "masterProductsTotalBefore": 190,
+      "unidentifiedPendingMastersRetained": 1,
+      "baselineOrders": 18,
+      "vendorMasterSearchResults": {
+        "rice": 12,
+        "milk": 12,
+        "eggs": 4,
+        "Amul": 3,
+        "biryani": 1
+      },
+      "vendorMasterCategoryOptions": 25,
+      "priorHarnessMastersArchived": 0
+    },
+    "screenshots": [
+      "vendor-master-catalog-rice.png"
+    ],
+    "note": "These assertions and artifacts are historical evidence from the prior authenticated run. They are not counted as current assertions."
+  }
+}

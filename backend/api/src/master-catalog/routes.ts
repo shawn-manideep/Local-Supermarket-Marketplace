@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { Router, type Request, type Response } from "express";
 import {
   addMasterProductToStoreSchema,
@@ -48,6 +48,10 @@ type CatalogMatchRow = {
 };
 type SelectExecutor = { select: (...args: any[]) => any };
 
+export function shouldApplyVendorMasterCategoryFilter(search?: string) {
+  return !search?.trim();
+}
+
 function sendValidationError(response: Response, error: { issues: unknown }) {
   response.status(400).json({ error: "Validation failed", details: error.issues });
 }
@@ -93,7 +97,7 @@ function adminMasterId(request: Request) {
 }
 
 function toCanonicalInput(
-  input: ReturnType<typeof masterCatalogCanonicalProductSchema.parse>,
+  input: CanonicalInput,
 ): CanonicalInput {
   return {
     ...input,
@@ -116,6 +120,7 @@ async function findLikelyMatches(product: CanonicalInput, database: SelectExecut
     return or(
       ilike(masterProducts.name, pattern),
       ilike(masterProducts.brand, pattern),
+      ilike(masterProducts.description, pattern),
       sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
     )!;
   });
@@ -157,8 +162,9 @@ function candidateMatches(rows: CatalogMatchRow[], product: CanonicalInput) {
     id: match.id,
     masterCategoryId: match.masterCategoryId,
     categoryName,
+    classificationLabel: categoryName ?? "Pending classification",
     categoryIsActive,
-    canAddToStore: match.isActive && categoryIsActive === true,
+    canAddToStore: match.isActive && (match.masterCategoryId === null || categoryIsActive === true),
     name: match.name,
     description: match.description,
     image: match.image,
@@ -189,11 +195,11 @@ async function requireActiveMasterProduct(masterProductId: string, transaction?:
     product: masterProducts,
     categoryActive: masterCategories.isActive,
   }).from(masterProducts)
-    .innerJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
+    .leftJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
     .where(and(
       eq(masterProducts.id, masterProductId),
       eq(masterProducts.isActive, true),
-      eq(masterCategories.isActive, true),
+      or(isNull(masterProducts.masterCategoryId), eq(masterCategories.isActive, true)),
     ))
     .limit(1);
   if (!product) throw productNotFound();
@@ -219,14 +225,17 @@ async function listVendorProducts(query: {
 }) {
   const conditions = [
     eq(masterProducts.isActive, true),
-    eq(masterCategories.isActive, true),
+    or(isNull(masterProducts.masterCategoryId), eq(masterCategories.isActive, true))!,
   ];
-  if (query.categoryId) conditions.push(eq(masterProducts.masterCategoryId, query.categoryId));
+  if (query.categoryId && shouldApplyVendorMasterCategoryFilter(query.search)) {
+    conditions.push(eq(masterProducts.masterCategoryId, query.categoryId));
+  }
   if (query.search) {
     const pattern = `%${query.search.trim()}%`;
     conditions.push(or(
       ilike(masterProducts.name, pattern),
       ilike(masterProducts.brand, pattern),
+      ilike(masterProducts.description, pattern),
       sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
     )!);
   }
@@ -237,17 +246,21 @@ async function listVendorProducts(query: {
       product: masterProducts,
       categoryName: masterCategories.name,
     }).from(masterProducts)
-      .innerJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
+      .leftJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
       .where(where)
       .orderBy(asc(masterProducts.name), asc(masterProducts.id))
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize),
     database.select({ total: count() }).from(masterProducts)
-      .innerJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
+      .leftJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
       .where(where),
   ]);
   return {
-    products: rows.map(({ product, categoryName }) => ({ ...product, categoryName })),
+    products: rows.map(({ product, categoryName }) => ({
+      ...product,
+      categoryName,
+      classificationLabel: categoryName ?? "Pending classification",
+    })),
     pagination: { page: query.page, pageSize: query.pageSize, total: totalRow.total },
   };
 }
@@ -285,10 +298,17 @@ masterCatalogRouter.get(
   "/api/vendor/master-categories",
   requireRole("vendor"),
   asyncHandler(async (_request, response) => {
-    const categoryList = await getDb().select().from(masterCategories)
+    const categoryList = await getDb().select({
+      category: masterCategories,
+      productCount: count(masterProducts.id),
+    }).from(masterCategories)
+      .leftJoin(masterProducts, eq(masterProducts.masterCategoryId, masterCategories.id))
       .where(eq(masterCategories.isActive, true))
+      .groupBy(masterCategories.id)
       .orderBy(asc(masterCategories.name), asc(masterCategories.id));
-    response.json({ categories: categoryList });
+    response.json({
+      categories: categoryList.map(({ category, productCount }) => ({ ...category, productCount })),
+    });
   }),
 );
 
@@ -313,14 +333,18 @@ masterCatalogRouter.get(
       product: masterProducts,
       categoryName: masterCategories.name,
     }).from(masterProducts)
-      .innerJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
+      .leftJoin(masterCategories, eq(masterProducts.masterCategoryId, masterCategories.id))
       .where(and(
         eq(masterProducts.id, masterProductId(request)),
         eq(masterProducts.isActive, true),
-        eq(masterCategories.isActive, true),
+        or(isNull(masterProducts.masterCategoryId), eq(masterCategories.isActive, true)),
       )).limit(1);
     if (!row) throw productNotFound();
-    response.json({ product: { ...row.product, categoryName: row.categoryName } });
+    response.json({ product: {
+      ...row.product,
+      categoryName: row.categoryName,
+      classificationLabel: row.categoryName ?? "Pending classification",
+    } });
   }),
 );
 
@@ -334,9 +358,11 @@ masterCatalogRouter.post(
       return;
     }
     const canonicalProduct = toCanonicalInput(parsed.data);
-    const category = await getDb().select({ isActive: masterCategories.isActive })
-      .from(masterCategories).where(eq(masterCategories.id, canonicalProduct.masterCategoryId)).limit(1);
-    if (!category[0]?.isActive) throw categoryNotFound();
+    if (canonicalProduct.masterCategoryId) {
+      const category = await getDb().select({ isActive: masterCategories.isActive })
+        .from(masterCategories).where(eq(masterCategories.id, canonicalProduct.masterCategoryId)).limit(1);
+      if (!category[0]?.isActive) throw categoryNotFound();
+    }
     const matches = await findLikelyMatches(canonicalProduct);
     response.json({
       matches: candidateMatches(matches, canonicalProduct),
@@ -366,11 +392,13 @@ masterCatalogRouter.post(
       duplicateReviewToken,
       ...canonicalFields
     } = parsed.data;
-    const canonicalProduct = toCanonicalInput(masterCatalogCanonicalProductSchema.parse(canonicalFields));
+    const canonicalProduct = toCanonicalInput(canonicalFields);
     try {
       const product = await getDb().transaction(async (transaction) =>
         withMasterCatalogWriteLock(transaction, async () => {
-          await requireActiveMasterCategory(canonicalProduct.masterCategoryId, transaction);
+          if (canonicalProduct.masterCategoryId) {
+            await requireActiveMasterCategory(canonicalProduct.masterCategoryId, transaction);
+          }
           const [exact] = await findExactIdentityMatches(canonicalProduct, transaction);
           if (exact) {
             throw new HttpError(409, "An identical master product already exists, including archived products");
@@ -468,9 +496,16 @@ masterCatalogRouter.get(
   "/api/admin/master-categories",
   requireRole("admin"),
   asyncHandler(async (_request, response) => {
-    const categoryList = await getDb().select().from(masterCategories)
+    const categoryList = await getDb().select({
+      category: masterCategories,
+      productCount: count(masterProducts.id),
+    }).from(masterCategories)
+      .leftJoin(masterProducts, eq(masterProducts.masterCategoryId, masterCategories.id))
+      .groupBy(masterCategories.id)
       .orderBy(asc(masterCategories.name), asc(masterCategories.id));
-    response.json({ categories: categoryList });
+    response.json({
+      categories: categoryList.map(({ category, productCount }) => ({ ...category, productCount })),
+    });
   }),
 );
 
@@ -490,6 +525,7 @@ masterCatalogRouter.get(
       conditions.push(or(
         ilike(masterProducts.name, pattern),
         ilike(masterProducts.brand, pattern),
+        ilike(masterProducts.description, pattern),
         sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
       )!);
     }
@@ -508,7 +544,11 @@ masterCatalogRouter.get(
       database.select({ total: count() }).from(masterProducts).where(where),
     ]);
     response.json({
-      products: rows.map(({ product, categoryName }) => ({ ...product, categoryName })),
+      products: rows.map(({ product, categoryName }) => ({
+        ...product,
+        categoryName,
+        classificationLabel: categoryName ?? "Pending classification",
+      })),
       pagination: { page: parsed.data.page, pageSize: parsed.data.pageSize, total: totalRow.total },
     });
   }),
@@ -527,6 +567,7 @@ masterCatalogRouter.post(
     try {
       const product = await getDb().transaction(async (transaction) =>
         withMasterCatalogWriteLock(transaction, async () => {
+          if (!productInput.masterCategoryId) throw categoryNotFound();
           await requireActiveMasterCategory(productInput.masterCategoryId, transaction);
           const [exact] = await findExactIdentityMatches(productInput, transaction);
           if (exact) throw new HttpError(409, "An identical master product already exists, including archived products");
@@ -598,7 +639,9 @@ masterCatalogRouter.patch(
           await requireActiveMasterCategory(parsed.data.masterCategoryId, transaction);
         }
         const nextCanonical: CanonicalInput = {
-          masterCategoryId: parsed.data.masterCategoryId ?? existing.masterCategoryId,
+          masterCategoryId: parsed.data.masterCategoryId === undefined
+            ? existing.masterCategoryId
+            : parsed.data.masterCategoryId,
           name: parsed.data.name ?? existing.name,
           description: parsed.data.description === undefined ? existing.description : parsed.data.description,
           image: parsed.data.image === undefined ? existing.image : parsed.data.image,

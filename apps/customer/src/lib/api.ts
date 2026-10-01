@@ -51,7 +51,6 @@ export interface CustomerProduct {
   storeId: string;
   storeName?: string;
   categoryId: string | null;
-  masterProductId: string | null;
   name: string;
   description: string | null;
   brand: string | null;

@@ -71,6 +71,13 @@
       "when": 1790852000000,
       "tag": "0009_master_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790854552731,
+      "tag": "0010_master_catalog_pending_classification",
+      "breakpoints": true
     }
   ]
 }

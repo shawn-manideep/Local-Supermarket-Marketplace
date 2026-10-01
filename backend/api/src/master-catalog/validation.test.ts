@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   masterCatalogCanonicalProductSchema,
   masterCatalogQuerySchema,
+  masterProductAdminUpdateSchema,
   masterProductCreateAfterReviewSchema,
+  masterProductDuplicateCheckSchema,
   masterProductMappingUpdateSchema,
 } from "@workspace/validation";
 
@@ -34,6 +36,26 @@ test("canonical product validation normalizes optional fields and defaults attri
   }).success, false);
 });
 
+test("vendor missing-product validation accepts an omitted or null category and normalizes both to pending", () => {
+  const omitted = masterProductDuplicateCheckSchema.safeParse({ name: "  Local Honey " });
+  const explicitNull = masterProductDuplicateCheckSchema.safeParse({
+    name: "Local Honey",
+    masterCategoryId: null,
+  });
+  assert.equal(omitted.success, true);
+  assert.equal(explicitNull.success, true);
+  if (omitted.success && explicitNull.success) {
+    assert.equal(omitted.data.masterCategoryId, null);
+    assert.equal(explicitNull.data.masterCategoryId, null);
+    assert.deepEqual(omitted.data.attributes, {});
+  }
+  assert.equal(masterCatalogCanonicalProductSchema.safeParse({ name: "Local Honey" }).success, false);
+  assert.equal(masterCatalogCanonicalProductSchema.safeParse({
+    name: "Local Honey",
+    masterCategoryId: null,
+  }).success, false);
+});
+
 test("duplicate-review confirmation and master mapping require explicit, valid inputs", () => {
   const canonical = {
     masterCategoryId: categoryId,
@@ -51,6 +73,19 @@ test("duplicate-review confirmation and master mapping require explicit, valid i
     ...canonical,
     masterProductId: productId,
   }).success, false);
+  assert.equal(masterProductCreateAfterReviewSchema.safeParse({
+    name: "New Pending Product",
+    confirmedNoMatch: true,
+    duplicateReviewToken: "x".repeat(32),
+  }).success, true);
+  assert.equal(masterProductCreateAfterReviewSchema.safeParse({
+    ...canonical,
+    masterCategoryId: null,
+  }).success, true);
+  assert.equal(masterProductAdminUpdateSchema.safeParse({ name: "Classified" }).success, true);
+  assert.equal(masterProductAdminUpdateSchema.safeParse({ masterCategoryId: categoryId }).success, true);
+  assert.equal(masterProductAdminUpdateSchema.safeParse({ masterCategoryId: null }).success, true);
+  assert.equal(masterProductAdminUpdateSchema.safeParse({}).success, false);
   assert.equal(masterProductMappingUpdateSchema.safeParse({
     masterProductId: productId,
     reason: "Correcting clerical mapping",

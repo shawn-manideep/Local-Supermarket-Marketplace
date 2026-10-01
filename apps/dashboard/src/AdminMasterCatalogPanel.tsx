@@ -41,7 +41,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [draft, setDraft] = useState<ProductDraft>(emptyProduct);
   const [editingProductId, setEditingProductId] = useState("");
-  const [editingOriginalCategoryId, setEditingOriginalCategoryId] = useState("");
+  const [editingOriginalCategoryId, setEditingOriginalCategoryId] = useState<string | null>(null);
   const [productBusy, setProductBusy] = useState(false);
   const [rowBusy, setRowBusy] = useState("");
   const [mappingProductId, setMappingProductId] = useState("");
@@ -83,7 +83,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
     setEditingProductId(product.id);
     setEditingOriginalCategoryId(product.masterCategoryId);
     setDraft({
-      masterCategoryId: product.masterCategoryId,
+      masterCategoryId: product.masterCategoryId ?? "",
       name: product.name,
       description: product.description ?? "",
       image: product.image ?? "",
@@ -144,8 +144,9 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
         || Object.values(parsed).some((value) => typeof value !== "string")) {
         throw new Error("Attributes must be a JSON object with text values.");
       }
+      const categoryId = draft.masterCategoryId || null;
       const body = {
-        ...(!editingProductId || draft.masterCategoryId !== editingOriginalCategoryId
+        ...(!editingProductId || categoryId !== editingOriginalCategoryId
           ? { masterCategoryId: draft.masterCategoryId }
           : {}),
         name: draft.name.trim(),
@@ -167,7 +168,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
       } : current);
       setDraft(emptyProduct);
       setEditingProductId("");
-      setEditingOriginalCategoryId("");
+      setEditingOriginalCategoryId(null);
       onMessage(editingProductId ? "Master product updated." : "Master product created.", "success");
       void loadCategories();
       void loadProducts();
@@ -222,15 +223,15 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Platform catalog</p>
-          <h2>Shared grocery identities</h2>
-          <p className="muted">Archive instead of deleting. Store listings, categories, and historical orders remain independent.</p>
+          <h2>Master Catalog · Platform identities</h2>
+          <p className="muted">Manage platform-wide shared grocery identities and taxonomy. Archive instead of deleting; store-owned listings and historical orders remain independent.</p>
         </div>
         <button className="secondary-button" type="button" disabled={loading} onClick={() => { void loadCategories(); void loadProducts(); }}>Refresh catalog</button>
       </div>
 
       <div className="catalog-grid">
         <section className="card" aria-labelledby="master-categories-heading">
-          <div className="card-heading"><div><h3 id="master-categories-heading">Master categories</h3><p className="muted">Platform taxonomy; vendors keep their own local merchandising categories.</p></div><span className="count-pill">{categories.length}</span></div>
+          <div className="card-heading"><div><h3 id="master-categories-heading">Platform Master Categories</h3><p className="muted">Shared platform taxonomy; separate from vendors’ legacy store categories.</p></div><span className="count-pill">{categories.length}</span></div>
           <form className="inline-form" onSubmit={saveCategory}>
             <input aria-label="Master category name" required maxLength={100} placeholder="Category name" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} />
             <button className="primary-button" type="submit" disabled={categoryBusy}>{categoryBusy ? "Saving…" : editingCategory ? "Save" : "Add category"}</button>
@@ -239,7 +240,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
           <div className="category-list">
             {categories.length === 0 ? <div className="empty-state compact"><strong>No master categories yet</strong><span>Create the shared taxonomy used by master products.</span></div> : categories.map((category) => (
               <div className="category-row" key={category.id}>
-                <div><strong>{category.name}</strong><span className={`lifecycle-dot ${category.isActive ? "is-active" : ""}`}>{category.isActive ? "Active" : "Archived"}</span></div>
+                <div><strong>{category.name}</strong><span>{category.productCount} master products</span><span className={`lifecycle-dot ${category.isActive ? "is-active" : ""}`}>{category.isActive ? "Active" : "Archived"}</span></div>
                 <div className="row-actions">
                   <button className="text-button" type="button" onClick={() => { setEditingCategory(category.id); setCategoryName(category.name); }}>Edit</button>
                   <button className={category.isActive ? "danger-button compact-button" : "secondary-button compact-button"} type="button" disabled={rowBusy === category.id} onClick={() => void toggleCategory(category)}>{rowBusy === category.id ? "Working…" : category.isActive ? "Archive" : "Unarchive"}</button>
@@ -250,19 +251,24 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
         </section>
 
         <form className="card form-card admin-master-product-form" onSubmit={saveProduct}>
-          <div className="card-heading"><div><h3>{editingProductId ? "Edit master product" : "Create master product"}</h3><p className="muted">Canonical identity only. Price, stock, and sellable unit belong to each store.</p></div>{editingProductId && <button className="text-button" type="button" onClick={() => { setEditingProductId(""); setEditingOriginalCategoryId(""); setDraft(emptyProduct); }}>Cancel edit</button>}</div>
-          <label>Master category<select required value={draft.masterCategoryId} onChange={(event) => setDraft((current) => ({ ...current, masterCategoryId: event.target.value }))}><option value="">Select a category</option>{categories.filter((category) => category.isActive || (editingProductId && category.id === editingOriginalCategoryId)).map((category) => <option key={category.id} value={category.id}>{category.name}{category.isActive ? "" : " (Archived — existing products only)"}</option>)}</select></label>
+          <div className="card-heading"><div><h3>{editingProductId ? "View / edit master product" : "Create master product"}</h3><p className="muted">Canonical identity only. Price, stock, and sellable unit belong to each store. Pending products can be reviewed here and assigned an active category.</p></div>{editingProductId && <button className="text-button" type="button" onClick={() => { setEditingProductId(""); setEditingOriginalCategoryId(null); setDraft(emptyProduct); }}>Cancel edit</button>}</div>
+          <label>Master category<select required={!editingProductId} value={draft.masterCategoryId} onChange={(event) => setDraft((current) => ({ ...current, masterCategoryId: event.target.value }))}>
+            {editingProductId && editingOriginalCategoryId === null
+              ? <option value="">Pending classification (no category assigned)</option>
+              : <option value="">Select a category</option>}
+            {categories.filter((category) => category.isActive || (editingProductId && category.id === editingOriginalCategoryId)).map((category) => <option key={category.id} value={category.id}>{category.name}{category.isActive ? "" : " (Archived — existing products only)"}</option>)}
+          </select></label>
           <label>Canonical name<input required maxLength={180} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></label>
           <label>Brand<input maxLength={120} value={draft.brand} onChange={(event) => setDraft((current) => ({ ...current, brand: event.target.value }))} /></label>
           <label>Image URL<input type="url" value={draft.image} onChange={(event) => setDraft((current) => ({ ...current, image: event.target.value }))} /></label>
           <label>Description<textarea rows={2} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} /></label>
           <label>Discovery attributes <span className="muted">JSON object with string values</span><textarea rows={3} value={draft.attributes} onChange={(event) => setDraft((current) => ({ ...current, attributes: event.target.value }))} /></label>
-          <button className="primary-button" type="submit" disabled={productBusy || categories.filter((category) => category.isActive).length === 0}>{productBusy ? "Saving…" : editingProductId ? "Save changes" : "Create master product"}</button>
+          <button className="primary-button" type="submit" disabled={productBusy || (!editingProductId && categories.filter((category) => category.isActive).length === 0)}>{productBusy ? "Saving…" : editingProductId ? "Save changes" : "Create master product"}</button>
         </form>
       </div>
 
       <section className="card product-list-card" aria-labelledby="master-products-heading">
-        <div className="card-heading"><div><h3 id="master-products-heading">Master products</h3><p className="muted">Global searchable product families. Pack size is configured as a store variant.</p></div><span className="count-pill">{productsPage?.pagination.total ?? 0}</span></div>
+        <div className="card-heading"><div><h3 id="master-products-heading">Platform Master Products</h3><p className="muted">Global searchable platform identities. Pending classification is a valid temporary state; pack size is configured as a store variant.</p></div><span className="count-pill">{productsPage?.pagination.total ?? 0}</span></div>
         <div className="order-toolbar">
           <label>Search catalog<input type="search" placeholder="Name, brand, or discovery detail" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></label>
         </div>
@@ -273,11 +279,11 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
                 <article className="admin-master-product-row" key={product.id} data-testid={`row-master-product-${product.id}`}>
                   <div className="product-identity">
                     {product.image ? <img src={product.image} alt="" /> : <div className="product-placeholder" aria-hidden="true">{product.name.slice(0, 1).toUpperCase()}</div>}
-                    <div><strong>{product.name}</strong><span>{product.brand || "Unbranded"} · {product.categoryName ?? categories.find((category) => category.id === product.masterCategoryId)?.name ?? "Category"}</span></div>
+                    <div><strong>{product.name}</strong><span>{product.brand || "Unbranded"} · {product.masterCategoryId === null ? "Pending classification" : product.categoryName ?? categories.find((category) => category.id === product.masterCategoryId)?.name ?? "Unknown category"}</span></div>
                   </div>
                   <span className={`lifecycle-dot ${product.isActive ? "is-active" : ""}`}>{product.isActive ? "Active" : "Archived"}</span>
                   <div className="row-actions">
-                    <button className="secondary-button compact-button" type="button" onClick={() => editProduct(product)}>Edit</button>
+                    <button className="secondary-button compact-button" type="button" onClick={() => editProduct(product)}>View / edit</button>
                     <button className={product.isActive ? "danger-button compact-button" : "secondary-button compact-button"} type="button" disabled={rowBusy === product.id} onClick={() => void toggleProduct(product)}>{rowBusy === product.id ? "Working…" : product.isActive ? "Archive" : "Unarchive"}</button>
                   </div>
                 </article>

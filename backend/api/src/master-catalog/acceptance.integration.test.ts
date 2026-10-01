@@ -774,14 +774,14 @@ test("dev-only authenticated Master Catalog HTTP acceptance", {
     verify(Array.isArray(listingB.variants) && listingB.variants.length === 0, "new vendor B listing synthesized a default selling variant");
 
     const vendorAvariants = [
-      { name: "500 g pouch", quantityValue: 500, quantityUnit: "g", price: 42.5, stockQuantity: 18, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 0 },
-      { name: "1 kg pouch", quantityValue: 1, quantityUnit: "kg", price: 79.25, stockQuantity: 12, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 1 },
-      { name: "6-bottle pack", quantityValue: 6, quantityUnit: "bottle", price: 89.25, stockQuantity: 11, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 2 },
-      { name: "12-bottle box", quantityValue: 12, quantityUnit: "box", price: 150.75, stockQuantity: 6, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 3 },
+      { name: "500 g", quantityValue: 500, quantityUnit: "g", price: 42.5, stockQuantity: 18, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 0 },
+      { name: "1 kg", quantityValue: 1, quantityUnit: "kg", price: 79.25, stockQuantity: 12, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 1 },
+      { name: "6 bottles", quantityValue: 6, quantityUnit: "bottle", price: 89.25, stockQuantity: 11, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 2 },
+      { name: "12 boxes", quantityValue: 12, quantityUnit: "box", price: 150.75, stockQuantity: 6, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 3 },
     ];
     if (searchOnly) {
       vendorAvariants.push({
-        name: "Zero-stock acceptance pack",
+        name: "1 pack",
         quantityValue: 1,
         quantityUnit: "pack",
         price: 1,
@@ -794,10 +794,10 @@ test("dev-only authenticated Master Catalog HTTP acceptance", {
       });
     }
     const vendorBvariants = [
-      { name: "750 g pouch", quantityValue: 750, quantityUnit: "g", price: 63, stockQuantity: 7, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 0 },
-      { name: "2 kg pouch", quantityValue: 2, quantityUnit: "kg", price: 159.5, stockQuantity: 5, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 1 },
-      { name: "4-bottle pack", quantityValue: 4, quantityUnit: "bottle", price: 104.5, stockQuantity: 3, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 2 },
-      { name: "24-bottle box", quantityValue: 24, quantityUnit: "box", price: 270, stockQuantity: 2, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 3 },
+      { name: "750 g", quantityValue: 750, quantityUnit: "g", price: 63, stockQuantity: 7, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 0 },
+      { name: "2 kg", quantityValue: 2, quantityUnit: "kg", price: 159.5, stockQuantity: 5, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 1 },
+      { name: "4 bottles", quantityValue: 4, quantityUnit: "bottle", price: 104.5, stockQuantity: 3, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 2 },
+      { name: "24 boxes", quantityValue: 24, quantityUnit: "box", price: 270, stockQuantity: 2, availability: true, isActive: true, sku: null, externalCode: null, sortOrder: 3 },
     ];
     const variantIdsByStore = new Map<string, string[]>();
     const commercialValuesByStore = new Map<string, Array<{ price: string; stockQuantity: number }>>();
@@ -1055,7 +1055,7 @@ test("dev-only authenticated Master Catalog HTTP acceptance", {
             variant.isActive === true && variant.availability === true && variant.stockQuantity === 0),
           globalPurchasableTrue: globalOfferA?.purchasable === true,
           zeroStockVariantPurchasableFalse: variantsA.some((variant) =>
-            variant.name === "Zero-stock acceptance pack" && variant.purchasable === false),
+            variant.name === "1 pack" && variant.purchasable === false),
         },
         customerB: {
           parentAvailabilityTrue: parentB?.availability === true,

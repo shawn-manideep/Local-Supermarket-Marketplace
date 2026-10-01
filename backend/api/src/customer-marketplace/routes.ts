@@ -29,7 +29,6 @@ const publicStore = {
 };
 const publicProduct = {
   id: products.id, storeId: products.storeId, categoryId: products.categoryId,
-  masterProductId: products.masterProductId,
   name: sql<string>`coalesce(${masterProducts.name}, ${products.name})`.as("name"),
   description: sql<string | null>`coalesce(${products.description}, ${masterProducts.description})`.as("description"),
   price: products.price, availability: products.availability,
@@ -50,14 +49,13 @@ const customerVariantFields = {
   quantityUnit: productVariants.quantityUnit, price: productVariants.price,
   availability: productVariants.availability, isActive: productVariants.isActive,
   sortOrder: productVariants.sortOrder,
-  purchasable: sql<boolean>`${productVariants.isActive} = true AND ${productVariants.availability} = true AND ${productVariants.stockQuantity} > 0`,
+  purchasable: sql<boolean>`${productVariants.isActive} = true AND ${productVariants.availability} = true AND ${productVariants.stockQuantity} > 0 AND ${productVariants.price} > 0`,
 };
 
 type PublicProduct = {
   id: string;
   storeId: string;
   categoryId: string | null;
-  masterProductId: string | null;
   name: string;
   description: string | null;
   price: string;
@@ -205,6 +203,8 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/products", requireR
     ilike(masterProducts.name, pattern),
     ilike(products.name, pattern),
     ilike(masterProducts.brand, pattern),
+    ilike(masterProducts.description, pattern),
+    ilike(products.description, pattern),
     ilike(categories.name, pattern),
     sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
   )!);
@@ -245,6 +245,8 @@ customerMarketplaceRouter.get("/api/customer/products", requireRole("customer"),
     ilike(masterProducts.name, pattern),
     ilike(products.name, pattern),
     ilike(masterProducts.brand, pattern),
+    ilike(masterProducts.description, pattern),
+    ilike(products.description, pattern),
     ilike(categories.name, pattern),
     sql`${masterProducts.attributes}::text ILIKE ${pattern}`,
   )!);

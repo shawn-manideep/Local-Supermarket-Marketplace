@@ -7,3 +7,5 @@
 - [Customer browser origin](customer-dev-browser-origin.md) — interactive Customer API checks require the development origin; localhost screenshots may hit CORS.
 - [Supabase migration history](supabase-migration-history.md) — an empty Drizzle journal does not mean an empty database; use the established remote migration history.
 - [Authorization denial invariants](authorization-denial-invariants.md) — rejected cross-store API calls must leave parent and child state unchanged, not merely return an error.
+- [Pending classification](pending-master-classification.md) — unknown taxonomy is a pending state, not a fake category; active canonical identities stay globally reusable.
+- [Catalog stock writes](catalog-stock-write-boundary.md) — catalog batches must protect against stale stock without changing checkout or order inventory locking.

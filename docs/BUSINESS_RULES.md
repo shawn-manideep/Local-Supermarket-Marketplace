@@ -108,14 +108,33 @@ Arbitrary status updates are not exposed.
 - Master identity follows the product-family model. Pack sizes are selling
   variants; materially different brands/types/specifications remain distinct.
 - Vendors search the complete eligible catalog with backend pagination, without
-  choosing a category first. Category is an optional filter.
+  choosing a category first. Category optionally filters browsing; a nonempty
+  product search covers all eligible categories, brands and product details.
 - New vendor additions use canonical selection or the same validated canonical
   creation flow after reviewed global duplicate checks.
+- Vendors can request a missing product without choosing platform taxonomy.
+  A null master category means pending classification, not archived or invalid.
+  Active pending products remain globally searchable/reusable; Admin assigns an
+  active category later without changing the product identity or store mapping.
+- Vendor product-type/details input is ordinary text mapped to canonical
+  attributes internally. Vendors are not asked to edit JSON.
 - New selections reuse an existing listing and serialize concurrent additions.
   No uniqueness constraint is imposed on legacy duplicate listings.
 - New selections start inactive with no artificial selling variant. Vendors
   explicitly configure a real variant before activation. A required legacy
   product-price placeholder is not a published selling offer.
+- One master family maps to one selected store listing with multiple selling
+  variants. Vendors explicitly select each variant's quantity and unit; the
+  unit is never silently defaulted to pack. Names are generated from quantity
+  and unit, and display order is system-managed.
+- Comparable weight/volume sizes are ordered by size for display only.
+  Incomparable units retain creation-order slots. Saved quantities, units and
+  independent variant stock are never converted into shared bulk inventory.
+- Publishing requires at least one active, fully configured, positive-price
+  variant. Stock is a nonnegative integer and may be zero. Temporarily
+  unavailable and out-of-stock configured options cannot be purchased.
+- Multi-variant configuration saves and optional publication are atomic.
+  Deactivation preserves saved variant IDs; unsaved form rows may be removed.
 - Canonical names/brands remain master-controlled. Local description/image
   overrides are nullable; null means inherit the current canonical default.
   Store categories remain independent merchandising groups.

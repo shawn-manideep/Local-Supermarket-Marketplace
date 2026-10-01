@@ -1,0 +1,959 @@
+MASTER CATALOG — FINAL UX + VARIANT + DATA FIXES
+=================================================
+
+We have already implemented the Master Catalog architecture and populated the initial Master Catalog.
+
+DO NOT redesign the underlying Master Catalog architecture.
+
+DO NOT create a replacement store_products table.
+
+DO NOT modify authentication.
+
+DO NOT modify checkout, orders, reorder, payments, Delivery Partner, or stock reservation/deduction.
+
+DO NOT delete existing legacy store/vendor data.
+
+DO NOT delete Master Categories or Master Products.
+
+This task is ONLY to fix and complete the Master Catalog, Vendor Catalog, Customer Global Search, missing-product flow, and multi-variant selling configuration based on the actual browser verification.
+
+The goal is to make the Master Catalog fully usable by a normal supermarket vendor without requiring technical knowledge or knowledge of the platform's category structure.
+
+
+=================================================
+1. MASTER CATALOG MUST CONTAIN REAL MASTER DATA
+=================================================
+
+The Master Catalog must contain actual platform-wide grocery Master Categories and Master Products.
+
+Master Catalog is NOT the same thing as the vendor's existing "My Store Products".
+
+Ensure the seeded Master Catalog data is actually stored in:
+
+- master_categories
+- master_products
+
+and is returned by the Vendor Master Catalog API.
+
+The Vendor Master Catalog must show actual Master Products immediately when opened.
+
+Do not rely on legacy/store-owned categories or products as Master Catalog data.
+
+At minimum, retain/populate the agreed supermarket MVP categories and representative grocery products.
+
+The categories should include:
+
+1. Rice & Grains
+2. Atta & Flours
+3. Dals & Pulses
+4. Cooking Oils & Ghee
+5. Spices & Masalas
+6. Salt & Sugar
+7. Dairy & Milk Products
+8. Eggs
+9. Fruits
+10. Vegetables
+11. Biscuits & Cookies
+12. Bakery
+13. Snacks
+14. Chocolates & Sweets
+15. Beverages
+16. Tea & Coffee
+17. Breakfast & Cereals
+18. Packaged Foods
+19. Noodles & Pasta
+20. Sauces & Spreads
+21. Pickles
+22. Baby Food
+23. Personal Care
+24. Household Cleaning
+25. Home & Kitchen Essentials
+
+Populate meaningful common grocery Master Products under these categories.
+
+Do not create every pack size as a separate Master Product.
+
+Example:
+
+MASTER PRODUCT:
+Basmati Rice
+
+NOT:
+Basmati Rice 500g
+Basmati Rice 1kg
+Basmati Rice 2kg
+Basmati Rice 5kg
+
+Those must be selling variants of the same product.
+
+
+=================================================
+2. VENDOR GLOBAL SEARCH
+=================================================
+
+Vendor Master Catalog search must be GLOBAL.
+
+The vendor must NOT need to know the category in which a product exists.
+
+Category is an optional filter only.
+
+The search should work across the complete eligible Master Catalog.
+
+Examples:
+
+Search:
+rice
+
+Should find relevant rice products.
+
+Search:
+milk
+
+Should find relevant milk products.
+
+Search:
+eggs
+
+Should find relevant egg products.
+
+Search:
+amul
+
+Should find relevant products containing that brand.
+
+The vendor should be able to search by relevant product name, brand, and product details.
+
+Do not require category selection before search.
+
+Do not limit search to the selected category.
+
+Keep backend pagination.
+
+
+=================================================
+3. CUSTOMER GLOBAL SEARCH
+=================================================
+
+Customer global search should also be user-friendly.
+
+Customers should NOT need to know the category before searching.
+
+Customer can search globally for:
+
+- product name
+- brand
+- relevant product details
+
+Category can be an optional filter.
+
+However, actual purchasing remains store-specific.
+
+Only show/present purchasable store-specific results according to existing:
+
+- eligible store rules
+- saved-address pincode rules
+- vendor/store availability
+- variant availability
+- server-side stock validation
+
+Do not expose:
+
+- exact stock quantity
+- SKU
+- external codes
+- internal timestamps
+- unnecessary internal identifiers
+
+
+=================================================
+4. "CAN'T FIND YOUR PRODUCT?" FLOW
+=================================================
+
+The vendor must be able to create a missing product.
+
+The vendor must NOT be forced to know the platform category.
+
+Current behavior requiring Master Category selection must be removed from this flow.
+
+When vendor clicks:
+
+"Can't find your product?"
+
+show:
+
+ADD NEW PRODUCT
+
+Fields:
+
+Product Name *
+Brand
+Product Type / Details
+Description
+Image
+
+Category must NOT be mandatory at this stage.
+
+Do NOT expose JSON fields.
+
+Do NOT expose "Discovery Attributes" JSON input.
+
+Do NOT ask the vendor to enter JSON.
+
+Do NOT use technical terminology such as:
+
+- platform identity
+- canonical identity
+- discovery JSON
+- JSON attributes
+
+Use normal supermarket terminology.
+
+
+=================================================
+5. DUPLICATE CHECK BEFORE NEW PRODUCT CREATION
+=================================================
+
+Before creating a new Master Product, perform a GLOBAL duplicate check.
+
+The check must search the entire Master Catalog, not only one category.
+
+Check both active and archived Master Products.
+
+If exact/similar products are found, display them clearly.
+
+Example:
+
+"Possible matching products found"
+
+- Basmati Rice
+- Premium Basmati Rice
+- Long Grain Basmati Rice
+
+Vendor should be able to select an existing product instead.
+
+If no suitable product exists, show:
+
+"No matching product found."
+
+Then require an explicit confirmation:
+
+[ ] I checked the results and this product is not already in the catalog.
+
+Only after the vendor checks this confirmation should:
+
+"Confirm no match & create"
+
+be enabled.
+
+This duplicate confirmation is specifically intended to prevent accidental duplicate Master Products.
+
+Keep the existing concurrency-safe creation/reuse logic.
+
+
+=================================================
+6. CATEGORY FOR VENDOR-CREATED PRODUCTS
+=================================================
+
+The vendor should NOT have to manually understand or select the platform taxonomy before duplicate checking.
+
+If the platform cannot confidently determine the category for a newly created product:
+
+DO NOT force the vendor to choose an arbitrary category.
+
+Allow the product to enter the appropriate internal pending/unclassified state or admin classification flow.
+
+The vendor should be able to continue to the store configuration without being blocked by taxonomy knowledge.
+
+Do not create incorrect category mappings simply to satisfy a required field.
+
+
+=================================================
+7. MASTER DATA MUST NEVER BE DELETED
+=================================================
+
+There must be NO DELETE operation for:
+
+- Master Categories
+- Master Products
+
+Do not add DELETE buttons.
+
+Do not add DELETE API endpoints.
+
+Use:
+
+ACTIVE
+ARCHIVED
+
+Archiving must preserve:
+
+- Master Product ID
+- Master Category ID
+- vendor/store mappings
+- product listings
+- variants
+- historical orders
+- historical snapshots
+- audit history
+
+Archive should prevent new selections where applicable.
+
+Archive must NOT physically remove the Master Data.
+
+
+=================================================
+8. CLEARLY SEPARATE MASTER CATALOG AND MY STORE
+=================================================
+
+Vendor UI must clearly distinguish:
+
+MASTER CATALOG
+
+Platform-wide shared grocery products.
+
+versus
+
+MY STORE PRODUCTS
+
+Products already selected by the vendor.
+
+Master Catalog:
+- Search
+- Browse
+- Add to My Store
+
+My Store:
+- Price
+- Stock
+- Selling variants
+- Availability
+- permitted store-specific presentation fields
+
+Do not make legacy store categories/products appear to be Master Catalog records.
+
+
+=================================================
+9. ADD TO MY STORE FLOW
+=================================================
+
+When vendor selects:
+
+"Add to My Store"
+
+do NOT immediately create an incomplete customer-visible listing.
+
+Open the store configuration flow.
+
+The vendor must configure at least one valid selling variant before publishing.
+
+Flow:
+
+Master Product
+↓
+Add to My Store
+↓
+Configure Selling Variants
+↓
+Save/Publish
+
+
+=================================================
+10. MULTIPLE VARIANTS ARE REQUIRED
+=================================================
+
+IMPORTANT:
+
+The current UI provides only ONE variant form.
+
+This is NOT sufficient.
+
+A single Master Product must support MULTIPLE selling variants.
+
+Example:
+
+MASTER PRODUCT:
+Basmati Rice
+
+Vendor can configure:
+
+Variant 1:
+500 g
+Price ₹40
+Stock 20
+
+Variant 2:
+1 kg
+Price ₹75
+Stock 30
+
+Variant 3:
+2 kg
+Price ₹145
+Stock 15
+
+Variant 4:
+5 kg
+Price ₹350
+Stock 10
+
+All four belong to the SAME vendor listing and SAME Master Product.
+
+Do NOT create four products.
+
+Do NOT create four Master Products.
+
+Structure:
+
+1 Master Product
+→ 1 Vendor Store Listing
+→ Multiple Selling Variants
+
+
+=================================================
+11. MULTI-VARIANT UI
+=================================================
+
+Replace the current single-variant-only form with a repeatable variant section.
+
+Example:
+
+CONFIGURE SELLING VARIANTS
+
+Variant 1
+Quantity: [ 500 ]
+Unit: [ g ]
+Price: [ ₹40 ]
+Stock: [ 20 ]
+Available: [Yes]
+
+[ + Add Another Variant ]
+
+Variant 2
+Quantity: [ 1 ]
+Unit: [ kg ]
+Price: [ ₹75 ]
+Stock: [ 30 ]
+Available: [Yes]
+
+[ + Add Another Variant ]
+
+Variant 3
+...
+
+The vendor must be able to add as many valid variants as required.
+
+The vendor must also be able to:
+
+- edit an existing variant
+- remove/deactivate a variant before publishing
+- add another variant later
+- change price
+- change stock
+- change availability
+
+
+=================================================
+12. REMOVE MANUAL VARIANT NAME
+=================================================
+
+Do NOT require the vendor to type:
+
+"Variant Name"
+
+manually.
+
+Variant name should be generated automatically from:
+
+Quantity + Unit
+
+Examples:
+
+500 + g
+→ 500 g
+
+1 + kg
+→ 1 kg
+
+2 + kg
+→ 2 kg
+
+12 + piece
+→ 12 pieces
+
+30 + piece
+→ 30 pieces
+
+500 + ml
+→ 500 ml
+
+1 + L
+→ 1 L
+
+This prevents inconsistent names such as:
+
+1kg
+1 KG
+1 Kg
+One Kg
+
+The customer-facing name should be system-generated and consistent.
+
+
+=================================================
+13. SUPPORTED UNITS
+=================================================
+
+Support the agreed grocery units:
+
+- g
+- kg
+- ml
+- L
+- piece
+- pack
+- dozen
+- bottle
+- box
+
+Bottle and Box are included in this MVP.
+
+Do NOT implement automatic conversion between units.
+
+Do NOT implement shared bulk inventory conversion in this task.
+
+For example:
+
+1 box ≠ automatically converted into 12 pieces.
+
+That is a future business rule unless explicitly implemented later.
+
+
+=================================================
+14. DO NOT DEFAULT UNIT TO PACK
+=================================================
+
+Do not silently default every new variant to:
+
+pack
+
+Instead show:
+
+Unit:
+[ Select unit ]
+
+or require the vendor to choose the appropriate unit.
+
+This prevents vendors from accidentally publishing:
+
+1 pack
+
+when they intended:
+
+1 kg
+
+or:
+
+1 L
+
+or:
+
+12 pieces.
+
+
+=================================================
+15. PRICE VALIDATION
+=================================================
+
+A variant cannot be published without a valid selling price.
+
+Price must be greater than zero for a customer-purchasable published variant.
+
+Display a clear validation message when missing/invalid.
+
+Do not allow the vendor to publish an incomplete commercial variant.
+
+
+=================================================
+16. STOCK BEHAVIOR
+=================================================
+
+Stock = 0 should NOT prevent publishing.
+
+A vendor may publish a product that is temporarily out of stock.
+
+Example:
+
+Basmati Rice
+1 kg
+₹75
+Stock: 0
+
+The product remains configured but should be shown to customers as:
+
+Out of stock / unavailable
+
+and customer cannot purchase it.
+
+Existing server-side stock validation remains authoritative.
+
+DO NOT implement stock reservation/deduction in this task.
+
+
+=================================================
+17. AVAILABILITY
+=================================================
+
+Each variant should have:
+
+Available / Unavailable
+
+If unavailable, customers cannot purchase that variant.
+
+The vendor should be able to change availability later.
+
+
+=================================================
+18. DISPLAY ORDER
+=================================================
+
+Do NOT require vendors to manually enter Display Order.
+
+Display Order should be system-managed.
+
+Default ordering should be logical:
+
+smallest quantity → largest quantity.
+
+Examples:
+
+500 g
+1 kg
+2 kg
+5 kg
+
+or:
+
+6 pieces
+12 pieces
+30 pieces
+
+If variants cannot be numerically compared because of different unit types, use creation order as fallback.
+
+Do not show Display Order as a required vendor input field.
+
+If manual reordering is required in the future, use drag-and-drop rather than asking vendors to enter numbers.
+
+
+=================================================
+19. PUBLISH LISTING BUTTON
+=================================================
+
+Current problem:
+
+After clicking Add to Store, the UI shows:
+
+"Publish Listing"
+
+but the button is disabled without sufficiently clear explanation.
+
+Fix this.
+
+Publish Listing should become enabled when:
+
+- At least one selling variant exists
+- Quantity is valid
+- Unit is selected
+- Price is valid
+- Stock is valid
+- Required availability state is set
+
+SKU is NOT required.
+
+External code is NOT required.
+
+Description is NOT required.
+
+Image is NOT required.
+
+Category knowledge is NOT required for this flow.
+
+Stock may be zero.
+
+If the button is disabled, show clear validation reasons.
+
+Example:
+
+"Complete the selling variant details to publish."
+
+and/or field-level messages:
+
+- Quantity is required
+- Unit is required
+- Price is required
+
+Do not simply present a disabled button with no explanation.
+
+
+=================================================
+20. VARIANT SKU / EXTERNAL CODE
+=================================================
+
+Keep existing vendor/store SKU and external-code functionality.
+
+However, these are internal/vendor fields.
+
+They must NOT be required for normal grocery selling.
+
+They must NOT be exposed to customers.
+
+
+=================================================
+21. MY STORE VARIANT MANAGEMENT
+=================================================
+
+After publishing, vendor should be able to open:
+
+My Store Products
+→ Product
+→ Variants
+
+and see all configured variants.
+
+Example:
+
+Basmati Rice
+
+- 500 g — ₹40 — Stock 20 — Available
+- 1 kg — ₹75 — Stock 30 — Available
+- 2 kg — ₹145 — Stock 15 — Available
+- 5 kg — ₹350 — Stock 10 — Available
+
+Vendor can:
+
+- Add Variant
+- Edit Variant
+- Change Price
+- Change Stock
+- Change Availability
+- Deactivate Variant
+
+Do not require recreating the Master Product.
+
+
+=================================================
+22. CUSTOMER PRODUCT PRESENTATION
+=================================================
+
+When customer opens a product with multiple variants:
+
+Basmati Rice
+
+Select Quantity:
+
+○ 500 g — ₹40
+○ 1 kg — ₹75
+○ 2 kg — ₹145
+○ 5 kg — ₹350
+
+Customer selects one available variant before adding to cart.
+
+Do not display all variants as separate products.
+
+Do not allow customer to purchase an unavailable variant.
+
+
+=================================================
+23. ADMIN MASTER CATALOG
+=================================================
+
+Admin must have a clear Master Catalog management area.
+
+Show:
+
+Master Categories
+- Name
+- Product Count
+- Active/Archived
+
+Master Products
+- Product Name
+- Category/classification
+- Brand where available
+- Active/Archived
+- View/Edit/Archive
+
+There must be NO DELETE action.
+
+Admin should be able to archive rather than delete.
+
+
+=================================================
+24. DO NOT BREAK LEGACY DATA
+=================================================
+
+Preserve:
+
+- Existing product IDs
+- Existing variant IDs
+- Existing category IDs
+- Existing cart IDs
+- Existing order IDs
+- Historical order snapshots
+- Existing store/vendor data
+
+Do not automatically rewrite historical records.
+
+Do not delete existing legacy products/categories.
+
+Unmapped legacy products/categories remain supported.
+
+
+=================================================
+25. UI LANGUAGE
+=================================================
+
+Vendor-facing UI must use simple business language.
+
+Avoid:
+
+- Platform Identity
+- Canonical Identity
+- Discovery JSON
+- JSON Attributes
+- Internal classification terminology
+
+Prefer:
+
+- Product
+- Brand
+- Product Details
+- Selling Variant
+- Quantity
+- Unit
+- Price
+- Stock
+- Available
+- Add to My Store
+- Add New Product
+- Search Products
+
+
+=================================================
+26. AUTHENTICATED BROWSER VERIFICATION
+=================================================
+
+After implementation, DO NOT claim the work is verified based only on API tests.
+
+Perform authenticated browser verification.
+
+Verify:
+
+A. Vendor Master Catalog opens and displays actual Master Products.
+
+B. Global search:
+- rice
+- milk
+- eggs
+
+returns real Master Products.
+
+C. Category dropdown contains actual Master Categories.
+
+D. Category is not required for search.
+
+E. Add existing Master Product to My Store.
+
+F. Configure multiple variants for one product:
+- 500 g
+- 1 kg
+- 2 kg
+- 5 kg
+
+G. Confirm all variants appear under one store listing.
+
+H. Confirm Display Order is automatic.
+
+I. Confirm Variant Name is automatically generated.
+
+J. Confirm Publish Listing becomes enabled after required fields are completed.
+
+K. Confirm stock 0 does not block publishing.
+
+L. Confirm missing-product flow:
+- search nonexistent product
+- click Can't Find Product
+- category is NOT required
+- no JSON field
+- enter product details
+- duplicate review
+- explicit "I checked" confirmation
+- create product
+
+M. Confirm no Master Category Delete exists.
+
+N. Confirm no Master Product Delete exists.
+
+O. Confirm Customer Global Search works without category selection.
+
+P. Confirm customer responses do not expose:
+- SKU
+- external code
+- exact stock
+- internal timestamps
+
+Q. Confirm customer sees multiple variants correctly.
+
+R. Confirm unavailable/out-of-stock variants cannot be purchased.
+
+
+=================================================
+27. TESTING / REPORTING
+=================================================
+
+Do not report "Master Catalog complete" merely because the database migration exists.
+
+Acceptance requires:
+
+- Master Catalog data exists
+- Search works
+- Category filter works
+- Missing product creation works
+- Duplicate prevention works
+- Multiple variants work
+- Publish flow works
+- Customer global search works
+- Customer variant selection works
+- No Master Delete exists
+- Authenticated browser verification is completed
+
+After implementation provide:
+
+1. Master Category count
+2. Master Product count
+3. Example global search results for:
+   - rice
+   - milk
+   - eggs
+4. Evidence of category dropdown
+5. Evidence of Add to My Store
+6. Evidence of multiple variants under one listing
+7. Evidence of automatically generated variant names
+8. Evidence that Display Order is system-managed
+9. Evidence Publish Listing becomes enabled after valid configuration
+10. Evidence missing-product flow
+11. Evidence duplicate confirmation
+12. Evidence no Master Delete
+13. Customer global search evidence
+14. Customer multi-variant evidence
+15. API/database test results
+16. Typecheck results
+17. Build results
+18. Any remaining issues
+
+Do not deploy to production.
+
+Do not modify unrelated modules.
+
+Do not perform another broad architecture redesign.
+
+This is a focused completion/fix pass for the already-approved Master Catalog implementation.

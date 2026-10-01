@@ -73,13 +73,14 @@ export interface MasterCategory {
   id: string;
   name: string;
   isActive: boolean;
+  productCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface MasterProduct {
   id: string;
-  masterCategoryId: string;
+  masterCategoryId: string | null;
   name: string;
   description: string | null;
   image: string | null;
@@ -88,10 +89,18 @@ export interface MasterProduct {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  categoryName?: string;
-  categoryIsActive?: boolean;
+  categoryName?: string | null;
+  categoryIsActive?: boolean | null;
   canAddToStore?: boolean;
   exactIdentity?: boolean;
+}
+
+export interface VendorMasterProductCreateInput {
+  name: string;
+  description?: string;
+  image?: string;
+  brand?: string;
+  attributes: Record<string, string>;
 }
 
 export interface ProductVariant {
@@ -109,6 +118,28 @@ export interface ProductVariant {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface VendorProductVariantBatchInput {
+  id?: string;
+  expectedUpdatedAt?: string;
+  quantityValue: string;
+  quantityUnit: VariantQuantityUnit;
+  price: string;
+  stockQuantity: number;
+  availability: boolean;
+  isActive?: boolean;
+  sku?: string | null;
+  externalCode?: string | null;
+}
+
+export interface VendorProductVariantsBatchInput {
+  variants: VendorProductVariantBatchInput[];
+  publish?: boolean;
+}
+
+export interface VendorProductVariantsBatchResponse {
+  product: Product;
 }
 
 export type OrderStatus =

@@ -5,7 +5,7 @@ const REVIEW_TOKEN_TTL_MS = 5 * 60 * 1_000;
 const MASTER_CATALOG_WRITE_LOCK_NAMESPACE = "master-catalog:serialized-writes:v1";
 
 export type CanonicalProductInput = {
-  masterCategoryId: string;
+  masterCategoryId: string | null;
   name: string;
   description?: string | null;
   image?: string | null;
@@ -28,8 +28,8 @@ export function normalizeIdentityText(value: string | null | undefined) {
 }
 
 export function isNewMasterCategoryAssignment(
-  currentCategoryId: string,
-  requestedCategoryId: string | undefined,
+  currentCategoryId: string | null,
+  requestedCategoryId: string | null | undefined,
 ) {
   return requestedCategoryId !== undefined && requestedCategoryId !== currentCategoryId;
 }
@@ -54,7 +54,7 @@ function canonicalReviewInput(product: CanonicalProductInput) {
       .sort(([left], [right]) => left.localeCompare(right)),
   );
   return JSON.stringify({
-    masterCategoryId: product.masterCategoryId,
+    masterCategoryId: product.masterCategoryId ?? null,
     name: product.name,
     description: product.description ?? null,
     image: product.image ?? null,
@@ -65,7 +65,7 @@ function canonicalReviewInput(product: CanonicalProductInput) {
 
 export function reviewedCandidateProof(candidate: {
   id: string;
-  masterCategoryId: string;
+  masterCategoryId: string | null;
   name: string;
   description: string | null;
   image: string | null;

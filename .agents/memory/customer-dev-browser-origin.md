@@ -9,8 +9,15 @@ For authenticated Customer browser checks, use the workspace development domain,
 
 **How to apply:** Use the artifact screenshot proxy for static visual checks. For browser-driven Customer API interactions, use the existing development domain and keep credentials out of logs. Do not adjust API CORS just to accommodate a localhost-only test harness.
 
-For automated DEV checks of the static Expo Web preview, a verified sign-in URL fragment did not establish the Customer session. The existing web storage adapter did restore a session when it was persisted on the same development origin before reload. Never print or save the session in reports or project files.
+The tool notebook and browser tester do not automatically have the application's
+runtime secrets. Prefer a workspace-side browser harness that consumes existing
+test credentials internally and performs normal UI sign-in.
 
-**Why:** The isolated browser tester could not use the workspace's dedicated test-password secrets, and URL-fragment navigation left the preview on the sign-in screen despite successful DEV authentication.
+**Why:** Credential availability in the running workspace did not make those
+credentials readable inside the isolated tool notebook. Trying to bridge that
+gap through tool output or authentication changes is unnecessary.
 
-**How to apply:** When a dedicated DEV test account needs browser verification, prefer normal sign-in with working credentials. If those credentials are unavailable, use only an authorized DEV test-account session held in memory by the test harness, populate the app's existing same-origin web storage, and clear the temporary browser profile afterward. Never use this workaround for production or real-user accounts.
+**How to apply:** Keep credentials and sessions inside the runtime process and
+isolated browser context. Emit only sanitized assertions/screenshots, bound
+browser startup and cleanup, and remove temporary profiles on failure as well
+as success. Never copy credentials into code, reports, or tool arguments.

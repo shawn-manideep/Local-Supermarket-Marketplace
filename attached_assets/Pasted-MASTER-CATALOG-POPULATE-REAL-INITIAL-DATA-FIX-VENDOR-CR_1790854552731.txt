@@ -1,0 +1,339 @@
+MASTER CATALOG — POPULATE REAL INITIAL DATA + FIX VENDOR CREATION UX
+
+We have already implemented and verified the Master Catalog database/API architecture.
+
+DO NOT redesign the Master Catalog architecture.
+DO NOT create a new store_products table.
+DO NOT modify historical order IDs, cart IDs, product IDs, variant IDs, or snapshots.
+DO NOT modify authentication.
+DO NOT modify checkout, orders, reorder, payments, delivery partner, or stock reservation.
+DO NOT delete existing legacy vendor/store data.
+
+The current problem is that the Master Catalog UI exists, but the actual Master Catalog data is not populated sufficiently for real verification.
+
+The vendor screen currently shows:
+- Master Catalog
+- Search all groceries
+- Category filter
+- No matching groceries
+
+The visible existing categories/products lower on the page are legacy/store-owned records and must NOT be mistaken for Master Catalog data.
+
+PHASE 1 — POPULATE INITIAL MASTER CATALOG
+
+Create a proper initial platform Master Catalog in the existing master_categories and master_products tables.
+
+Create these Master Categories:
+
+1. Rice & Grains
+2. Atta & Flours
+3. Dals & Pulses
+4. Cooking Oils & Ghee
+5. Spices & Masalas
+6. Salt & Sugar
+7. Dairy & Milk Products
+8. Eggs
+9. Fruits
+10. Vegetables
+11. Biscuits & Cookies
+12. Bakery
+13. Snacks
+14. Chocolates & Sweets
+15. Beverages
+16. Tea & Coffee
+17. Breakfast & Cereals
+18. Packaged Foods
+19. Noodles & Pasta
+20. Sauces & Spreads
+21. Pickles
+22. Baby Food
+23. Personal Care
+24. Household Cleaning
+25. Home & Kitchen Essentials
+
+Populate realistic common grocery Master Products under these categories.
+
+At minimum include representative products such as:
+
+Rice & Grains:
+- Sona Masuri Rice
+- Basmati Rice
+- Brown Rice
+- Idli Rice
+- Ponni Rice
+- Raw Rice
+- Boiled Rice
+- Broken Rice
+
+Atta & Flours:
+- Wheat Atta
+- Maida
+- Rava
+- Sooji
+- Besan
+- Rice Flour
+- Multigrain Atta
+- Corn Flour
+
+Dals & Pulses:
+- Toor Dal
+- Moong Dal
+- Masoor Dal
+- Chana Dal
+- Urad Dal
+- Kabuli Chana
+- Rajma
+- Black Chana
+
+Cooking Oils & Ghee:
+- Sunflower Oil
+- Groundnut Oil
+- Rice Bran Oil
+- Mustard Oil
+- Coconut Oil
+- Sesame Oil
+- Ghee
+
+Dairy:
+- Full Cream Milk
+- Toned Milk
+- Double Toned Milk
+- Curd
+- Buttermilk
+- Paneer
+- Cheese
+- Butter
+
+Eggs:
+- Regular White Eggs
+- Brown Eggs
+- Country Eggs
+- Omega Eggs
+
+Also populate representative products for the remaining categories.
+
+IMPORTANT:
+Do not create pack sizes such as 500g, 1kg, 5kg as separate Master Products.
+
+Pack/quantity belongs to the vendor's selling variants.
+
+Example:
+Master Product = Basmati Rice
+Variants can later be:
+500g, 1kg, 2kg, 5kg.
+
+Master Product = Milk
+Variants:
+500ml, 1L.
+
+Master Product = Eggs
+Variants:
+6 pieces, 12 pieces, 30 pieces.
+
+Do not create synthetic "Standard 1 pack" variants.
+
+PHASE 2 — GLOBAL SEARCH
+
+Verify that Vendor Master Catalog search returns the populated Master Products.
+
+Search MUST be global.
+
+Category must remain optional.
+
+A vendor must be able to search:
+- product name
+- brand
+- relevant product details
+
+without knowing the category.
+
+Category is only a filter.
+
+Do not restrict search to the currently selected category.
+
+PHASE 3 — CUSTOMER GLOBAL SEARCH
+
+Customer global discovery should also work across the Master Catalog.
+
+Customer search must not require category selection.
+
+However, purchasing remains store-specific:
+- only eligible stores for the customer's saved-address pincode
+- only products actually available in those stores
+- price and purchasability remain vendor/store/variant-specific
+
+Do not expose:
+- exact stock
+- SKU
+- external codes
+- internal timestamps
+- unnecessary internal IDs
+
+PHASE 4 — FIX "CAN'T FIND A PRODUCT?"
+
+Current problem:
+The form makes Master Category appear mandatory and exposes technical "Discovery attributes" / JSON-style input.
+
+Change the UX.
+
+Vendor should be able to create a missing product without manually knowing the platform category.
+
+Use a normal form:
+
+Product Name — required
+Brand — optional
+Product Type / Details — optional
+Description — optional
+Image — optional
+
+Do NOT expose JSON fields to vendors.
+
+Do NOT require the vendor to select a category before duplicate checking.
+
+After entering the product information:
+
+1. Run global duplicate detection.
+2. Show possible existing Master Products.
+3. If one matches, allow vendor to select it instead.
+4. If none matches, allow creation of the new Master Product.
+5. Categorization should be handled by the platform/admin/catalog process rather than forcing the vendor to know the taxonomy.
+
+If the system cannot confidently classify a newly created Master Product, use an internal pending/unclassified state rather than forcing an incorrect category.
+
+PHASE 5 — DUPLICATE PROTECTION
+
+Before creating a new Master Product, search globally.
+
+Do not check only within a selected category.
+
+Check existing active and archived Master Products.
+
+If an exact duplicate exists:
+- do not create another Master Product
+- direct vendor to the existing Master Product
+- if archived, show restoration/reuse guidance
+
+For possible matches:
+- show them to the vendor
+- require explicit confirmation that none matches before creating a new Master Product
+
+Maintain the existing concurrency-safe creation/reuse logic.
+
+PHASE 6 — MASTER DATA DELETION
+
+There must be NO DELETE action for:
+- Master Categories
+- Master Products
+
+Do not add DELETE endpoints or UI buttons.
+
+Use:
+Active
+Archived
+
+Archive must preserve:
+- Master ID
+- vendor mappings
+- store listings
+- historical orders
+- historical snapshots
+- audit history
+
+Archiving prevents new selections but does not physically remove the Master record.
+
+PHASE 7 — ADMIN MASTER CATALOG
+
+Ensure Admin can clearly see:
+
+Master Categories
+- category name
+- product count
+- active/archived status
+
+Master Products
+- product name
+- category
+- brand where available
+- active/archived status
+- view/edit/archive
+
+No delete button.
+
+PHASE 8 — SEPARATE MASTER CATALOG FROM STORE CATALOG
+
+The UI must clearly distinguish:
+
+MASTER CATALOG
+Platform-wide shared grocery identities.
+
+MY STORE PRODUCTS
+Products already selected by this vendor, where vendor controls:
+- selling price
+- stock
+- selling unit
+- pack/quantity
+- availability
+- permitted store-specific presentation fields
+
+Do not make legacy store categories/products appear to be Master Catalog data.
+
+PHASE 9 — VERIFICATION
+
+After implementation, verify using the actual authenticated browser UI.
+
+Vendor test:
+1. Open Master Catalog.
+2. Search "rice".
+3. Results must appear.
+4. Search "milk".
+5. Results must appear.
+6. Open category dropdown.
+7. Master categories must appear.
+8. Select a Master Product.
+9. Add to My Store.
+10. Configure actual selling variant.
+11. Set price/stock/availability.
+12. Save.
+13. Confirm product appears under My Store Products.
+
+Missing product test:
+1. Search for a clearly nonexistent product.
+2. Click Can't find a product.
+3. Confirm category is NOT mandatory.
+4. Confirm no JSON field is visible.
+5. Enter product details.
+6. Run duplicate check.
+7. Confirm global possible matches are shown.
+8. Create only if no match exists.
+
+Customer test:
+1. Open customer global search.
+2. Search "rice".
+3. Confirm products appear.
+4. Confirm search does not require category.
+5. Confirm store eligibility/pincode rules remain enforced.
+6. Confirm customer response does not expose SKU, external code, exact stock, or internal timestamps.
+
+Admin test:
+1. Open Master Catalog management.
+2. Confirm seeded categories/products are visible.
+3. Confirm Archive exists.
+4. Confirm Delete does not exist.
+
+IMPORTANT:
+Do not report "Master Catalog complete" merely because tables exist.
+The acceptance condition is that real Master Catalog records are populated and visible through the authenticated UI.
+
+At the end provide:
+A. exact number of Master Categories created
+B. exact number of Master Products created
+C. sample search results for rice, milk, eggs
+D. evidence that category dropdown contains Master Categories
+E. evidence that vendor missing-product flow no longer requires category
+F. evidence that no Master Delete action exists
+G. browser verification results
+H. database/API tests
+I. build/typecheck results
+J. list of any remaining issues
+
+Do not publish or deploy to production.

@@ -62,6 +62,39 @@ function SearchIcon() {
   );
 }
 
+function customerVariantLabel(variant: CustomerProductVariant) {
+  const quantityValue = Number(variant.quantityValue);
+  const quantity = Number.isFinite(quantityValue)
+    ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 }).format(quantityValue)
+    : variant.quantityValue;
+  const unit = variant.quantityUnit === "l" ? "L" : variant.quantityUnit;
+  const displayUnit = unit === "piece" && quantityValue !== 1 ? "pieces" : unit;
+  return `${quantity} ${displayUnit}`;
+}
+
+function canPurchaseVariant(product: CustomerProduct, variant: CustomerProductVariant) {
+  return product.availability
+    && product.purchasable
+    && variant.isActive
+    && variant.availability
+    && variant.purchasable
+    && Number(variant.price) > 0;
+}
+
+function variantAvailabilityLabel(product: CustomerProduct, variant: CustomerProductVariant) {
+  if (!product.availability || !variant.availability || Number(variant.price) <= 0) return "Unavailable";
+  return canPurchaseVariant(product, variant) ? "Available" : "Out of stock";
+}
+
+function productAvailabilityLabel(product: CustomerProduct) {
+  if (!product.availability) return "Unavailable";
+  if (product.purchasable) return "In Stock";
+  const configuredForSale = (product.variants ?? []).some((variant) =>
+    variant.isActive && variant.availability && Number(variant.price) > 0,
+  );
+  return configuredForSale ? "Out of Stock" : "Unavailable";
+}
+
 export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [pincode, setPincode] = useState("");
@@ -264,7 +297,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         setProduct(productResult.product);
         setSearchQuery("");
         setGlobalProducts([]);
-        setSelectedVariantId(productResult.product.variants?.find((variant) => variant.purchasable)?.id ?? "");
+        const firstAvailable = productResult.product.availability && productResult.product.purchasable
+          ? productResult.product.variants?.find((variant) => canPurchaseVariant(productResult.product, variant))
+          : undefined;
+        setSelectedVariantId(firstAvailable?.id ?? "");
         setQuantity(1);
       }
     } catch (reason) {
@@ -282,14 +318,18 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       const result = await customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${selected.id}?pincode=${pincode}`);
       if (generation === catalogGeneration.current) {
         setProduct(result.product);
-        const firstAvailable = result.product.variants?.find((variant) => variant.purchasable);
-        setSelectedVariantId(firstAvailable?.id ?? result.product.variants?.find((variant) => variant.isActive)?.id ?? "");
+        const firstAvailable = result.product.variants?.find((variant) => canPurchaseVariant(result.product, variant));
+        setSelectedVariantId(firstAvailable?.id ?? "");
       }
     } catch (reason) { if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load product."); }
     finally { if (generation === catalogGeneration.current) setLoadingCatalog(false); }
   };
 
   const addToCart = async (selected: CustomerProduct, variant: CustomerProductVariant, qty: number, confirmStoreSwitch = false) => {
+    if (!canPurchaseVariant(selected, variant)) {
+      setError("This option is currently unavailable.");
+      return;
+    }
     if (cartAddInFlight.current) return;
     cartAddInFlight.current = true;
     setAdding(true);
@@ -382,7 +422,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                       {!!item.brand && <Text style={typography.caption} numberOfLines={1}>{item.brand}</Text>}
                       <Text style={typography.caption} numberOfLines={1}>{item.storeName} · {item.categoryName ?? "Groceries"}</Text>
                       <Text style={[typography.title3, { color: colors.ink }]}>{availableVariants.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
-                      {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Currently unavailable</Text>}
+                      {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{productAvailabilityLabel(item)}</Text>}
                     </View>
                   </Pressable>;
                 })}
@@ -396,7 +436,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   } else if (product && store) {
     const activeVariants = (product.variants ?? []).filter((variant) => variant.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
     const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
-    const purchasable = product.availability && !!selectedVariant?.purchasable;
+    const purchasable = !!selectedVariant && canPurchaseVariant(product, selectedVariant);
+    const productStatus = productAvailabilityLabel(product);
     content = (
       <ScrollView key="product-detail" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
@@ -407,7 +448,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           <View style={styles.productHero}>
             {product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.heroImage} resizeMode="cover" /> : <PlaceholderImage name={product.name} style={styles.heroImage} />}
             <View style={[styles.badge, !product.purchasable && styles.closed]}>
-              <Text style={[styles.badgeText, !product.purchasable && styles.closedText]}>{product.purchasable ? "In Stock" : "Out of Stock"}</Text>
+              <Text style={[styles.badgeText, !product.purchasable && styles.closedText]}>{productStatus}</Text>
             </View>
           </View>
 
@@ -415,20 +456,21 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{selectedVariant?.price ?? product.price}</Text>
           {!!product.description && <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description}</Text>}
           {activeVariants.length > 1 && <View style={styles.variantSection}>
-            <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Available sizes</Text>
+            <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Select Quantity / Options</Text>
             <View style={{ gap: spacing.sm }}>
               {activeVariants.map((variant) => {
-                const available = product.availability && variant.purchasable;
+                const available = canPurchaseVariant(product, variant);
+                const availabilityLabel = variantAvailabilityLabel(product, variant);
                 const selected = selectedVariantId === variant.id;
-                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityState={{ selected }} disabled={!available} onPress={() => setSelectedVariantId(variant.id)} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
+                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityLabel={`${customerVariantLabel(variant)} · ₹${variant.price} · ${availabilityLabel}`} accessibilityState={{ selected, disabled: !available }} disabled={!available} onPress={() => { if (available) setSelectedVariantId(variant.id); }} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
                   <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
-                  <Text style={[typography.bodySemibold, { flex: 1 }, !available && { color: colors.muted }]}>{variant.name}{!available ? " · Unavailable" : ""}</Text>
+                  <Text style={[typography.bodySemibold, { flex: 1 }, !available && { color: colors.muted }]}>{customerVariantLabel(variant)} · {availabilityLabel}</Text>
                   <Text style={[typography.bodySemibold, { color: colors.accent }]}>₹{variant.price}</Text>
                 </Pressable>;
               })}
             </View>
           </View>}
-          {activeVariants.length === 1 && <Text style={[typography.caption, { marginTop: spacing.sm }]}>{activeVariants[0].name}</Text>}
+          {activeVariants.length === 1 && <Text style={[typography.caption, { marginTop: spacing.sm }]}>{customerVariantLabel(activeVariants[0])} · {variantAvailabilityLabel(product, activeVariants[0])}</Text>}
           {activeVariants.length === 0 && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>No active variants are available.</Text>}
           
           {purchasable && (
@@ -486,6 +528,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <View style={styles.productGrid}>
               {products.map((item) => {
                 const sellable = (item.variants ?? []).filter(variant => variant.isActive).sort((a, b) => Number(a.price) - Number(b.price));
+                const purchasableVariants = sellable.filter((variant) => canPurchaseVariant(item, variant));
                 const displayedPrice = sellable[0]?.price ?? item.price;
                 return <Pressable accessibilityRole="button" key={item.id} onPress={() => void showProduct(item)} style={styles.productCard}>
                   {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
@@ -493,10 +536,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                     <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
                     <Text style={typography.caption} numberOfLines={1}>{item.categoryName ?? categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
                     <Text style={[typography.title3, { color: colors.ink }]}>{sellable.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
-                    {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Out of Stock</Text>}
+                    {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{productAvailabilityLabel(item)}</Text>}
                   </View>
-                  {item.purchasable && item.variants?.filter(v => v.purchasable).length === 1 && (
-                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); const onlyVariant = item.variants?.find(v => v.purchasable); if (onlyVariant) void addToCart(item, onlyVariant, 1); }} style={styles.addMiniBtn}>
+                  {purchasableVariants.length === 1 && (
+                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); const onlyVariant = purchasableVariants[0]; if (onlyVariant) void addToCart(item, onlyVariant, 1); }} style={styles.addMiniBtn}>
                       <Text style={styles.addMiniBtnText}>+ Add</Text>
                     </Pressable>
                   )}

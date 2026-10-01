@@ -62,12 +62,38 @@ test("customer marketplace RLS uses non-recursive eligibility helpers", async ()
 
 test("customer product lists use safe variants and server pagination without internal inventory fields", async () => {
   const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const customerApi = await readFile(new URL("../../../../apps/customer/src/lib/api.ts", import.meta.url), "utf8");
   assert.match(routes, /isActive: productVariants\.isActive/);
   assert.match(routes, /eq\(productVariants\.isActive, true\)/);
   assert.match(routes, /purchasable: sql<boolean>/);
-  assert.doesNotMatch(routes, /sku:\s*productVariants\.sku|externalCode:\s*productVariants\.externalCode|stockQuantity:\s*productVariants\.stockQuantity|createdAt:\s*productVariants\.createdAt|updatedAt:\s*productVariants\.updatedAt/);
+  assert.doesNotMatch(routes, /masterProductId\s*:|sku:\s*productVariants\.sku|externalCode:\s*productVariants\.externalCode|stockQuantity:\s*productVariants\.stockQuantity|createdAt:\s*productVariants\.createdAt|updatedAt:\s*productVariants\.updatedAt/);
+  assert.doesNotMatch(customerApi, /masterProductId\s*:/);
   assert.match(routes, /\.limit\(query\.pageSize\)\s*\.offset\(\(query\.page - 1\) \* query\.pageSize\)/);
   assert.match(routes, /pagination: \{ page: query\.page, pageSize: query\.pageSize, total:/);
+});
+
+test("customer offers remain discoverable while purchase eligibility requires an active, available, stocked, priced variant", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const activeVariantsQuery = routes.slice(
+    routes.indexOf("async function customerVariantsFor"),
+    routes.indexOf("function addCustomerVariants"),
+  );
+  assert.match(routes, /purchasable: sql<boolean>`\$\{productVariants\.isActive\} = true AND \$\{productVariants\.availability\} = true AND \$\{productVariants\.stockQuantity\} > 0 AND \$\{productVariants\.price\} > 0`/);
+  assert.match(activeVariantsQuery, /eq\(productVariants\.isActive, true\)/);
+  assert.doesNotMatch(activeVariantsQuery, /stockQuantity/);
+  assert.match(routes, /purchasable: product\.availability && productVariants\.some\(\(variant\) => variant\.purchasable\)/);
+});
+
+test("customer variant choices label options and disable unavailable or out-of-stock purchases", async () => {
+  const screen = await readFile(new URL("../../../../apps/customer/src/MarketplaceScreen.tsx", import.meta.url), "utf8");
+  assert.match(screen, /Select Quantity \/ Options/);
+  assert.match(screen, /function customerVariantLabel/);
+  assert.match(screen, /function variantAvailabilityLabel/);
+  assert.match(screen, /function canPurchaseVariant/);
+  assert.match(screen, /accessibilityState=\{\{ selected, disabled: !available \}\} disabled=\{!available\}/);
+  assert.match(screen, /if \(!canPurchaseVariant\(selected, variant\)\)/);
+  assert.match(screen, /setSelectedVariantId\(firstAvailable\?\.id \?\? ""\)/);
+  assert.doesNotMatch(screen, /Available sizes/);
 });
 
 test("product lists order by the canonical name expression instead of an ambiguous projection alias", async () => {
@@ -95,5 +121,7 @@ test("global customer search is limited to saved-pincode active stores and activ
   assert.match(routes, /eq\(products\.isActive, true\)/);
   assert.match(routes, /eq\(products\.storeId, parsed\.data\.storeId\)/);
   assert.match(routes, /ilike\(masterProducts\.brand, pattern\)/);
+  assert.equal((routes.match(/ilike\(masterProducts\.description, pattern\)/g) ?? []).length, 2);
+  assert.equal((routes.match(/ilike\(products\.description, pattern\)/g) ?? []).length, 2);
   assert.match(routes, /sql`\$\{masterProducts\.attributes\}::text ILIKE \$\{pattern\}`/);
 });
