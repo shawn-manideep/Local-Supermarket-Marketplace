@@ -11,6 +11,12 @@ For multiple active selling options, require an explicit customer selection, eve
 
 **Why:** The user requires choosing a variant before adding a multi-variant product, rather than assuming their preferred pack size.
 
+Availability refreshes must not substitute a different option for the customer's selection, even when only one option remains afterward.
+
+**Why:** The user requires adding the intended variant and preventing stale selection from creating an incorrect cart item.
+
+**How to apply:** Retain a valid choice; clear an invalid choice and require reselection. Single-option automatic selection is an opening-screen convenience, not a refresh fallback.
+
 Global grocery search must work without choosing a category. Category browsing is an optional filter across eligible store listings, not permission to merge vendors' prices or inventory.
 
 **Why:** The user distinguishes global discovery from store-specific purchasing and requires saved-address pincode eligibility.
@@ -20,3 +26,9 @@ Global grocery search must work without choosing a category. Category browsing i
 Use focused API/customer tests and build checks for this phase; do not run automated browser acceptance or claim manual acceptance is complete.
 
 **Why:** The user explicitly reserves browser acceptance for their own manual verification.
+
+Customer Global Search has been manually verified. Leave it unchanged when working on Product Details and variant selection.
+
+**Why:** The user confirmed that category-optional global search works and explicitly said not to redesign it in the focused continuation.
+
+**How to apply:** Improve listing-specific details, selection, and cart submission without changing the approved search interface or discovery behavior.

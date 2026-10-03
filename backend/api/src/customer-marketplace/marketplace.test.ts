@@ -87,13 +87,15 @@ test("customer offers remain discoverable while purchase eligibility requires an
 
 test("customer variant choices label options and disable unavailable or out-of-stock purchases", async () => {
   const screen = await readFile(new URL("../../../../apps/customer/src/MarketplaceScreen.tsx", import.meta.url), "utf8");
-  assert.match(screen, /Choose an option/);
+  const details = await readFile(new URL("../../../../apps/customer/src/components/ShoppingProductDetails.tsx", import.meta.url), "utf8");
+  assert.match(details, /Choose an option/);
   assert.match(screen, /function customerVariantLabel/);
-  assert.match(screen, /variantAvailabilityLabel.*from "\.\/lib\/shopping"/);
-  assert.match(screen, /accessibilityState=\{\{ selected, disabled: !available \}\} disabled=\{!available\}/);
+  assert.match(details, /variantAvailabilityLabel.*from "\.\.\/lib\/shopping"/);
+  assert.match(details, /accessibilityState=\{\{ checked, disabled: !available \|\| busy \}\}/);
+  assert.match(details, /disabled=\{!available \|\| busy\}/);
   assert.match(screen, /if \(!canPurchaseVariant\(selected, variant\)\)/);
   assert.match(screen, /setSelectedVariantId\(initialVariantId\(/);
-  assert.doesNotMatch(screen, /Available sizes/);
+  assert.doesNotMatch(screen + details, /Available sizes/);
 });
 
 test("public product and variant SQL projections omit private catalog and inventory fields", () => {

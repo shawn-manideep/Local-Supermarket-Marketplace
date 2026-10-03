@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
+import { formatVariantName } from "@workspace/validation/variant-formatting";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, Animated, TextInput } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductPagination, type CustomerProductSearchResponse, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
-import { QuantitySelector } from "./components/QuantitySelector";
 import { PlaceholderImage } from "./components/PlaceholderImage";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { ShoppingProductCard } from "./components/ShoppingProductCard";
+import { ShoppingProductDetails } from "./components/ShoppingProductDetails";
 import type { CustomerShoppingCategory } from "./lib/api";
-import { activeVariants as getActiveVariants, canPurchaseVariant, cartItemInput, discoveryQuery, initialVariantId, productAvailabilityLabel, productPriceLabel, shoppingError, variantAvailabilityLabel } from "./lib/shopping";
+import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId, shoppingError } from "./lib/shopping";
 
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
@@ -115,6 +115,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const globalSearchGeneration = useRef(0);
   const pendingCategoryId = useRef("");
   const cartAddInFlight = useRef(false);
+  const productRefreshGeneration = useRef(0);
 
   const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(storeSearchQuery.toLowerCase())), [stores, storeSearchQuery]);
 
@@ -306,19 +307,33 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     if (!active || !product || !store || !pincode) return;
     let cancelled = false;
     const timer = setInterval(() => {
+      if (cartAddInFlight.current) return;
+      const generation = ++productRefreshGeneration.current;
       customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${product.id}?pincode=${pincode}`)
         .then(result => {
-          if (cancelled) return;
+          if (cancelled || generation !== productRefreshGeneration.current) return;
           setProduct(result.product);
-          setSelectedVariantId(current => getActiveVariants(result.product).some(variant => variant.id === current)
-            ? current : initialVariantId(result.product));
+          setSelectedVariantId(current => retainedVariantId(result.product, current));
         })
         .catch(reason => {
-          if (!cancelled) setError(shoppingError(reason, "Couldn't refresh availability. Please reopen this product."));
+          if (!cancelled && generation === productRefreshGeneration.current) setError(shoppingError(reason, "Couldn't refresh availability. Please reopen this product."));
         });
     }, 30_000);
     return () => { cancelled = true; clearInterval(timer); };
   }, [active, product?.id, store?.id, pincode]);
+
+  const currentCartSelection = (listing: CustomerProduct, variantId: string, generation: number) => {
+    ++productRefreshGeneration.current;
+    return freshCartSelection(listing, variantId, async () => {
+      const result = await customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${listing.storeId}/products/${listing.id}?pincode=${pincode}`);
+      if (generation === catalogGeneration.current && product?.id === listing.id && product.storeId === listing.storeId
+        && result.product.id === listing.id && result.product.storeId === listing.storeId) {
+        setProduct(result.product);
+        setSelectedVariantId(current => retainedVariantId(result.product, current));
+      }
+      return result.product;
+    });
+  };
 
   const addToCart = async (selected: CustomerProduct, variant: CustomerProductVariant, qty: number, confirmStoreSwitch = false) => {
     if (!canPurchaseVariant(selected, variant)) {
@@ -327,14 +342,19 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     }
     if (cartAddInFlight.current) return;
     cartAddInFlight.current = true;
+    const generation = catalogGeneration.current;
     setAdding(true);
+    setError("");
     try {
-      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(selected, variant, qty, confirmStoreSwitch)) });
+      const fresh = await currentCartSelection(selected, variant.id, generation);
+      if (generation !== catalogGeneration.current) return;
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(fresh.product, fresh.variant, qty, confirmStoreSwitch)) });
       const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
       setCartUnits(count); onCartUnitsChange?.(count);
       setAddedNotice(`${selected.name} · ${customerVariantLabel(variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
     } catch (reason) {
+      if (generation !== catalogGeneration.current) return;
       const errorMsg = reason instanceof Error ? reason.message : "Unable to add product.";
       if (errorMsg === "Store switch required") {
         setPendingProduct({ product: selected, variant, qty });
@@ -351,9 +371,16 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const confirmSwitchCart = async () => {
     if (!pendingProduct || cartAddInFlight.current) return;
     cartAddInFlight.current = true;
+    const generation = catalogGeneration.current;
     setSwitchDialogLoading(true);
+    setError("");
     try {
-      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(pendingProduct.product, pendingProduct.variant, pendingProduct.qty, true)) });
+      const fresh = await currentCartSelection(pendingProduct.product, pendingProduct.variant.id, generation);
+      if (generation !== catalogGeneration.current) {
+        setSwitchDialogVisible(false); setPendingProduct(null);
+        return;
+      }
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(fresh.product, fresh.variant, pendingProduct.qty, true)) });
       const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
       setCartUnits(count); onCartUnitsChange?.(count);
       setSwitchDialogVisible(false);
@@ -445,63 +472,17 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       </ScrollView>
     );
   } else if (product && store) {
-    const activeVariants = getActiveVariants(product);
-    const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
-    const purchasable = !!selectedVariant && canPurchaseVariant(product, selectedVariant);
-    const productStatus = productAvailabilityLabel(product);
-    content = (
-      <ScrollView key="product-detail" contentContainerStyle={commonStyles.page}>
-        <View style={commonStyles.container}>
-          <Pressable accessibilityLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`} accessibilityRole="button" onPress={closeProduct} style={styles.backBtn}>
-            <Text style={styles.backText}>← {searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}</Text>
-          </Pressable>
-          
-          <View style={styles.productHero}>
-            {product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.heroImage} resizeMode="cover" /> : <PlaceholderImage name={product.name} style={styles.heroImage} />}
-            <View style={[styles.badge, !product.purchasable && styles.closed]}>
-              <Text style={[styles.badgeText, !product.purchasable && styles.closedText]}>{productStatus}</Text>
-            </View>
-          </View>
-
-          <Text style={typography.hero}>{product.name}</Text>
-          {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
-          <Text style={typography.caption}>Sold by {store.name} · Delivers to {pincode}</Text>
-          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>{productPriceLabel(product, selectedVariant)}</Text>
-          {!!product.description && <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description}</Text>}
-          {activeVariants.length > 1 && <View style={styles.variantSection}>
-            <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Choose an option</Text>
-            <View style={{ gap: spacing.sm }}>
-              {activeVariants.map((variant) => {
-                const available = canPurchaseVariant(product, variant);
-                const availabilityLabel = variantAvailabilityLabel(product, variant);
-                const selected = selectedVariantId === variant.id;
-                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityLabel={`${customerVariantLabel(variant)} · ₹${formatPrice(variant.price)} · ${availabilityLabel}`} accessibilityState={{ selected, disabled: !available }} disabled={!available} onPress={() => { if (available) { setSelectedVariantId(variant.id); setQuantity(1); setError(""); } }} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
-                  <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
-                  <Text style={[typography.bodySemibold, { flex: 1 }, !available && { color: colors.muted }]}>{customerVariantLabel(variant)} · {availabilityLabel}</Text>
-                  <Text style={[typography.bodySemibold, { color: colors.accent }]}>₹{formatPrice(variant.price)}</Text>
-                </Pressable>;
-              })}
-            </View>
-          </View>}
-          {activeVariants.length === 1 && <Text style={[typography.caption, { marginTop: spacing.sm }]}>{customerVariantLabel(activeVariants[0])} · {variantAvailabilityLabel(product, activeVariants[0])}</Text>}
-          {activeVariants.length === 0 && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>No active variants are available.</Text>}
-          
-          {purchasable && (
-            <View style={styles.qtyRow}>
-              <View style={{ flex: 1 }}><Text style={typography.title3}>Order quantity</Text><Text style={typography.caption}>{quantity} × {selectedVariant ? customerVariantLabel(selectedVariant) : ""}</Text></View>
-              <QuantitySelector quantity={quantity} onDecrease={() => setQuantity(q => Math.max(1, q - 1))} onIncrease={() => setQuantity(q => Math.min(999, q + 1))} min={1} disabled={adding} />
-            </View>
-          )}
-
-          {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md }]}>{error}</Text>}
-
-          <Pressable accessibilityRole="button" disabled={!purchasable || adding} onPress={() => selectedVariant && void addToCart(product, selectedVariant, quantity)} style={[styles.primaryBtn, (!purchasable || adding) && styles.disabled]}>
-            {adding ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{purchasable ? `Add ${quantity} to Cart` : !selectedVariant && product.purchasable && activeVariants.length > 1 ? "Choose an option first" : selectedVariant ? variantAvailabilityLabel(product, selectedVariant) : productStatus}</Text>}
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={closeProduct} style={styles.backBtn}><Text style={styles.backText}>Continue shopping</Text></Pressable>
-        </View>
-      </ScrollView>
-    );
+    content = <ShoppingProductDetails key="product-detail" product={product} store={store} pincode={pincode}
+      selectedVariantId={selectedVariantId} quantity={quantity} busy={adding || switchDialogLoading}
+      hasCart={cartUnits > 0} error={error}
+      backLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}
+      onBack={closeProduct}
+      onSelect={variant => {
+        if (!canPurchaseVariant(product, variant) || adding || switchDialogLoading) return;
+        if (variant.id !== selectedVariantId) { setSelectedVariantId(variant.id); setQuantity(1); }
+        setError("");
+      }}
+      onQuantityChange={setQuantity} onAdd={variant => void addToCart(product, variant, quantity)} />;
   } else if (store) {
     content = (
       <ScrollView key={`store-${store.id}-${categoryId}`} contentContainerStyle={commonStyles.page}>

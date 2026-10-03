@@ -1,0 +1,523 @@
+PHASE 2 — CUSTOMER PRODUCT DETAILS & VARIANT SELECTION
+=======================================================
+
+We have manually verified that Customer Global Search is working.
+
+Example verified:
+Search: "rice"
+
+Results included:
+- Basmati Rice — Development Store A — ₹99 — Out of stock
+- Test Rice — Development Store A — From ₹10 — Available — Choose an option
+
+Do NOT redesign Customer Global Search.
+Do NOT modify Master Catalog architecture.
+Do NOT modify vendor catalog functionality.
+Do NOT modify authentication.
+Do NOT modify checkout, orders, reorder, payments, Delivery Partner, stock deduction, or stock reservation.
+
+This is a focused continuation of Phase 2.
+
+IMPORTANT:
+Do not run automated browser acceptance testing.
+Implement the changes only.
+We will manually verify the UI afterward.
+
+
+=======================================================
+1. CUSTOMER PRODUCT DETAILS
+=======================================================
+
+When the customer clicks:
+
+"Choose an option"
+
+or:
+
+"View details"
+
+open the Product Details screen for that specific store listing.
+
+Show:
+
+- Product image
+- Product name
+- Brand, if available
+- Description, if available
+- Store name
+- Current selling variants
+- Current selling price for each variant
+- Customer-friendly availability
+
+Do not expose:
+
+- SKU
+- External code
+- Exact stock quantity
+- Internal Master Product ID
+- Internal Variant ID
+- Internal timestamps
+
+
+=======================================================
+2. MULTIPLE VARIANT DISPLAY
+=======================================================
+
+If the product has multiple variants, display them as options under ONE product.
+
+Example:
+
+Basmati Rice
+
+Development Store A
+
+Choose an option:
+
+○ 500 g — ₹40
+○ 1 kg — ₹75
+○ 2 kg — ₹145
+○ 5 kg — ₹350
+
+Do NOT display these as separate products.
+
+Do NOT create separate product cards for each variant.
+
+
+=======================================================
+3. VARIANT SELECTION
+=======================================================
+
+The customer must explicitly select a variant when multiple purchasable variants exist.
+
+The selected variant must be visually obvious.
+
+Example:
+
+○ 500 g — ₹40
+● 1 kg — ₹75
+○ 2 kg — ₹145
+○ 5 kg — ₹350
+
+Only the selected variant can be added to cart.
+
+Do not accidentally add the first variant when the customer intended another variant.
+
+
+=======================================================
+4. SINGLE-VARIANT PRODUCTS
+=======================================================
+
+If a product has exactly one valid purchasable variant, it may be selected automatically.
+
+Example:
+
+Product:
+Test Rice
+
+Variant:
+1 kg — ₹50
+
+The customer may see:
+
+1 kg — ₹50
+Selected
+
+and can directly proceed to Add to Cart.
+
+However, the selected variant must still be clearly visible.
+
+
+=======================================================
+5. OUT-OF-STOCK VARIANTS
+=======================================================
+
+If a variant has stock = 0:
+
+Show:
+
+Out of stock
+
+Do not allow that variant to be selected for purchase.
+
+Example:
+
+Basmati Rice
+
+500 g — ₹40 — Out of stock
+1 kg — ₹75 — Available
+2 kg — ₹145 — Available
+
+Only the available variants should be selectable.
+
+Do NOT display exact stock numbers to the customer.
+
+
+=======================================================
+6. UNAVAILABLE VARIANTS
+=======================================================
+
+If vendor availability is OFF:
+
+Show:
+
+Currently unavailable
+
+Do not allow the customer to add that variant to cart.
+
+Do not hide the entire product if another variant is available.
+
+Example:
+
+500 g — Currently unavailable
+1 kg — Available
+2 kg — Available
+
+The customer can still purchase the available variant.
+
+
+=======================================================
+7. PRODUCT WITH NO PURCHASABLE VARIANT
+=======================================================
+
+If all variants are:
+
+- zero stock
+OR
+- unavailable
+OR
+- inactive
+
+the customer should see:
+
+Currently unavailable
+
+or:
+
+Out of stock
+
+and there must be no usable Add to Cart action.
+
+Do not allow the customer to create an invalid cart item.
+
+
+=======================================================
+8. CUSTOMER ORDER QUANTITY
+=======================================================
+
+Clearly distinguish:
+
+SELLING VARIANT
+
+from:
+
+ORDER QUANTITY
+
+Example:
+
+Variant:
+1 kg
+
+Customer quantity:
+2
+
+Means:
+
+2 × 1 kg
+
+It does NOT create a new 2 kg variant.
+
+UI example:
+
+Selected:
+1 kg — ₹75
+
+Quantity:
+[ − ] 1 [ + ]
+
+Add to Cart
+
+
+=======================================================
+9. ADD TO CART
+=======================================================
+
+For a selected valid variant:
+
+Add to Cart must send the correct:
+
+- Store/listing
+- Product
+- Variant
+- Order quantity
+
+The server remains the authority for price and stock.
+
+Do not trust a client-supplied price.
+
+If the server rejects the cart addition because stock/availability changed:
+
+Show a customer-friendly message.
+
+Example:
+
+"Sorry, this option is no longer available. Please select another option."
+
+
+=======================================================
+10. PRICE DISPLAY
+=======================================================
+
+Use the existing shared money formatter.
+
+Examples:
+
+₹40
+₹75
+₹145
+₹350
+
+Decimal values:
+
+₹75.50
+
+Do not show:
+
+₹40.00
+₹75.00
+
+unless decimal precision is actually required.
+
+
+=======================================================
+11. VARIANT NAME DISPLAY
+=======================================================
+
+Use the existing shared quantity + unit formatter.
+
+Examples:
+
+500 + g
+→ 500 g
+
+1 + kg
+→ 1 kg
+
+2 + kg
+→ 2 kg
+
+5 + kg
+→ 5 kg
+
+Do not display raw values such as:
+
+500.000 g
+
+
+=======================================================
+12. STORE CONTEXT
+=======================================================
+
+Clearly show the store associated with the selected listing.
+
+Example:
+
+Basmati Rice
+
+Development Store A
+
+1 kg — ₹75
+
+Do not combine prices or variants from different stores into one listing.
+
+Preserve the existing one-store cart rule.
+
+
+=======================================================
+13. CART CONFIRMATION
+=======================================================
+
+After Add to Cart succeeds:
+
+Show a clear contextual action:
+
+Go to Cart
+
+and allow:
+
+Continue Shopping
+
+Do not restore a permanent Cart bottom-navigation tab.
+
+Keep the customer's shopping context.
+
+
+=======================================================
+14. CART DATA
+=======================================================
+
+When the customer adds:
+
+Basmati Rice
+Variant: 1 kg
+Quantity: 2
+Price: ₹75
+
+Cart must show:
+
+Basmati Rice
+1 kg
+Qty: 2
+₹75 each
+₹150
+
+Do not show internal SKU or external code.
+
+Do not show exact inventory.
+
+
+=======================================================
+15. PREVENT WRONG VARIANT
+=======================================================
+
+Before adding to cart, verify that:
+
+- A valid variant is selected
+- Variant is active
+- Variant is available
+- Server confirms current purchasability
+- Store/listing is still eligible
+
+Do not allow stale UI state to create an invalid cart item.
+
+
+=======================================================
+16. BACK NAVIGATION
+=======================================================
+
+Customer should be able to:
+
+Search
+→ Product Details
+→ Select Variant
+→ Add to Cart
+
+and use Back to return to the search results without losing the search context unnecessarily.
+
+Do not break existing navigation.
+
+
+=======================================================
+17. RESPONSIVE UI
+=======================================================
+
+Ensure the Product Details and variant selector work correctly on:
+
+- Mobile
+- Expo Web
+- Desktop browser
+
+Do not allow:
+
+- buttons overlapping prices
+- variant options going outside the screen
+- Add to Cart being hidden
+- text being clipped
+- quantity controls overlapping
+- horizontal overflow where unnecessary
+
+
+=======================================================
+18. DATA PRIVACY
+=======================================================
+
+Customer API responses must continue to omit:
+
+- SKU
+- external code
+- exact stock
+- internal timestamps
+- unnecessary internal IDs
+
+Do not weaken the existing customer response allowlist.
+
+
+=======================================================
+19. TESTS
+=======================================================
+
+Add/update focused tests for:
+
+1. Product with one variant
+2. Product with multiple variants
+3. Variant selection
+4. Selected variant sent to cart
+5. Correct order quantity
+6. Zero-stock variant cannot be added
+7. Unavailable variant cannot be added
+8. All variants unavailable → no Add to Cart
+9. Server-owned price
+10. Store-specific listing
+11. One-store cart rule
+12. Customer response privacy
+13. Quantity + unit formatting
+14. Currency formatting
+
+
+=======================================================
+20. DATA SAFETY
+=======================================================
+
+Do not:
+
+- delete products
+- delete variants
+- delete master data
+- modify historical orders
+- modify historical snapshots
+- reset vendor prices
+- reset vendor stock
+- create fixture cleanup
+- change product IDs
+- change variant IDs
+
+Do not modify unrelated modules.
+
+
+=======================================================
+21. BUILD / TYPECHECK
+=======================================================
+
+Run:
+
+- workspace typecheck
+- relevant API tests
+- relevant Customer tests
+- Customer Expo web build/export
+
+Do NOT run automated browser acceptance testing.
+
+Do NOT claim manual browser acceptance is complete.
+
+Do NOT deploy to production.
+
+
+=======================================================
+22. FINAL REPORT
+=======================================================
+
+Provide only:
+
+A. Files changed
+B. Product Details changes
+C. Variant selection changes
+D. Add to Cart changes
+E. Out-of-stock handling
+F. Unavailable variant handling
+G. Cart data behavior
+H. Privacy behavior
+I. Tests passed/failed
+J. Typecheck
+K. Build
+L. Remaining known issues
+
+Do not make unrelated changes.

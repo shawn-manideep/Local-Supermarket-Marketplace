@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { formatVariantName } from "@workspace/validation/variant-formatting";
+import { formatPrice, formatVariantName } from "@workspace/validation/variant-formatting";
 import type { CustomerProduct, CustomerProductVariant } from "./api";
 import {
-  activeVariants, canPurchaseVariant, cartItemInput, discoveryQuery, initialVariantId,
+  activeVariants, canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId,
   productAvailabilityLabel, productPriceLabel, shoppingError, variantAvailabilityLabel,
 } from "./shopping";
 
@@ -101,11 +101,106 @@ test("customer UI has contextual cart access, retains shopping state, and expose
   const screen = await readFile(new URL("../MarketplaceScreen.tsx", import.meta.url), "utf8");
   const app = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
   const card = await readFile(new URL("../components/ShoppingProductCard.tsx", import.meta.url), "utf8");
+  const details = await readFile(new URL("../components/ShoppingProductDetails.tsx", import.meta.url), "utf8");
   assert.match(app, /const navItems: Array<"home" \| "orders" \| "account">/);
   assert.match(app, /display: screen === "home" \? "flex" : "none"/);
   assert.match(screen, /Go to Cart/);
   assert.match(screen, /Back to search results/);
   assert.match(screen, /storeCatalogGeneration/);
-  assert.doesNotMatch(screen + card, /stockQuantity|\.sku|\.externalCode|masterProductId|\/api\/vendor\/|\/api\/admin\//);
+  assert.doesNotMatch(screen + card + details, /stockQuantity|\.sku|\.externalCode|masterProductId|\/api\/vendor\/|\/api\/admin\//);
+  assert.doesNotMatch(details, /<Text[^>]*>\{(?:variant|product|selected)\.(?:id|productId|storeId)\}/);
   assert.match(card, /variants\.length === 1/);
+});
+
+test("refresh retains the chosen option or clears it, never substitutes the only remaining option", () => {
+  const other = { ...option, id: "variant-b", sortOrder: 1 };
+  assert.equal(retainedVariantId({ ...product, variants: [option, other] }, other.id), other.id);
+  assert.equal(retainedVariantId({ ...product, variants: [option] }, other.id), "");
+  assert.equal(retainedVariantId(product, ""), "");
+  assert.equal(retainedVariantId({ ...product, variants: [{ ...option, purchasable: false }] }, option.id), "");
+});
+
+test("fresh cart selection sends the exact selected variant and order quantity using current server data", async () => {
+  const second = { ...option, id: "variant-b", quantityValue: "2", price: "145.00", sortOrder: 1 };
+  const listing = { ...product, variants: [option, second] };
+  const fresh = await freshCartSelection(listing, second.id, async () => ({
+    ...listing, variants: [option, { ...second, price: "150.50" }],
+  }));
+  assert.equal(fresh.variant.id, second.id);
+  assert.equal(fresh.variant.price, "150.50");
+  assert.deepEqual(cartItemInput(fresh.product, fresh.variant, 2), {
+    productId: listing.id, variantId: second.id, quantity: 2, confirmStoreSwitch: false,
+  });
+  assert.equal(fresh.variant.quantityValue, "2");
+});
+
+test("fresh selection rejects zero-stock, unavailable, inactive, deleted, and foreign variants", async () => {
+  for (const variants of [
+    [{ ...option, purchasable: false }],
+    [{ ...option, availability: false }],
+    [{ ...option, isActive: false }],
+    [{ ...option, productId: "foreign-product" }],
+    [{ ...option, id: "replacement-variant" }],
+    [],
+  ]) {
+    await assert.rejects(freshCartSelection(product, option.id, async () => ({ ...product, variants })), /select another option/);
+  }
+});
+
+test("fresh selection preserves store identity and propagates eligibility rejection before cart submission", async () => {
+  await assert.rejects(freshCartSelection(product, option.id, async () => ({ ...product, storeId: "other-store" })), /listing.*unavailable/);
+  await assert.rejects(freshCartSelection(product, option.id, async () => ({ ...product, id: "other-product" })), /listing.*unavailable/);
+  await assert.rejects(freshCartSelection(product, option.id, async () => {
+    throw new Error("Store not available for this pincode");
+  }), /pincode/);
+  const screen = await readFile(new URL("../MarketplaceScreen.tsx", import.meta.url), "utf8");
+  assert.match(screen, /stores\/\$\{listing\.storeId\}\/products\/\$\{listing\.id\}\?pincode=\$\{pincode\}/);
+  assert.match(screen, /if \(generation !== catalogGeneration\.current\) return;/);
+  assert.match(screen, /cartItemInput\(fresh\.product, fresh\.variant, qty, confirmStoreSwitch\)/);
+  assert.match(screen, /currentCartSelection\(pendingProduct\.product, pendingProduct\.variant\.id, generation\)/);
+});
+
+test("all unavailable variants disable purchasing without hiding available siblings", () => {
+  const unavailable = { ...option, availability: false, purchasable: false };
+  const available = { ...option, id: "variant-b" };
+  const mixed = { ...product, variants: [unavailable, available] };
+  assert.equal(activeVariants(mixed).length, 2);
+  assert.equal(canPurchaseVariant(mixed, unavailable), false);
+  assert.equal(canPurchaseVariant(mixed, available), true);
+  const none = { ...mixed, purchasable: false, variants: [unavailable, { ...available, purchasable: false }] };
+  assert.equal(activeVariants(none).some(variant => canPurchaseVariant(none, variant)), false);
+  assert.equal(initialVariantId(none), "");
+  assert.throws(() => cartItemInput(none, unavailable, 1), /unavailable/);
+});
+
+test("cart input rejects a stale purchase flag, foreign ownership, and invalid order quantities", () => {
+  assert.throws(() => cartItemInput({ ...product, variants: [{ ...option, purchasable: false }] }, option, 1), /unavailable/);
+  assert.throws(() => cartItemInput(product, { ...option, productId: "foreign-product" }, 1), /unavailable/);
+  for (const quantity of [-1, 0, 1.5, 1000, NaN]) assert.throws(() => cartItemInput(product, option, quantity), /quantity/);
+  assert.equal(canPurchaseVariant(product, { ...option, price: "Infinity" }), false);
+});
+
+test("shared formatting matches the requested quantities, whole prices, decimals, and cart totals", () => {
+  for (const [quantity, unit, label] of [
+    ["500.000", "g", "500 g"], ["1.000", "kg", "1 kg"], ["2.000", "kg", "2 kg"], ["5.000", "kg", "5 kg"],
+  ]) assert.equal(formatVariantName(quantity, unit), label);
+  for (const price of ["40", "75", "145", "350"]) assert.equal(formatPrice(`${price}.00`), price);
+  assert.equal(formatPrice("75.50"), "75.50");
+  assert.equal(formatPrice("150.00"), "150");
+});
+
+test("details make single selection visible, separate order quantity, and reserve space for contextual cart", async () => {
+  const details = await readFile(new URL("../components/ShoppingProductDetails.tsx", import.meta.url), "utf8");
+  assert.match(details, /variants\.map\(variant/);
+  assert.match(details, /Selected:/);
+  assert.match(details, / · Selected/);
+  assert.match(details, /Order quantity/);
+  assert.match(details, /disabled=\{!purchasable \|\| busy\}/);
+  assert.match(details, /flexWrap: "wrap"/);
+  assert.match(details, /cartClearance: \{ paddingBottom: 192 \}/);
+  const cart = await readFile(new URL("../CartScreen.tsx", import.meta.url), "utf8");
+  assert.match(cart, /formatVariantName\(item\.quantityValue, item\.quantityUnit\)/);
+  assert.match(cart, /Qty: \{item\.quantity\}/);
+  assert.match(cart, /formatPrice\(item\.unitPrice\)/);
+  assert.match(cart, /formatPrice\(item\.lineSubtotal\)/);
 });

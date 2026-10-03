@@ -62,6 +62,7 @@ test("money calculations remain integer-cent based", () => {
   assert.equal(moneyToCents("12.30"), 1230n);
   assert.equal(centsToMoney(1230n), "12.30");
   assert.equal(centsToMoney(moneyToCents("19.99") * 3n), "59.97");
+  assert.equal(centsToMoney(moneyToCents("75.00") * 2n), "150.00");
 });
 
 test("removing cart items abandons only an empty active cart", () => {

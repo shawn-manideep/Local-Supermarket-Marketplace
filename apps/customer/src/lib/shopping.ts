@@ -8,13 +8,36 @@ export function activeVariants(product: CustomerProduct) {
 
 /** Stock remains private: the API's purchase flags are authoritative. */
 export function canPurchaseVariant(product: CustomerProduct, variant: CustomerProductVariant) {
-  return product.availability && product.purchasable && variant.isActive
-    && variant.availability && variant.purchasable && Number(variant.price) > 0;
+  return variant.productId === product.id && product.availability && product.purchasable && variant.isActive
+    && variant.availability && variant.purchasable && Number.isFinite(Number(variant.price)) && Number(variant.price) > 0;
 }
 
 export function initialVariantId(product: CustomerProduct) {
   const variants = activeVariants(product);
   return variants.length === 1 && canPurchaseVariant(product, variants[0]) ? variants[0].id : "";
+}
+
+/** Refreshes may clear a choice, but must never substitute a different option. */
+export function retainedVariantId(product: CustomerProduct, selectedId: string) {
+  return activeVariants(product).some(variant => variant.id === selectedId && canPurchaseVariant(product, variant))
+    ? selectedId : "";
+}
+
+/** Re-read the exact listing before submission; the cart API still owns final validation. */
+export async function freshCartSelection(
+  listing: CustomerProduct,
+  selectedId: string,
+  loadListing: () => Promise<CustomerProduct>,
+) {
+  const product = await loadListing();
+  if (product.id !== listing.id || product.storeId !== listing.storeId) {
+    throw new Error("This store listing is currently unavailable.");
+  }
+  const variant = activeVariants(product).find(option => option.id === selectedId);
+  if (!variant || !canPurchaseVariant(product, variant)) {
+    throw new Error("Sorry, this option is no longer available. Please select another option.");
+  }
+  return { product, variant };
 }
 
 export function variantAvailabilityLabel(product: CustomerProduct, variant: CustomerProductVariant) {
@@ -48,7 +71,8 @@ export function discoveryQuery(pincode: string, search: string, categoryId = "",
 }
 
 export function cartItemInput(product: CustomerProduct, variant: CustomerProductVariant, quantity: number, confirmStoreSwitch = false) {
-  if (!product.variants?.some(option => option.id === variant.id) || !canPurchaseVariant(product, variant)) {
+  if (!product.variants?.some(option => option.id === variant.id && canPurchaseVariant(product, option))
+    || !canPurchaseVariant(product, variant)) {
     throw new Error("This option is currently unavailable.");
   }
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
@@ -61,6 +85,7 @@ export function cartItemInput(product: CustomerProduct, variant: CustomerProduct
 /** Never show unknown database or API diagnostics to shoppers. */
 export function shoppingError(reason: unknown, fallback = "We couldn't complete that request. Please try again.") {
   const message = reason instanceof Error ? reason.message : "";
+  if (message === "Sorry, this option is no longer available. Please select another option.") return message;
   if (/sign in|authentication/i.test(message)) return "Please sign in again to continue shopping.";
   if (/stock/i.test(message)) return "That quantity is no longer available. Try fewer items or another option.";
   if (/store.*(unavailable|not available)/i.test(message)) return "This store is not available for your delivery address.";
