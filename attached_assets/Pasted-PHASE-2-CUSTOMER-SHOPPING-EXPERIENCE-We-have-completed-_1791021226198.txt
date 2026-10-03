@@ -1,0 +1,626 @@
+PHASE 2 — CUSTOMER SHOPPING EXPERIENCE
+======================================
+
+We have completed the Master Catalog and Vendor Product/Variant implementation.
+
+The following are already implemented and must NOT be redesigned:
+
+- Master Categories
+- Master Products
+- Vendor global Master Catalog search
+- Vendor Add to My Store
+- Missing-product creation
+- Duplicate prevention
+- Vendor product configuration
+- Multiple selling variants
+- Quantity + unit generated variant names
+- g / kg / ml / L / piece / pack / dozen / bottle / box
+- Vendor price
+- Vendor stock
+- Vendor availability
+- Store-specific product listings
+- Master Product archive behavior
+- No Master Product deletion
+- Customer catalog privacy rules
+
+This phase is ONLY for the CUSTOMER SHOPPING EXPERIENCE.
+
+DO NOT modify:
+- authentication
+- Master Catalog architecture
+- vendor catalog creation
+- vendor product management
+- payments
+- Delivery Partner
+- stock reservation
+- automatic stock deduction
+- automatic unit conversion
+- order lifecycle redesign
+- reorder functionality unless required only for compatibility
+- historical order data
+
+
+=================================================
+1. CUSTOMER GLOBAL SEARCH
+=================================================
+
+Customer must be able to search the grocery catalog globally.
+
+Search must NOT require category selection.
+
+Examples:
+
+Search:
+rice
+
+should find relevant grocery products.
+
+Search:
+milk
+
+should find relevant products.
+
+Search:
+eggs
+
+should find relevant products.
+
+Search:
+amul
+
+should find relevant products where applicable.
+
+Search should work across the Master Catalog but customer results must still respect store availability and eligibility.
+
+Category is an optional filter, not a prerequisite.
+
+Provide:
+- search input
+- clear search
+- optional category filter
+- loading state
+- no-results state
+- error state
+- pagination/infinite loading as appropriate
+
+Do not expose internal Master Catalog implementation details.
+
+
+=================================================
+2. CUSTOMER STORE CONTEXT
+=================================================
+
+Customer purchasing remains STORE-SPECIFIC.
+
+Global product discovery must NOT mean that a customer can purchase from an arbitrary vendor.
+
+Results must respect the existing store eligibility rules, including the customer's saved-address pincode.
+
+When a product is available from multiple eligible stores, present the appropriate store context.
+
+Do not merge inventory or pricing between vendors.
+
+
+=================================================
+3. PRODUCT CARD
+=================================================
+
+Customer product cards should be clean and easy to understand.
+
+Show only shopping-relevant information.
+
+At minimum:
+
+- Product image where available
+- Product name
+- Brand where available
+- Store where applicable
+- Starting price or selected variant price
+- Availability state
+- Add/select action
+
+Do NOT show:
+
+- SKU
+- External code
+- Exact internal stock quantity
+- Internal timestamps
+- Internal Master Product IDs
+- Internal variant IDs
+
+
+=================================================
+4. MULTI-VARIANT PRODUCT CARD
+=================================================
+
+A product with multiple selling variants must NOT appear as multiple separate products.
+
+Example:
+
+Basmati Rice
+
+Available variants:
+- 500 g
+- 1 kg
+- 2 kg
+- 5 kg
+
+The customer should see ONE:
+
+Basmati Rice
+
+and then select the required selling option.
+
+Do not create four product cards for the four variants.
+
+
+=================================================
+5. PRODUCT DETAILS SCREEN
+=================================================
+
+When customer opens a product, show:
+
+Product name
+Brand
+Description where available
+Image where available
+Store context
+Available selling variants
+
+Example:
+
+Basmati Rice
+
+Choose an option:
+
+○ 500 g — ₹40
+○ 1 kg — ₹75
+○ 2 kg — ₹145
+○ 5 kg — ₹350
+
+The customer must select a variant before adding it to cart when multiple variants exist.
+
+
+=================================================
+6. VARIANT DISPLAY
+=================================================
+
+Use the existing generated variant names.
+
+Examples:
+
+500 g
+1 kg
+2 kg
+5 kg
+
+Do not expose raw decimal formatting such as:
+
+500.000
+
+Use the shared quantity formatter already implemented.
+
+Display prices consistently:
+
+₹40
+₹75
+₹145
+₹350
+
+For decimal prices:
+
+₹75.50
+
+Do not expose unnecessary trailing zeroes.
+
+
+=================================================
+7. AVAILABILITY
+=================================================
+
+Customer-facing availability must be server-derived.
+
+A variant is purchasable only when:
+
+- variant is active
+- variant is marked available
+- current server-side stock permits purchase
+
+If stock = 0:
+
+Show:
+
+Out of stock
+
+Do NOT allow Add to Cart for that variant.
+
+If vendor availability is OFF:
+
+Show:
+
+Currently unavailable
+
+Do NOT allow Add to Cart.
+
+
+=================================================
+8. STOCK PRIVACY
+=================================================
+
+Customer must NOT see exact stock quantity.
+
+Do not display:
+
+Stock: 20
+
+Instead display only customer-friendly availability such as:
+
+Available
+Out of stock
+Currently unavailable
+
+The backend remains authoritative for actual stock validation.
+
+Do not implement stock reservation or stock deduction in this phase.
+
+
+=================================================
+9. ADD TO CART
+=================================================
+
+For a product with one variant:
+
+Customer may use:
+
+Add to Cart
+
+provided that the variant is purchasable.
+
+For a product with multiple variants:
+
+Customer must select a variant first.
+
+Then:
+
+Add to Cart
+
+The cart item must contain the correct:
+
+- store
+- product
+- selected variant
+- quantity
+- current price
+
+Preserve the existing cart architecture and one-store-cart rule.
+
+
+=================================================
+10. QUANTITY CONTROL
+=================================================
+
+After selecting a variant, customer should be able to select the desired purchase quantity.
+
+Do not confuse:
+
+PRODUCT VARIANT QUANTITY
+
+with:
+
+ORDER QUANTITY.
+
+Example:
+
+Variant:
+1 kg
+
+Customer order quantity:
+3
+
+means:
+
+3 × 1 kg
+
+It does NOT mean creating a new 3 kg variant.
+
+Keep this distinction throughout the UI.
+
+
+=================================================
+11. CART PRESENTATION
+=================================================
+
+Cart must clearly display:
+
+Product
+Selected variant
+Unit/size
+Quantity ordered
+Unit price
+Line total
+
+Example:
+
+Basmati Rice
+1 kg
+Qty: 2
+₹75 each
+₹150
+
+Do not display internal SKU/external codes.
+
+Do not expose exact inventory.
+
+
+=================================================
+12. CART NAVIGATION
+=================================================
+
+Do NOT restore a permanent Cart bottom-navigation tab if the current design has removed it.
+
+Keep the contextual cart behavior.
+
+After adding an item:
+
+Show a clear cart action such as:
+
+View Cart
+
+or:
+
+Go to Cart
+
+The customer must be able to continue shopping without being forced into the cart immediately.
+
+Do not break existing navigation.
+
+
+=================================================
+13. ADDING MULTIPLE PRODUCTS
+=================================================
+
+Customer should be able to:
+
+Search
+→ Open product
+→ Select variant
+→ Add to Cart
+→ Continue Shopping
+→ Search another product
+→ Add another product
+
+while maintaining the existing one-store-cart rule.
+
+If the customer attempts to add a product from another store, preserve the existing store-conflict handling.
+
+Do not silently mix stores in one cart.
+
+
+=================================================
+14. PRICE CONSISTENCY
+=================================================
+
+Customer must see the current vendor/store variant price.
+
+Do not use Master Product price because Master Products do not own commercial pricing.
+
+Price belongs to:
+
+Vendor Store Listing → Selling Variant
+
+Historical order prices must remain untouched.
+
+
+=================================================
+15. RECENTLY ORDERED / RECENT STORE
+=================================================
+
+If these sections already exist on Customer Home, ensure they do not break because of the Master Catalog changes.
+
+Where product information is displayed:
+
+- use current valid catalog information where appropriate
+- preserve historical order snapshots
+- do not substitute a different Master Product automatically
+
+Do not redesign Reorder in this phase.
+
+
+=================================================
+16. CUSTOMER HOME
+=================================================
+
+Make sure the Customer Home can navigate naturally to:
+
+- Global Search
+- Available Supermarkets
+- Recently Ordered / Recent Store where already implemented
+- Product discovery
+
+Do not introduce unrelated Home redesign unless required to make the shopping flow usable.
+
+Resolve obvious UI problems affecting shopping such as:
+
+- overlapping price/Add controls
+- broken scrolling
+- broken back navigation
+- product cards extending outside the viewport
+- unreadable buttons
+- incorrect loading states
+
+
+=================================================
+17. SEARCH NO-RESULT EXPERIENCE
+=================================================
+
+When no product is found:
+
+Show a friendly message such as:
+
+"No products found"
+
+and suggest:
+
+- try another search
+- browse categories
+
+Do NOT expose vendor/admin product creation controls to customers.
+
+Customer must never be allowed to create Master Products.
+
+
+=================================================
+18. SEARCH CATEGORY FILTER
+=================================================
+
+Category remains optional.
+
+Customer can:
+
+Search globally without category.
+
+OR:
+
+Select a category and search/filter within it.
+
+Do not require the category before searching.
+
+
+=================================================
+19. SECURITY / RESPONSE CONTRACT
+=================================================
+
+Customer APIs must continue to omit:
+
+- SKU
+- external code
+- exact stock
+- internal timestamps
+- unnecessary internal IDs
+
+Do not weaken the existing field allowlist.
+
+Do not expose vendor-only configuration.
+
+
+=================================================
+20. ERROR AND LOADING STATES
+=================================================
+
+Implement clear states for:
+
+- loading search
+- no search results
+- API failure
+- product unavailable
+- variant unavailable
+- store unavailable
+- cart add failure
+- stock validation failure
+
+Messages must be understandable to customers.
+
+Do not expose raw database/API errors.
+
+
+=================================================
+21. DATA SAFETY
+=================================================
+
+Do not modify historical orders.
+
+Do not modify historical order snapshots.
+
+Do not change existing product IDs.
+
+Do not change existing variant IDs.
+
+Do not delete existing catalog data.
+
+Do not modify vendor prices or stock as part of this task.
+
+Do not run fixture cleanup.
+
+
+=================================================
+22. IMPLEMENTATION BOUNDARY
+=================================================
+
+This is a focused CUSTOMER SHOPPING EXPERIENCE phase.
+
+DO NOT implement:
+
+- payment gateway
+- Delivery Partner
+- stock reservation
+- automatic stock deduction
+- automatic unit conversion
+- shared bulk inventory
+- authentication redesign
+- order lifecycle redesign
+- reorder redesign
+- vendor catalog redesign
+
+
+=================================================
+23. TESTS
+=================================================
+
+Add/update focused tests for:
+
+1. Global customer search
+2. Category-optional search
+3. Pincode/store eligibility
+4. Product with one variant
+5. Product with multiple variants
+6. Variant selection
+7. Add selected variant to cart
+8. Correct price in cart
+9. Zero-stock variant cannot be purchased
+10. Unavailable variant cannot be purchased
+11. Exact stock is not exposed
+12. SKU is not exposed
+13. External code is not exposed
+14. One-store cart rule remains intact
+15. Multiple products can be added from the same store
+16. Customer cannot create a Master Product
+
+
+=================================================
+24. BUILD / VERIFICATION
+=================================================
+
+Run:
+
+- typecheck
+- relevant API tests
+- relevant customer tests
+- production build/export
+
+Do NOT run automated browser acceptance testing.
+
+Do NOT claim manual browser acceptance is complete.
+
+Do NOT publish or deploy to production.
+
+
+=================================================
+25. FINAL REPORT
+=================================================
+
+Provide:
+
+A. Files changed
+B. Customer search implementation
+C. Product details implementation
+D. Multi-variant selection implementation
+E. Cart integration
+F. Availability behavior
+G. Stock privacy behavior
+H. Store/pincode filtering behavior
+I. Tests passed/failed
+J. Typecheck
+K. Build
+L. Any remaining known issues
+
+Do not make unrelated changes.

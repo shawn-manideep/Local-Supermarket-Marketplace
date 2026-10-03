@@ -79,3 +79,20 @@ test("direct customer cart writes are removed from RLS", async () => {
   assert.match(migration, /DROP POLICY IF EXISTS cart_items_customer_manage/);
   assert.doesNotMatch(migration, /orders|order_items|order_status_history/);
 });
+
+test("same-store products append to a variant-keyed cart and cross-store additions require confirmation", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  assert.match(routes, /existing && existing\.storeId !== variant\.storeId && !parsed\.data\.confirmStoreSwitch/);
+  assert.match(routes, /throw new HttpError\(409, "Store switch required"/);
+  assert.match(routes, /target: \[cartItems\.cartId, cartItems\.variantId\]/);
+  assert.match(routes, /eq\(carts\.storeId, variant\.storeId\)/);
+  assert.match(routes, /Requested quantity exceeds available stock/);
+  assert.match(routes, /Product variant is currently unavailable/);
+});
+
+test("cart response strips exact inventory and keeps authoritative variant prices", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  assert.match(routes, /rows\.map\(\(\{ isActive, stockQuantity, productAvailability, productIsActive, \.\.\.item \}\)/);
+  assert.match(routes, /unitPrice: productVariants\.price/);
+  assert.doesNotMatch(routes, /sku:|externalCode:/);
+});

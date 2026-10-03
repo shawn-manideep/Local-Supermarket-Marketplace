@@ -11,3 +11,4 @@
 - [Catalog stock writes](catalog-stock-write-boundary.md) — catalog batches must protect against stale stock without changing checkout or order inventory locking.
 - [Catalog browser evidence](catalog-browser-evidence.md) — verify the specific changed row after navigation and read-back; an old success notice is not proof.
 - [Variant UX boundaries](variant-ux-boundaries.md) — identical-unit quantity sorting only; mixed units keep stable positions, with no conversion or data cleanup during UX corrections.
+- [Customer shopping boundaries](customer-shopping-boundaries.md) — contextual cart navigation, explicit multi-variant choice, optional categories, and manual browser acceptance.

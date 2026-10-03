@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+export type { CustomerShoppingCategory } from "../../../../lib/api-client-react/src/generated/api.schemas";
 
 export interface CustomerProfile {
   id: string;

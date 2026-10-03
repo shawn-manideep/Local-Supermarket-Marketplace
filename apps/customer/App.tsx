@@ -372,12 +372,15 @@ function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
   const [cartUnits, setCartUnits] = useState(0);
-  const navItems: Array<"home" | "cart" | "orders" | "account"> = ["home", "cart", "orders", "account"];
+  const navItems: Array<"home" | "orders" | "account"> = ["home", "orders", "account"];
   return (
     <View style={styles.shell}>
       <View style={styles.content}>
-        {screen === "home" ? <MarketplaceScreen openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} resetToken={0} onCartUnitsChange={setCartUnits} />
-        : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} /> 
+        <View style={{ flex: 1, display: screen === "home" ? "flex" : "none" }}>
+          <MarketplaceScreen active={screen === "home"} openAddresses={() => setScreen("addresses")} openCart={() => setScreen("cart")} resetToken={0} onCartUnitsChange={setCartUnits} />
+        </View>
+        {screen === "home" ? null
+        : screen === "cart" ? <CartScreen openAddresses={() => setScreen("addresses")} continueShopping={() => setScreen("home")} onOrderPlaced={(id) => { setOrderId(id); setScreen("orders"); }} />
         : screen === "orders" ? <OrdersScreen initialOrderId={orderId} onRepeatAdded={() => { setScreen("cart"); setOrderId(undefined); }} />
         : screen === "account" ? <AccountScreen navigate={setScreen} /> 
         : screen === "profile" ? <AccountScreen navigate={setScreen} editProfile />

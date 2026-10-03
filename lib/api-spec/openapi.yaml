@@ -11,6 +11,34 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /customer/categories:
+    get:
+      operationId: getCustomerShoppingCategories
+      summary: Category filters from stores eligible for a saved delivery pincode
+      security:
+        - customerBearer: []
+      parameters:
+        - in: query
+          name: pincode
+          required: true
+          schema:
+            type: string
+            pattern: '^[1-9]\d{5}$'
+      responses:
+        "200":
+          description: Public category filters; commercial and inventory fields are never included
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerShoppingCategories"
+        "400":
+          description: Invalid pincode
+        "401":
+          description: Sign-in required
+        "403":
+          description: Customer role required
+        "404":
+          description: No owned saved address for this pincode
   /healthz:
     get:
       operationId: healthCheck
@@ -25,7 +53,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 components:
+  securitySchemes:
+    customerBearer:
+      type: http
+      scheme: bearer
   schemas:
+    CustomerShoppingCategory:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    CustomerShoppingCategories:
+      type: object
+      additionalProperties: false
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerShoppingCategory"
     HealthStatus:
       type: object
       properties:

@@ -9,6 +9,7 @@ import {
   categories,
   customerAddresses,
   getDb,
+  masterCategories,
   masterProducts,
   productVariants,
   products,
@@ -27,7 +28,7 @@ const publicStore = {
   logoImageUrl: stores.logoImageUrl, phone: stores.phone,
   deliveryFee: stores.deliveryFee, minimumOrderValue: stores.minimumOrderValue,
 };
-const publicProduct = {
+export const publicProduct = {
   id: products.id, storeId: products.storeId, categoryId: products.categoryId,
   name: sql<string>`coalesce(${masterProducts.name}, ${products.name})`.as("name"),
   description: sql<string | null>`coalesce(${products.description}, ${masterProducts.description})`.as("description"),
@@ -43,7 +44,7 @@ export const customerProductQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(24),
 }).strict();
 
-const customerVariantFields = {
+export const customerVariantFields = {
   id: productVariants.id, productId: productVariants.productId,
   name: productVariants.name, quantityValue: productVariants.quantityValue,
   quantityUnit: productVariants.quantityUnit, price: productVariants.price,
@@ -105,7 +106,7 @@ async function customerVariantsFor(productIds: string[]) {
   return variants as PublicVariant[];
 }
 
-function addCustomerVariants<T extends PublicProduct>(list: T[], variants: PublicVariant[]) {
+export function addCustomerVariants<T extends PublicProduct>(list: T[], variants: PublicVariant[]) {
   const variantsByProduct = new Map<string, PublicVariant[]>();
   for (const variant of variants) {
     const items = variantsByProduct.get(variant.productId) ?? [];
@@ -162,6 +163,24 @@ customerMarketplaceRouter.get("/api/customer/stores", requireRole("customer"), a
     return { ...store, operatingStatus: operatingStatus(hours), operatingHours: hours };
   });
   response.json({ stores: results });
+}));
+
+customerMarketplaceRouter.get("/api/customer/categories", requireRole("customer"), asyncHandler(async (request, response) => {
+  const { pincode } = await discoveryContext(request);
+  const categoryId = sql<string>`coalesce(${categories.masterCategoryId}, ${categories.id})`;
+  const categoryName = sql<string>`coalesce(${masterCategories.name}, ${categories.name})`;
+  const list = await getDb().selectDistinct({ id: categoryId, name: categoryName })
+    .from(categories)
+    .innerJoin(stores, eq(stores.id, categories.storeId))
+    .innerJoin(storeServicePincodes, eq(storeServicePincodes.storeId, stores.id))
+    .leftJoin(masterCategories, eq(masterCategories.id, categories.masterCategoryId))
+    .where(and(
+      eq(categories.isActive, true),
+      eq(stores.status, "ACTIVE"),
+      eq(storeServicePincodes.pincode, pincode),
+    ))
+    .orderBy(asc(categoryName), asc(categoryId));
+  response.json({ categories: list });
 }));
 
 customerMarketplaceRouter.get("/api/customer/stores/:storeId", requireRole("customer"), asyncHandler(async (request, response) => {

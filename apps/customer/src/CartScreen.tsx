@@ -6,6 +6,7 @@ import { colors, radius, spacing, typography, commonStyles, shadows } from "./th
 import { QuantitySelector } from "./components/QuantitySelector";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { PlaceholderImage } from "./components/PlaceholderImage";
+import { shoppingError } from "./lib/shopping";
 
 function BasketIcon() {
   return (
@@ -15,7 +16,7 @@ function BasketIcon() {
   );
 }
 
-export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void }) {
+export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void; continueShopping: () => void }) {
   const [cart, setCart] = useState<CustomerCart | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
@@ -38,7 +39,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
       setCart(cartResult.cart); setAddresses(addressResult.addresses);
       const selected = addressResult.addresses.find((address) => address.isDefault) ?? addressResult.addresses[0];
       if (selected) setAddressId(selected.id);
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to load cart."); }
+    } catch (reason) { setMessage(shoppingError(reason, "Unable to load your cart. Please try again.")); }
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
@@ -66,7 +67,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
         if (queue.target === sentTarget) break;
       }
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "Unable to update cart.");
+      setMessage(shoppingError(reason, "Unable to update your cart. Please try again."));
     } finally {
       delete quantityQueues.current[itemId];
     }
@@ -80,7 +81,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
       await customerApi("/api/customer/cart", { method: "DELETE" });
       setCart(null);
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "Unable to clear basket.");
+      setMessage(shoppingError(reason, "Unable to clear your basket. Please try again."));
     } finally {
       setClearLoading(false);
       setClearDialogVisible(false);
@@ -112,6 +113,8 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
         <Text style={typography.title1}>Your basket is empty</Text>
         <Text style={[typography.body, { textAlign: "center" }]}>Add fresh groceries from a local supermarket to get started.</Text>
         {!!message && <Text style={[typography.caption, { color: colors.danger }]}>{message}</Text>}
+        <Pressable accessibilityRole="button" onPress={continueShopping} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Continue shopping</Text></Pressable>
+        {!!message && <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={typography.bodySemibold}>Try again</Text></Pressable>}
       </View>
     </ScrollView>
   );
@@ -120,6 +123,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
     <>
       <ScrollView contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
+          <Pressable accessibilityRole="button" onPress={continueShopping} style={{ marginBottom: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.accent }]}>← Continue shopping</Text></Pressable>
           <View style={styles.cartHeader}><Text style={styles.cartHeaderText}>My Cart</Text><Pressable accessibilityRole="button" onPress={clear}><Text style={styles.clearText}>Clear</Text></Pressable></View>
           <Text style={[typography.caption, { marginBottom: spacing.md }]}>{cart.items.length} {cart.items.length === 1 ? "item" : "items"} · {cart.storeName}</Text>
           
@@ -131,6 +135,7 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
                   <Text style={typography.bodySemibold}>{item.name}</Text>
                   <Text style={[typography.caption, { color: colors.accent, fontWeight: "700" }]}>{formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
                   <Text style={typography.caption}>₹{formatPrice(item.unitPrice)} each</Text>
+                  <Text style={typography.caption}>Qty: {item.quantity} × {formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
                   <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
                   {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Unavailable</Text>}
                 </View>

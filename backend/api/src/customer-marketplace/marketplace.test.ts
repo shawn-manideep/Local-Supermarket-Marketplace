@@ -5,7 +5,7 @@ import test from "node:test";
 import { customerCatalogQuerySchema, customerDiscoveryQuerySchema } from "@workspace/validation";
 import { createApp } from "../app.js";
 import { operatingStatus } from "./operating-status.js";
-import { customerProductQuerySchema } from "./routes.js";
+import { addCustomerVariants, customerProductQuerySchema, customerVariantFields, publicProduct } from "./routes.js";
 
 test("discovery validates Indian pincodes and optional category IDs", () => {
   assert.equal(customerDiscoveryQuerySchema.safeParse({ pincode: "560001" }).success, true);
@@ -33,6 +33,7 @@ test("global customer discovery and store catalog require customer authenticatio
     const { port } = server.address() as AddressInfo;
     for (const path of [
       "/api/customer/products?pincode=560001&search=rice",
+      "/api/customer/categories?pincode=560001",
       `/api/customer/stores/${crypto.randomUUID()}/products?pincode=560001&page=1&pageSize=24`,
     ]) {
       assert.equal((await fetch(`http://127.0.0.1:${port}${path}`)).status, 401);
@@ -86,14 +87,72 @@ test("customer offers remain discoverable while purchase eligibility requires an
 
 test("customer variant choices label options and disable unavailable or out-of-stock purchases", async () => {
   const screen = await readFile(new URL("../../../../apps/customer/src/MarketplaceScreen.tsx", import.meta.url), "utf8");
-  assert.match(screen, /Select Quantity \/ Options/);
+  assert.match(screen, /Choose an option/);
   assert.match(screen, /function customerVariantLabel/);
-  assert.match(screen, /function variantAvailabilityLabel/);
-  assert.match(screen, /function canPurchaseVariant/);
+  assert.match(screen, /variantAvailabilityLabel.*from "\.\/lib\/shopping"/);
   assert.match(screen, /accessibilityState=\{\{ selected, disabled: !available \}\} disabled=\{!available\}/);
   assert.match(screen, /if \(!canPurchaseVariant\(selected, variant\)\)/);
-  assert.match(screen, /setSelectedVariantId\(firstAvailable\?\.id \?\? ""\)/);
+  assert.match(screen, /setSelectedVariantId\(initialVariantId\(/);
   assert.doesNotMatch(screen, /Available sizes/);
+});
+
+test("public product and variant SQL projections omit private catalog and inventory fields", () => {
+  for (const projection of [publicProduct, customerVariantFields]) {
+    for (const field of ["sku", "externalCode", "stockQuantity", "createdAt", "updatedAt", "masterProductId"]) {
+      assert.equal(Object.hasOwn(projection, field), false, field);
+    }
+  }
+});
+
+test("one listing groups multiple variants without creating duplicate product results", () => {
+  const product = {
+    id: "product-a", storeId: "store-a", categoryId: null, name: "Rice",
+    description: null, price: "0.00", availability: true, imageUrl: null, brand: null, categoryName: null,
+  };
+  const variant = {
+    id: "variant-a", productId: product.id, name: "1 kg", quantityValue: "1", quantityUnit: "kg",
+    price: "75.50", availability: true, isActive: true, sortOrder: 0, purchasable: true,
+  };
+  const result = addCustomerVariants([product], [variant, { ...variant, id: "variant-b", price: "145.00", sortOrder: 1 }]);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].variants.length, 2);
+  assert.equal(result[0].variants[0].price, "75.50");
+  assert.equal(result[0].purchasable, true);
+  assert.equal(addCustomerVariants([product], [{ ...variant, purchasable: false }])[0].purchasable, false);
+  assert.equal(addCustomerVariants([{ ...product, availability: false }], [variant])[0].purchasable, false);
+});
+
+test("global category filters are read-only, pincode eligible, and share category identities across stores", async () => {
+  const routes = await readFile(new URL("./routes.ts", import.meta.url), "utf8");
+  const categoryRoute = routes.slice(
+    routes.indexOf('customerMarketplaceRouter.get("/api/customer/categories"'),
+    routes.indexOf('customerMarketplaceRouter.get("/api/customer/stores/:storeId"'),
+  );
+  assert.match(categoryRoute, /requireRole\("customer"\)/);
+  assert.match(categoryRoute, /await discoveryContext\(request\)/);
+  assert.match(categoryRoute, /selectDistinct\(\{ id: categoryId, name: categoryName \}\)/);
+  assert.match(categoryRoute, /eq\(stores\.status, "ACTIVE"\)/);
+  assert.match(categoryRoute, /eq\(storeServicePincodes\.pincode, pincode\)/);
+  assert.match(categoryRoute, /coalesce\(\$\{categories\.masterCategoryId\}, \$\{categories\.id\}\)/);
+  assert.doesNotMatch(categoryRoute, /\.insert\(|\.update\(|\.delete\(/);
+  assert.match(routes, /eq\(categories\.masterCategoryId, query\.categoryId\)/);
+});
+
+test("Master Product creation remains vendor-only, with no customer catalog write routes", async () => {
+  const routes = await readFile(new URL("../master-catalog/routes.ts", import.meta.url), "utf8");
+  assert.match(routes, /masterCatalogRouter\.post\(\s*"\/api\/vendor\/master-products",\s*requireRole\("vendor"\)/);
+  assert.doesNotMatch(routes, /requireRole\([^)]*"customer"/);
+  const server = createApp().listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const response = await fetch(`http://127.0.0.1:${port}/api/vendor/master-products`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    assert.equal(response.status, 401);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
 });
 
 test("product lists order by the canonical name expression instead of an ambiguous projection alias", async () => {

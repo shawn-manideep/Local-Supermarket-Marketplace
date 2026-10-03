@@ -6,6 +6,9 @@ import { colors, radius, spacing, typography, commonStyles, shadows } from "./th
 import { QuantitySelector } from "./components/QuantitySelector";
 import { PlaceholderImage } from "./components/PlaceholderImage";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
+import { ShoppingProductCard } from "./components/ShoppingProductCard";
+import type { CustomerShoppingCategory } from "./lib/api";
+import { activeVariants as getActiveVariants, canPurchaseVariant, cartItemInput, discoveryQuery, initialVariantId, productAvailabilityLabel, productPriceLabel, shoppingError, variantAvailabilityLabel } from "./lib/shopping";
 
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
@@ -67,34 +70,15 @@ function customerVariantLabel(variant: CustomerProductVariant) {
   return formatVariantName(variant.quantityValue, variant.quantityUnit);
 }
 
-function canPurchaseVariant(product: CustomerProduct, variant: CustomerProductVariant) {
-  return product.availability
-    && product.purchasable
-    && variant.isActive
-    && variant.availability
-    && variant.purchasable
-    && Number(variant.price) > 0;
-}
-
-function variantAvailabilityLabel(product: CustomerProduct, variant: CustomerProductVariant) {
-  if (!product.availability || !variant.availability || Number(variant.price) <= 0) return "Unavailable";
-  return canPurchaseVariant(product, variant) ? "Available" : "Out of stock";
-}
-
-function productAvailabilityLabel(product: CustomerProduct) {
-  if (!product.availability) return "Unavailable";
-  if (product.purchasable) return "In Stock";
-  const configuredForSale = (product.variants ?? []).some((variant) =>
-    variant.isActive && variant.availability && Number(variant.price) > 0,
-  );
-  return configuredForSale ? "Out of Stock" : "Unavailable";
-}
-
-export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void }) {
+export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [pincode, setPincode] = useState("");
   const [stores, setStores] = useState<CustomerStore[]>([]);
-  const [homeCategories, setHomeCategories] = useState<CustomerCategory[]>([]);
+  const [homeCategories, setHomeCategories] = useState<CustomerShoppingCategory[]>([]);
+  const [globalCategoryId, setGlobalCategoryId] = useState("");
+  const [searchRetry, setSearchRetry] = useState(0);
+  const [categoryRetry, setCategoryRetry] = useState(0);
+  const [categoryError, setCategoryError] = useState(false);
   const [store, setStore] = useState<CustomerStore | null>(null);
   const [categories, setCategories] = useState<CustomerCategory[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -127,6 +111,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   const discoveryGeneration = useRef(0);
   const catalogGeneration = useRef(0);
+  const storeCatalogGeneration = useRef(0);
   const globalSearchGeneration = useRef(0);
   const pendingCategoryId = useRef("");
   const cartAddInFlight = useRef(false);
@@ -135,8 +120,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   const clearCatalog = () => {
     ++catalogGeneration.current;
+    ++storeCatalogGeneration.current;
+    ++globalSearchGeneration.current;
     setCategories([]); setProducts([]); setStorePagination(null); setProduct(null); setCategoryId(""); setSearchQuery("");
     setGlobalProducts([]); setGlobalPagination(null); setGlobalPage(1); setStorePage(1);
+    setGlobalCategoryId(""); setSelectedVariantId(""); setLoadingCatalog(false);
   };
 
   const selectStore = (nextStore: CustomerStore | null) => {
@@ -157,13 +145,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       .then(({ addresses: next }) => {
         setAddresses(next);
         const selected = next.find((address) => address.isDefault) ?? next[0];
-        if (selected) setPincode(selected.pincode);
+        setPincode(selected?.pincode ?? "");
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "Unable to load locations."))
+      .catch((reason) => setError(shoppingError(reason, "Unable to load delivery addresses. Please try again.")))
       .finally(() => setLoadingAddresses(false));
   }, []);
 
-  useEffect(() => { loadAddresses(); }, [loadAddresses]);
+  useEffect(() => { if (active) loadAddresses(); }, [loadAddresses, active]);
   const refreshCart = useCallback(async () => {
     try {
       const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart");
@@ -172,7 +160,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       onCartUnitsChange?.(count);
     } catch { /* Shopping remains available if cart summary refresh fails. */ }
   }, [onCartUnitsChange]);
-  useEffect(() => { void refreshCart(); }, [refreshCart]);
+  useEffect(() => { if (active) void refreshCart(); }, [refreshCart, active]);
   useEffect(() => {
     let active = true;
     customerApi<{ profile: CustomerProfile }>("/api/customer/profile")
@@ -182,29 +170,30 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   }, []);
 
   const loadStores = useCallback(() => {
-    if (!pincode) { setStores([]); return; }
     const generation = ++discoveryGeneration.current;
+    if (!pincode) { setStores([]); setStore(null); clearCatalog(); setLoadingStores(false); return; }
     setLoadingStores(true); setError(""); setStore(null); clearCatalog();
     customerApi<{ stores: CustomerStore[] }>(`/api/customer/stores?pincode=${pincode}`)
       .then(({ stores: next }) => { if (generation === discoveryGeneration.current) setStores(next); })
-      .catch((reason) => { if (generation === discoveryGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to find supermarkets."); })
+      .catch((reason) => { if (generation === discoveryGeneration.current) setError(shoppingError(reason, "Unable to find supermarkets. Please try again.")); })
       .finally(() => { if (generation === discoveryGeneration.current) setLoadingStores(false); });
   }, [pincode]);
 
   useEffect(() => { loadStores(); }, [loadStores]);
   useEffect(() => {
-    const firstStore = stores[0];
-    if (!firstStore || !pincode) { setHomeCategories([]); return; }
+    if (!pincode) { setHomeCategories([]); return; }
     let active = true;
-    customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${firstStore.id}/categories?pincode=${pincode}`)
+    setCategoryError(false);
+    setHomeCategories([]);
+    customerApi<{ categories: CustomerShoppingCategory[] }>(`/api/customer/categories?pincode=${pincode}`)
       .then(result => { if (active) setHomeCategories(result.categories); })
-      .catch(() => { if (active) setHomeCategories([]); });
+      .catch(() => { if (active) setCategoryError(true); });
     return () => { active = false; };
-  }, [stores, pincode]);
+  }, [pincode, categoryRetry]);
 
   useEffect(() => {
     if (!store) return;
-    const generation = ++catalogGeneration.current;
+    const generation = ++storeCatalogGeneration.current;
     const nextCategoryId = pendingCategoryId.current || categoryId;
     pendingCategoryId.current = "";
     if (nextCategoryId !== categoryId) setCategoryId(nextCategoryId);
@@ -215,20 +204,21 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${store.id}/categories?pincode=${pincode}`),
       customerApi<CustomerProductSearchResponse>(`/api/customer/stores/${store.id}/products?${productQuery}`),
     ]).then(([categoryResult, productResult]) => {
-      if (generation === catalogGeneration.current) {
+      if (generation === storeCatalogGeneration.current) {
         setCategories(categoryResult.categories);
         setProducts(productResult.products);
         setStorePagination(productResult.pagination);
          pendingCategoryId.current = "";
       }
     }).catch((reason) => {
-      if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load catalog.");
-    }).finally(() => { if (generation === catalogGeneration.current) setLoadingCatalog(false); });
+      if (generation === storeCatalogGeneration.current) setError(shoppingError(reason, "Unable to load this store's products. Please try again."));
+    }).finally(() => { if (generation === storeCatalogGeneration.current) setLoadingCatalog(false); });
+    return () => { if (generation === storeCatalogGeneration.current) ++storeCatalogGeneration.current; };
   }, [store, pincode, categoryId, storePage]);
 
   useEffect(() => {
     const search = searchQuery.trim();
-    if (!pincode || !search) {
+    if (!pincode || (!search && !globalCategoryId)) {
       ++globalSearchGeneration.current;
       setGlobalProducts([]);
       setGlobalPagination(null);
@@ -241,12 +231,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     setLoadingGlobalProducts(true);
     setError("");
     const timer = setTimeout(() => {
-      const query = new URLSearchParams({
-        pincode,
-        search,
-        page: String(globalPage),
-        pageSize: "24",
-      });
+      const query = discoveryQuery(pincode, search, globalCategoryId, globalPage);
       customerApi<CustomerProductSearchResponse>(`/api/customer/products?${query}`)
         .then((result) => {
           if (generation === globalSearchGeneration.current) {
@@ -255,14 +240,17 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           }
         })
         .catch((reason) => {
-          if (generation === globalSearchGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to search products.");
+          if (generation === globalSearchGeneration.current) setError(shoppingError(reason, "Unable to search products. Please try again."));
         })
         .finally(() => {
           if (generation === globalSearchGeneration.current) setLoadingGlobalProducts(false);
         });
     }, 250);
-    return () => clearTimeout(timer);
-  }, [pincode, searchQuery, globalPage]);
+    return () => {
+      clearTimeout(timer);
+      if (generation === globalSearchGeneration.current) ++globalSearchGeneration.current;
+    };
+  }, [pincode, searchQuery, globalPage, globalCategoryId, searchRetry]);
 
   const filterProducts = async (nextCategoryId: string) => {
     if (!store) return;
@@ -290,16 +278,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         setProducts([]);
         setStorePagination(null);
         setProduct(productResult.product);
-        setSearchQuery("");
-        setGlobalProducts([]);
-        const firstAvailable = productResult.product.availability && productResult.product.purchasable
-          ? productResult.product.variants?.find((variant) => canPurchaseVariant(productResult.product, variant))
-          : undefined;
-        setSelectedVariantId(firstAvailable?.id ?? "");
+        setSelectedVariantId(initialVariantId(productResult.product));
         setQuantity(1);
       }
     } catch (reason) {
-      if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to open this product.");
+      if (generation === catalogGeneration.current) setError(shoppingError(reason, "Unable to open this product. Please try again."));
     } finally {
       if (generation === catalogGeneration.current) setLoadingCatalog(false);
     }
@@ -313,12 +296,29 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       const result = await customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${selected.id}?pincode=${pincode}`);
       if (generation === catalogGeneration.current) {
         setProduct(result.product);
-        const firstAvailable = result.product.variants?.find((variant) => canPurchaseVariant(result.product, variant));
-        setSelectedVariantId(firstAvailable?.id ?? "");
+        setSelectedVariantId(initialVariantId(result.product));
       }
-    } catch (reason) { if (generation === catalogGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load product."); }
+    } catch (reason) { if (generation === catalogGeneration.current) setError(shoppingError(reason, "Unable to load this product. Please try again.")); }
     finally { if (generation === catalogGeneration.current) setLoadingCatalog(false); }
   };
+
+  useEffect(() => {
+    if (!active || !product || !store || !pincode) return;
+    let cancelled = false;
+    const timer = setInterval(() => {
+      customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${product.id}?pincode=${pincode}`)
+        .then(result => {
+          if (cancelled) return;
+          setProduct(result.product);
+          setSelectedVariantId(current => getActiveVariants(result.product).some(variant => variant.id === current)
+            ? current : initialVariantId(result.product));
+        })
+        .catch(reason => {
+          if (!cancelled) setError(shoppingError(reason, "Couldn't refresh availability. Please reopen this product."));
+        });
+    }, 30_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [active, product?.id, store?.id, pincode]);
 
   const addToCart = async (selected: CustomerProduct, variant: CustomerProductVariant, qty: number, confirmStoreSwitch = false) => {
     if (!canPurchaseVariant(selected, variant)) {
@@ -329,17 +329,18 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     cartAddInFlight.current = true;
     setAdding(true);
     try {
-      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId:selected.id, variantId:variant.id, quantity:qty, confirmStoreSwitch }) });
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(selected, variant, qty, confirmStoreSwitch)) });
+      const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+      setCartUnits(count); onCartUnitsChange?.(count);
       setAddedNotice(`${selected.name} · ${customerVariantLabel(variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
-      void refreshCart();
     } catch (reason) {
       const errorMsg = reason instanceof Error ? reason.message : "Unable to add product.";
       if (errorMsg === "Store switch required") {
         setPendingProduct({ product: selected, variant, qty });
         setSwitchDialogVisible(true);
       } else {
-        setError(errorMsg);
+        setError(shoppingError(reason, "Unable to add this item. Please try again."));
       }
     } finally { 
       cartAddInFlight.current = false;
@@ -352,14 +353,15 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     cartAddInFlight.current = true;
     setSwitchDialogLoading(true);
     try {
-      await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId: pendingProduct.product.id, variantId: pendingProduct.variant.id, quantity: pendingProduct.qty, confirmStoreSwitch: true }) });
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(pendingProduct.product, pendingProduct.variant, pendingProduct.qty, true)) });
+      const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+      setCartUnits(count); onCartUnitsChange?.(count);
       setSwitchDialogVisible(false);
       setAddedNotice(`${pendingProduct.product.name} · ${customerVariantLabel(pendingProduct.variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
       setPendingProduct(null);
-      void refreshCart();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to add product.");
+      setError(shoppingError(reason, "Unable to start a basket at this store. Please try again."));
       setSwitchDialogVisible(false);
       setPendingProduct(null);
     } finally {
@@ -377,14 +379,40 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
         value={searchQuery}
-        onChangeText={(value) => { setSearchQuery(value); setGlobalPage(1); }}
+        maxLength={120}
+        onChangeText={(value) => { setSearchQuery(value); setGlobalPage(1); setError(""); }}
       />
+      {!!searchQuery && <Pressable accessibilityRole="button" accessibilityLabel="Clear product search" onPress={() => { setSearchQuery(""); setGlobalPage(1); setError(""); }}><Text style={styles.backText}>Clear</Text></Pressable>}
+    </View>
+  );
+
+  const clearSearch = () => {
+    ++catalogGeneration.current;
+    setSearchQuery(""); setGlobalCategoryId(""); setGlobalPage(1); setError("");
+    setLoadingCatalog(false);
+  };
+  const closeProduct = () => {
+    ++catalogGeneration.current;
+    setProduct(null); setSelectedVariantId(""); setQuantity(1); setError("");
+    setLoadingCatalog(false);
+  };
+  const categoryFilters = () => (
+    <View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.md }}>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: !globalCategoryId }} style={[styles.chip, !globalCategoryId && styles.chipActive]} onPress={() => { setGlobalCategoryId(""); setGlobalPage(1); setError(""); }}>
+          <Text style={!globalCategoryId ? styles.chipActiveText : styles.chipText}>All categories</Text>
+        </Pressable>
+        {homeCategories.map(category => <Pressable accessibilityRole="button" accessibilityState={{ selected: globalCategoryId === category.id }} key={category.id} style={[styles.chip, globalCategoryId === category.id && styles.chipActive]} onPress={() => { setGlobalCategoryId(category.id); setGlobalPage(1); setError(""); }}>
+          <Text style={globalCategoryId === category.id ? styles.chipActiveText : styles.chipText}>{category.name}</Text>
+        </Pressable>)}
+      </ScrollView>
+      {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. You can still search. Tap to retry.</Text></Pressable>}
     </View>
   );
 
   let content;
 
-  if (searchQuery.trim() && pincode) {
+  if (!product && (searchQuery.trim() || globalCategoryId) && pincode) {
     content = (
       <ScrollView key="global-product-search" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
@@ -394,33 +422,21 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
               <Text style={typography.title2}>Search all nearby stores</Text>
               <Text style={typography.caption}>Available listings serving {pincode}</Text>
             </View>
-            {!!store && <Pressable accessibilityRole="button" onPress={() => setSearchQuery("")}><Text style={styles.backText}>Back to {store.name}</Text></Pressable>}
+            <Pressable accessibilityRole="button" onPress={clearSearch}><Text style={styles.backText}>Back to shopping</Text></Pressable>
           </View>
           {productSearchField("Search groceries across nearby stores...")}
-          {!!error && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{error}</Text>}
-          {loadingGlobalProducts ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : globalProducts.length === 0 ? (
+          {categoryFilters()}
+          {loadingCatalog && <Text accessibilityLiveRegion="polite" style={typography.caption}>Opening product…</Text>}
+          {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => { setError(""); setSearchRetry(value => value + 1); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Try again</Text></Pressable></View> : loadingGlobalProducts ? <ActivityIndicator accessibilityLabel="Searching products" color={colors.accent} style={{ marginTop: spacing.xl }} /> : globalProducts.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={typography.title3}>No products found</Text>
-              <Text style={typography.body}>{searchQuery.trim() ? "Try another product, brand, or search term." : "Start typing to search products."}</Text>
+              <Text style={typography.body}>Try another search or browse a different category.</Text>
             </View>
           ) : (
             <>
               <Text style={[typography.title3, { marginVertical: spacing.md }]}>{globalPagination?.total ?? globalProducts.length} matching store offers</Text>
               <View style={styles.productGrid}>
-                {globalProducts.map((item) => {
-                  const availableVariants = (item.variants ?? []).filter((variant) => variant.isActive).sort((a, b) => Number(a.price) - Number(b.price));
-                  const displayedPrice = availableVariants[0]?.price ?? item.price;
-                  return <Pressable accessibilityRole="button" key={`${item.storeId}:${item.id}`} onPress={() => void selectGlobalOffer(item)} style={styles.productCard}>
-                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
-                    <View style={styles.productInfo}>
-                      <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
-                      {!!item.brand && <Text style={typography.caption} numberOfLines={1}>{item.brand}</Text>}
-                      <Text style={typography.caption} numberOfLines={1}>{item.storeName} · {item.categoryName ?? "Groceries"}</Text>
-                      <Text style={[typography.title3, { color: colors.ink }]}>{availableVariants.length > 1 ? "From " : ""}₹{formatPrice(displayedPrice)}</Text>
-                      {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{productAvailabilityLabel(item)}</Text>}
-                    </View>
-                  </Pressable>;
-                })}
+                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} busy={adding || switchDialogLoading} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
               </View>
               <PaginationControls pagination={globalPagination} onPageChange={setGlobalPage} />
             </>
@@ -429,15 +445,15 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       </ScrollView>
     );
   } else if (product && store) {
-    const activeVariants = (product.variants ?? []).filter((variant) => variant.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+    const activeVariants = getActiveVariants(product);
     const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
     const purchasable = !!selectedVariant && canPurchaseVariant(product, selectedVariant);
     const productStatus = productAvailabilityLabel(product);
     content = (
       <ScrollView key="product-detail" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
-          <Pressable accessibilityLabel={`Back to ${store.name}`} accessibilityRole="button" onPress={() => { ++catalogGeneration.current; setProduct(null); }} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back to {store.name}</Text>
+          <Pressable accessibilityLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`} accessibilityRole="button" onPress={closeProduct} style={styles.backBtn}>
+            <Text style={styles.backText}>← {searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}</Text>
           </Pressable>
           
           <View style={styles.productHero}>
@@ -448,16 +464,18 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
 
           <Text style={typography.hero}>{product.name}</Text>
-          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{formatPrice(selectedVariant?.price ?? product.price)}</Text>
+          {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
+          <Text style={typography.caption}>Sold by {store.name} · Delivers to {pincode}</Text>
+          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>{productPriceLabel(product, selectedVariant)}</Text>
           {!!product.description && <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description}</Text>}
           {activeVariants.length > 1 && <View style={styles.variantSection}>
-            <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Select Quantity / Options</Text>
+            <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Choose an option</Text>
             <View style={{ gap: spacing.sm }}>
               {activeVariants.map((variant) => {
                 const available = canPurchaseVariant(product, variant);
                 const availabilityLabel = variantAvailabilityLabel(product, variant);
                 const selected = selectedVariantId === variant.id;
-                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityLabel={`${customerVariantLabel(variant)} · ₹${formatPrice(variant.price)} · ${availabilityLabel}`} accessibilityState={{ selected, disabled: !available }} disabled={!available} onPress={() => { if (available) setSelectedVariantId(variant.id); }} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
+                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityLabel={`${customerVariantLabel(variant)} · ₹${formatPrice(variant.price)} · ${availabilityLabel}`} accessibilityState={{ selected, disabled: !available }} disabled={!available} onPress={() => { if (available) { setSelectedVariantId(variant.id); setQuantity(1); setError(""); } }} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
                   <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
                   <Text style={[typography.bodySemibold, { flex: 1 }, !available && { color: colors.muted }]}>{customerVariantLabel(variant)} · {availabilityLabel}</Text>
                   <Text style={[typography.bodySemibold, { color: colors.accent }]}>₹{formatPrice(variant.price)}</Text>
@@ -470,16 +488,17 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           
           {purchasable && (
             <View style={styles.qtyRow}>
-              <Text style={typography.title3}>Quantity</Text>
-              <QuantitySelector quantity={quantity} onDecrease={() => setQuantity(q => Math.max(1, q - 1))} onIncrease={() => setQuantity(q => q + 1)} min={1} disabled={adding} />
+              <View style={{ flex: 1 }}><Text style={typography.title3}>Order quantity</Text><Text style={typography.caption}>{quantity} × {selectedVariant ? customerVariantLabel(selectedVariant) : ""}</Text></View>
+              <QuantitySelector quantity={quantity} onDecrease={() => setQuantity(q => Math.max(1, q - 1))} onIncrease={() => setQuantity(q => Math.min(999, q + 1))} min={1} disabled={adding} />
             </View>
           )}
 
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md }]}>{error}</Text>}
 
           <Pressable accessibilityRole="button" disabled={!purchasable || adding} onPress={() => selectedVariant && void addToCart(product, selectedVariant, quantity)} style={[styles.primaryBtn, (!purchasable || adding) && styles.disabled]}>
-            {adding ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{purchasable ? `Add ${quantity} to Cart` : "Unavailable"}</Text>}
+            {adding ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{purchasable ? `Add ${quantity} to Cart` : !selectedVariant && product.purchasable && activeVariants.length > 1 ? "Choose an option first" : selectedVariant ? variantAvailabilityLabel(product, selectedVariant) : productStatus}</Text>}
           </Pressable>
+          <Pressable accessibilityRole="button" onPress={closeProduct} style={styles.backBtn}><Text style={styles.backText}>Continue shopping</Text></Pressable>
         </View>
       </ScrollView>
     );
@@ -514,32 +533,14 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           )}
           <Text style={[typography.title3, { marginBottom: spacing.md }]}>{categoryId ? "Products" : "Popular Products"}</Text>
 
-          {loadingCatalog ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : products.length === 0 ? (
+          {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => setStore({ ...store })} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Try again</Text></Pressable></View> : loadingCatalog ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : products.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={typography.title3}>No products found</Text>
               <Text style={typography.body}>Try adjusting your search or category.</Text>
             </View>
           ) : (
             <View style={styles.productGrid}>
-              {products.map((item) => {
-                const sellable = (item.variants ?? []).filter(variant => variant.isActive).sort((a, b) => Number(a.price) - Number(b.price));
-                const purchasableVariants = sellable.filter((variant) => canPurchaseVariant(item, variant));
-                const displayedPrice = sellable[0]?.price ?? item.price;
-                return <Pressable accessibilityRole="button" key={item.id} onPress={() => void showProduct(item)} style={styles.productCard}>
-                  {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.productThumb} /> : <PlaceholderImage name={item.name} style={styles.productThumb} />}
-                  <View style={styles.productInfo}>
-                    <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
-                    <Text style={typography.caption} numberOfLines={1}>{item.categoryName ?? categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
-                    <Text style={[typography.title3, { color: colors.ink }]}>{sellable.length > 1 ? "From " : ""}₹{formatPrice(displayedPrice)}</Text>
-                    {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{productAvailabilityLabel(item)}</Text>}
-                  </View>
-                  {purchasableVariants.length === 1 && (
-                    <Pressable accessibilityRole="button" onPress={(e: any) => { e?.stopPropagation?.(); const onlyVariant = purchasableVariants[0]; if (onlyVariant) void addToCart(item, onlyVariant, 1); }} style={styles.addMiniBtn}>
-                      <Text style={styles.addMiniBtnText}>+ Add</Text>
-                    </Pressable>
-                  )}
-                </Pressable>
-              })}
+              {products.map(item => <ShoppingProductCard key={item.id} product={item} busy={adding || switchDialogLoading} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
             </View>
           )}
           <PaginationControls pagination={storePagination} onPageChange={setStorePage} />
@@ -568,6 +569,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
 
           {productSearchField("Search products across nearby stores...")}
+          {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. Search still works. Tap to retry.</Text></Pressable>}
           <View style={[styles.searchBar, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
             <SearchIcon />
             <TextInput style={styles.searchInput} placeholder="Search supermarkets..." placeholderTextColor={colors.muted} value={storeSearchQuery} onChangeText={setStoreSearchQuery} />
@@ -581,7 +583,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           {homeCategories.length > 0 && <View style={{ marginBottom: spacing.xl }}>
             <Text style={[typography.title3, { marginBottom: spacing.md }]}>Shop by Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.md }}>
-              {homeCategories.map(category => <Pressable accessibilityRole="button" key={category.id} onPress={() => { selectStore(stores[0]); pendingCategoryId.current = category.id; }} style={styles.homeCategory}>
+              {homeCategories.map(category => <Pressable accessibilityRole="button" key={category.id} onPress={() => { setGlobalCategoryId(category.id); setGlobalPage(1); setError(""); }} style={styles.homeCategory}>
                 <View style={styles.homeCategoryIcon}><Text style={styles.homeCategoryInitial}>{category.name.charAt(0).toUpperCase()}</Text></View>
                 <Text style={styles.homeCategoryText} numberOfLines={1}>{category.name}</Text>
               </Pressable>)}
@@ -639,7 +641,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       <View style={{ flex: 1 }}>
         {content}
         {!!addedNotice && <View accessibilityRole="alert" style={styles.addedToast}><Text style={styles.addedToastText}>✓  {addedNotice}</Text></View>}
-        {cartUnits > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`Go to cart, ${cartUnits} items`} onPress={openCart} style={styles.stickyCart}>
+        {cartUnits > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`Go to cart, ${cartUnits} items`} disabled={adding || switchDialogLoading} onPress={openCart} style={styles.stickyCart}>
           <Text style={styles.stickyCartTitle}>Go to Cart</Text>
           <Text style={styles.stickyCartCount}>{cartUnits} {cartUnits === 1 ? "Item" : "Items"}  →</Text>
         </Pressable>}
