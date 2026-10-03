@@ -157,6 +157,7 @@ export interface OrderSummary {
   storeId: string;
   storeName: string;
   status: OrderStatus;
+  deliveryType: string;
   paymentMethod: string;
   totalAmount: string | number;
   deliveryContactName: string;
@@ -176,6 +177,10 @@ export interface OrderSummary {
 
 export interface OrderItemSnapshot {
   id: string;
+  variantId?: string | null;
+  variantNameSnapshot?: string | null;
+  variantQuantityValueSnapshot?: string | null;
+  variantQuantityUnitSnapshot?: string | null;
   productNameSnapshot: string;
   productPriceSnapshot: string;
   quantity: number;

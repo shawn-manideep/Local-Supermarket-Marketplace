@@ -1,0 +1,783 @@
+PHASE 4 — VENDOR ORDER MANAGEMENT
+=================================
+
+We have completed and manually verified the core Customer shopping journey:
+
+Customer
+→ Global Search
+→ Product Details
+→ Selling Variant
+→ Quantity
+→ Add to Cart
+→ Cart
+
+We have also implemented Customer Reorder / Buy Again.
+
+The next phase is:
+
+VENDOR ORDER MANAGEMENT
+
+The goal is to make the vendor experience complete and clear from the moment a customer places an order until the vendor marks it READY.
+
+IMPORTANT:
+This phase must NOT redesign the existing Customer shopping, Master Catalog, Product/Variant, Cart, or Reorder functionality.
+
+Do NOT implement Delivery Partner in this phase.
+Do NOT implement stock reservation or stock deduction in this phase.
+Do NOT redesign authentication.
+Do NOT implement payments.
+Do NOT modify historical orders or snapshots.
+
+
+==================================================
+1. EXISTING ORDER LIFECYCLE
+==================================================
+
+Preserve the existing order lifecycle and transition rules.
+
+The current lifecycle is:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Exceptions:
+
+REJECTED
+CANCELLED
+
+For this phase, Vendor Order Management is responsible for the vendor-controlled portion:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+
+Vendor rejection remains:
+
+PLACED
+→ REJECTED
+
+Do NOT allow vendors to directly jump between arbitrary statuses.
+
+Do NOT change the existing status model unless the current implementation technically requires a minimal compatibility correction.
+
+
+==================================================
+2. VENDOR NEW ORDERS
+==================================================
+
+Create/refine a clear Vendor Order Management area.
+
+The vendor should have an obvious:
+
+NEW ORDERS
+
+section.
+
+When a customer places an order for that vendor's store, it should appear in the vendor order queue.
+
+The vendor must be able to immediately understand:
+
+- New order
+- Order number/reference
+- Date/time
+- Customer fulfillment information
+- Number of items
+- Order total
+- Current status
+
+Use clear status indicators.
+
+
+==================================================
+3. VENDOR ORDER LIST
+==================================================
+
+Provide a practical order list.
+
+Each order row/card should show:
+
+- Order number
+- Order date/time
+- Customer name where permitted
+- Delivery/pickup type where applicable
+- Item count
+- Total amount
+- Status
+- Primary action
+
+Example:
+
+ORDER #10025
+
+Placed:
+03 Oct 2026, 6:30 PM
+
+Customer:
+Sharanya
+
+Items:
+4
+
+Total:
+₹572
+
+Status:
+NEW
+
+[View Order]
+
+
+==================================================
+4. ORDER STATUS FILTERS
+==================================================
+
+Vendor should be able to filter orders by status.
+
+At minimum:
+
+- New / Placed
+- Accepted
+- Preparing
+- Ready
+- Rejected
+- Cancelled
+- Completed / Delivered where existing order history supports it
+
+Do not remove the existing order history.
+
+Make active/new orders easy to identify.
+
+
+==================================================
+5. NEW ORDER DETAIL SCREEN
+==================================================
+
+When vendor opens a new order, show the complete order details immediately.
+
+The vendor should NOT need to navigate through multiple unrelated screens to understand the order.
+
+Show:
+
+ORDER INFORMATION
+
+- Order number
+- Date/time
+- Current status
+
+CUSTOMER / FULFILLMENT INFORMATION
+
+- Customer name where permitted
+- Delivery address/details required for fulfillment
+- Contact information only if already permitted by the current application/security model
+- Any existing fulfillment information already stored with the order
+
+ORDER ITEMS
+
+For every item show:
+
+- Product name
+- Selected selling variant
+- Quantity ordered
+- Unit price
+- Line total
+
+Example:
+
+Basmati Rice
+1 kg
+Qty: 2
+₹75 each
+₹150
+
+Milk
+1 L
+Qty: 2
+₹60 each
+₹120
+
+
+ORDER SUMMARY
+
+- Subtotal
+- Delivery fee where applicable
+- Other existing charges
+- Total
+
+Do not expose internal database IDs, SKU, external codes, or private technical fields unless the existing vendor workflow already explicitly requires them.
+
+
+==================================================
+6. EXACT VARIANT IDENTITY
+==================================================
+
+Vendor must see the exact variant purchased by the customer.
+
+If customer purchased:
+
+Basmati Rice
+1 kg × 2
+
+Vendor must see:
+
+Basmati Rice
+1 kg
+Qty: 2
+
+Do NOT display only:
+
+Basmati Rice
+Qty: 2
+
+The selling variant is operationally important.
+
+
+==================================================
+7. ACCEPT ORDER
+==================================================
+
+For an order in:
+
+PLACED
+
+provide a clear:
+
+ACCEPT ORDER
+
+action.
+
+When clicked:
+
+PLACED
+→ ACCEPTED
+
+The transition must be server-authorized.
+
+The vendor must only be able to accept orders belonging to that vendor's store.
+
+Do not allow Vendor A to accept Vendor B's order.
+
+
+==================================================
+8. REJECT ORDER
+==================================================
+
+For a PLACED order, provide:
+
+REJECT ORDER
+
+The vendor should receive a confirmation before rejection.
+
+Example:
+
+"Reject this order?"
+
+[Cancel]
+[Reject Order]
+
+If the existing system supports a rejection reason, preserve it.
+
+If a reason is not currently implemented, do not invent a complicated reason-management system in this phase.
+
+When confirmed:
+
+PLACED
+→ REJECTED
+
+Do not allow rejection after the order has already moved beyond PLACED.
+
+
+==================================================
+9. PREPARING
+==================================================
+
+After the vendor accepts the order, provide:
+
+START PREPARING
+
+Transition:
+
+ACCEPTED
+→ PREPARING
+
+The action must be server-authorized.
+
+Do not allow:
+
+PLACED
+→ PREPARING
+
+unless the existing business rules explicitly support that transition.
+
+Prefer the existing lifecycle rules.
+
+
+==================================================
+10. READY
+==================================================
+
+When preparation is complete, provide:
+
+MARK READY
+
+Transition:
+
+PREPARING
+→ READY
+
+This means:
+
+"The vendor has completed preparation and the order is ready for the next fulfillment step."
+
+Do NOT implement Delivery Partner assignment in this phase.
+
+Do NOT automatically assign a delivery partner.
+
+Do NOT change READY into OUT_FOR_DELIVERY automatically.
+
+
+==================================================
+11. STATUS HISTORY
+==================================================
+
+Preserve the existing order status history.
+
+Whenever a valid status transition occurs, record it using the existing status-history mechanism.
+
+At minimum:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+
+and:
+
+PLACED
+→ REJECTED
+
+Do not rewrite or delete previous status history.
+
+
+==================================================
+12. ACTION BUTTONS
+==================================================
+
+Only show actions that are valid for the current status.
+
+Example:
+
+PLACED:
+
+[Accept Order]
+[Reject Order]
+
+ACCEPTED:
+
+[Start Preparing]
+
+PREPARING:
+
+[Mark Ready]
+
+READY:
+
+No vendor preparation action.
+
+Show:
+
+"Ready for fulfillment"
+
+
+Do not show invalid actions.
+
+
+==================================================
+13. PREVENT DOUBLE ACTIONS
+==================================================
+
+The vendor must not accidentally submit the same status transition multiple times.
+
+Examples:
+
+Double-clicking:
+
+Accept Order
+
+must not create duplicate transitions.
+
+The backend must remain authoritative.
+
+Use:
+
+- disabled/loading state
+- server-side transition validation
+- existing order status/history protections
+
+
+==================================================
+14. MULTIPLE VENDOR ISOLATION
+==================================================
+
+Vendor A must only see:
+
+- Vendor A's store orders
+- Vendor A's order items
+- Vendor A's customer fulfillment information
+
+Vendor A must never be able to:
+
+- view Vendor B's orders
+- accept Vendor B's order
+- reject Vendor B's order
+- modify Vendor B's order
+- access Vendor B's customer information through an order endpoint
+
+
+==================================================
+15. CUSTOMER INFORMATION PRIVACY
+==================================================
+
+Only expose customer information necessary for fulfilling the order.
+
+Do not expose unrelated customer account information.
+
+Do not expose:
+
+- customer password
+- internal authentication identifiers
+- unrelated addresses
+- private account metadata
+
+Follow the existing authorization/security model.
+
+
+==================================================
+16. ORDER TOTALS
+==================================================
+
+Order totals must remain server-owned and historically correct.
+
+Vendor display should use the order's stored/snapshotted commercial values.
+
+Do NOT recalculate historical order totals using today's product prices.
+
+Example:
+
+Customer placed:
+
+Basmati Rice
+1 kg
+₹70
+
+Later vendor changes current price to:
+
+₹75
+
+The existing order must still show:
+
+₹70
+
+Do not modify the order because the catalog price changed.
+
+
+==================================================
+17. HISTORICAL ORDER PROTECTION
+==================================================
+
+Do NOT modify:
+
+- historical order item names
+- historical variant names
+- historical prices
+- historical quantities
+- historical line totals
+- historical order totals
+- historical snapshots
+
+Vendor Order Management is an operational view of the existing order.
+
+Do not rebuild historical orders from current catalog data.
+
+
+==================================================
+18. CUSTOMER ORDER STATUS
+==================================================
+
+When the vendor changes:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+
+the customer-facing order status should continue to reflect the existing backend status.
+
+Do not create a second conflicting status system.
+
+Use the existing order status as the source of truth.
+
+
+==================================================
+19. REFRESH / LIVE UPDATES
+==================================================
+
+The vendor must be able to see new orders reliably.
+
+Use the existing application architecture.
+
+If realtime infrastructure already exists and is safe to use, it may be used.
+
+Otherwise provide a reliable refresh mechanism.
+
+Do NOT introduce a large realtime architecture solely for this phase.
+
+The priority is:
+
+A newly placed order must become visible to the correct vendor without requiring confusing navigation.
+
+
+==================================================
+20. EMPTY STATES
+==================================================
+
+When there are no new orders, show a useful message.
+
+Example:
+
+"No new orders"
+
+When there are no orders in a selected status:
+
+"No orders found in this status."
+
+Do not show an empty broken screen.
+
+
+==================================================
+21. LOADING / ERROR STATES
+==================================================
+
+Handle:
+
+- loading orders
+- loading order details
+- accepting
+- rejecting
+- starting preparation
+- marking ready
+- API failure
+
+Use customer/vendor-friendly messages.
+
+Do not expose raw SQL/API/database errors.
+
+
+==================================================
+22. MOBILE / DESKTOP RESPONSIVENESS
+==================================================
+
+Vendor Order Management must work on:
+
+- Desktop
+- Tablet where applicable
+- Smaller browser widths
+
+Avoid:
+
+- overflowing tables
+- clipped order details
+- buttons overlapping
+- unreadable status labels
+- action buttons disappearing below the viewport
+
+For smaller screens, cards or stacked sections are acceptable.
+
+
+==================================================
+23. ORDER DETAIL LAYOUT
+==================================================
+
+Use a logical order:
+
+1. Order status
+2. Order number/date
+3. Customer/fulfillment information
+4. Ordered items
+5. Pricing summary
+6. Vendor actions
+7. Status history
+
+The vendor should understand the order from top to bottom without hunting for information.
+
+
+==================================================
+24. DO NOT ADD UNNECESSARY FEATURES
+==================================================
+
+Do NOT add:
+
+- Delivery Partner assignment
+- Delivery Partner dashboard
+- Driver tracking
+- GPS tracking
+- online payment
+- refund system
+- coupon system
+- advanced messaging
+- chat
+- invoice redesign
+- stock reservation
+- stock deduction
+- automatic unit conversion
+- substitutions
+
+
+==================================================
+25. EXISTING ORDER SYSTEM COMPATIBILITY
+==================================================
+
+Before modifying code, inspect the existing:
+
+- Order routes
+- Order service
+- Order status transition logic
+- Order status history
+- Vendor authorization
+- Order detail API
+- Vendor order UI
+- Existing order tests
+
+Reuse the existing implementation wherever possible.
+
+Do NOT create a parallel order system.
+
+Do NOT create duplicate order tables.
+
+
+==================================================
+26. TESTS
+==================================================
+
+Add/update focused tests for:
+
+1. Vendor sees own store's new order
+2. Vendor cannot see another vendor's order
+3. Vendor can open order details
+4. Exact product is displayed
+5. Exact selling variant is displayed
+6. Correct quantity is displayed
+7. Historical price is displayed
+8. Historical order total is preserved
+9. PLACED → ACCEPTED
+10. PLACED → REJECTED
+11. ACCEPTED → PREPARING
+12. PREPARING → READY
+13. Invalid status transition rejected
+14. Double accept prevented
+15. Double reject prevented
+16. Unauthorized vendor action rejected
+17. Status history recorded
+18. Customer sees updated order status
+19. Existing order data remains unchanged
+20. Empty-state behavior
+21. API error handling
+22. Customer/private data protection
+
+
+==================================================
+27. DATA SAFETY
+==================================================
+
+This phase must NOT:
+
+- delete orders
+- modify historical order snapshots
+- modify product IDs
+- modify variant IDs
+- modify Master Products
+- modify Master Categories
+- modify vendor prices
+- modify vendor stock
+- modify customer account data
+- create fixture cleanup
+- create test orders in production
+
+Do not perform destructive migrations.
+
+
+==================================================
+28. IMPLEMENTATION BOUNDARY
+==================================================
+
+This phase is ONLY:
+
+VENDOR ORDER MANAGEMENT
+
+Scope:
+
+Customer Order
+→ Vendor New Order
+→ View Details
+→ Accept / Reject
+→ Preparing
+→ Ready
+
+Stop at READY.
+
+Do NOT continue into Delivery Partner.
+
+
+==================================================
+29. BUILD / VERIFICATION
+==================================================
+
+Run:
+
+- relevant backend order tests
+- vendor authorization tests
+- status transition tests
+- customer status compatibility tests
+- workspace typecheck
+- dashboard build
+- API production build
+
+Do NOT run automated browser acceptance testing.
+
+Do NOT claim manual browser acceptance is complete.
+
+Do NOT deploy to production.
+
+Do not modify unrelated working features.
+
+
+==================================================
+30. FINAL REPORT
+==================================================
+
+Provide a concise implementation report with:
+
+A. Files changed
+B. Existing order architecture reused
+C. Vendor order list changes
+D. Order detail changes
+E. Accept behavior
+F. Reject behavior
+G. Preparing behavior
+H. Ready behavior
+I. Vendor isolation/security
+J. Historical order protection
+K. Status history
+L. Customer status compatibility
+M. Tests passed/failed
+N. Typecheck
+O. Build
+P. Remaining known issues
+
+Explicitly state whether any database migration was required.
+
+Do not claim manual browser acceptance is complete.

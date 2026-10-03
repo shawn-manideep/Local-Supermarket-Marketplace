@@ -25,3 +25,15 @@ MVP delivery remains vendor-owned: use the same order lifecycle for
 READY→OUT_FOR_DELIVERY→DELIVERED, show immutable delivery snapshots, and do
 not add delivery agents, assignment, tracking, location, or a second delivery
 status model.
+
+Vendor order preparation stops at READY. The preparation screen must not offer
+dispatch or delivery actions; preserve those in the separate existing
+vendor-owned delivery workflow.
+
+**Why:** The user explicitly scoped Vendor Order Management to
+PLACED→ACCEPTED→PREPARING→READY, with PLACED→REJECTED as the rejection path,
+while requiring the existing full lifecycle and history to remain intact.
+
+**How to apply:** Treat READY as "Ready for fulfillment", not as automatic
+dispatch or delivery-partner assignment. Do not remove the existing delivery
+lifecycle when refining vendor preparation.

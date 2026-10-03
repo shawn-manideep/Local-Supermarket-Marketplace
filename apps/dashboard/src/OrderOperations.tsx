@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   apiRequest,
   type OrderDetail,
@@ -7,6 +7,9 @@ import {
   type OrderSummary,
   type Store,
 } from "./api";
+import { actionProgress, createVendorActionGate, vendorActions, vendorEmptyMessage, vendorStatusLabel, type VendorOrderAction } from "./vendor-orders";
+import { VendorOrderReceipt } from "./VendorOrderReceipt";
+import "./vendor-orders.css";
 
 const statuses: Array<OrderStatus | "ALL"> = ["ALL", "PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED", "REJECTED", "CANCELLED"];
 const money = (value: string | number) => `₹${Number(value).toFixed(2)}`;
@@ -151,32 +154,32 @@ const time = (value: string) => new Date(value).toLocaleTimeString(undefined, { 
 const orderVendorTabs: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED", "REJECTED", "CANCELLED"];
 const deliveryVendorTabs: OrderStatus[] = ["READY", "OUT_FOR_DELIVERY", "DELIVERED"];
 
-function VendorDetail({ detail, busy, onAction, onClose }: {
+function VendorDetail({ detail, busy, pendingAction, vendorView, onAction, onClose }: {
   detail: OrderDetail;
   busy: boolean;
-  onAction: (action: string, note?: string) => void;
+  pendingAction: VendorOrderAction | null;
+  vendorView: "orders" | "delivery";
+  onAction: (action: VendorOrderAction, note?: string) => void;
   onClose: () => void;
 }) {
   const [note, setNote] = useState("");
-  const actions: Partial<Record<OrderStatus, Array<{ action: string; label: string; className: string }>>> = {
-    PLACED: [{ action: "ACCEPT", label: "Accept Order", className: "vendor-primary-button" }, { action: "REJECT", label: "Reject Order", className: "vendor-danger-button" }],
-    ACCEPTED: [{ action: "PREPARE", label: "Start Preparing", className: "vendor-primary-button" }],
-    PREPARING: [{ action: "READY", label: "Mark as Ready", className: "vendor-primary-button" }],
-    READY: [{ action: "OUT_FOR_DELIVERY", label: "Out for Delivery", className: "vendor-primary-button" }],
-    OUT_FOR_DELIVERY: [{ action: "DELIVER", label: "Mark as Delivered", className: "vendor-primary-button" }],
-  };
-  const available = actions[detail.status] ?? [];
-  const timelineSteps: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"];
+  const [rejectVisible, setRejectVisible] = useState(false);
+  const rejectionDialog = useRef<HTMLDialogElement>(null);
+  const available = vendorActions(detail.status, vendorView);
+  useEffect(() => {
+    if (rejectVisible && detail.status === "PLACED") rejectionDialog.current?.showModal();
+    else rejectionDialog.current?.close();
+  }, [rejectVisible, detail.status]);
 
   return (
-    <div className="vendor-card vendor-order-detail-view" data-testid={`card-order-detail-${detail.id}`}>
+    <div className={`vendor-card vendor-order-detail-view ${vendorView === "orders" ? "vendor-preparation-detail" : ""}`} data-testid={`card-order-detail-${detail.id}`}>
       <div className="vendor-detail-header">
         <div>
-          <p className="vendor-eyebrow">Order Reference: {detail.id}</p>
-          <h2 className="vendor-title">Order {detail.id.slice(0, 8)}</h2>
-          <span className={`vendor-status-badge vendor-status-${detail.status.toLowerCase()}`}>{statusLabel(detail.status)}</span>
+          <span className={`vendor-status-badge vendor-status-${detail.status.toLowerCase()}`}>{vendorStatusLabel(detail.status)}</span>
+          <h2 className="vendor-title">Order #{detail.id.slice(0, 8).toUpperCase()}</h2>
+          <p className="vendor-text-muted"><time dateTime={detail.createdAt}>{date(detail.createdAt)}</time></p>
         </div>
-        <button className="vendor-text-button" onClick={onClose} type="button">Close Detail</button>
+        <button className="vendor-text-button" disabled={busy} onClick={onClose} type="button">Back to Orders</button>
       </div>
 
       <div className="vendor-detail-layout">
@@ -195,28 +198,24 @@ function VendorDetail({ detail, busy, onAction, onClose }: {
              </div>
           </div>
 
-          <div className="vendor-info-block">
-            <h3 className="vendor-subtitle">Items Ordered</h3>
-            <div className="vendor-receipt-items">
-              {detail.items.map((item) => (
-                <div className="vendor-receipt-row" key={item.id}>
-                  <div className="vendor-receipt-desc">
-                    <strong>{item.productNameSnapshot}</strong>
-                    <span className="vendor-text-muted">{item.quantity} × {money(item.productPriceSnapshot)}</span>
-                  </div>
-                  <strong>{money(item.subtotal)}</strong>
-                </div>
-              ))}
-            </div>
-            <div className="vendor-receipt-totals">
-               <div className="vendor-receipt-row vendor-text-muted"><span>Subtotal</span><span>{money(detail.subtotal)}</span></div>
-               <div className="vendor-receipt-row vendor-text-muted"><span>Delivery Fee</span><span>{money(detail.deliveryFeeSnapshot)}</span></div>
-               <div className="vendor-receipt-row vendor-grand-total"><span>Total</span><span>{money(detail.totalAmount)}</span></div>
-            </div>
-          </div>
+          <VendorOrderReceipt detail={detail} />
         </div>
 
         <div className="vendor-detail-side">
+           {available.length > 0 ? (
+             <div className="vendor-action-block">
+               <h3 className="vendor-subtitle">Vendor Actions</h3>
+               <div className="vendor-action-buttons">
+                 {available.some(item => item.action === "REJECT") && <label className="vendor-text-muted">Rejection reason (optional)
+                   <input className="vendor-input vendor-rejection-note" maxLength={500} onChange={(e) => setNote(e.target.value)} value={note} disabled={busy} />
+                 </label>}
+                 {available.map(item => <button key={item.action} className={item.className} disabled={busy} type="button"
+                   onClick={() => item.action === "REJECT" ? setRejectVisible(true) : onAction(item.action)}>
+                   {pendingAction === item.action ? actionProgress[item.action] : item.label}
+                 </button>)}
+               </div>
+             </div>
+           ) : vendorView === "orders" && detail.status === "READY" ? <div className="vendor-action-block"><h3 className="vendor-subtitle">Ready for fulfillment</h3><p className="vendor-text-muted">Preparation is complete. This order is ready for the next fulfillment step.</p></div> : null}
            <div className="vendor-info-block">
               <h3 className="vendor-subtitle">Order Timeline</h3>
               <div className="vendor-timeline">
@@ -228,8 +227,8 @@ function VendorDetail({ detail, busy, onAction, onClose }: {
                       <div key={`${h.status}-${index}`} className={`vendor-timeline-step completed ${isCurrent ? 'current' : ''} ${isRejected ? 'rejected' : ''}`}>
                          <div className="vendor-timeline-dot"></div>
                          <div className="vendor-timeline-content">
-                            <strong>{statusLabel(h.status)}</strong>
-                            <span>{date(h.createdAt)} at {time(h.createdAt)}</span>
+                             <strong>{statusLabel(h.status)}</strong>
+                             <span>{date(h.createdAt)}</span>
                             {h.note && <span className="vendor-timeline-note">{h.note}</span>}
                          </div>
                       </div>
@@ -238,29 +237,20 @@ function VendorDetail({ detail, busy, onAction, onClose }: {
               </div>
            </div>
 
-           {available.length > 0 && (
-             <div className="vendor-action-block">
-                <h3 className="vendor-subtitle">Required Action</h3>
-                <div className="vendor-action-buttons">
-                  {available.some(item => item.action === "REJECT") && (
-                    <input className="vendor-input vendor-rejection-note" maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="Reason for rejection (optional)" value={note} disabled={busy} />
-                  )}
-                  {available.map(item => (
-                    <button 
-                      key={item.action} 
-                      className={item.className} 
-                      disabled={busy}
-                      type="button"
-                      onClick={() => onAction(item.action, item.action === "REJECT" ? note.trim() || undefined : undefined)}
-                    >
-                      {busy ? "Updating..." : item.label}
-                    </button>
-                  ))}
-                </div>
-             </div>
-           )}
         </div>
       </div>
+      <dialog className="vendor-order-reject-dialog" ref={rejectionDialog} aria-labelledby="vendor-reject-title" onCancel={() => setRejectVisible(false)}>
+        <h3 id="vendor-reject-title">Reject this order?</h3>
+        <p>Order #{detail.id.slice(0, 8).toUpperCase()} will be marked rejected. This cannot be undone.</p>
+        {note.trim() && <p className="vendor-text-muted">Reason: {note.trim()}</p>}
+        <div className="vendor-order-confirm-actions">
+          <button type="button" className="vendor-secondary-button" autoFocus onClick={() => setRejectVisible(false)}>Cancel</button>
+          <button type="button" className="vendor-danger-button" disabled={busy || detail.status !== "PLACED"} onClick={() => {
+            setRejectVisible(false);
+            onAction("REJECT", note.trim() || undefined);
+          }}>Reject Order</button>
+        </div>
+      </dialog>
     </div>
   );
 }
@@ -268,7 +258,7 @@ function VendorDetail({ detail, busy, onAction, onClose }: {
 function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessage }: { token: string; vendorView?: "orders" | "delivery"; storeId?: string; onMessage: (message: string, kind?: "success" | "error") => void; }) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [status, setStatus] = useState("ALL");
+  const [status, setStatus] = useState(vendorView === "delivery" ? "READY" : "PLACED");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [selected, setSelected] = useState<OrderDetail | null>(null);
@@ -278,6 +268,13 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<VendorOrderAction | null>(null);
+  const [actionError, setActionError] = useState("");
+  const actionGate = useRef(createVendorActionGate());
+  const scope = `${token}:${storeId ?? ""}:${vendorView}`;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
+  const renderedScope = useRef(scope);
   
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
@@ -297,78 +294,140 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
     return params.toString();
   }, [page, status]);
 
-  const load = async () => {
+  const load = useCallback(async (quiet = false) => {
+    if (actionGate.current.pending) return;
     const requestGeneration = ++listGeneration.current;
-    setLoading(true); setError("");
+    if (!quiet) setLoading(true);
+    setError("");
     try {
       const response = await apiRequest<OrderListEnvelope>(`/api/vendor/orders?${query}`, token);
       if (requestGeneration === listGeneration.current) {
         setOrders(response.orders); setCounts(response.counts); setPagination(response.pagination);
       }
-    } catch (cause) { 
+    } catch {
       if (requestGeneration === listGeneration.current) { 
-        const message = cause instanceof Error ? cause.message : "Unable to load orders."; 
-        setError(message); onMessage(message, "error"); 
+        setError("We couldn't load your orders. Please refresh or try again.");
       } 
     } finally { 
       if (requestGeneration === listGeneration.current) setLoading(false); 
     }
-  };
+  }, [query, token, storeId]);
 
-  useEffect(() => { ++listGeneration.current; ++detailGeneration.current; setPage(1); setSelected(null); setDetailTargetId(""); setDetailError(""); }, [token, storeId]);
-  useEffect(() => { ++detailGeneration.current; }, [query]);
-  useEffect(() => { void load(); }, [query, token, storeId]);
+  useEffect(() => {
+    ++listGeneration.current; ++detailGeneration.current;
+    renderedScope.current = scope;
+    setOrders([]); setCounts({}); setPage(1); setStatus(vendorView === "delivery" ? "READY" : "PLACED");
+    setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError("");
+    return () => { ++listGeneration.current; ++detailGeneration.current; };
+  }, [token, storeId, vendorView]);
+  useEffect(() => { void load(); }, [load]);
 
-  const openDetail = async (id: string) => {
-    if (!id.trim()) return;
+  const openDetail = useCallback(async (id: string, quiet = false, reconcilingAction = false) => {
+    if (!id.trim() || (actionGate.current.pending && !reconcilingAction)) return;
     const requestGeneration = ++detailGeneration.current;
-    setDetailTargetId(id); setDetailLoading(true); setDetailError("");
+    setDetailTargetId(id);
+    if (!quiet) { setDetailLoading(true); setDetailError(""); }
     try { 
       const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${id}`, token); 
-      if (requestGeneration === detailGeneration.current) setSelected(response.order); 
-    } catch (cause) {
       if (requestGeneration === detailGeneration.current) {
-        const message = cause instanceof Error ? cause.message : "Unable to load order detail.";
-        setSelected(null); setDetailError(message); onMessage(message, "error");
+        setSelected(response.order);
+        setDetailError("");
+      }
+    } catch {
+      if (requestGeneration === detailGeneration.current) {
+        if (!quiet) setSelected(null);
+        setDetailError("We couldn't refresh this order. Please retry before taking an action.");
       }
     } finally { 
       if (requestGeneration === detailGeneration.current) setDetailLoading(false); 
     }
-  };
+  }, [token, storeId]);
 
-  const action = async (name: string, note?: string) => {
-    if (!selected || busy) return;
-    setBusy(true);
+  useEffect(() => {
+    const refreshVisible = () => {
+      if (document.visibilityState !== "visible" || actionGate.current.pending) return;
+      void load(true);
+      if (detailTargetId) void openDetail(detailTargetId, true);
+    };
+    const timer = window.setInterval(refreshVisible, 30_000);
+    window.addEventListener("focus", refreshVisible);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+  }, [load, openDetail, detailTargetId]);
+
+  const action = async (name: VendorOrderAction, note?: string) => {
+    if (!selected || busy || detailLoading || detailError ||
+      !vendorActions(selected.status, vendorView).some(item => item.action === name) || !actionGate.current.start()) return;
+    const id = selected.id;
+    const requestScope = scope;
+    const requestGeneration = ++detailGeneration.current;
+    ++listGeneration.current;
+    setBusy(true); setPendingAction(name); setActionError("");
+    let needsFreshDetail = false;
     try { 
-      await apiRequest(`${`/api/vendor/orders/${selected.id}/actions`}`, token, { method: "POST", body: JSON.stringify({ action: name, ...(note ? { note } : {}) }) }); 
+      const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${id}/actions`, token, { method: "POST", body: JSON.stringify({ action: name, ...(note ? { note } : {}) }) });
+      if (requestGeneration !== detailGeneration.current || requestScope !== currentScope.current) return;
+      setSelected(response.order);
       onMessage("Order status updated.", "success"); 
-      await openDetail(selected.id); 
-      await load(); 
-    } catch (cause) { 
-      onMessage(cause instanceof Error ? cause.message : "This order changed elsewhere. Refreshing detail.", "error"); 
-      await openDetail(selected.id); 
+    } catch {
+      if (requestGeneration !== detailGeneration.current || requestScope !== currentScope.current) return;
+      setActionError("We couldn't update this order. Its status may have changed. Review the refreshed order before trying again.");
+      needsFreshDetail = true;
     } finally { 
-      setBusy(false); 
+      if (needsFreshDetail && requestScope === currentScope.current && requestGeneration === detailGeneration.current)
+        await openDetail(id, true, true);
+      actionGate.current.finish();
+      setBusy(false); setPendingAction(null);
+      if (requestScope === currentScope.current) {
+        await load(true);
+      }
     }
   };
+
+  const closeDetail = () => {
+    if (actionGate.current.pending) return;
+    ++detailGeneration.current;
+    setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError(""); setDetailLoading(false);
+    void load(true);
+  };
+
+  if (renderedScope.current !== scope) return <div className="vendor-empty-state" aria-live="polite">Loading your store's orders...</div>;
+
+  if (detailTargetId) return <section className="vendor-operations-section" aria-label="Vendor order details">
+    <div className="vendor-section-header">
+      <button className="vendor-secondary-button" type="button" disabled={busy} onClick={closeDetail}>Back to Orders</button>
+      <button className="vendor-secondary-button" type="button" disabled={busy || detailLoading} onClick={() => void openDetail(detailTargetId)}>{detailLoading ? "Refreshing..." : "Refresh Order"}</button>
+    </div>
+    {!!actionError && <div role="alert" className="vendor-notice vendor-notice-error">{actionError}</div>}
+    {!!detailError && <div role="alert" className="vendor-notice vendor-notice-error"><span>{detailError}</span><button className="vendor-secondary-button" type="button" disabled={detailLoading} onClick={() => void openDetail(detailTargetId)}>Retry detail</button></div>}
+    {detailLoading ? <div aria-live="polite" className="vendor-card vendor-empty-state"><strong>Loading order details...</strong></div> :
+      selected && <VendorDetail key={selected.id} detail={selected} busy={busy || !!detailError} pendingAction={pendingAction} vendorView={vendorView} onAction={action} onClose={closeDetail} />}
+  </section>;
 
   return (
     <div className="vendor-operations-section">
       <div className="vendor-section-header">
         <div>
           <h2 className="vendor-title">{vendorView === "delivery" ? "Delivery Operations" : "Order Management"}</h2>
-          <p className="vendor-text-muted">{vendorView === "delivery" ? "Manage orders ready for dispatch and track active deliveries." : "Process active orders through your kitchen workflow."}</p>
+          <p className="vendor-text-muted">{vendorView === "delivery" ? "Manage orders ready for dispatch and track active deliveries." : "Review new orders, accept or reject, prepare, and mark ready. Updates every 30 seconds while this page is visible."}</p>
         </div>
         <button className="vendor-secondary-button" disabled={loading} onClick={() => void load()} type="button">{loading ? "Refreshing..." : "Refresh List"}</button>
       </div>
+      {vendorView === "orders" && <button className="vendor-card vendor-new-order-summary" type="button" onClick={() => { setStatus("PLACED"); setPage(1); }}>
+        <span className="vendor-eyebrow">NEW ORDERS</span><strong>{counts.PLACED ?? 0}</strong><span className="vendor-text-muted">View orders waiting for your response</span>
+      </button>}
 
-      <div className="vendor-card vendor-list-card">
+      <div className={`vendor-card vendor-list-card ${vendorView === "orders" ? "vendor-orders-queue" : ""}`}>
         <div className="vendor-list-toolbar">
           <div className="vendor-tabs">
-            {vendorView === "orders" && <button type="button" className={status === "ALL" ? "active" : ""} onClick={() => { setStatus("ALL"); setPage(1); }}>All Orders</button>}
+            {vendorView === "orders" && <button type="button" aria-pressed={status === "ALL"} className={status === "ALL" ? "active" : ""} onClick={() => { setStatus("ALL"); setPage(1); }}>All Orders</button>}
             {activeTabs.map(t => (
-              <button type="button" key={t} className={status === t ? "active" : ""} onClick={() => { setStatus(t); setPage(1); }}>
-                {statusLabel(t)} {counts[t] ? <span className="vendor-tab-count">{counts[t]}</span> : null}
+              <button type="button" key={t} aria-pressed={status === t} className={status === t ? "active" : ""} onClick={() => { setStatus(t); setPage(1); }}>
+                {vendorStatusLabel(t)} {counts[t] ? <span className="vendor-tab-count">{counts[t]}</span> : null}
               </button>
             ))}
           </div>
@@ -379,13 +438,13 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
         {loading ? (
           <div aria-live="polite" className="vendor-empty-state"><strong>Loading orders...</strong></div>
         ) : orders.length === 0 ? (
-          <div className="vendor-empty-state"><strong>No orders found</strong><span>Try selecting a different status filter.</span></div>
+          <div className="vendor-empty-state"><strong>{vendorEmptyMessage(status)}</strong><span>{status === "PLACED" ? "New customer orders will appear here. You can refresh at any time." : "Try selecting a different status filter."}</span></div>
         ) : (
           <div className="vendor-table-wrapper">
              <table className="vendor-data-table">
                <thead>
                  <tr>
-                   <th>Order ID</th>
+                    <th>Order</th>
                    <th>Customer</th>
                    <th>Status</th>
                    <th>Amount</th>
@@ -396,23 +455,23 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
                <tbody>
                  {orders.map(order => (
                    <tr key={order.id}>
-                     <td><span className="vendor-mono-text">#{order.id.slice(0, 8)}</span></td>
-                     <td>
+                      <td data-label="Order"><span className="vendor-mono-text">#{order.id.slice(0, 8).toUpperCase()}</span></td>
+                      <td data-label="Customer">
                         <div className="vendor-customer-cell">
                           <strong>{order.deliveryContactName}</strong>
-                          <span className="vendor-text-muted">{order.itemCount} items · {order.paymentMethod}</span>
+                           <span className="vendor-text-muted">{order.itemCount} items · {order.paymentMethod}</span>
+                           <span className="vendor-text-muted">{deliveryLabel(order.deliveryType)}</span>
                         </div>
                      </td>
-                     <td><span className={`vendor-status-badge vendor-status-${order.status.toLowerCase()}`}>{statusLabel(order.status)}</span></td>
-                     <td><strong>{money(order.totalAmount)}</strong></td>
-                     <td>
+                      <td data-label="Status"><span className={`vendor-status-badge vendor-status-${order.status.toLowerCase()}`}>{vendorStatusLabel(order.status)}</span></td>
+                      <td data-label="Total"><strong>{money(order.totalAmount)}</strong></td>
+                      <td data-label="Placed">
                         <div className="vendor-date-cell">
-                          <span>{date(order.createdAt)}</span>
-                          <span className="vendor-text-muted">{time(order.createdAt)}</span>
+                           <time dateTime={order.createdAt}>{date(order.createdAt)}</time>
                         </div>
                      </td>
-                     <td className="vendor-text-right">
-                        <button className="vendor-secondary-button vendor-compact-button" onClick={() => void openDetail(order.id)}>View</button>
+                      <td data-label="Action" className="vendor-text-right">
+                         <button className="vendor-secondary-button vendor-compact-button" type="button" onClick={() => void openDetail(order.id)}>View Order</button>
                      </td>
                    </tr>
                  ))}
@@ -431,9 +490,6 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
         </div>
       </div>
 
-      {detailLoading && <div className="vendor-card vendor-empty-state"><strong>Loading order detail...</strong></div>}
-      {!detailLoading && detailError && <div className="vendor-card vendor-notice vendor-notice-error" role="alert"><span>{detailError}</span><button className="vendor-secondary-button" disabled={!detailTargetId} onClick={() => { if (detailTargetId) void openDetail(detailTargetId); }} type="button">Retry detail</button></div>}
-      {!detailLoading && selected && <VendorDetail detail={selected} busy={busy} onAction={action} onClose={() => { ++detailGeneration.current; setSelected(null); setDetailTargetId(""); setDetailError(""); }} />}
     </div>
   );
 }
