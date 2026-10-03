@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { formatQuantity, formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
 import {
   ApiRequestError,
   apiRequest,
@@ -49,9 +50,9 @@ function draftFromVariant(variant: ProductVariant): SellingVariantDraft {
   return {
     id: variant.id,
     expectedUpdatedAt: variant.updatedAt,
-    quantityValue: variant.quantityValue,
+    quantityValue: formatQuantity(variant.quantityValue),
     quantityUnit: variant.quantityUnit,
-    price: variant.price,
+    price: formatPrice(variant.price),
     stockQuantity: String(variant.stockQuantity),
     availability: variant.availability,
     isActive: variant.isActive,
@@ -111,20 +112,7 @@ function formatVariantLabel(quantityValue: string, quantityUnit: VariantQuantity
   if (!quantityValue || !quantityUnit) return "Your selling option";
   const numericQuantity = Number(quantityValue);
   if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) return "Your selling option";
-  const displayQuantity = Number.isFinite(numericQuantity)
-    ? String(Number(numericQuantity.toFixed(3)))
-    : quantityValue;
-  const baseUnitLabel = quantityUnit === "l" ? "L" : quantityUnit;
-  const pluralUnits: Partial<Record<VariantQuantityUnit, string>> = {
-    piece: "pieces",
-    pack: "packs",
-    bottle: "bottles",
-    box: "boxes",
-  };
-  const unitLabel = numericQuantity !== 1
-    ? pluralUnits[quantityUnit] ?? baseUnitLabel
-    : baseUnitLabel;
-  return `${displayQuantity} ${unitLabel}`;
+  return formatVariantName(quantityValue, quantityUnit);
 }
 
 function getFieldErrors(draft: SellingVariantDraft): VariantFieldErrors {
@@ -135,6 +123,8 @@ function getFieldErrors(draft: SellingVariantDraft): VariantFieldErrors {
 
   if (!draft.quantityValue.trim() || !Number.isFinite(quantity) || quantity <= 0) {
     errors.quantity = "Enter a quantity greater than zero.";
+  } else if (Math.abs(quantity * 1_000 - Math.round(quantity * 1_000)) >= 1e-8) {
+    errors.quantity = "Use at most three decimal places for quantity.";
   }
   if (!draft.quantityUnit) errors.unit = "Choose a unit.";
   if (
@@ -145,6 +135,8 @@ function getFieldErrors(draft: SellingVariantDraft): VariantFieldErrors {
     errors.price = draft.isActive
       ? "Enter a price greater than ₹0."
       : "Enter a price of ₹0 or more.";
+  } else if (Math.abs(price * 100 - Math.round(price * 100)) >= 1e-8) {
+    errors.price = "Use at most two decimal places for price.";
   }
   if (
     !draft.stockQuantity.trim()
@@ -173,12 +165,12 @@ function toBatchInput(draft: SellingVariantDraft): VendorProductVariantBatchInpu
 
 function describeValidationError(index: number, errors: VariantFieldErrors) {
   const fields = [
-    errors.quantity && "quantity",
-    errors.unit && "unit",
-    errors.price && "price",
-    errors.stock && "stock",
+    errors.quantity,
+    errors.unit,
+    errors.price,
+    errors.stock,
   ].filter(Boolean);
-  return fields.length ? `Variant ${index + 1}: ${fields.join(", ")} is required or invalid.` : "";
+  return fields.length ? `Variant ${index + 1}: ${fields.join(" ")}` : "";
 }
 
 export function SellingVariantEditor({
@@ -253,12 +245,16 @@ export function SellingVariantEditor({
   const hasRows = variants.length > 0;
   const allRowsValid = hasRows && variantErrors.every((errors) => Object.keys(errors).length === 0);
   const activeRows = variants.filter((variant) => variant.isActive);
-  const canPublish = activeRows.length > 0 && allRowsValid;
+  const hasAvailableActiveVariant = activeRows.some((variant) => variant.availability);
+  const canPublish = hasAvailableActiveVariant && allRowsValid;
   const validationReasons = variants.flatMap((_, index) => {
     const message = describeValidationError(index, variantErrors[index]);
     return message ? [message] : [];
   });
   if (!activeRows.length) validationReasons.unshift("Activate at least one selling variant before publishing.");
+  else if (!hasAvailableActiveVariant) {
+    validationReasons.unshift('Turn on "Available to customers" for at least one active selling variant before publishing.');
+  }
   if (!hasRows) validationReasons.unshift("Add at least one selling variant.");
 
   const updateVariant = (index: number, patch: Partial<SellingVariantDraft>) => {
@@ -337,8 +333,8 @@ export function SellingVariantEditor({
                     : "Available";
               return (
                 <div className="vendor-saved-variant-row" key={variant.id}>
-                  <strong>{variant.name}</strong>
-                  <span>₹{variant.price}</span>
+                  <strong>{formatVariantName(variant.quantityValue, variant.quantityUnit)}</strong>
+                  <span>₹{formatPrice(variant.price)}</span>
                   <span>{variant.stockQuantity} in stock</span>
                   <span className={`vendor-status-badge ${state === "Available" ? "vendor-status-active" : "vendor-status-inactive"}`}>
                     {state}
@@ -412,6 +408,7 @@ export function SellingVariantEditor({
                       id={fieldId("quantity")}
                       min="0.001"
                       onChange={(event) => updateVariant(index, { quantityValue: event.target.value })}
+                      onBlur={() => updateVariant(index, { quantityValue: formatQuantity(variant.quantityValue) })}
                       placeholder="e.g. 500"
                       required
                       step="any"
@@ -451,6 +448,11 @@ export function SellingVariantEditor({
                       id={fieldId("price")}
                       min={variant.isActive ? "0.01" : "0"}
                       onChange={(event) => updateVariant(index, { price: event.target.value })}
+                      onBlur={() => {
+                        if (!getFieldErrors(variant).price) {
+                          updateVariant(index, { price: formatPrice(variant.price) });
+                        }
+                      }}
                       placeholder="e.g. 40"
                       required
                       step="0.01"
@@ -492,7 +494,7 @@ export function SellingVariantEditor({
                     onChange={(event) => updateVariant(index, { availability: event.target.checked })}
                     type="checkbox"
                   />
-                  <span>{variant.availability ? "Available to customers" : "Unavailable to customers"}</span>
+                  <span>Available to customers</span>
                 </label>
                 {!variant.isActive && <p className="vendor-variant-inactive-note">This option is inactive and will not be shown for sale.</p>}
 
@@ -569,10 +571,11 @@ export function SellingVariantEditor({
       )}
       {validationReasons.length > 0 && (
         <div className="vendor-variant-validation" role="status">
-          <strong>Complete the selling variant details before saving or publishing.</strong>
+          <strong>Complete the selling variant details before publishing.</strong>
           <ul>
             {validationReasons.map((reason) => <li key={reason}>{reason}</li>)}
           </ul>
+          {allRowsValid && <p>You can still save these variants without publishing.</p>}
         </div>
       )}
       {saveError && <div className="vendor-variant-save-error" role="alert">{saveError}</div>}

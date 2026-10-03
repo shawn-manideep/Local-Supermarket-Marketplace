@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
@@ -128,13 +129,13 @@ export function CartScreen({ openAddresses, onOrderPlaced }: { openAddresses: ()
                 {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.cartImage} /> : <PlaceholderImage name={item.name} style={styles.cartImage} />}
                 <View style={{ flex: 1, gap: spacing.xs }}>
                   <Text style={typography.bodySemibold}>{item.name}</Text>
-                  <Text style={[typography.caption, { color: colors.accent, fontWeight: "700" }]}>{item.variantName || `${item.quantityValue} ${item.quantityUnit}`}</Text>
-                  <Text style={typography.caption}>₹{item.unitPrice} each</Text>
+                  <Text style={[typography.caption, { color: colors.accent, fontWeight: "700" }]}>{formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
+                  <Text style={typography.caption}>₹{formatPrice(item.unitPrice)} each</Text>
                   <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
                   {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Unavailable</Text>}
                 </View>
                 <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
-                  <Text style={typography.title3}>₹{item.lineSubtotal}</Text>
+                  <Text style={typography.title3}>₹{formatPrice(item.lineSubtotal)}</Text>
                   <Pressable onPress={() => quantity(item.id, 0)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>Remove</Text></Pressable>
                 </View>
               </View>

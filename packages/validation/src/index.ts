@@ -1,4 +1,5 @@
 import { z } from "zod";
+export { formatQuantity, formatVariantName, formatPrice } from "./variant-formatting.js";
 
 export const supabasePublicConfigSchema = z.object({
   SUPABASE_URL: z.string().url(),
@@ -316,37 +317,6 @@ export interface VariantDisplayValue {
   id?: string;
 }
 
-export function formatVariantName(quantityValue: number | string, quantityUnit: QuantityUnit) {
-  const quantity = Number(quantityValue);
-  const formattedQuantity = Number.isFinite(quantity)
-    ? String(Number(quantity.toFixed(3)))
-    : String(quantityValue);
-  const unit = quantityUnit === "l" ? "L" : quantityUnit;
-  const pluralUnit = quantity !== 1
-    ? ({
-      piece: "pieces",
-      pack: "packs",
-      bottle: "bottles",
-      box: "boxes",
-    } as Partial<Record<QuantityUnit, string>>)[quantityUnit]
-    : undefined;
-  const displayedUnit = pluralUnit ?? unit;
-  return `${formattedQuantity} ${displayedUnit}`;
-}
-
-function variantComparisonGroup(unit: QuantityUnit) {
-  if (unit === "g" || unit === "kg") return "mass";
-  if (unit === "ml" || unit === "l") return "volume";
-  return unit;
-}
-
-function comparableVariantQuantity(variant: VariantDisplayValue) {
-  const quantity = Number(variant.quantityValue);
-  if (variant.quantityUnit === "kg") return quantity * 1_000;
-  if (variant.quantityUnit === "l") return quantity * 1_000;
-  return quantity;
-}
-
 function creationTime(variant: VariantDisplayValue) {
   const value = variant.createdAt instanceof Date
     ? variant.createdAt.getTime()
@@ -363,7 +333,9 @@ export function sortVariantsForDisplay<T extends VariantDisplayValue>(variants: 
   });
   const groupSlots = new Map<string, number[]>();
   for (const [index, variant] of creationOrder.entries()) {
-    const group = variantComparisonGroup(variant.quantityUnit);
+    // Compare quantities only within the same explicit unit. Different unit
+    // slots retain creation order; sorting never converts quantity or stock.
+    const group = variant.quantityUnit;
     const slots = groupSlots.get(group) ?? [];
     slots.push(index);
     groupSlots.set(group, slots);
@@ -373,7 +345,7 @@ export function sortVariantsForDisplay<T extends VariantDisplayValue>(variants: 
   for (const slots of groupSlots.values()) {
     const groupVariants = slots.map((index) => creationOrder[index]);
     groupVariants.sort((left, right) =>
-      comparableVariantQuantity(left) - comparableVariantQuantity(right));
+      Number(left.quantityValue) - Number(right.quantityValue));
     slots.forEach((slot, index) => {
       ordered[slot] = groupVariants[index];
     });

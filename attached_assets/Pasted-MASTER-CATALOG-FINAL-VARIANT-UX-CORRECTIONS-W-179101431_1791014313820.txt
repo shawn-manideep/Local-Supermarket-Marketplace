@@ -1,0 +1,497 @@
+MASTER CATALOG — FINAL VARIANT UX CORRECTIONS
+================================================
+
+We are continuing the already-approved Master Catalog implementation.
+
+IMPORTANT:
+Do NOT redesign the Master Catalog architecture.
+Do NOT create new catalog/product tables.
+Do NOT modify authentication.
+Do NOT modify checkout, orders, reorder, payments, delivery partner, or stock reservation/deduction.
+Do NOT delete or recreate existing Master Products.
+Do NOT delete existing vendor/store products or historical data.
+
+We are manually testing the current implementation. Do NOT run another automated browser acceptance test for this task. Make the requested implementation changes only. We will perform the browser verification manually afterward.
+
+The multi-variant functionality is now confirmed to exist and is working. Existing products already show multiple selling variants, and the Add to Store flow now provides "+ Add Another Variant".
+
+This task is to clean up the variant UX and make the behavior consistent with the approved requirements.
+
+
+=================================================
+1. MULTIPLE VARIANTS — KEEP CURRENT FUNCTIONALITY
+=================================================
+
+A single Master Product / vendor listing must support multiple selling variants.
+
+Example:
+
+Basmati Rice
+- 500 g
+- 1 kg
+- 2 kg
+- 5 kg
+
+All four are variants of ONE store listing.
+
+Do NOT create separate products for each pack size.
+
+The existing "+ Add Another Variant" behavior is correct and must be retained.
+
+The vendor must be able to:
+- add multiple variants
+- edit variants
+- deactivate/remove variants
+- add more variants later
+
+Do not regress this functionality.
+
+
+=================================================
+2. AUTOMATIC VARIANT NAME
+=================================================
+
+The vendor should NOT manually enter a Variant Name.
+
+The customer-facing variant name must be generated automatically from:
+
+Quantity + Unit
+
+Examples:
+
+500 + g
+→ 500 g
+
+1 + kg
+→ 1 kg
+
+2 + kg
+→ 2 kg
+
+5 + kg
+→ 5 kg
+
+500 + ml
+→ 500 ml
+
+1 + L
+→ 1 L
+
+12 + piece
+→ 12 pieces
+
+30 + piece
+→ 30 pieces
+
+Keep the generated name consistent everywhere:
+
+- Vendor variant configuration
+- My Store Products
+- Customer product details
+- Cart
+- New order snapshot where applicable
+
+
+=================================================
+3. FIX QUANTITY DISPLAY FORMAT
+=================================================
+
+Current UI problem observed during manual testing:
+
+Quantity appears as:
+
+500.000
+
+This is not user-friendly for a grocery vendor.
+
+Display quantities without unnecessary trailing zeroes.
+
+Examples:
+
+500.000 → 500
+1.000 → 1
+2.000 → 2
+5.000 → 5
+
+However, do NOT force the underlying database value to become an integer.
+
+Decimal quantities must remain supported where they are legitimately useful.
+
+For example:
+
+0.5 kg
+1.5 kg
+
+must remain possible.
+
+Display:
+
+0.5 kg
+1.5 kg
+
+not:
+
+0.500 kg
+1.500 kg
+
+Use a consistent quantity formatting function rather than formatting values separately in different components.
+
+Do not change the stored numeric meaning of existing quantities.
+
+
+=================================================
+4. UNIT SELECTION
+=================================================
+
+The currently observed unit dropdown is correct.
+
+Keep these supported units:
+
+- g
+- kg
+- ml
+- L
+- piece
+- pack
+- dozen
+- bottle
+- box
+
+Do NOT remove Bottle or Box.
+
+Do NOT implement automatic unit conversion.
+
+Do NOT implement shared bulk inventory conversion.
+
+Do NOT silently default a new variant to "pack".
+
+The vendor should deliberately select the appropriate unit.
+
+
+=================================================
+5. PRICE
+=================================================
+
+Price is required for a publishable variant.
+
+Price must be greater than zero for a customer-purchasable published variant.
+
+Keep price as a numeric currency value.
+
+Customer/vendor display should preferably avoid unnecessary decimal formatting where the amount is a whole rupee.
+
+For example:
+
+₹99.00 → ₹99
+
+₹40.00 → ₹40
+
+₹75.50 → ₹75.50
+
+Do not change the underlying stored monetary precision.
+
+
+=================================================
+6. STOCK
+=================================================
+
+Stock = 0 must remain valid.
+
+The vendor must be allowed to save/publish a listing with:
+
+Stock = 0
+
+The variant should then be shown as:
+
+Out of stock / unavailable for purchase
+
+The customer must not be able to purchase a zero-stock variant.
+
+Do NOT implement stock reservation or automatic stock deduction in this task.
+
+Existing server-side stock validation remains authoritative.
+
+
+=================================================
+7. AVAILABILITY
+=================================================
+
+Keep:
+
+"Available to customers"
+
+as the variant-level availability control.
+
+If:
+
+Available = OFF
+
+the customer cannot purchase that variant.
+
+If:
+
+Available = ON
+AND Stock > 0
+
+the variant can be purchasable subject to existing server-side validation.
+
+If:
+
+Available = ON
+AND Stock = 0
+
+the variant remains out of stock and cannot be purchased.
+
+
+=================================================
+8. DISPLAY ORDER
+=================================================
+
+Do NOT ask the vendor to enter Display Order.
+
+There should be no required Display Order input.
+
+Display order must be system-managed.
+
+Where variants can be logically compared, display them from smallest to largest quantity.
+
+Example:
+
+500 g
+1 kg
+2 kg
+5 kg
+
+Eggs:
+
+6 pieces
+12 pieces
+30 pieces
+
+Milk:
+
+500 ml
+1 L
+
+If variants cannot be safely compared because of different units, use a stable fallback such as creation order.
+
+Do not invent or apply automatic unit conversion just for sorting.
+
+If manual reordering is needed in a future enhancement, use drag-and-drop.
+
+
+=================================================
+9. PUBLISH LISTING BEHAVIOR
+=================================================
+
+Current flow:
+
+Add to My Store
+→ Configure Selling Variants
+→ Publish Listing
+
+Keep this flow.
+
+A new listing should remain unavailable until it has at least one valid active selling variant.
+
+Publish Listing should be enabled when:
+
+- at least one selling variant exists
+- quantity is greater than zero
+- unit is selected
+- price is greater than zero
+- stock value is valid
+- at least one variant is active/available for customers
+
+IMPORTANT:
+
+Stock = 0 must NOT by itself disable saving/configuring the listing.
+
+A vendor can configure a zero-stock variant.
+
+Publishing a listing with all variants unavailable/zero-stock should follow the existing intended behavior and must not make the listing falsely purchasable.
+
+If Publish Listing is disabled, the UI must clearly explain why.
+
+Do not show only a disabled button without explanation.
+
+Example:
+
+"Complete the selling variant details before publishing."
+
+Then show the relevant validation:
+
+- Add at least one selling variant.
+- Choose a unit.
+- Enter a valid price.
+- Activate at least one selling variant.
+
+Use clear vendor-friendly language.
+
+
+=================================================
+10. SAVE VARIANTS
+=================================================
+
+"Save Variants" must save all currently configured valid variants together.
+
+Example:
+
+Basmati Rice
+
+Variant 1:
+500 g / ₹40 / Stock 20
+
+Variant 2:
+1 kg / ₹75 / Stock 20
+
+Variant 3:
+2 kg / ₹145 / Stock 10
+
+Variant 4:
+5 kg / ₹350 / Stock 5
+
+After saving, all four must remain associated with the same vendor listing.
+
+Do not create separate products.
+
+Do not lose existing variants when another variant is added.
+
+
+=================================================
+11. ADD ANOTHER VARIANT
+=================================================
+
+"+ Add Another Variant" should create another editable variant form within the same listing.
+
+Each variant must have independent:
+
+- Quantity
+- Unit
+- Price
+- Stock
+- Availability
+- Optional store SKU
+- Optional external code
+
+SKU and external code remain optional and internal/vendor-facing.
+
+They must not be exposed to customers.
+
+
+=================================================
+12. CUSTOMER PRESENTATION
+=================================================
+
+When a product has multiple variants, the customer must see them as options of the same product.
+
+Example:
+
+Basmati Rice
+
+Choose an option:
+
+○ 500 g — ₹40
+○ 1 kg — ₹75
+○ 2 kg — ₹145
+○ 5 kg — ₹350
+
+Customer selects one variant before adding it to cart.
+
+Do NOT display the four variants as four separate products.
+
+Unavailable/zero-stock variants must not be purchasable.
+
+
+=================================================
+13. DATA SAFETY
+=================================================
+
+Do not alter historical order snapshots.
+
+Do not change existing product IDs.
+
+Do not change existing variant IDs unnecessarily.
+
+Do not delete existing variants.
+
+Do not reset existing prices or stock.
+
+Do not deactivate existing production-like catalog data simply for testing.
+
+Any existing test data should remain untouched unless explicitly identified for later manual cleanup.
+
+
+=================================================
+14. VENDOR-FACING LANGUAGE
+=================================================
+
+Use simple language.
+
+Prefer:
+
+- Selling Variants
+- Quantity
+- Unit
+- Price
+- Stock
+- Available to customers
+- Add Another Variant
+- Save Variants
+- Publish Listing
+
+Avoid technical terminology such as:
+
+- canonical identity
+- platform identity
+- JSON attributes
+- discovery attributes
+- internal classification
+
+
+=================================================
+15. IMPLEMENTATION BOUNDARY
+=================================================
+
+This is a focused UX correction.
+
+Do NOT perform another architecture audit.
+
+Do NOT redesign the Master Catalog.
+
+Do NOT introduce unrelated features.
+
+Do NOT change:
+- authentication
+- checkout
+- orders
+- reorder
+- payment
+- delivery
+- stock reservation
+- stock deduction
+- automatic unit conversion
+
+
+=================================================
+16. AFTER IMPLEMENTATION — REPORT ONLY
+=================================================
+
+Do not run another automated browser acceptance cycle.
+
+Provide a concise implementation report containing:
+
+1. Files/components changed
+2. Quantity formatting change
+3. Variant-name generation behavior
+4. Display-order behavior
+5. Publish validation behavior
+6. Customer multi-variant presentation behavior
+7. Confirmation that existing Master Catalog data was preserved
+8. Typecheck result
+9. Build result
+10. Any remaining known issue
+
+Do not claim browser acceptance is complete.
+
+We will manually verify the UI ourselves after this implementation.

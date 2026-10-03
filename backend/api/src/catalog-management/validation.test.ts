@@ -14,6 +14,8 @@ import {
   productVariantBatchUpdateSchema,
   productVariantUpdateSchema,
   formatVariantName,
+  formatQuantity,
+  formatPrice,
   sortVariantsForDisplay,
 } from "@workspace/validation";
 
@@ -127,10 +129,22 @@ test("batch variant schema requires explicit units and accepts zero stock withou
 });
 
 test("variant labels and automatic display ordering are consistent without changing stored quantities or units", () => {
+  assert.equal(formatQuantity("500.000"), "500");
+  assert.equal(formatQuantity("1.000"), "1");
+  assert.equal(formatQuantity("0.500"), "0.5");
+  assert.equal(formatQuantity("1.500"), "1.5");
+  assert.equal(formatQuantity("0.125"), "0.125");
+  assert.equal(formatPrice("99.00"), "99");
+  assert.equal(formatPrice("75.50"), "75.50");
+  assert.equal(formatPrice("75.5"), "75.50");
   assert.equal(formatVariantName("500.000", "g"), "500 g");
+  assert.equal(formatVariantName("1.500", "kg"), "1.5 kg");
   assert.equal(formatVariantName("1", "l"), "1 L");
   assert.equal(formatVariantName("1", "piece"), "1 piece");
   assert.equal(formatVariantName("12", "piece"), "12 pieces");
+  assert.equal(formatVariantName("30", "piece"), "30 pieces");
+  assert.equal(formatVariantName("2", "bottle"), "2 bottles");
+  assert.equal(formatVariantName("2", "box"), "2 boxes");
 
   const variants = [
     { id: "5kg", quantityValue: "5", quantityUnit: "kg" as const, createdAt: "2025-01-01T00:00:04Z" },
@@ -161,7 +175,7 @@ test("variant labels and automatic display ordering are consistent without chang
   ];
   assert.deepEqual(
     sortVariantsForDisplay(mixedGroups).map(({ id }) => id),
-    ["500g", "1pack", "2kg", "500ml", "1piece", "3l", "2box"],
+    ["2kg", "1pack", "500g", "3l", "1piece", "500ml", "2box"],
   );
 
   const multipleIncomparableGroups = [
@@ -174,7 +188,7 @@ test("variant labels and automatic display ordering are consistent without chang
   ];
   assert.deepEqual(
     sortVariantsForDisplay(multipleIncomparableGroups).map(({ id }) => id),
-    ["500g", "1pack", "2pack", "2kg", "1box", "2box"],
+    ["2kg", "1pack", "2pack", "500g", "1box", "2box"],
   );
 });
 

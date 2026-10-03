@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatPrice } from "@workspace/validation/variant-formatting";
 import { apiRequest, type Category, type Product } from "./api";
 import { SellingVariantEditor } from "./SellingVariantEditor";
 import { VendorMasterCatalogPanel } from "./VendorMasterCatalogPanel";
@@ -490,7 +491,7 @@ export function CatalogManagementPanel({
                       <span>{product.categoryId ? categoryNames.get(product.categoryId) ?? "Unknown" : "Uncategorized"}</span>
                     </div>
                   </div>
-                   <div className="vendor-product-metric"><strong>{product.masterProductId ? "See variants" : `₹${product.price}`}</strong></div>
+                   <div className="vendor-product-metric"><strong>{product.masterProductId ? "See variants" : `₹${formatPrice(product.price)}`}</strong></div>
                    <div className="vendor-product-metric"><strong>{product.masterProductId ? "Varies by option" : product.stockQuantity}</strong></div>
                   <div className="vendor-product-state">
                     {!product.isActive ? (

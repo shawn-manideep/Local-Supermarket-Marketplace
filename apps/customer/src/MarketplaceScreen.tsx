@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, Animated, TextInput } from "react-native";
 import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductPagination, type CustomerProductSearchResponse, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
@@ -63,13 +64,7 @@ function SearchIcon() {
 }
 
 function customerVariantLabel(variant: CustomerProductVariant) {
-  const quantityValue = Number(variant.quantityValue);
-  const quantity = Number.isFinite(quantityValue)
-    ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 }).format(quantityValue)
-    : variant.quantityValue;
-  const unit = variant.quantityUnit === "l" ? "L" : variant.quantityUnit;
-  const displayUnit = unit === "piece" && quantityValue !== 1 ? "pieces" : unit;
-  return `${quantity} ${displayUnit}`;
+  return formatVariantName(variant.quantityValue, variant.quantityUnit);
 }
 
 function canPurchaseVariant(product: CustomerProduct, variant: CustomerProductVariant) {
@@ -335,7 +330,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     setAdding(true);
     try {
       await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId:selected.id, variantId:variant.id, quantity:qty, confirmStoreSwitch }) });
-      setAddedNotice(`${selected.name} · ${variant.name} added to cart`);
+      setAddedNotice(`${selected.name} · ${customerVariantLabel(variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
       void refreshCart();
     } catch (reason) {
@@ -359,7 +354,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     try {
       await customerApi("/api/customer/cart/items", { method:"POST", body:JSON.stringify({ productId: pendingProduct.product.id, variantId: pendingProduct.variant.id, quantity: pendingProduct.qty, confirmStoreSwitch: true }) });
       setSwitchDialogVisible(false);
-      setAddedNotice(`${pendingProduct.product.name} · ${pendingProduct.variant.name} added to cart`);
+      setAddedNotice(`${pendingProduct.product.name} · ${customerVariantLabel(pendingProduct.variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
       setPendingProduct(null);
       void refreshCart();
@@ -421,7 +416,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                       <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
                       {!!item.brand && <Text style={typography.caption} numberOfLines={1}>{item.brand}</Text>}
                       <Text style={typography.caption} numberOfLines={1}>{item.storeName} · {item.categoryName ?? "Groceries"}</Text>
-                      <Text style={[typography.title3, { color: colors.ink }]}>{availableVariants.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
+                      <Text style={[typography.title3, { color: colors.ink }]}>{availableVariants.length > 1 ? "From " : ""}₹{formatPrice(displayedPrice)}</Text>
                       {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{productAvailabilityLabel(item)}</Text>}
                     </View>
                   </Pressable>;
@@ -453,7 +448,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
 
           <Text style={typography.hero}>{product.name}</Text>
-          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{selectedVariant?.price ?? product.price}</Text>
+          <Text style={[typography.title1, { color: colors.accent, marginTop: spacing.xs }]}>₹{formatPrice(selectedVariant?.price ?? product.price)}</Text>
           {!!product.description && <Text style={[typography.body, { marginTop: spacing.md, marginBottom: spacing.xl }]}>{product.description}</Text>}
           {activeVariants.length > 1 && <View style={styles.variantSection}>
             <Text style={[typography.title3, { marginBottom: spacing.sm }]}>Select Quantity / Options</Text>
@@ -462,10 +457,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                 const available = canPurchaseVariant(product, variant);
                 const availabilityLabel = variantAvailabilityLabel(product, variant);
                 const selected = selectedVariantId === variant.id;
-                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityLabel={`${customerVariantLabel(variant)} · ₹${variant.price} · ${availabilityLabel}`} accessibilityState={{ selected, disabled: !available }} disabled={!available} onPress={() => { if (available) setSelectedVariantId(variant.id); }} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
+                return <Pressable key={variant.id} accessibilityRole="radio" accessibilityLabel={`${customerVariantLabel(variant)} · ₹${formatPrice(variant.price)} · ${availabilityLabel}`} accessibilityState={{ selected, disabled: !available }} disabled={!available} onPress={() => { if (available) setSelectedVariantId(variant.id); }} style={[styles.variantOption, selected && styles.variantOptionSelected, !available && styles.variantUnavailable]}>
                   <View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View>
                   <Text style={[typography.bodySemibold, { flex: 1 }, !available && { color: colors.muted }]}>{customerVariantLabel(variant)} · {availabilityLabel}</Text>
-                  <Text style={[typography.bodySemibold, { color: colors.accent }]}>₹{variant.price}</Text>
+                  <Text style={[typography.bodySemibold, { color: colors.accent }]}>₹{formatPrice(variant.price)}</Text>
                 </Pressable>;
               })}
             </View>
@@ -535,7 +530,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                   <View style={styles.productInfo}>
                     <Text style={typography.bodySemibold} numberOfLines={2}>{item.name}</Text>
                     <Text style={typography.caption} numberOfLines={1}>{item.categoryName ?? categories.find(c => c.id === item.categoryId)?.name ?? "Groceries"}</Text>
-                    <Text style={[typography.title3, { color: colors.ink }]}>{sellable.length > 1 ? "From " : ""}₹{displayedPrice}</Text>
+                    <Text style={[typography.title3, { color: colors.ink }]}>{sellable.length > 1 ? "From " : ""}₹{formatPrice(displayedPrice)}</Text>
                     {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{productAvailabilityLabel(item)}</Text>}
                   </View>
                   {purchasableVariants.length === 1 && (

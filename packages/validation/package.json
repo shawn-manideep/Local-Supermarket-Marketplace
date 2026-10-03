@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./variant-formatting": {
+      "types": "./dist/variant-formatting.d.ts",
+      "import": "./dist/variant-formatting.js",
+      "default": "./dist/variant-formatting.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
