@@ -32,3 +32,9 @@ Customer Global Search has been manually verified. Leave it unchanged when worki
 **Why:** The user confirmed that category-optional global search works and explicitly said not to redesign it in the focused continuation.
 
 **How to apply:** Improve listing-specific details, selection, and cart submission without changing the approved search interface or discovery behavior.
+
+The user has now manually verified Product Details, multi-variant selection, quantity, selected-variant Cart identity, server-owned pricing/totals, stock/privacy, and one-store contextual cart navigation. Leave that shopping flow unchanged during Reorder / Buy Again work.
+
+**Why:** The reorder brief explicitly confirms this flow and limits the phase to customer reorder.
+
+**How to apply:** Add reorder to existing order history without a Home, search, details, or cart redesign. Do not run automated browser acceptance, claim new manual acceptance, or deploy to production.

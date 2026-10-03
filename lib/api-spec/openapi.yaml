@@ -11,6 +11,57 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /customer/orders/{orderId}/repeat-preview:
+    get:
+      operationId: previewCustomerReorder
+      summary: Evaluate exact historical items using current store availability and prices
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/ReorderOrderId"
+        - in: query
+          name: addressId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: orderItemId
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Availability preview; no cart or order mutation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReorderPreview"
+        "401": { description: Sign-in required }
+        "403": { description: Customer role required }
+        "404": { description: "Owned order, item or delivery address not found" }
+  /customer/orders/{orderId}/repeat:
+    post:
+      operationId: submitCustomerReorder
+      summary: Add eligible exact historical items to cart, never place an order
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: "#/components/parameters/ReorderOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderSubmission"
+      responses:
+        "200":
+          description: Committed added and unavailable items, with current cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReorderOutcome"
+        "400": { description: Invalid request; client price and ownership fields rejected }
+        "401": { description: Sign-in required }
+        "403": { description: Customer role required }
+        "404": { description: "Owned order, item or delivery address not found" }
+        "409": { description: Explicit store switch confirmation or a new idempotency intent required }
   /customer/categories:
     get:
       operationId: getCustomerShoppingCategories
@@ -53,11 +104,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 components:
+  parameters:
+    ReorderOrderId:
+      in: path
+      name: orderId
+      required: true
+      schema: { type: string, format: uuid }
   securitySchemes:
     customerBearer:
       type: http
       scheme: bearer
   schemas:
+    ReorderSubmission:
+      type: object
+      additionalProperties: false
+      required: [addressId, idempotencyKey]
+      properties:
+        addressId: { type: string, format: uuid }
+        idempotencyKey: { type: string, format: uuid }
+        orderItemId: { type: string, format: uuid }
+        confirmStoreSwitch: { type: boolean }
+    ReorderItem:
+      type: object
+      additionalProperties: false
+      required: [orderItemId, productName, variantNameSnapshot, quantity, currentUnitPrice, available, reason]
+      properties:
+        orderItemId: { type: string, format: uuid }
+        productName: { type: string }
+        variantNameSnapshot: { type: [string, "null"] }
+        quantity: { type: integer, minimum: 1 }
+        currentUnitPrice: { type: [string, "null"] }
+        available: { type: boolean }
+        reason: { type: [string, "null"] }
+    ReorderPreview:
+      type: object
+      additionalProperties: false
+      required: [storeAvailable, storeSwitchRequired, storeName, existingStoreName, items, canAddCount]
+      properties:
+        storeAvailable: { type: boolean }
+        storeSwitchRequired: { type: boolean }
+        storeName: { type: string }
+        existingStoreName: { type: [string, "null"] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ReorderItem" }
+        canAddCount: { type: integer, minimum: 0 }
+    ReorderOutcome:
+      type: object
+      additionalProperties: false
+      required: [cart, added, unavailable, addedCount]
+      properties:
+        cart:
+          description: Existing customer cart response, with server-owned current prices
+          type: [object, "null"]
+          additionalProperties: true
+        added:
+          type: array
+          items: { $ref: "#/components/schemas/ReorderItem" }
+        unavailable:
+          type: array
+          items: { $ref: "#/components/schemas/ReorderItem" }
+        addedCount: { type: integer, minimum: 0 }
     CustomerShoppingCategory:
       type: object
       additionalProperties: false

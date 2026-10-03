@@ -174,7 +174,7 @@ export interface CustomerOrderDetail extends CustomerOrderSummary {
 export interface RepeatOrderPreviewItem {
   orderItemId: string;
   productName: string;
-  variantNameSnapshot: string;
+  variantNameSnapshot: string | null;
   quantity: number;
   currentUnitPrice: string | null;
   available: boolean;
@@ -184,12 +184,15 @@ export interface RepeatOrderPreviewItem {
 export interface RepeatOrderPreview {
   storeAvailable: boolean;
   storeSwitchRequired: boolean;
+  storeName: string;
+  existingStoreName: string | null;
   items: RepeatOrderPreviewItem[];
   canAddCount: number;
 }
 
 export interface RepeatOrderResult {
   cart: CustomerCart | null;
+  added: RepeatOrderPreviewItem[];
   unavailable: RepeatOrderPreviewItem[];
   addedCount: number;
 }

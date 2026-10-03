@@ -4,6 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { customerApi, type CustomerAddress, type CustomerOrderDetail, type CustomerOrderSummary, type RepeatOrderPreview, type RepeatOrderResult } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
+import { reorderInput, reorderItemLabel, reorderPreviewQuery, reorderSummary } from "./lib/reorder";
 
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
@@ -13,13 +14,18 @@ function createSecureUuid(): string {
   return randomUUID();
 }
 
-export function OrdersScreen({ initialOrderId, onRepeatAdded }: { initialOrderId?: string; onRepeatAdded?: () => void } = {}) {
+export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping }: { initialOrderId?: string; onRepeatAdded?: () => void; onContinueShopping?: () => void } = {}) {
   const [orders, setOrders] = useState<CustomerOrderSummary[]>([]);
   const [selected, setSelected] = useState<CustomerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"All" | "Processing" | "Delivered" | "Cancelled">("All");
   const [repeatOrderId, setRepeatOrderId] = useState<string | null>(null);
+  const [repeatItemId, setRepeatItemId] = useState<string | undefined>();
+  const startReorder = (id: string, itemId?: string) => {
+    setRepeatItemId(itemId);
+    setRepeatOrderId(id);
+  };
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
 
@@ -45,8 +51,8 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded }: { initialOrderId
   useEffect(() => { if (initialOrderId) void open(initialOrderId); }, [initialOrderId]);
 
   if (selected) return <>
-    <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} refresh={load} onRepeat={() => setRepeatOrderId(selected.id)} />
-    <RepeatOrderDialog orderId={repeatOrderId} onClose={() => setRepeatOrderId(null)} onAdded={() => { setRepeatOrderId(null); onRepeatAdded?.(); }} />
+    <OrderDetail order={selected} back={() => { ++detailGeneration.current; setSelected(null); }} refresh={load} onRepeat={(itemId) => startReorder(selected.id, itemId)} />
+    <RepeatOrderDialog orderId={repeatOrderId} orderItemId={repeatItemId} onClose={() => setRepeatOrderId(null)} onAdded={() => { setRepeatOrderId(null); onRepeatAdded?.(); }} onContinueShopping={() => { setRepeatOrderId(null); onContinueShopping?.(); }} />
   </>;
   
   if (loading) return <View style={[commonStyles.page, { justifyContent: "center", alignItems: "center" }]}><ActivityIndicator color={colors.accent} /></View>;
@@ -89,37 +95,38 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded }: { initialOrderId
                  {!!order.itemSummary?.length && <Text numberOfLines={2} style={typography.caption}>{order.itemSummary.map(item => `${item.productNameSnapshot}${item.variantNameSnapshot ? ` · ${item.variantNameSnapshot}` : ""} × ${item.quantity}`).join("  ·  ")}</Text>}
                  <View style={styles.orderActions}>
                    <Pressable accessibilityRole="button" onPress={() => void open(order.id)} style={styles.viewOrderButton}><Text style={styles.viewOrderText}>View Order</Text></Pressable>
-                   <Pressable accessibilityRole="button" onPress={() => setRepeatOrderId(order.id)} style={styles.repeatButton}><Text style={styles.repeatText}>Repeat Order</Text></Pressable>
+                    {!!order.itemSummary?.length && <Pressable accessibilityRole="button" onPress={() => startReorder(order.id)} style={styles.repeatButton}><Text style={styles.repeatText}>Reorder</Text></Pressable>}
                  </View>
                </View>
             ))}
           </View>
         )}
       </View>
-      <RepeatOrderDialog orderId={repeatOrderId} onClose={() => setRepeatOrderId(null)} onAdded={() => { setRepeatOrderId(null); onRepeatAdded?.(); }} />
+      <RepeatOrderDialog orderId={repeatOrderId} orderItemId={repeatItemId} onClose={() => setRepeatOrderId(null)} onAdded={() => { setRepeatOrderId(null); onRepeatAdded?.(); }} onContinueShopping={() => { setRepeatOrderId(null); onContinueShopping?.(); }} />
     </ScrollView>
   );
 }
 
-function RepeatOrderDialog({ orderId, onClose, onAdded }: { orderId: string | null; onClose: () => void; onAdded: () => void }) {
+function RepeatOrderDialog({ orderId, orderItemId, onClose, onAdded, onContinueShopping }: { orderId: string | null; orderItemId?: string; onClose: () => void; onAdded: () => void; onContinueShopping: () => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [preview, setPreview] = useState<RepeatOrderPreview | null>(null);
+  const [result, setResult] = useState<RepeatOrderResult | null>(null);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirmSwitch, setConfirmSwitch] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [retry, setRetry] = useState(0);
-  const idempotencyIntent = useRef<{ orderId: string; addressId: string; key: string } | null>(null);
+  const idempotencyIntent = useRef<{ orderId: string; addressId: string; orderItemId?: string; confirmStoreSwitch: boolean; key: string } | null>(null);
   const submissionInFlight = useRef(false);
 
   useEffect(() => {
     const intent = idempotencyIntent.current;
-    if (intent && (intent.orderId !== orderId || intent.addressId !== addressId)) {
+    if (intent && (intent.orderId !== orderId || intent.addressId !== addressId || intent.orderItemId !== orderItemId)) {
       idempotencyIntent.current = null;
     }
-  }, [orderId, addressId]);
+  }, [orderId, addressId, orderItemId]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -127,6 +134,7 @@ function RepeatOrderDialog({ orderId, onClose, onAdded }: { orderId: string | nu
     setAddresses([]);
     setAddressId("");
     setPreview(null);
+    setResult(null);
     setConfirmSwitch(false);
     setMessage("");
     setLoadingAddresses(true);
@@ -136,10 +144,10 @@ function RepeatOrderDialog({ orderId, onClose, onAdded }: { orderId: string | nu
         setAddresses(next);
         setAddressId((next.find(address => address.isDefault) ?? next[0])?.id ?? "");
       })
-      .catch(reason => { if (active) setMessage(reason instanceof Error ? reason.message : "Unable to load delivery addresses."); })
+      .catch(() => { if (active) setMessage("We couldn't load your delivery addresses. Please try again."); })
       .finally(() => { if (active) setLoadingAddresses(false); });
     return () => { active = false; };
-  }, [orderId]);
+  }, [orderId, orderItemId]);
 
   useEffect(() => {
     if (!orderId || !addressId) return;
@@ -148,49 +156,79 @@ function RepeatOrderDialog({ orderId, onClose, onAdded }: { orderId: string | nu
     setPreview(null);
     setConfirmSwitch(false);
     setMessage("");
-    customerApi<RepeatOrderPreview>(`/api/customer/orders/${orderId}/repeat-preview?addressId=${encodeURIComponent(addressId)}`)
+    customerApi<RepeatOrderPreview>(`/api/customer/orders/${orderId}/repeat-preview?${reorderPreviewQuery(addressId, orderItemId)}`)
       .then(result => { if (active) setPreview(result); })
-      .catch(reason => { if (active) setMessage(reason instanceof Error ? reason.message : "Unable to check this order's availability."); })
+      .catch(() => { if (active) setMessage("We couldn't check these items right now. Please try again."); })
       .finally(() => { if (active) setLoadingPreview(false); });
     return () => { active = false; };
-  }, [orderId, addressId, retry]);
+  }, [orderId, addressId, orderItemId, retry]);
 
-  const addAvailableItems = async () => {
+  const addAvailableItems = async (confirmedStoreSwitch = false) => {
     if (!orderId || !addressId || !preview || submitting || submissionInFlight.current) return;
+    if (preview.storeSwitchRequired && !confirmedStoreSwitch) {
+      setConfirmSwitch(true);
+      return;
+    }
     submissionInFlight.current = true;
     setSubmitting(true);
     setMessage("");
     try {
       let intent = idempotencyIntent.current;
-      if (!intent || intent.orderId !== orderId || intent.addressId !== addressId) {
-        intent = { orderId, addressId, key: createSecureUuid() };
+      if (!intent || intent.orderId !== orderId || intent.addressId !== addressId ||
+        intent.orderItemId !== orderItemId || intent.confirmStoreSwitch !== confirmedStoreSwitch) {
+        intent = { orderId, addressId, orderItemId, confirmStoreSwitch: confirmedStoreSwitch, key: createSecureUuid() };
         idempotencyIntent.current = intent;
       }
       const result = await customerApi<RepeatOrderResult>(`/api/customer/orders/${orderId}/repeat`, {
         method: "POST",
-        body: JSON.stringify({ addressId, idempotencyKey: intent.key, ...(preview.storeSwitchRequired ? { confirmStoreSwitch: confirmSwitch } : {}) }),
+        body: JSON.stringify(reorderInput(addressId, intent.key, orderItemId, confirmedStoreSwitch)),
       });
       if (idempotencyIntent.current?.key === intent.key) idempotencyIntent.current = null;
-      if (result.addedCount > 0) onAdded();
-      else setMessage("No available items were added. Your existing cart has not been changed.");
+      setConfirmSwitch(false);
+      setResult(result);
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "Unable to add available items.");
+      setConfirmSwitch(false);
+      if (reason instanceof Error && reason.message === "Store switch required") {
+        setRetry(value => value + 1);
+        setMessage("Your cart's store has changed. Please check availability again before replacing it.");
+      } else setMessage("We couldn't add these items right now. Please try again.");
     } finally {
       submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
 
-  return <Modal transparent animationType="fade" visible={!!orderId} onRequestClose={onClose}>
+  return <><Modal transparent animationType="fade" visible={!!orderId && !confirmSwitch} onRequestClose={() => !submissionInFlight.current && onClose()}>
     <View style={styles.modalShade}>
       <View style={styles.repeatModal}>
         <Text style={typography.eyebrow}>REVIEW BEFORE ADDING</Text>
-        <Text style={[typography.title1, { marginTop: spacing.xs }]}>Repeat your order</Text>
+        <Text style={[typography.title1, { marginTop: spacing.xs }]}>{orderItemId ? "Buy Again" : "Reorder"}</Text>
+        {result ? <>
+          <Text accessibilityRole="alert" style={[typography.title3, { marginVertical: spacing.md }]}>{reorderSummary(result)}</Text>
+          {result.addedCount > 0 && <Text style={typography.body}>Items added to your cart. Review current prices and quantities before checkout.</Text>}
+          {result.unavailable.length > 0 && <Text style={[typography.body, { marginTop: spacing.sm }]}>{result.unavailable.some(item => item.reason === "Original product variant is no longer available") ? "Some items are no longer available." : "Some items are currently unavailable."}</Text>}
+          <ScrollView style={styles.previewList} contentContainerStyle={{ gap: spacing.sm }}>
+            {result.added.map(item => <View key={item.orderItemId} style={styles.previewItem}><View style={{ flex: 1 }}>
+              <Text style={typography.bodySemibold}>{reorderItemLabel(item)} — Added</Text>
+              <Text style={typography.caption}>Quantity {item.quantity} · Current price {item.currentUnitPrice !== null ? money(item.currentUnitPrice) : "available in cart"} each</Text>
+            </View></View>)}
+            {result.unavailable.map(item => <View key={item.orderItemId} style={styles.previewItem}><View style={{ flex: 1 }}>
+              <Text style={typography.bodySemibold}>{reorderItemLabel(item)} — Unavailable</Text>
+              <Text style={[typography.caption, { color: colors.danger }]}>{item.reason || "Currently unavailable"}</Text>
+            </View></View>)}
+          </ScrollView>
+          {result.addedCount === 0 && <Text style={typography.caption}>Your existing cart has not been changed.</Text>}
+          <View style={styles.modalActions}>
+            <Pressable accessibilityRole="button" onPress={onContinueShopping} style={styles.modalCancel}><Text style={styles.modalCancelText}>Continue Shopping</Text></Pressable>
+            {result.addedCount > 0 && <Pressable accessibilityRole="button" onPress={onAdded} style={styles.modalAdd}><Text style={styles.modalAddText}>View Cart</Text></Pressable>}
+          </View>
+          <Pressable accessibilityRole="button" onPress={onClose} style={{ paddingTop: spacing.md, alignSelf: "center" }}><Text style={styles.repeatText}>Back to Orders</Text></Pressable>
+        </> : <>
         <Text style={[typography.caption, { marginTop: spacing.xs, marginBottom: spacing.md }]}>We’ll check current availability and prices. This will not place an order.</Text>
         {loadingAddresses ? <ActivityIndicator color={colors.accent} /> : addresses.length > 0 ? <>
           <Text style={[typography.bodySemibold, { marginBottom: spacing.xs }]}>Delivery address</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.sm }}>
-            {addresses.map(address => <Pressable key={address.id} onPress={() => {
+            {addresses.map(address => <Pressable key={address.id} disabled={submitting} onPress={() => {
               if (address.id !== addressId) {
                 idempotencyIntent.current = null;
                 setAddressId(address.id);
@@ -199,40 +237,44 @@ function RepeatOrderDialog({ orderId, onClose, onAdded }: { orderId: string | nu
               <Text style={[styles.addressChipText, addressId === address.id && styles.addressChipTextActive]}>{address.label || address.city}{address.isDefault ? " · Default" : ""}</Text>
             </Pressable>)}
           </ScrollView>
-        </> : !message && <Text style={styles.noticeText}>Add a delivery address before repeating this order.</Text>}
+        </> : !message && <Text style={styles.noticeText}>Add a delivery address before reordering.</Text>}
         {loadingPreview && <View style={styles.previewLoading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>Checking store, variants and current prices…</Text></View>}
         {preview && <>
           {!preview.storeAvailable && <View style={styles.warningBox}><Text style={styles.warningText}>This supermarket is currently unavailable for the selected address. No items can be added.</Text></View>}
-          {preview.storeSwitchRequired && preview.storeAvailable && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: confirmSwitch }} onPress={() => setConfirmSwitch(value => !value)} style={styles.switchConfirm}>
-            <View style={[styles.checkbox, confirmSwitch && styles.checkboxActive]}>{confirmSwitch && <View style={styles.checkboxDot} />}</View>
-            <Text style={[typography.caption, { flex: 1 }]}>I understand this will switch stores and replace the current basket.</Text>
-          </Pressable>}
+          {preview.storeSwitchRequired && preview.storeAvailable && <Text style={typography.caption}>Your cart contains items from {preview.existingStoreName}. This reorder is from {preview.storeName}. You will be asked before replacing your cart.</Text>}
           <ScrollView style={styles.previewList} contentContainerStyle={{ gap: spacing.sm }}>
             {preview.items.map(item => <View key={item.orderItemId} style={styles.previewItem}>
               <View style={[styles.availabilityMark, item.available && preview.storeAvailable ? styles.markAvailable : styles.markUnavailable]}><Text style={styles.availabilityMarkText}>{item.available && preview.storeAvailable ? "✓" : "!"}</Text></View>
               <View style={{ flex: 1 }}>
-                <Text style={typography.bodySemibold}>{item.productName} · {item.variantNameSnapshot}</Text>
-                <Text style={typography.caption}>Quantity {item.quantity}{item.currentUnitPrice != null ? ` · Current price ₹${item.currentUnitPrice} each` : ""}</Text>
+                <Text style={typography.bodySemibold}>{reorderItemLabel(item)}</Text>
+                <Text style={typography.caption}>Quantity {item.quantity}{item.currentUnitPrice != null ? ` · Current price ${money(item.currentUnitPrice)} each` : ""}</Text>
                 {(!item.available || !preview.storeAvailable) && <Text style={[typography.caption, { color: colors.danger }]}>{item.reason || (preview.storeAvailable ? "Currently unavailable" : "Store unavailable")}</Text>}
               </View>
             </View>)}
           </ScrollView>
-          <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{preview.storeAvailable ? `${preview.canAddCount} ${preview.canAddCount === 1 ? "item" : "items"} can be added to your cart.` : "No items can be added right now."}</Text>
+          <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{preview.canAddCount > 0 ? `${preview.canAddCount} ${preview.canAddCount === 1 ? "item" : "items"} can be added to your cart.${preview.canAddCount < preview.items.length ? " Partially available." : ""}` : "None of these items are currently available."}</Text>
         </>}
         {!!message && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{message}</Text>}
         {!!message && !loadingPreview && addressId && !preview && <Pressable onPress={() => setRetry(value => value + 1)} style={{ alignSelf: "flex-start", marginTop: spacing.xs }}><Text style={styles.repeatText}>Try availability check again</Text></Pressable>}
         <View style={styles.modalActions}>
           <Pressable accessibilityRole="button" onPress={onClose} disabled={submitting} style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancel</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => void addAvailableItems()} disabled={!preview || !preview.storeAvailable || preview.canAddCount === 0 || loadingPreview || submitting || (preview.storeSwitchRequired && !confirmSwitch)} style={[styles.modalAdd, (!preview || !preview.storeAvailable || preview.canAddCount === 0 || loadingPreview || submitting || (preview.storeSwitchRequired && !confirmSwitch)) && styles.buttonDisabled]}>
-            {submitting ? <ActivityIndicator color={colors.card} /> : <Text style={styles.modalAddText}>Add Available Items</Text>}
-          </Pressable>
+          {preview && preview.canAddCount === 0 ? <Pressable accessibilityRole="button" onPress={onContinueShopping} style={styles.modalAdd}><Text style={styles.modalAddText}>Continue Shopping</Text></Pressable> :
+            <Pressable accessibilityRole="button" onPress={() => void addAvailableItems()} disabled={!preview || !preview.storeAvailable || loadingPreview || submitting} style={[styles.modalAdd, (!preview || !preview.storeAvailable || loadingPreview || submitting) && styles.buttonDisabled]}>
+              {submitting ? <><ActivityIndicator color={colors.card} /><Text style={styles.modalAddText}>Checking availability...</Text></> : <Text style={styles.modalAddText}>Add Available Items</Text>}
+            </Pressable>}
         </View>
+        </>}
       </View>
     </View>
-  </Modal>;
+  </Modal>
+    <ConfirmationDialog visible={!!orderId && confirmSwitch} title="Replace your current cart?"
+      message={`Your cart contains items from ${preview?.existingStoreName ?? "another store"}. This reorder is from ${preview?.storeName ?? "the original store"}. Replace your current cart?`}
+      confirmLabel="Clear Cart & Continue" cancelLabel="Cancel" isDestructive loading={submitting}
+      onConfirm={() => void addAvailableItems(true)} onCancel={() => !submissionInFlight.current && setConfirmSwitch(false)} />
+  </>;
 }
 
-function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderDetail; back: () => void; refresh: () => void; onRepeat: () => void }) {
+function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderDetail; back: () => void; refresh: () => void; onRepeat: (itemId?: string) => void }) {
   const [cancelVisible, setCancelVisible] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const cancelInFlight = useRef(false);
@@ -309,6 +351,7 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
                   <View style={{ flex: 1, paddingRight: spacing.sm }}>
                     <Text style={typography.bodySemibold}>{item.productNameSnapshot}</Text>
                     <Text style={typography.caption}>{item.variantNameSnapshot ?? (item.variantQuantityValueSnapshot && item.variantQuantityUnitSnapshot ? `${item.variantQuantityValueSnapshot} ${item.variantQuantityUnitSnapshot}` : "Standard")} · {money(item.productPriceSnapshot)} × {item.quantity}</Text>
+                     <Pressable accessibilityRole="button" accessibilityLabel={`Buy ${item.productNameSnapshot} again`} onPress={() => onRepeat(item.id)} style={{ paddingVertical: spacing.sm, alignSelf: "flex-start" }}><Text style={styles.repeatText}>Buy Again</Text></Pressable>
                   </View>
                   <Text style={typography.bodySemibold}>{money(item.subtotal)}</Text>
                 </View>
@@ -331,7 +374,7 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
 
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md, textAlign: "center" }]}>{error}</Text>}
 
-          <Pressable accessibilityRole="button" onPress={onRepeat} style={[styles.repeatButton, { marginBottom: spacing.md }]}><Text style={styles.repeatText}>Repeat Order</Text></Pressable>
+          {localOrder.items.length > 0 && <Pressable accessibilityRole="button" onPress={() => onRepeat()} style={[styles.repeatButton, { marginBottom: spacing.md }]}><Text style={styles.repeatText}>Reorder</Text></Pressable>}
           {localOrder.status === "PLACED" && (
             <Pressable accessibilityRole="button" onPress={() => setCancelVisible(true)} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel Order</Text>

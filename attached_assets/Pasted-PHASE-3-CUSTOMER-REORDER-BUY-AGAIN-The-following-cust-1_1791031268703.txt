@@ -1,0 +1,683 @@
+PHASE 3 — CUSTOMER REORDER / BUY AGAIN
+======================================
+
+The following customer shopping flow has been implemented and manually verified:
+
+Customer Login
+→ Global Search
+→ Product
+→ Selling Variant
+→ Quantity
+→ Add to Cart
+→ Cart
+
+Manual verification confirmed that:
+
+- Global search works without category selection
+- Store-specific results work
+- Product Details works
+- Multiple selling variants work
+- Variant selection works
+- Quantity works
+- Correct selected variant reaches Cart
+- Server-owned price is preserved
+- Cart line totals are correct
+- Stock/privacy protections work
+- One-store cart behavior works
+- Contextual Go to Cart / Continue Shopping works
+
+DO NOT redesign any of the above.
+
+This phase is ONLY for the CUSTOMER REORDER / BUY AGAIN experience.
+
+Do NOT modify:
+
+- Master Catalog architecture
+- Vendor catalog
+- Vendor variants
+- Authentication
+- Product search
+- Product Details
+- Cart architecture unless required for Reorder compatibility
+- Payment
+- Delivery Partner
+- Stock reservation
+- Automatic stock deduction
+- Automatic unit conversion
+- Historical order snapshots
+
+
+=================================================
+1. REORDER PURPOSE
+=================================================
+
+Customer should be able to easily purchase products from a previous order again.
+
+Reorder does NOT mean immediately placing the previous order.
+
+It means:
+
+Previous Order
+↓
+Reorder / Buy Again
+↓
+Eligible previous items are added to the current cart
+↓
+Customer reviews current products/prices/availability
+↓
+Customer can modify cart
+↓
+Customer continues through the normal checkout flow
+
+
+=================================================
+2. NEVER PLACE ORDER IMMEDIATELY
+=================================================
+
+When customer clicks:
+
+Reorder
+
+DO NOT create a new order immediately.
+
+DO NOT charge/payment immediately.
+
+DO NOT bypass Cart.
+
+Instead:
+
+Add eligible items to the customer's current cart.
+
+Then show:
+
+"Items added to your cart"
+
+with:
+
+View Cart
+Continue Shopping
+
+
+=================================================
+3. REORDER FROM ORDER HISTORY
+=================================================
+
+Customer should be able to access previous orders.
+
+Where the current customer navigation already has:
+
+Orders
+
+do not break the existing order history.
+
+Provide a clear Reorder / Buy Again action for eligible previous orders.
+
+Example:
+
+Order #1234
+Completed
+Basmati Rice
+1 kg × 2
+Milk
+1 L × 2
+Eggs
+12 pieces × 1
+
+[ Reorder ]
+
+The customer can reorder the complete eligible order.
+
+
+=================================================
+4. REORDER INDIVIDUAL ITEMS
+=================================================
+
+Where practical, also support:
+
+[ Buy Again ]
+
+for individual previous products.
+
+Example:
+
+Basmati Rice
+1 kg
+₹75 at the time of previous order
+
+[ Buy Again ]
+
+The system should attempt to add that exact previous product/variant to the current cart.
+
+Do not substitute another product automatically.
+
+
+=================================================
+5. EXACT PRODUCT + VARIANT IDENTITY
+=================================================
+
+Reorder must preserve the exact historical product/variant identity.
+
+Example:
+
+Previous order:
+
+Basmati Rice
+Variant: 1 kg
+
+Reorder must attempt:
+
+Basmati Rice
+Variant: 1 kg
+
+It must NOT silently change to:
+
+500 g
+2 kg
+5 kg
+
+It must NOT select another similar product.
+
+It must NOT use only the product name to determine what to reorder.
+
+
+=================================================
+6. CURRENT PRICE
+=================================================
+
+Reorder must use the CURRENT vendor/store price.
+
+Do NOT restore the historical order price.
+
+Example:
+
+Previous order:
+1 kg
+₹70
+
+Current store price:
+1 kg
+₹75
+
+Reorder should add:
+
+1 kg
+₹75
+
+to the current cart.
+
+The historical order must continue displaying its original historical price.
+
+
+=================================================
+7. CURRENT AVAILABILITY
+=================================================
+
+Before adding each reorder item, check the current:
+
+- product/listing status
+- variant status
+- vendor/store eligibility
+- availability
+- purchasability
+- server-side stock
+
+Do not assume that an item purchased previously is still available.
+
+
+=================================================
+8. OUT-OF-STOCK REORDER ITEM
+=================================================
+
+If the previous variant is now out of stock:
+
+Do NOT substitute another variant.
+
+Do NOT add an unavailable item to the cart as purchasable.
+
+Clearly tell the customer:
+
+"Some items are currently unavailable."
+
+Example:
+
+Reorder result:
+
+✓ Basmati Rice — 1 kg — Added
+✓ Milk — 1 L — Added
+⚠ Eggs — 12 pieces — Currently unavailable
+
+Then:
+
+[ View Cart ]
+
+The customer can continue with the available items.
+
+
+=================================================
+9. UNAVAILABLE / DEACTIVATED PRODUCT
+=================================================
+
+If the previous product or exact variant is no longer active:
+
+Do NOT substitute another product.
+
+Show:
+
+"Some items are no longer available."
+
+Identify the unavailable item where appropriate.
+
+Continue adding other eligible items.
+
+
+=================================================
+10. NO SUBSTITUTIONS
+=================================================
+
+This is a strict requirement.
+
+Do NOT automatically replace:
+
+Basmati Rice 1 kg
+
+with:
+
+Basmati Rice 5 kg
+
+or:
+
+Sona Masoori Rice 1 kg
+
+or another brand/product.
+
+Reorder must use exact product/variant identity.
+
+If exact identity is unavailable:
+
+mark it unavailable and inform the customer.
+
+
+=================================================
+11. STORE CONTEXT
+=================================================
+
+Reorder must respect the original vendor/store relationship and the current store eligibility rules.
+
+Do not mix different vendors into the current cart.
+
+If the previous order belongs to Store A and the customer currently has a Store B cart:
+
+use the existing one-store cart conflict behavior.
+
+Do NOT silently merge Store A and Store B products.
+
+
+=================================================
+12. EXISTING CART
+=================================================
+
+If the customer already has items in the cart and chooses Reorder:
+
+Do NOT silently delete existing cart items.
+
+Do NOT silently replace existing cart items.
+
+Use the existing one-store cart rules.
+
+If the reorder belongs to the same store:
+
+add eligible items to the existing cart.
+
+If it belongs to another store:
+
+show the existing store-conflict confirmation.
+
+Example:
+
+"Your cart contains items from Development Store A.
+
+This reorder is from Development Store B.
+
+Replace your current cart?"
+
+[ Cancel ]
+[ Clear Cart & Continue ]
+
+
+=================================================
+13. DUPLICATE CART ITEMS
+=================================================
+
+If the exact product + exact variant is already in the cart:
+
+Do not create a confusing duplicate line unless the existing cart architecture intentionally supports it.
+
+Prefer increasing the cart quantity appropriately.
+
+Example:
+
+Current cart:
+Basmati Rice
+1 kg × 2
+
+Reorder:
+Basmati Rice
+1 kg × 2
+
+Result:
+
+Basmati Rice
+1 kg × 4
+
+Do not create:
+
+Basmati Rice 1 kg × 2
+Basmati Rice 1 kg × 2
+
+as separate lines.
+
+Respect existing cart quantity validation.
+
+
+=================================================
+14. REORDER QUANTITY
+=================================================
+
+Reorder should initially use the quantity from the previous order.
+
+Example:
+
+Previous order:
+
+Basmati Rice
+1 kg × 3
+
+Reorder initially adds:
+
+Basmati Rice
+1 kg × 3
+
+The customer can then modify the quantity in Cart.
+
+Do not create a new selling variant based on the previous order quantity.
+
+
+=================================================
+15. HISTORICAL ORDER DATA
+=================================================
+
+Historical orders are immutable.
+
+Do NOT modify:
+
+- historical product name
+- historical variant name
+- historical price
+- historical quantity
+- historical totals
+- historical order snapshots
+
+Reorder creates a NEW cart state using CURRENT catalog/store information.
+
+Historical order remains exactly as it was.
+
+
+=================================================
+16. REORDER RESULT SUMMARY
+=================================================
+
+After the customer clicks Reorder, show a clear summary.
+
+Example:
+
+"Reorder completed"
+
+Added to cart:
+✓ Basmati Rice — 1 kg
+✓ Milk — 1 L
+
+Unavailable:
+⚠ Eggs — 12 pieces
+
+Then:
+
+[ View Cart ]
+[ Continue Shopping ]
+
+
+=================================================
+17. ALL ITEMS UNAVAILABLE
+=================================================
+
+If none of the previous order items are currently eligible:
+
+Do NOT create an empty order.
+
+Do NOT create an invalid cart.
+
+Show:
+
+"None of these items are currently available."
+
+Provide:
+
+[ Continue Shopping ]
+
+Do not show a misleading successful reorder message.
+
+
+=================================================
+18. CUSTOMER HOME
+=================================================
+
+If the Customer Home already contains:
+
+Recently Ordered
+Recent Store
+Orders
+Buy Again
+Reorder
+
+make the experience consistent.
+
+Do not duplicate the same functionality unnecessarily.
+
+Provide a clear path such as:
+
+Recently Ordered
+→ Buy Again
+
+or:
+
+Orders
+→ Reorder
+
+Do not perform a complete Home redesign in this phase.
+
+
+=================================================
+19. REORDER BUTTON STATES
+=================================================
+
+Reorder should be available only where there are previous order items that can be evaluated.
+
+Show appropriate states:
+
+- Reorder
+- Checking availability...
+- Items added
+- Partially available
+- None available
+
+Do not leave the customer with no explanation.
+
+
+=================================================
+20. ERROR HANDLING
+=================================================
+
+If the reorder API fails:
+
+Show a customer-friendly message.
+
+Example:
+
+"We couldn't add these items right now. Please try again."
+
+Do not expose:
+
+- database errors
+- SQL errors
+- internal IDs
+- raw API diagnostics
+
+
+=================================================
+21. API SECURITY
+=================================================
+
+Reorder must verify server-side:
+
+- customer owns the original order
+- original order belongs to the authenticated customer
+- exact product identity
+- exact variant identity
+- current store eligibility
+- current product/variant state
+- current price
+- current purchasability
+- current stock
+
+Never trust the client to supply:
+
+- price
+- store ownership
+- variant ownership
+- customer ownership
+- historical order ownership
+
+
+=================================================
+22. PRIVACY
+=================================================
+
+Do not expose customer-private information to other customers.
+
+Do not expose vendor-private fields.
+
+Customer responses must continue to omit:
+
+- SKU
+- external codes
+- exact stock
+- internal timestamps
+- unnecessary internal IDs
+
+
+=================================================
+23. TESTS
+=================================================
+
+Add focused tests for:
+
+1. Reorder completed order
+2. Reorder exact product identity
+3. Reorder exact variant identity
+4. Current price used instead of historical price
+5. Current availability checked
+6. Zero-stock item excluded
+7. Unavailable variant excluded
+8. No substitutions
+9. Existing same-store cart quantity merge
+10. Different-store cart conflict
+11. Previous quantity restored
+12. Customer can modify quantity afterward
+13. Historical order remains unchanged
+14. Partial reorder
+15. All items unavailable
+16. Customer can only reorder their own order
+17. Server-owned price
+18. Server-side variant validation
+19. No private fields exposed
+
+
+=================================================
+24. DATA SAFETY
+=================================================
+
+Do NOT:
+
+- delete orders
+- modify orders
+- modify historical snapshots
+- modify product IDs
+- modify variant IDs
+- modify vendor prices
+- modify vendor stock
+- create replacement products
+- create duplicate Master Products
+- modify Master Catalog data
+
+No database cleanup or fixture cleanup.
+
+
+=================================================
+25. IMPLEMENTATION BOUNDARY
+=================================================
+
+This phase is ONLY:
+
+CUSTOMER REORDER / BUY AGAIN
+
+Do NOT implement:
+
+- Delivery Partner
+- delivery assignment
+- payment gateway
+- stock reservation
+- stock deduction
+- automatic unit conversion
+- shared inventory
+- vendor order redesign
+- authentication changes
+
+
+=================================================
+26. BUILD / TYPECHECK
+=================================================
+
+Run:
+
+- relevant API tests
+- relevant customer tests
+- workspace typecheck
+- Customer Expo web build/export
+
+Do NOT run automated browser acceptance testing.
+
+Do NOT claim manual browser acceptance is complete.
+
+Do NOT deploy to production.
+
+
+=================================================
+27. FINAL REPORT
+=================================================
+
+Provide:
+
+A. Files changed
+B. Reorder UI changes
+C. Reorder API changes
+D. Exact variant identity behavior
+E. Current price behavior
+F. Availability behavior
+G. No-substitution behavior
+H. Existing-cart behavior
+I. Historical-order protection
+J. Tests passed/failed
+K. Typecheck
+L. Build
+M. Remaining known issues
+
+Keep the implementation focused and do not modify unrelated modules.

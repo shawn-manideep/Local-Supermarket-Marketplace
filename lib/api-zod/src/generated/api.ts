@@ -9,6 +9,85 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Evaluate exact historical items using current store availability and prices
+ */
+export const PreviewCustomerReorderParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const PreviewCustomerReorderQueryParams = zod.object({
+  "addressId": zod.coerce.string().uuid(),
+  "orderItemId": zod.coerce.string().uuid().optional()
+})
+
+
+export const previewCustomerReorderResponseCanAddCountMin = 0;
+
+
+
+export const PreviewCustomerReorderResponse = zod.object({
+  "storeAvailable": zod.boolean(),
+  "storeSwitchRequired": zod.boolean(),
+  "storeName": zod.string(),
+  "existingStoreName": zod.string().nullable(),
+  "items": zod.array(zod.object({
+  "orderItemId": zod.string().uuid(),
+  "productName": zod.string(),
+  "variantNameSnapshot": zod.string().nullable(),
+  "quantity": zod.number().int().min(1),
+  "currentUnitPrice": zod.string().nullable(),
+  "available": zod.boolean(),
+  "reason": zod.string().nullable()
+})),
+  "canAddCount": zod.number().int().min(previewCustomerReorderResponseCanAddCountMin)
+})
+
+
+/**
+ * @summary Add eligible exact historical items to cart, never place an order
+ */
+export const SubmitCustomerReorderParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const SubmitCustomerReorderBody = zod.object({
+  "addressId": zod.string().uuid(),
+  "idempotencyKey": zod.string().uuid(),
+  "orderItemId": zod.string().uuid().optional(),
+  "confirmStoreSwitch": zod.boolean().optional()
+})
+
+
+
+export const submitCustomerReorderResponseAddedCountMin = 0;
+
+
+
+export const SubmitCustomerReorderResponse = zod.object({
+  "cart": zod.record(zod.string(), zod.unknown()).nullable().describe('Existing customer cart response, with server-owned current prices'),
+  "added": zod.array(zod.object({
+  "orderItemId": zod.string().uuid(),
+  "productName": zod.string(),
+  "variantNameSnapshot": zod.string().nullable(),
+  "quantity": zod.number().int().min(1),
+  "currentUnitPrice": zod.string().nullable(),
+  "available": zod.boolean(),
+  "reason": zod.string().nullable()
+})),
+  "unavailable": zod.array(zod.object({
+  "orderItemId": zod.string().uuid(),
+  "productName": zod.string(),
+  "variantNameSnapshot": zod.string().nullable(),
+  "quantity": zod.number().int().min(1),
+  "currentUnitPrice": zod.string().nullable(),
+  "available": zod.boolean(),
+  "reason": zod.string().nullable()
+})),
+  "addedCount": zod.number().int().min(submitCustomerReorderResponseAddedCountMin)
+})
+
+
+/**
  * @summary Category filters from stores eligible for a saved delivery pincode
  */
 export const getCustomerShoppingCategoriesQueryPincodeRegExp = new RegExp('^[1-9]\\d{5}$');

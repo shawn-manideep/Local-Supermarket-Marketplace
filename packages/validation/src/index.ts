@@ -550,12 +550,14 @@ export const customerOrderIdParamSchema = z.object({
 
 export const customerOrderRepeatPreviewQuerySchema = z.object({
   addressId: z.string().uuid(),
+  orderItemId: z.string().uuid().optional(),
 }).strict();
 
 export const customerOrderRepeatSchema = z.object({
   addressId: z.string().uuid(),
   idempotencyKey: z.string().uuid(),
   confirmStoreSwitch: z.boolean().optional(),
+  orderItemId: z.string().uuid().optional(),
 }).strict();
 
 export const vendorOrderActionSchema = z.object({

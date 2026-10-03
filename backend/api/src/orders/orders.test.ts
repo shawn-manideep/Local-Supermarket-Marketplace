@@ -88,8 +88,10 @@ test("repeat order previews only original variants and re-adds to cart without c
   assert.match(preview, /eq\(orders\.customerId, customerId\)/);
   assert.match(preview, /variantNameSnapshot: orderItems\.variantNameSnapshot/);
   assert.match(preview, /currentUnitPrice: productVariants\.price/);
-  assert.match(preview, /Insufficient stock/);
-  assert.match(preview, /Original product variant is no longer available/);
+  const eligibility = await readFile(new URL("./reorder.ts", import.meta.url), "utf8");
+  assert.match(eligibility, /Insufficient stock/);
+  assert.match(eligibility, /Original product variant is no longer available/);
+  assert.match(preview, /evaluateReorderLine\(currentRow, order\.storeId, storeAvailable\)/);
   assert.match(preview, /confirmStoreSwitch/);
   assert.match(preview, /tx\.insert\(cartItems\)/);
   assert.doesNotMatch(preview, /tx\.insert\(orders\)/);
@@ -119,7 +121,9 @@ test("repeat retries are idempotent and concurrent requests serialize before key
   assert.ok(returnStoredResult < firstCartMutation);
   assert.match(repeatPost, /IDEMPOTENCY_KEY_REUSED/);
   assert.match(repeatPost, /tx\.insert\(customerRepeatRequests\)/);
-  assert.match(routes, /idempotencyKey: z\.string\(\)\.uuid\(\)/);
+  assert.match(routes, /repeatOrderBodySchema = customerOrderRepeatSchema/);
+  const validation = await readFile(new URL("../../../../packages/validation/src/index.ts", import.meta.url), "utf8");
+  assert.match(validation, /idempotencyKey: z\.string\(\)\.uuid\(\)/);
 });
 
 test("repeat store switching is only committed when preflight finds an insertable line", async () => {

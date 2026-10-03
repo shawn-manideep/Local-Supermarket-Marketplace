@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import {
   adminOrderQuerySchema, customerOrderCreateSchema, customerOrderIdParamSchema,
+  customerOrderRepeatPreviewQuerySchema, customerOrderRepeatSchema,
   vendorOrderActionSchema, vendorOrderQuerySchema,
 } from "@workspace/validation";
 import { requireRole } from "../auth/index.js";
@@ -15,6 +16,7 @@ import { asyncHandler, HttpError, validationDetails } from "../http.js";
 import { cartResponse } from "../customer-cart/routes.js";
 import { centsToMoney, moneyToCents } from "../customer-cart/money.js";
 import { commissionCents, DEFAULT_COMMISSION_RATE, LEGAL_ORDER_TRANSITIONS } from "./lifecycle.js";
+import { evaluateReorderLine } from "./reorder.js";
 
 export const ordersRouter = Router();
 function userId(req: Request) {
@@ -66,18 +68,15 @@ function addressSnapshot(address: typeof customerAddresses.$inferSelect) {
   };
 }
 
-const repeatPreviewQuerySchema = z.object({ addressId: z.string().uuid() }).strict();
-const repeatOrderBodySchema = z.object({
-  addressId: z.string().uuid(),
-  idempotencyKey: z.string().uuid(),
-  confirmStoreSwitch: z.boolean().optional(),
-}).strict();
+const repeatPreviewQuerySchema = customerOrderRepeatPreviewQuerySchema;
+const repeatOrderBodySchema = customerOrderRepeatSchema;
 
-type RepeatIntent = { sourceOrderId: string; addressId: string; confirmStoreSwitch: boolean };
+type RepeatIntent = { sourceOrderId: string; addressId: string; confirmStoreSwitch: boolean; orderItemId?: string | null };
 export function repeatIntentMatches(existing: RepeatIntent, requested: RepeatIntent) {
   return existing.sourceOrderId === requested.sourceOrderId &&
     existing.addressId === requested.addressId &&
-    existing.confirmStoreSwitch === requested.confirmStoreSwitch;
+    existing.confirmStoreSwitch === requested.confirmStoreSwitch &&
+    (existing.orderItemId ?? null) === (requested.orderItemId ?? null);
 }
 
 export function planRepeatLineAdditions(
@@ -85,9 +84,12 @@ export function planRepeatLineAdditions(
   currentQuantities: Map<string, number>,
 ) {
   return lines.map((line) => {
-    if (!line.available || !line.variantId || line.stockQuantity === null) return false;
+    if (!line.available || !line.variantId || line.stockQuantity === null ||
+      !Number.isInteger(line.quantity) || line.quantity < 1 ||
+      !Number.isInteger(line.stockQuantity)) return false;
     const current = currentQuantities.get(line.variantId) ?? 0;
-    if (current + line.quantity > line.stockQuantity) return false;
+    if (!Number.isInteger(current) || current < 0 ||
+      current + line.quantity > line.stockQuantity || current + line.quantity > 999) return false;
     currentQuantities.set(line.variantId, current + line.quantity);
     return true;
   });
@@ -98,10 +100,12 @@ async function repeatOrderPreviewData(
   customerId: string,
   id: string,
   addressId: string,
+  selectedOrderItemId?: string,
 ) {
   const [order] = await db.select({
-    id: orders.id, storeId: orders.storeId,
-  }).from(orders).where(and(eq(orders.id, id), eq(orders.customerId, customerId))).limit(1);
+    id: orders.id, storeId: orders.storeId, storeName: stores.name,
+  }).from(orders).innerJoin(stores, eq(stores.id, orders.storeId))
+    .where(and(eq(orders.id, id), eq(orders.customerId, customerId))).limit(1);
   if (!order) throw new HttpError(404, "Order not found");
   const [address] = await db.select().from(customerAddresses)
     .where(and(eq(customerAddresses.id, addressId), eq(customerAddresses.customerId, customerId))).limit(1);
@@ -113,13 +117,15 @@ async function repeatOrderPreviewData(
     eq(storeServicePincodes.pincode, address.pincode),
   )).where(eq(stores.id, order.storeId)).limit(1);
   const storeAvailable = store?.status === "ACTIVE";
-  const [activeCart] = await db.select({ storeId: carts.storeId }).from(carts)
+  const [activeCart] = await db.select({ id: carts.id, storeId: carts.storeId, storeName: stores.name }).from(carts)
+    .innerJoin(stores, eq(stores.id, carts.storeId))
     .where(and(eq(carts.customerId, customerId), eq(carts.status, "ACTIVE")))
     .orderBy(asc(carts.createdAt)).limit(1);
   const storeSwitchRequired = Boolean(activeCart && activeCart.storeId !== order.storeId);
   const rows = await db.select({
     orderItemId: orderItems.id,
     orderProductId: orderItems.productId,
+    originalVariantId: orderItems.variantId,
     productName: orderItems.productNameSnapshot,
     variantNameSnapshot: orderItems.variantNameSnapshot,
     quantity: orderItems.quantity,
@@ -135,27 +141,26 @@ async function repeatOrderPreviewData(
     stockQuantity: productVariants.stockQuantity,
   }).from(orderItems).leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
     .leftJoin(products, eq(products.id, productVariants.productId))
-    .where(eq(orderItems.orderId, order.id)).orderBy(asc(orderItems.createdAt));
-  const items = rows.map((row) => {
-    let reason: string | null = null;
-    if (!storeAvailable) reason = "Store cannot deliver to the selected address";
-    else if (!row.variantId || !row.productId || row.stockQuantity === null || row.variantProductId !== row.productId ||
-      row.orderProductId !== row.productId ||
-      row.productStoreId !== order.storeId) reason = "Original product variant is no longer available";
-    else if (!row.productActive || !row.productAvailable || !row.variantActive || !row.variantAvailable)
-      reason = "Product variant is currently unavailable";
-    else if (row.quantity > row.stockQuantity) reason = "Insufficient stock";
-    return {
-      orderItemId: row.orderItemId,
-      productName: row.productName,
-      variantNameSnapshot: row.variantNameSnapshot,
-      quantity: row.quantity,
-      currentUnitPrice: row.currentUnitPrice,
-      available: reason === null,
-      reason,
-    };
-  });
-  return { storeAvailable, storeSwitchRequired, items, canAddCount: items.filter((item) => item.available).length, order };
+    .where(and(eq(orderItems.orderId, order.id),
+      selectedOrderItemId ? eq(orderItems.id, selectedOrderItemId) : undefined))
+    .orderBy(asc(orderItems.createdAt));
+  if (selectedOrderItemId && rows.length === 0) throw new HttpError(404, "Order item not found");
+  const existingItems = activeCart?.storeId === order.storeId
+    ? await db.select({ variantId: cartItems.variantId, quantity: cartItems.quantity })
+      .from(cartItems).where(eq(cartItems.cartId, activeCart.id))
+    : [];
+  const quantities = new Map(existingItems.map(item => [item.variantId, item.quantity]));
+  const evaluated = rows.map(row => evaluateReorderLine(row, order.storeId, storeAvailable));
+  const planned = planRepeatLineAdditions(rows.map((row, index) => ({
+    variantId: row.variantId, quantity: row.quantity, stockQuantity: row.stockQuantity,
+    available: evaluated[index]!.available,
+  })), quantities);
+  const items = evaluated.map((item, index) => item.available && !planned[index]
+    ? { ...item, available: false, currentUnitPrice: null, reason: "Insufficient stock for cart quantity" }
+    : item);
+  return { storeAvailable, storeSwitchRequired, storeName: order.storeName,
+    existingStoreName: storeSwitchRequired ? activeCart!.storeName : null,
+    items, canAddCount: items.filter((item) => item.available).length, order };
 }
 
 ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(async (req, res) => {
@@ -254,7 +259,7 @@ ordersRouter.get("/api/customer/orders/:orderId/repeat-preview", requireRole("cu
   const id = orderId(req);
   const parsed = repeatPreviewQuerySchema.safeParse(req.query);
   if (!parsed.success) throw new HttpError(400, "Invalid repeat-order preview request", validationDetails(parsed.error));
-  const preview = await repeatOrderPreviewData(getDb(), userId(req), id, parsed.data.addressId);
+  const preview = await repeatOrderPreviewData(getDb(), userId(req), id, parsed.data.addressId, parsed.data.orderItemId);
   const { order: _order, ...result } = preview;
   res.json(result);
 }));
@@ -268,6 +273,7 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
     sourceOrderId: id,
     addressId: parsed.data.addressId,
     confirmStoreSwitch: parsed.data.confirmStoreSwitch ?? false,
+    orderItemId: parsed.data.orderItemId,
   };
   const result = await getDb().transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${customerId}, 0))`);
@@ -281,6 +287,8 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
         sourceOrderId: previousRequest.sourceOrderId,
         addressId: previousRequest.addressId,
         confirmStoreSwitch: previousRequest.confirmStoreSwitch,
+        orderItemId: typeof previousRequest.response.selectedOrderItemId === "string"
+          ? previousRequest.response.selectedOrderItemId : null,
       }, requestedIntent)) {
         throw new HttpError(409, "Idempotency key was already used for a different repeat-order request", {
           code: "IDEMPOTENCY_KEY_REUSED",
@@ -288,6 +296,7 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
       }
       return previousRequest.response as unknown as {
         unavailable: Array<Record<string, unknown>>;
+        added?: Array<Record<string, unknown>>;
         addedCount: number;
       };
     }
@@ -304,10 +313,11 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
       storeServicePincodes,
       and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, address.pincode)),
     ).where(eq(stores.id, order.storeId)).limit(1).for("share");
-    if (!store || store.status !== "ACTIVE") throw new HttpError(409, "Store cannot deliver to the selected address");
+    const storeAvailable = store?.status === "ACTIVE";
     const orderRows = await tx.select({
       orderItemId: orderItems.id, productName: orderItems.productNameSnapshot,
       orderProductId: orderItems.productId,
+      originalVariantId: orderItems.variantId,
       variantNameSnapshot: orderItems.variantNameSnapshot, quantity: orderItems.quantity,
       productId: products.id, productStoreId: products.storeId, productActive: products.isActive,
       productAvailable: products.availability,
@@ -317,7 +327,10 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
       quantityValue: productVariants.quantityValue, quantityUnit: productVariants.quantityUnit,
     }).from(orderItems).leftJoin(productVariants, eq(productVariants.id, orderItems.variantId))
       .leftJoin(products, eq(products.id, productVariants.productId))
-      .where(eq(orderItems.orderId, order.id)).orderBy(asc(orderItems.createdAt));
+      .where(and(eq(orderItems.orderId, order.id),
+        parsed.data.orderItemId ? eq(orderItems.id, parsed.data.orderItemId) : undefined))
+      .orderBy(asc(orderItems.createdAt));
+    if (parsed.data.orderItemId && orderRows.length === 0) throw new HttpError(404, "Order item not found");
     const variantIds = [...new Set(orderRows.flatMap((row) => row.variantId ? [row.variantId] : []))];
     const lockedVariants = variantIds.length
       ? await tx.select().from(productVariants).where(inArray(productVariants.id, variantIds)).for("share")
@@ -344,20 +357,7 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
         productActive: product?.isActive ?? null,
         productAvailable: product?.availability ?? null,
       };
-      let reason: string | null = null;
-      if (!currentRow.variantId || !currentRow.productId || currentRow.stockQuantity === null ||
-        currentRow.variantProductId !== currentRow.productId || row.orderProductId !== currentRow.productId ||
-        currentRow.productStoreId !== order.storeId) reason = "Original product variant is no longer available";
-      else if (!currentRow.productActive || !currentRow.productAvailable ||
-        !currentRow.variantActive || !currentRow.variantAvailable)
-        reason = "Product variant is currently unavailable";
-      else if (row.quantity > currentRow.stockQuantity) reason = "Insufficient stock";
-      return {
-        orderItemId: row.orderItemId, productName: row.productName,
-        variantNameSnapshot: row.variantNameSnapshot, quantity: row.quantity,
-        currentUnitPrice: currentRow.currentUnitPrice,
-        available: reason === null, reason, row: currentRow,
-      };
+      return { ...evaluateReorderLine(currentRow, order.storeId, storeAvailable), row: currentRow };
     });
     const activeCarts = await tx.select({
       id: carts.id, storeId: carts.storeId, storeName: stores.name,
@@ -391,13 +391,13 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
       }
       if (!plannedAdditions[index]) {
         const { row: _row, ...publicItem } = item;
-        return [{ ...publicItem, available: false, reason: "Insufficient stock for cart quantity" }];
+        return [{ ...publicItem, available: false, currentUnitPrice: null, reason: "Insufficient stock for cart quantity" }];
       }
       return [];
     });
     const additions = evaluated.filter((_item, index) => plannedAdditions[index]);
     if (additions.length === 0) {
-      const response = { unavailable, addedCount: 0 };
+      const response = { unavailable, added: [], addedCount: 0, selectedOrderItemId: requestedIntent.orderItemId ?? null };
       await tx.insert(customerRepeatRequests).values({
         customerId, idempotencyKey: parsed.data.idempotencyKey,
         sourceOrderId: id, addressId: parsed.data.addressId,
@@ -445,7 +445,8 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
         ));
     }
     let addedCount = 0;
-    for (const { row } of additions) {
+    const addedItems: ReturnType<typeof evaluateReorderLine>[] = [];
+    for (const { row, ...publicItem } of additions) {
       if (!row.variantId || !row.productId || row.stockQuantity === null) continue;
       const [added] = await tx.insert(cartItems).values({
         cartId: cart.id, productId: row.productId, variantId: row.variantId, quantity: row.quantity,
@@ -454,10 +455,12 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
         set: { quantity: sql`${cartItems.quantity} + ${row.quantity}`, updatedAt: new Date() },
         where: sql`${cartItems.quantity} + ${row.quantity} <= ${row.stockQuantity}`,
       }).returning({ id: cartItems.id });
-      if (added) addedCount += 1;
+      if (!added) throw new HttpError(409, "Unable to add repeat-order item");
+      addedCount += 1;
+      addedItems.push(publicItem);
     }
     if (addedCount === 0) throw new HttpError(409, "Unable to add any repeat-order items");
-    const response = { unavailable, addedCount };
+    const response = { unavailable, added: addedItems, addedCount, selectedOrderItemId: requestedIntent.orderItemId ?? null };
     await tx.insert(customerRepeatRequests).values({
       customerId, idempotencyKey: parsed.data.idempotencyKey,
       sourceOrderId: id, addressId: parsed.data.addressId,
@@ -465,7 +468,12 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
     });
     return response;
   }, { isolationLevel: "read committed" });
-  res.json({ cart: await cartResponse(customerId), ...result });
+  res.json({
+    cart: await cartResponse(customerId),
+    added: result.added ?? [],
+    unavailable: result.unavailable,
+    addedCount: result.addedCount,
+  });
 }));
 
 ordersRouter.get("/api/customer/orders", requireRole("customer"), asyncHandler(async (req, res) => {

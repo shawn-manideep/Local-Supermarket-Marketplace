@@ -5,6 +5,56 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface ReorderSubmission {
+  addressId: string;
+  idempotencyKey: string;
+  orderItemId?: string;
+  confirmStoreSwitch?: boolean;
+}
+
+export interface ReorderItem {
+  orderItemId: string;
+  productName: string;
+  /** @nullable */
+  variantNameSnapshot: string | null;
+  /** @minimum 1 */
+  quantity: number;
+  /** @nullable */
+  currentUnitPrice: string | null;
+  available: boolean;
+  /** @nullable */
+  reason: string | null;
+}
+
+export interface ReorderPreview {
+  storeAvailable: boolean;
+  storeSwitchRequired: boolean;
+  storeName: string;
+  /** @nullable */
+  existingStoreName: string | null;
+  items: ReorderItem[];
+  /** @minimum 0 */
+  canAddCount: number;
+}
+
+/**
+ * Existing customer cart response, with server-owned current prices
+ * @nullable
+ */
+export type ReorderOutcomeCart = { [key: string]: unknown } | null;
+
+export interface ReorderOutcome {
+  /**
+     * Existing customer cart response, with server-owned current prices
+     * @nullable
+     */
+  cart: ReorderOutcomeCart;
+  added: ReorderItem[];
+  unavailable: ReorderItem[];
+  /** @minimum 0 */
+  addedCount: number;
+}
+
 export interface CustomerShoppingCategory {
   id: string;
   name: string;
@@ -17,6 +67,11 @@ export interface CustomerShoppingCategories {
 export interface HealthStatus {
   status: string;
 }
+
+export type PreviewCustomerReorderParams = {
+addressId: string;
+orderItemId?: string;
+};
 
 export type GetCustomerShoppingCategoriesParams = {
 /**

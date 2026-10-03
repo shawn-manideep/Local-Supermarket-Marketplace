@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -18,11 +22,15 @@ import type {
 import type {
   CustomerShoppingCategories,
   GetCustomerShoppingCategoriesParams,
-  HealthStatus
+  HealthStatus,
+  PreviewCustomerReorderParams,
+  ReorderOutcome,
+  ReorderPreview,
+  ReorderSubmission
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -47,6 +55,184 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getPreviewCustomerReorderUrl = (orderId: string,
+    params: PreviewCustomerReorderParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/customer/orders/${orderId}/repeat-preview?${stringifiedParams}` : `/api/customer/orders/${orderId}/repeat-preview`
+}
+
+/**
+ * @summary Evaluate exact historical items using current store availability and prices
+ */
+export const previewCustomerReorder = async (orderId: string,
+    params: PreviewCustomerReorderParams, options?: Parameters<typeof customFetch>[1]): Promise<ReorderPreview> => {
+
+  return customFetch<ReorderPreview>(getPreviewCustomerReorderUrl(orderId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewCustomerReorderQueryKey = (orderId: string,
+    params?: PreviewCustomerReorderParams,) => {
+    return [
+    `/api/customer/orders/${orderId}/repeat-preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPreviewCustomerReorderQueryOptions = <TData = Awaited<ReturnType<typeof previewCustomerReorder>>, TError = ErrorType<void>>(orderId: string,
+    params: PreviewCustomerReorderParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewCustomerReorder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewCustomerReorderQueryKey(orderId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewCustomerReorder>>> = ({ signal }) => previewCustomerReorder(orderId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewCustomerReorder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewCustomerReorderQueryResult = NonNullable<Awaited<ReturnType<typeof previewCustomerReorder>>>
+export type PreviewCustomerReorderQueryError = ErrorType<void>
+
+
+/**
+ * @summary Evaluate exact historical items using current store availability and prices
+ */
+
+export function usePreviewCustomerReorder<TData = Awaited<ReturnType<typeof previewCustomerReorder>>, TError = ErrorType<void>>(
+ orderId: string,
+    params: PreviewCustomerReorderParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewCustomerReorder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewCustomerReorderQueryOptions(orderId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitCustomerReorderUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/customer/orders/${orderId}/repeat`
+}
+
+/**
+ * @summary Add eligible exact historical items to cart, never place an order
+ */
+export const submitCustomerReorder = async (orderId: string,
+    reorderSubmission: ReorderSubmission, options?: Parameters<typeof customFetch>[1]): Promise<ReorderOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReorderOutcome>(getSubmitCustomerReorderUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reorderSubmission)
+  }
+);}
+
+
+
+
+
+export const getSubmitCustomerReorderMutationKey = () => ['submitCustomerReorder'] as const;
+
+export const getSubmitCustomerReorderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitCustomerReorder>>, TError,SubmitCustomerReorderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitCustomerReorder>>, TError,SubmitCustomerReorderMutationVariables, TContext> => {
+
+const mutationKey = getSubmitCustomerReorderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitCustomerReorder>>, SubmitCustomerReorderMutationVariables> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  submitCustomerReorder(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitCustomerReorderMutationResult = NonNullable<Awaited<ReturnType<typeof submitCustomerReorder>>>
+    export type SubmitCustomerReorderMutationBody = BodyType<ReorderSubmission>
+    export type SubmitCustomerReorderMutationError = ErrorType<void>
+    export type SubmitCustomerReorderMutationVariables = {orderId: string;data: BodyType<ReorderSubmission>}
+
+    /**
+ * @summary Add eligible exact historical items to cart, never place an order
+ */
+export const useSubmitCustomerReorder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitCustomerReorder>>, TError,SubmitCustomerReorderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitCustomerReorder>>,
+        TError,
+        SubmitCustomerReorderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitCustomerReorderMutationOptions(options));
+    }
 
 export const getGetCustomerShoppingCategoriesUrl = (params: GetCustomerShoppingCategoriesParams,) => {
   const normalizedParams = new URLSearchParams();
