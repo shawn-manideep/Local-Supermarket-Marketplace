@@ -14,6 +14,7 @@ import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
 import { centsToMoney, moneyToCents } from "./money.js";
+import { stockError } from "../orders/inventory.js";
 
 export const customerCartRouter = Router();
 
@@ -60,6 +61,8 @@ export async function cartResponse(ownerId: string) {
     ...item,
     lineSubtotal: centsToMoney(moneyToCents(item.unitPrice) * BigInt(item.quantity)),
     purchasable: productIsActive && productAvailability && isActive && item.availability && item.quantity <= stockQuantity,
+    unavailableReason: !productIsActive || !productAvailability || !isActive || !item.availability ? "VARIANT_UNAVAILABLE"
+      : stockQuantity === 0 ? "OUT_OF_STOCK" : item.quantity > stockQuantity ? "INSUFFICIENT_STOCK" : null,
   }));
   const subtotalCents = items.reduce((sum, item) => sum + moneyToCents(item.lineSubtotal), 0n);
   const deliveryCents = moneyToCents(cart.deliveryFee);
@@ -79,7 +82,8 @@ customerCartRouter.get("/api/customer/cart", requireRole("customer"), asyncHandl
 
 customerCartRouter.post("/api/customer/cart/items", requireRole("customer"), asyncHandler(async (request, response) => {
   const parsed = customerCartItemCreateSchema.safeParse(request.body);
-  if (!parsed.success) throw new HttpError(400, "Invalid cart item", validationDetails(parsed.error));
+  if (!parsed.success) throw new HttpError(400, "Invalid cart item", validationDetails(parsed.error),
+    parsed.error.issues.some(issue => issue.path[0] === "quantity") ? "INVALID_QUANTITY" : undefined);
   const ownerId = customerId(request);
   await getDb().transaction(async (transaction) => {
     await transaction.execute(sql`select pg_advisory_xact_lock(hashtextextended(${ownerId}, 0))`);
@@ -88,6 +92,7 @@ customerCartRouter.post("/api/customer/cart/items", requireRole("customer"), asy
       isActive: products.isActive, availability: products.availability,
       variantId: productVariants.id, variantActive: productVariants.isActive,
       variantAvailability: productVariants.availability, stockQuantity: productVariants.stockQuantity,
+      productName: products.name, variantName: productVariants.name,
       storeName: stores.name,
     }).from(products).innerJoin(stores, eq(stores.id, products.storeId))
       .innerJoin(productVariants, eq(productVariants.productId, products.id))
@@ -95,8 +100,9 @@ customerCartRouter.post("/api/customer/cart/items", requireRole("customer"), asy
         eq(stores.status, "ACTIVE")))
       .limit(1).for("share");
     if (!variant || !variant.isActive || !variant.variantActive) throw new HttpError(404, "Product variant not available");
-    if (!variant.availability || !variant.variantAvailability) throw new HttpError(409, "Product variant is currently unavailable");
-    if (parsed.data.quantity > variant.stockQuantity) throw new HttpError(409, "Requested quantity exceeds available stock");
+    if (!variant.availability || !variant.variantAvailability) throw stockError("VARIANT_UNAVAILABLE", variant);
+    if (variant.stockQuantity === 0) throw stockError("OUT_OF_STOCK", variant);
+    if (parsed.data.quantity > variant.stockQuantity) throw stockError("INSUFFICIENT_STOCK", variant);
     const [eligible] = await transaction.select({ id: customerAddresses.id }).from(customerAddresses)
       .innerJoin(storeServicePincodes, eq(storeServicePincodes.pincode, customerAddresses.pincode))
       .where(and(eq(customerAddresses.customerId, ownerId), eq(storeServicePincodes.storeId, variant.storeId))).limit(1);
@@ -126,14 +132,18 @@ customerCartRouter.post("/api/customer/cart/items", requireRole("customer"), asy
         .where(and(eq(carts.customerId, ownerId), eq(carts.storeId, variant.storeId), eq(carts.status, "ACTIVE"))).limit(1);
     }
     if (!cart) throw new HttpError(409, "Unable to create active cart");
+    const [existingLine] = await transaction.select({ quantity: cartItems.quantity }).from(cartItems)
+      .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.variantId, variant.variantId))).limit(1);
+    if ((existingLine?.quantity ?? 0) + parsed.data.quantity > 999) throw stockError("INVALID_QUANTITY", variant);
     const [item] = await transaction.insert(cartItems)
       .values({ cartId: cart.id, productId: variant.id, variantId: variant.variantId, quantity: parsed.data.quantity })
       .onConflictDoUpdate({
         target: [cartItems.cartId, cartItems.variantId],
         set: { quantity: sql`${cartItems.quantity} + ${parsed.data.quantity}`, updatedAt: new Date() },
-        where: sql`${cartItems.quantity} + ${parsed.data.quantity} <= ${variant.stockQuantity}`,
+        where: sql`${cartItems.quantity} + ${parsed.data.quantity} <= ${variant.stockQuantity}
+          AND ${cartItems.quantity} + ${parsed.data.quantity} <= 999`,
       }).returning({ id: cartItems.id });
-    if (!item) throw new HttpError(409, "Cart quantity would exceed available stock");
+    if (!item) throw stockError("INSUFFICIENT_STOCK", variant);
   });
   response.status(201).json({ cart: await cartResponse(ownerId) });
 }));
@@ -147,6 +157,7 @@ customerCartRouter.patch("/api/customer/cart/items/:itemId", requireRole("custom
     await transaction.execute(sql`select pg_advisory_xact_lock(hashtextextended(${ownerId}, 0))`);
     const [owned] = await transaction.select({
       id: cartItems.id, cartId: cartItems.cartId, stock: productVariants.stockQuantity,
+      productName: products.name, variantName: productVariants.name,
       active: productVariants.isActive, available: productVariants.availability,
       productActive: products.isActive, productAvailable: products.availability,
       productStoreId: products.storeId, cartStoreId: carts.storeId,
@@ -169,9 +180,10 @@ customerCartRouter.patch("/api/customer/cart/items/:itemId", requireRole("custom
     } else {
       if (!owned.active || !owned.available || !owned.productActive || !owned.productAvailable ||
         owned.productStoreId !== owned.cartStoreId || owned.storeActive !== "ACTIVE") {
-        throw new HttpError(409, "Product variant is no longer available");
+        throw stockError("VARIANT_UNAVAILABLE", owned);
       }
-      if (body.data.quantity > owned.stock) throw new HttpError(409, "Requested quantity exceeds available stock");
+      if (owned.stock === 0) throw stockError("OUT_OF_STOCK", owned);
+      if (body.data.quantity > owned.stock) throw stockError("INSUFFICIENT_STOCK", owned);
       await transaction.update(cartItems).set({ quantity: body.data.quantity, updatedAt: new Date() }).where(eq(cartItems.id, owned.id));
     }
   });
@@ -221,6 +233,7 @@ customerCartRouter.post("/api/customer/checkout/validate", requireRole("customer
     if (!cartRecord) throw new HttpError(409, "Cart is empty");
     const rows = await transaction.select({
       id: cartItems.id, quantity: cartItems.quantity, unitPrice: productVariants.price,
+      productName: products.name, variantName: productVariants.name,
       active: productVariants.isActive, available: productVariants.availability, stock: productVariants.stockQuantity,
       productActive: products.isActive, productAvailable: products.availability,
       productId: products.id, productStoreId: products.storeId, variantProductId: productVariants.productId,
@@ -231,8 +244,10 @@ customerCartRouter.post("/api/customer/checkout/validate", requireRole("customer
     if (rows.some((item) => item.productStoreId !== cartRecord.storeId || item.variantProductId !== item.productId)) {
       throw new HttpError(409, "Cart contains a product from another store");
     }
-    if (rows.some((item) => !item.active || !item.available || !item.productActive || !item.productAvailable || item.quantity > item.stock)) {
-      throw new HttpError(409, "One or more cart products are unavailable or out of stock");
+    for (const item of rows) {
+      if (!item.active || !item.available || !item.productActive || !item.productAvailable) throw stockError("VARIANT_UNAVAILABLE", item);
+      if (item.stock === 0) throw stockError("OUT_OF_STOCK", item);
+      if (item.quantity > item.stock) throw stockError("INSUFFICIENT_STOCK", item);
     }
     const [address] = await transaction.select().from(customerAddresses)
       .where(and(eq(customerAddresses.id, parsed.data.addressId), eq(customerAddresses.customerId, ownerId))).limit(1).for("share");

@@ -15,8 +15,12 @@ winner's committed cart state rather than an earlier transaction snapshot.
 
 **How to apply:** Keep customer/vendor/admin direct order mutations revoked.
 Use row locks for status changes and append history in the same transaction.
-Do not deduct or reserve stock until a future inventory rule explicitly
-defines that behavior; always revalidate the current enforceable stock limit.
+Deduct variant stock exactly once at successful order placement, inside the
+same transaction as snapshots, initial history, and cart conversion. Carts
+never reserve stock. Later fulfillment transitions do not deduct again.
+Restore only on the existing permitted PLACED→CANCELLED or PLACED→REJECTED
+transition, at most once, in the status/history transaction. Historical
+orders with no original deduction must never receive fictitious restoration.
 Vendor operational reads must remain scoped to the authenticated vendor's
 single store and must never expose commission or customer ownership internals,
 including action responses. Admin order operations remain read-only unless a
@@ -37,3 +41,16 @@ while requiring the existing full lifecycle and history to remain intact.
 **How to apply:** Treat READY as "Ready for fulfillment", not as automatic
 dispatch or delivery-partner assignment. Do not remove the existing delivery
 lifecycle when refining vendor preparation.
+
+Stock stays on each vendor's selling variant, never on the Master Catalog.
+Use a minimal inventory-effect marker and customer-scoped checkout identity,
+not a ledger or reservation subsystem. Keep operational inventory markers
+out of customer read contracts.
+
+**Why:** The user explicitly required atomic placement deduction, exactly-once
+effects, no historical snapshot rewrites, and the smallest compatible
+architecture for Stock Management & Orderable Quantity.
+
+**How to apply:** Preserve immutable receipt snapshots, current-price cart
+behavior, the existing lifecycle, and vendor store isolation when changing
+inventory. Do not extend restoration to new statuses without approval.

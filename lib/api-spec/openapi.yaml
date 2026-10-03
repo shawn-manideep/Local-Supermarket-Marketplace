@@ -11,6 +11,36 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /customer/orders:
+    post:
+      operationId: placeCustomerOrder
+      summary: Atomically place one order per cart and deduct variant stock once
+      security:
+        - customerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CustomerCheckoutSubmission" }
+      responses:
+        "201":
+          description: Placed order or successful idempotent replay; no private inventory fields
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerCheckoutOutcome" }
+        "400":
+          description: Invalid quantity or malformed request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StockFailure" }
+        "401": { description: Sign-in required }
+        "403": { description: Customer role required }
+        "404": { description: Owned delivery address not found }
+        "409":
+          description: Stock changed, cart is unavailable, or checkout identity conflicts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StockFailure" }
   /customer/orders/{orderId}/repeat-preview:
     get:
       operationId: previewCustomerReorder
@@ -115,6 +145,37 @@ components:
       type: http
       scheme: bearer
   schemas:
+    CustomerCheckoutSubmission:
+      type: object
+      additionalProperties: false
+      required: [cartId, addressId, paymentMethod, idempotencyKey]
+      properties:
+        cartId: { type: string, format: uuid }
+        addressId: { type: string, format: uuid }
+        paymentMethod: { type: string, enum: [COD] }
+        idempotencyKey: { type: string, format: uuid }
+    CustomerCheckoutOutcome:
+      type: object
+      required: [order]
+      properties:
+        order:
+          type: object
+          description: Existing safe order detail with immutable items and status history
+          required: [id, status, totalAmount, items, statusHistory]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [PLACED, ACCEPTED, PREPARING, READY, OUT_FOR_DELIVERY, DELIVERED, REJECTED, CANCELLED] }
+            totalAmount: { type: string }
+            items: { type: array, items: { type: object } }
+            statusHistory: { type: array, items: { type: object } }
+    StockFailure:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code:
+          type: string
+          enum: [OUT_OF_STOCK, INSUFFICIENT_STOCK, VARIANT_UNAVAILABLE, INVALID_QUANTITY, ORDER_ALREADY_PROCESSED, IDEMPOTENCY_CONFLICT]
     ReorderSubmission:
       type: object
       additionalProperties: false

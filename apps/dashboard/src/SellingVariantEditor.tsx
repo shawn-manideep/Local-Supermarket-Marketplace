@@ -481,7 +481,7 @@ export function SellingVariantEditor({
                     />
                     {fieldErrors.stock
                       ? <span className="vendor-variant-field-error" id={fieldId("stock-error")}>{fieldErrors.stock}</span>
-                      : <span className="vendor-text-muted vendor-variant-field-hint" id={fieldId("stock-help")}>0 is allowed.</span>}
+                      : <span className="vendor-text-muted vendor-variant-field-hint" id={fieldId("stock-help")}>Stock counts this selling variant. 0 blocks purchases; saving stock does not activate an inactive variant.</span>}
                   </label>
                 </div>
 

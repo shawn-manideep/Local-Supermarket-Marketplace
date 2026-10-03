@@ -1,5 +1,13 @@
 import { supabase } from "./supabase";
 export type { CustomerShoppingCategory } from "../../../../lib/api-client-react/src/generated/api.schemas";
+export type { CustomerCheckoutSubmission } from "../../../../lib/api-client-react/src/generated/api.schemas";
+
+export class CustomerRequestError extends Error {
+  constructor(message: string, public readonly status: number, public readonly code?: string) {
+    super(message);
+    this.name = "CustomerRequestError";
+  }
+}
 
 export interface CustomerProfile {
   id: string;
@@ -102,6 +110,7 @@ export interface CustomerCartItem {
   lineSubtotal: string;
   availability: boolean;
   purchasable: boolean;
+  unavailableReason?: "VARIANT_UNAVAILABLE" | "OUT_OF_STOCK" | "INSUFFICIENT_STOCK" | null;
 }
 
 export interface CustomerCart {
@@ -221,8 +230,8 @@ export async function customerApi<T>(path: string, init: RequestInit = {}): Prom
     | { error?: string; details?: Array<{ message?: string }> }
     | undefined;
   if (!response.ok) {
-    const error = payload as { error?: string; details?: Array<{ message?: string }> } | undefined;
-    throw new Error(error?.details?.[0]?.message ?? error?.error ?? "Unable to complete request.");
+    const error = payload as { error?: string; code?: string; details?: Array<{ message?: string }> } | undefined;
+    throw new CustomerRequestError(error?.details?.[0]?.message ?? error?.error ?? "Unable to complete request.", response.status, error?.code);
   }
   return payload as T;
 }

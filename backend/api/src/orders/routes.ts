@@ -17,6 +17,7 @@ import { cartResponse } from "../customer-cart/routes.js";
 import { centsToMoney, moneyToCents } from "../customer-cart/money.js";
 import { commissionCents, DEFAULT_COMMISSION_RATE, LEGAL_ORDER_TRANSITIONS } from "./lifecycle.js";
 import { evaluateReorderLine } from "./reorder.js";
+import { checkoutReplay, deductStock, restoreOrderStock, stockError } from "./inventory.js";
 
 export const ordersRouter = Router();
 function userId(req: Request) {
@@ -170,8 +171,10 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
   const result = await getDb().transaction(async (tx) => {
     // Keep all order/cart work serialized per customer, including concurrent checkout requests.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${customerId}, 0))`);
+    const replay = await checkoutReplay(tx, customerId, parsed.data);
+    if (replay) return { id: replay };
     const [cart] = await tx.select().from(carts)
-      .where(and(eq(carts.customerId, customerId), eq(carts.status, "ACTIVE"))).limit(1).for("update");
+      .where(and(eq(carts.id, parsed.data.cartId), eq(carts.customerId, customerId), eq(carts.status, "ACTIVE"))).limit(1).for("update");
     if (!cart) throw new HttpError(409, "Cart is empty");
     const [address] = await tx.select().from(customerAddresses)
       .where(and(eq(customerAddresses.id, parsed.data.addressId), eq(customerAddresses.customerId, customerId)))
@@ -186,7 +189,7 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     const rows = await tx.select({ item: cartItems, product: products, variant: productVariants })
       .from(cartItems).innerJoin(products, eq(products.id, cartItems.productId))
       .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
-      .where(eq(cartItems.cartId, cart.id)).for("update");
+      .where(eq(cartItems.cartId, cart.id)).orderBy(asc(productVariants.id)).for("update");
     if (!rows.length) throw new HttpError(409, "Cart is empty");
     const categoryIds = rows.map(({ product }) => product.categoryId).filter((id): id is string => id !== null);
     const validCategories = categoryIds.length
@@ -198,14 +201,17 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
         ))
         .for("share")
       : [];
-    if (rows.some(({ product, variant }) => product.storeId !== cart.storeId || variant.productId !== product.id ||
+    const unavailable = rows.find(({ product, variant }) => product.storeId !== cart.storeId || variant.productId !== product.id ||
       !product.isActive || !product.availability || !variant.isActive ||
       !variant.availability || variant.stockQuantity < 0 ||
-      (product.categoryId !== null && !validCategories.some(c => c.id === product.categoryId)))) {
-      throw new HttpError(409, "One or more cart product variants are no longer available");
+      (product.categoryId !== null && !validCategories.some(c => c.id === product.categoryId)));
+    if (unavailable) throw stockError("VARIANT_UNAVAILABLE", { productName: unavailable.product.name, variantName: unavailable.variant.name });
+    for (const { item, product, variant } of rows) {
+      const line = { productName: product.name, variantName: variant.name };
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) throw stockError("INVALID_QUANTITY", line);
+      if (variant.stockQuantity === 0) throw stockError("OUT_OF_STOCK", line);
+      if (item.quantity > variant.stockQuantity) throw stockError("INSUFFICIENT_STOCK", line);
     }
-    if (rows.some(({ item, variant }) => item.quantity > variant.stockQuantity))
-      throw new HttpError(409, "Requested quantity exceeds available stock");
     // Read and share-lock current canonical names after the cart/product/variant rows are locked.
     // Keep master data out of the FOR UPDATE join so PostgreSQL never locks its nullable side.
     const masterProductIds = [...new Set(rows
@@ -223,9 +229,16 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     const fee = moneyToCents(store.stores.deliveryFee);
     const minimum = moneyToCents(store.stores.minimumOrderValue);
     if (subtotal < minimum) throw new HttpError(409, `Minimum order value is ${store.stores.minimumOrderValue}`);
+    await deductStock(tx, cart.storeId, rows.map(({ item, product, variant }) => ({
+      variantId: variant.id, productId: product.id, quantity: item.quantity,
+      productName: (product.masterProductId && masterNameById.get(product.masterProductId)) || product.name,
+      variantName: variant.name,
+    })));
     const rate = store.stores.commissionRate;
     const [order] = await tx.insert(orders).values({
       customerId, storeId: cart.storeId, status: "PLACED", paymentMethod: "COD",
+      inventoryState: "DEDUCTED", checkoutKey: parsed.data.idempotencyKey,
+      checkoutCartId: cart.id, checkoutAddressId: address.id,
       subtotal: centsToMoney(subtotal), deliveryFeeSnapshot: centsToMoney(fee),
       totalAmount: centsToMoney(subtotal + fee),
       commissionRateSnapshot: rate ?? DEFAULT_COMMISSION_RATE,
@@ -515,6 +528,7 @@ ordersRouter.post("/api/customer/orders/:orderId/cancel", requireRole("customer"
     if (!order) throw new HttpError(404, "Order not found");
     if (order.status !== "PLACED") throw new HttpError(409, "Order cannot be cancelled in its current state");
     const [value] = await tx.update(orders).set({ status: "CANCELLED", updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+    await restoreOrderStock(tx, id);
     await tx.insert(orderStatusHistory).values({ orderId: id, status: "CANCELLED", changedBy: customerId });
     return value;
   }, { isolationLevel: "read committed" });
@@ -585,6 +599,7 @@ ordersRouter.post("/api/vendor/orders/:orderId/actions", requireRole("vendor"), 
     const next = LEGAL_ORDER_TRANSITIONS[parsed.data.action]?.[order.status];
     if (!next) throw new HttpError(409, `Illegal order transition from ${order.status}`);
     const [value] = await tx.update(orders).set({ status: next as typeof order.status, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+    if (next === "REJECTED") await restoreOrderStock(tx, id);
     await tx.insert(orderStatusHistory).values({ orderId: id, status: next as typeof order.status, note: parsed.data.note, changedBy: userId(req) });
     return value;
   }, { isolationLevel: "read committed" });

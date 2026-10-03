@@ -85,6 +85,8 @@ export function cartItemInput(product: CustomerProduct, variant: CustomerProduct
 /** Never show unknown database or API diagnostics to shoppers. */
 export function shoppingError(reason: unknown, fallback = "We couldn't complete that request. Please try again.") {
   const message = reason instanceof Error ? reason.message : "";
+  const code = reason && typeof reason === "object" && "code" in reason ? reason.code : null;
+  if (["OUT_OF_STOCK", "INSUFFICIENT_STOCK", "VARIANT_UNAVAILABLE", "INVALID_QUANTITY", "IDEMPOTENCY_CONFLICT", "ORDER_ALREADY_PROCESSED"].includes(String(code))) return message || fallback;
   if (message === "Sorry, this option is no longer available. Please select another option.") return message;
   if (/sign in|authentication/i.test(message)) return "Please sign in again to continue shopping.";
   if (/stock/i.test(message)) return "That quantity is no longer available. Try fewer items or another option.";

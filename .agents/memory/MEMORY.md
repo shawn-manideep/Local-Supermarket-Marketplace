@@ -14,3 +14,4 @@
 - [Customer shopping boundaries](customer-shopping-boundaries.md) — contextual cart navigation, explicit multi-variant choice, optional categories, and manual browser acceptance.
 - [Customer reorder boundaries](customer-reorder-boundaries.md) — exact historical identities enter a current-price cart; never substitute, place an order, or overwrite history.
 - [OpenAPI generation compatibility](openapi-generation-compatibility.md) — Orval path/query exports can collide; generated mutation headers need DOM iterable typing.
+- [Isolated PostgreSQL testing](isolated-postgres-testing.md) — disposable clusters must not inherit managed database connection defaults.

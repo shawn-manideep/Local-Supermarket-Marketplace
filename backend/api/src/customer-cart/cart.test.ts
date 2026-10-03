@@ -87,8 +87,8 @@ test("same-store products append to a variant-keyed cart and cross-store additio
   assert.match(routes, /throw new HttpError\(409, "Store switch required"/);
   assert.match(routes, /target: \[cartItems\.cartId, cartItems\.variantId\]/);
   assert.match(routes, /eq\(carts\.storeId, variant\.storeId\)/);
-  assert.match(routes, /Requested quantity exceeds available stock/);
-  assert.match(routes, /Product variant is currently unavailable/);
+  assert.match(routes, /stockError\("INSUFFICIENT_STOCK", variant\)/);
+  assert.match(routes, /stockError\("VARIANT_UNAVAILABLE", variant\)/);
 });
 
 test("cart response strips exact inventory and keeps authoritative variant prices", async () => {

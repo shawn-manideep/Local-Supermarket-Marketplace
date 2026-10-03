@@ -542,6 +542,8 @@ export const customerCheckoutValidationSchema = z.object({
 export const customerOrderCreateSchema = z.object({
   addressId: z.string().uuid(),
   paymentMethod: z.literal("COD"),
+  cartId: z.string().uuid(),
+  idempotencyKey: z.string().uuid(),
 }).strict();
 
 export const customerOrderIdParamSchema = z.object({

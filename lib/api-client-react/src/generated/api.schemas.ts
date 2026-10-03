@@ -5,6 +5,71 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type CustomerCheckoutSubmissionPaymentMethod = typeof CustomerCheckoutSubmissionPaymentMethod[keyof typeof CustomerCheckoutSubmissionPaymentMethod];
+
+
+export const CustomerCheckoutSubmissionPaymentMethod = {
+  COD: 'COD',
+} as const;
+
+export interface CustomerCheckoutSubmission {
+  cartId: string;
+  addressId: string;
+  paymentMethod: CustomerCheckoutSubmissionPaymentMethod;
+  idempotencyKey: string;
+}
+
+export type CustomerCheckoutOutcomeOrderStatus = typeof CustomerCheckoutOutcomeOrderStatus[keyof typeof CustomerCheckoutOutcomeOrderStatus];
+
+
+export const CustomerCheckoutOutcomeOrderStatus = {
+  PLACED: 'PLACED',
+  ACCEPTED: 'ACCEPTED',
+  PREPARING: 'PREPARING',
+  READY: 'READY',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type CustomerCheckoutOutcomeOrderItemsItem = { [key: string]: unknown };
+
+export type CustomerCheckoutOutcomeOrderStatusHistoryItem = { [key: string]: unknown };
+
+/**
+ * Existing safe order detail with immutable items and status history
+ */
+export type CustomerCheckoutOutcomeOrder = {
+  id: string;
+  status: CustomerCheckoutOutcomeOrderStatus;
+  totalAmount: string;
+  items: CustomerCheckoutOutcomeOrderItemsItem[];
+  statusHistory: CustomerCheckoutOutcomeOrderStatusHistoryItem[];
+};
+
+export interface CustomerCheckoutOutcome {
+  /** Existing safe order detail with immutable items and status history */
+  order: CustomerCheckoutOutcomeOrder;
+}
+
+export type StockFailureCode = typeof StockFailureCode[keyof typeof StockFailureCode];
+
+
+export const StockFailureCode = {
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+  INSUFFICIENT_STOCK: 'INSUFFICIENT_STOCK',
+  VARIANT_UNAVAILABLE: 'VARIANT_UNAVAILABLE',
+  INVALID_QUANTITY: 'INVALID_QUANTITY',
+  ORDER_ALREADY_PROCESSED: 'ORDER_ALREADY_PROCESSED',
+  IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+} as const;
+
+export interface StockFailure {
+  error: string;
+  code?: StockFailureCode;
+}
+
 export interface ReorderSubmission {
   addressId: string;
   idempotencyKey: string;

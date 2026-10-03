@@ -20,13 +20,16 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CustomerCheckoutOutcome,
+  CustomerCheckoutSubmission,
   CustomerShoppingCategories,
   GetCustomerShoppingCategoriesParams,
   HealthStatus,
   PreviewCustomerReorderParams,
   ReorderOutcome,
   ReorderPreview,
-  ReorderSubmission
+  ReorderSubmission,
+  StockFailure
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -55,6 +58,94 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getPlaceCustomerOrderUrl = () => {
+
+
+
+
+  return `/api/customer/orders`
+}
+
+/**
+ * @summary Atomically place one order per cart and deduct variant stock once
+ */
+export const placeCustomerOrder = async (customerCheckoutSubmission: CustomerCheckoutSubmission, options?: Parameters<typeof customFetch>[1]): Promise<CustomerCheckoutOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CustomerCheckoutOutcome>(getPlaceCustomerOrderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerCheckoutSubmission)
+  }
+);}
+
+
+
+
+
+export const getPlaceCustomerOrderMutationKey = () => ['placeCustomerOrder'] as const;
+
+export const getPlaceCustomerOrderMutationOptions = <TError = ErrorType<StockFailure | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeCustomerOrder>>, TError,PlaceCustomerOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof placeCustomerOrder>>, TError,PlaceCustomerOrderMutationVariables, TContext> => {
+
+const mutationKey = getPlaceCustomerOrderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof placeCustomerOrder>>, PlaceCustomerOrderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  placeCustomerOrder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PlaceCustomerOrderMutationResult = NonNullable<Awaited<ReturnType<typeof placeCustomerOrder>>>
+    export type PlaceCustomerOrderMutationBody = BodyType<CustomerCheckoutSubmission>
+    export type PlaceCustomerOrderMutationError = ErrorType<StockFailure | void>
+    export type PlaceCustomerOrderMutationVariables = {data: BodyType<CustomerCheckoutSubmission>}
+
+    /**
+ * @summary Atomically place one order per cart and deduct variant stock once
+ */
+export const usePlaceCustomerOrder = <TError = ErrorType<StockFailure | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeCustomerOrder>>, TError,PlaceCustomerOrderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof placeCustomerOrder>>,
+        TError,
+        PlaceCustomerOrderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPlaceCustomerOrderMutationOptions(options));
+    }
 
 export const getPreviewCustomerReorderUrl = (orderId: string,
     params: PreviewCustomerReorderParams,) => {

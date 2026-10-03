@@ -405,6 +405,10 @@ export const orders = pgTable(
       .notNull()
       .references(() => stores.id, { onDelete: "restrict" }),
     status: orderStatusEnum("status").notNull().default("PLACED"),
+    inventoryState: text("inventory_state").notNull().default("NONE"),
+    checkoutKey: uuid("checkout_key"),
+    checkoutCartId: uuid("checkout_cart_id"),
+    checkoutAddressId: uuid("checkout_address_id"),
     deliveryType: deliveryTypeEnum("delivery_type")
       .notNull()
       .default("vendor_staff"),
@@ -435,6 +439,9 @@ export const orders = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    uniqueIndex("orders_customer_checkout_key_uidx").on(table.customerId, table.checkoutKey),
+    uniqueIndex("orders_checkout_cart_uidx").on(table.checkoutCartId),
+    check("orders_inventory_state_check", sql`${table.inventoryState} IN ('NONE', 'DEDUCTED', 'RESTORED')`),
     index("orders_customer_id_idx").on(table.customerId),
     uniqueIndex("orders_customer_id_id_uidx").on(table.customerId, table.id),
     index("orders_store_id_idx").on(table.storeId),

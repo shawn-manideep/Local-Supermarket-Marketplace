@@ -125,7 +125,7 @@ body {
 
 .session-status {
   align-items: center;
-  color: #286143;
+  color: #1723c4;
   display: inline-flex;
   font-size: 13px;
   font-weight: 750;
@@ -243,7 +243,7 @@ p {
 .notice-success {
   background: #eff9f0;
   border-color: #b8ddbf;
-  color: #286143;
+  color: #3010cb;
 }
 
 .notice-error {
@@ -282,8 +282,8 @@ p {
 }
 
 .mode-tabs button.active {
-  border-color: #34764d;
-  color: #286143;
+  border-color: #162cd4;
+  color: #071fd5;
 }
 
 .section-heading {
@@ -362,8 +362,8 @@ select:focus {
 select {
   appearance: none;
   background-image:
-    linear-gradient(45deg, transparent 50%, #4c7960 50%),
-    linear-gradient(135deg, #4c7960 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, #0b11c1 50%),
+    linear-gradient(135deg, #1d10d1 50%, transparent 50%);
   background-position:
     calc(100% - 16px) 50%,
     calc(100% - 11px) 50%;
@@ -406,7 +406,7 @@ button {
 .secondary-button {
   background: #fff;
   border: 1px solid #a6c5ae;
-  color: #286143;
+  color: #1916d4;
 }
 
 .danger-button {

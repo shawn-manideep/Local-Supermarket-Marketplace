@@ -6,6 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './customerCheckoutOutcome';
+export * from './customerCheckoutOutcomeOrder';
+export * from './customerCheckoutOutcomeOrderItemsItem';
+export * from './customerCheckoutOutcomeOrderStatus';
+export * from './customerCheckoutOutcomeOrderStatusHistoryItem';
+export * from './customerCheckoutSubmission';
+export * from './customerCheckoutSubmissionPaymentMethod';
 export * from './customerShoppingCategories';
 export * from './customerShoppingCategory';
 export * from './getCustomerShoppingCategoriesParams';
@@ -16,3 +23,5 @@ export * from './reorderOutcome';
 export * from './reorderOutcomeCart';
 export * from './reorderPreview';
 export * from './reorderSubmission';
+export * from './stockFailure';
+export * from './stockFailureCode';

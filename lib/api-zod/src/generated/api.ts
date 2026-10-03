@@ -9,6 +9,31 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Atomically place one order per cart and deduct variant stock once
+ */
+export const PlaceCustomerOrderBody = zod.object({
+  "cartId": zod.string().uuid(),
+  "addressId": zod.string().uuid(),
+  "paymentMethod": zod.enum(['COD']),
+  "idempotencyKey": zod.string().uuid()
+})
+
+export const PlaceCustomerOrderResponse = zod.object({
+  "order": zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'REJECTED', 'CANCELLED']),
+  "totalAmount": zod.string(),
+  "items": zod.array(zod.object({
+
+}).passthrough()),
+  "statusHistory": zod.array(zod.object({
+
+}).passthrough())
+}).describe('Existing safe order detail with immutable items and status history')
+})
+
+
+/**
  * @summary Evaluate exact historical items using current store availability and prices
  */
 export const PreviewCustomerReorderParams = zod.object({

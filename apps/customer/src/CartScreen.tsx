@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { customerApi, type CustomerAddress, type CustomerCart } from "./lib/api";
+import { customerApi, CustomerRequestError, type CustomerAddress, type CustomerCart, type CustomerCheckoutSubmission } from "./lib/api";
 import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { QuantitySelector } from "./components/QuantitySelector";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
@@ -89,15 +89,32 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
   };
 
   const validate = async () => {
-    if (checkoutInFlight.current || checkoutBusy || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
+    if (checkoutInFlight.current || checkoutBusy || !cart || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
+    if (Object.values(quantityQueues.current).some(queue => queue.running)) {
+      setMessage("Please wait for your quantity changes to finish before placing the order.");
+      return;
+    }
     checkoutInFlight.current = true;
     setCheckoutBusy(true);
     setMessage("");
     try {
-      await customerApi("/api/customer/checkout/validate", { method: "POST", body: JSON.stringify({ addressId, paymentMethod: "COD" }) });
-      const result = await customerApi<{ order: { id: string } }>("/api/customer/orders", { method:"POST", body:JSON.stringify({ addressId, paymentMethod:"COD" }) });
+      // The cart's UUID is a stable checkout key across retries and reloads.
+      // Do not prevalidate here: a retry must reach the server's replay check even
+      // when the original successful transaction has already converted the cart.
+      const input: CustomerCheckoutSubmission = { cartId: cart.id, idempotencyKey: cart.id, addressId, paymentMethod: "COD" };
+      const result = await customerApi<{ order: { id: string } }>("/api/customer/orders", { method:"POST", body:JSON.stringify(input) });
       onOrderPlaced(result.order.id);
-    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Unable to place order."); }
+    } catch (reason) {
+      setMessage(shoppingError(reason, "Unable to place your order. Please review your cart or try again."));
+      if (reason instanceof CustomerRequestError && ["OUT_OF_STOCK", "INSUFFICIENT_STOCK", "VARIANT_UNAVAILABLE", "INVALID_QUANTITY"].includes(reason.code ?? "")) {
+        try {
+          const refreshed = await customerApi<{ cart: CustomerCart | null }>("/api/customer/cart");
+          setCart(refreshed.cart);
+        } catch { /* Retain the visible cart and original checkout error for retry. */ }
+      }
+      // An uncertain network failure retains this cart and its stable key.
+      // Retrying can recover a committed order instead of placing another one.
+    }
     finally { checkoutInFlight.current = false; setCheckoutBusy(false); }
   };
 
@@ -137,7 +154,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
                   <Text style={typography.caption}>₹{formatPrice(item.unitPrice)} each</Text>
                   <Text style={typography.caption}>Qty: {item.quantity} × {formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
                   <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
-                  {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>Unavailable</Text>}
+                  {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{item.unavailableReason === "OUT_OF_STOCK" ? "Out of stock" : item.unavailableReason === "INSUFFICIENT_STOCK" ? "No longer available in the selected quantity. Please reduce the quantity." : "This item is no longer available."}</Text>}
                 </View>
                 <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
                   <Text style={typography.title3}>₹{formatPrice(item.lineSubtotal)}</Text>

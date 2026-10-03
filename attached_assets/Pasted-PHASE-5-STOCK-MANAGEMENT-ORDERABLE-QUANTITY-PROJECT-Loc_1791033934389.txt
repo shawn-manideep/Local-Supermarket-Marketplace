@@ -1,0 +1,738 @@
+PHASE 5 — STOCK MANAGEMENT & ORDERABLE QUANTITY
+
+PROJECT:
+Local Supermarket Marketplace
+
+OBJECTIVE:
+Implement a reliable, transactional stock-management system for vendor product variants.
+
+The system must ensure that customers can only order quantities that are actually available, stock cannot be oversold under concurrent orders, and stock is reduced at the correct point in the order lifecycle.
+
+IMPORTANT:
+- Do NOT implement Delivery Partner functionality in this phase.
+- Do NOT redesign the Master Catalog.
+- Do NOT change customer/vendor authentication.
+- Do NOT change the existing order lifecycle except where stock reservation/deduction requires it.
+- Do NOT modify historical order snapshots.
+- Do NOT create unnecessary new concepts or architecture.
+- Do NOT introduce a separate inventory platform.
+- Reuse the existing product_variants, cart, order, order_items, and order status structures wherever possible.
+- Do NOT request automated browser testing. I will perform manual browser testing.
+- Do not deploy to production.
+- Do not modify unrelated functionality.
+
+--------------------------------------------------
+1. CURRENT STOCK MODEL
+--------------------------------------------------
+
+The existing architecture already has:
+
+- master_products
+- products / vendor store listings
+- product_variants
+- variant price
+- variant stock
+- variant availability
+- cart items
+- order items
+- order status history
+
+The existing implementation currently validates stock but does NOT reliably reserve/deduct stock during the order lifecycle.
+
+Phase 5 must fix this.
+
+Stock is maintained at the PRODUCT VARIANT level.
+
+Examples:
+
+Basmati Rice
+- 500 g → stock 10
+- 1 kg → stock 5
+- 5 kg → stock 2
+
+Eggs
+- 6 pieces → stock 20
+- 12 pieces → stock 10
+- 30 pieces → stock 5
+
+Each variant is independently orderable.
+
+--------------------------------------------------
+2. DEFINE ORDERABLE QUANTITY
+--------------------------------------------------
+
+For each active product variant:
+
+ORDERABLE = variant is active
+AND variant is available
+AND variant stock > 0
+
+The customer must never be allowed to purchase more than the currently orderable quantity.
+
+If stock = 0:
+- variant is unavailable for purchase
+- Add to Cart must be blocked
+- Checkout must be blocked for that variant
+
+Do not expose exact stock quantities to customers.
+
+Customer-facing responses should say things such as:
+
+- Available
+- Out of stock
+- Only limited quantity available
+
+Do not expose internal stock values.
+
+--------------------------------------------------
+3. STOCK DEDUCTION TIMING
+--------------------------------------------------
+
+Use the following rule:
+
+STOCK MUST BE DEDUCTED WHEN THE CUSTOMER SUCCESSFULLY PLACES THE ORDER.
+
+Do NOT deduct stock merely because:
+- product was viewed
+- product was added to cart
+- quantity was changed in cart
+- checkout screen was opened
+
+Cart quantities are NOT stock reservations.
+
+At successful order placement:
+
+available stock must be atomically checked and deducted.
+
+Example:
+
+Stock = 5
+
+Customer A attempts to order 3.
+Customer B simultaneously attempts to order 3.
+
+Only one transaction may successfully consume the overlapping stock.
+
+The second transaction must fail safely with an insufficient-stock response.
+
+Final stock must never become negative.
+
+--------------------------------------------------
+4. ATOMIC STOCK UPDATE
+--------------------------------------------------
+
+Stock deduction MUST be performed transactionally at the database level.
+
+Do NOT implement:
+
+1. SELECT stock
+2. check stock in application code
+3. later UPDATE stock
+
+as separate non-atomic operations.
+
+Use an atomic conditional update or equivalent row-locking transaction.
+
+Conceptually:
+
+UPDATE product_variants
+SET stock = stock - requested_quantity
+WHERE id = variant_id
+  AND stock >= requested_quantity
+  AND active/available conditions are satisfied;
+
+Then verify that the update actually affected the expected row.
+
+If it did not:
+- rollback the order transaction
+- do not create a successful order
+- return an appropriate insufficient-stock error
+
+The implementation must prevent:
+
+- negative stock
+- double deduction
+- race-condition overselling
+- partially created orders
+
+--------------------------------------------------
+5. ORDER CREATION TRANSACTION
+--------------------------------------------------
+
+Order creation and stock deduction must occur inside the same database transaction.
+
+The transaction must ensure:
+
+1. Validate customer/session
+2. Validate store eligibility
+3. Validate cart
+4. Validate each product variant
+5. Validate requested quantities
+6. Atomically deduct stock
+7. Create order
+8. Create order items
+9. Create required historical snapshots
+10. Create initial order status/history
+11. Commit
+
+If ANY step fails:
+
+ROLL BACK THE ENTIRE TRANSACTION.
+
+There must never be a situation where:
+
+- stock is deducted but order is not created
+- order is created but stock is not deducted
+- only some order items have stock deducted
+- stock becomes negative
+- a failed order partially changes inventory
+
+--------------------------------------------------
+6. MULTI-ITEM ORDER
+--------------------------------------------------
+
+Example:
+
+Customer cart:
+
+Rice 1 kg × 2
+Milk 1 L × 3
+Eggs 12 × 1
+
+All stock deductions must happen atomically.
+
+If Rice succeeds but Milk does not have enough stock:
+
+- entire order creation must fail
+- Rice stock must also remain unchanged
+- no partial order must exist
+
+The customer should receive a clear message identifying which item/variant is unavailable or insufficient.
+
+--------------------------------------------------
+7. CART VALIDATION
+--------------------------------------------------
+
+Cart validation must happen again during checkout/order creation.
+
+Do NOT trust the stock state previously shown in the cart.
+
+Example:
+
+At 10:00 AM:
+Rice stock = 5
+
+Customer adds 4 to cart.
+
+At 10:05 AM:
+Another customer purchases all 5.
+
+At 10:06 AM:
+First customer attempts checkout.
+
+The server must re-check stock.
+
+The order must NOT be created.
+
+Return a clear stock-related response.
+
+Never trust client-provided:
+- price
+- stock
+- availability
+- store ownership
+- product identity beyond validated IDs
+
+Server/database values are authoritative.
+
+--------------------------------------------------
+8. PRICE AND STOCK
+--------------------------------------------------
+
+At order creation:
+
+- price must come from the current vendor variant
+- stock must come from the current vendor variant
+- availability must come from the current vendor variant
+
+Historical order item snapshots must preserve the values used for that order.
+
+After the order is created:
+
+future price or stock changes must NOT modify historical orders.
+
+Example:
+
+Order placed at ₹99.
+
+Vendor later changes price to ₹109.
+
+Existing order must still show ₹99.
+
+--------------------------------------------------
+9. ORDER STATUS AND STOCK
+--------------------------------------------------
+
+For this phase:
+
+Stock is deducted at successful order placement.
+
+Do NOT deduct again when:
+
+PLACED → ACCEPTED
+ACCEPTED → PREPARING
+PREPARING → READY
+READY → OUT_FOR_DELIVERY
+OUT_FOR_DELIVERY → DELIVERED
+
+There must be exactly ONE stock deduction for a successfully placed order.
+
+Do not introduce additional stock deductions during later status transitions.
+
+--------------------------------------------------
+10. REJECTED / CANCELLED ORDERS
+--------------------------------------------------
+
+Because stock is deducted at order placement, the implementation must define a safe restoration rule.
+
+Use this rule:
+
+If an order is cancelled/rejected before fulfillment and the system determines that the order should no longer consume stock, restore the deducted quantity exactly once.
+
+This restoration must also be transactional and idempotent.
+
+IMPORTANT:
+
+Do NOT allow:
+
+- duplicate stock restoration
+- restoring stock twice
+- restoring stock for the same order multiple times
+- stock restoration without a valid original deduction
+
+Track the inventory effect sufficiently to guarantee:
+
+DEDUCT ONCE
+RESTORE AT MOST ONCE
+
+Do not build a large inventory ledger system unless the existing architecture already requires one.
+
+Use the smallest auditable mechanism compatible with the existing schema.
+
+--------------------------------------------------
+11. IDEMPOTENCY
+--------------------------------------------------
+
+Order placement must be protected against duplicate submissions.
+
+Example:
+
+Customer taps "Place Order" twice quickly.
+
+The backend must not create two orders and deduct stock twice.
+
+Use the existing order/idempotency mechanism if available.
+
+If none exists, introduce a minimal server-side idempotency mechanism appropriate for the current architecture.
+
+The same successful checkout request must produce only one successful order.
+
+--------------------------------------------------
+12. QUANTITY VALIDATION
+--------------------------------------------------
+
+Validate quantities on the server.
+
+Reject:
+
+- 0 quantity
+- negative quantity
+- invalid numeric values
+- fractional quantities where the variant does not allow them
+- quantities exceeding available stock
+- excessively large quantities
+- malformed values
+
+Respect the existing selling-unit model.
+
+Examples:
+
+500 g
+1 kg
+6 pieces
+12 pieces
+1 pack
+
+Do not invent complicated unit conversion or shared inventory logic in this phase.
+
+Each existing variant remains independently stocked.
+
+--------------------------------------------------
+13. CUSTOMER UI
+--------------------------------------------------
+
+Update customer shopping/cart/checkout UI only where necessary to reflect stock state.
+
+Requirements:
+
+- Out-of-stock variants cannot be added.
+- Zero-stock variants cannot be purchased.
+- Cart should clearly indicate when an item has become unavailable.
+- Checkout should not silently remove items.
+- If checkout fails because stock changed, explain the affected item.
+- Customer should be able to return to shopping/cart and correct the quantity.
+
+Do not expose exact stock numbers.
+
+Examples:
+
+"Out of stock"
+
+"This item is no longer available in the selected quantity."
+
+"Some items in your cart are no longer available. Please review your cart."
+
+--------------------------------------------------
+14. VENDOR UI
+--------------------------------------------------
+
+Vendor should be able to see and manage their own variant stock.
+
+For each variant:
+
+- Product
+- Variant
+- Selling unit
+- Price
+- Stock
+- Availability
+
+Vendor can update stock.
+
+Vendor stock changes must immediately affect customer orderability.
+
+Vendor A must never modify Vendor B's stock.
+
+All stock updates must be authorized against the vendor's store.
+
+Do not allow a vendor to update:
+- another vendor's variant
+- another store's product
+- master catalog stock
+- historical order stock
+
+--------------------------------------------------
+15. STOCK UPDATE SAFETY
+--------------------------------------------------
+
+When a vendor manually changes stock:
+
+- validate numeric input
+- prevent negative stock
+- validate ownership
+- persist the change transactionally
+- maintain existing availability rules
+
+If stock is changed to 0:
+
+The variant must become non-orderable.
+
+If stock is increased above 0 and the variant is otherwise active/available:
+
+It may become orderable again.
+
+Do not automatically publish inactive variants merely because stock was increased.
+
+--------------------------------------------------
+16. MASTER CATALOG IS NOT STOCK
+--------------------------------------------------
+
+IMPORTANT ARCHITECTURAL RULE:
+
+Master Catalog contains canonical product information.
+
+Master Catalog does NOT contain:
+
+- vendor stock
+- vendor price
+- vendor availability
+- vendor inventory
+
+Commercial data belongs to the vendor's store variant.
+
+Never introduce master-level stock.
+
+--------------------------------------------------
+17. VENDOR ISOLATION
+--------------------------------------------------
+
+Verify all stock APIs using authenticated vendor/store authorization.
+
+Vendor A:
+
+CAN:
+- view Vendor A stock
+- update Vendor A stock
+- manage Vendor A variants
+
+CANNOT:
+- view private stock for Vendor B
+- update Vendor B stock
+- manipulate Vendor B cart/order inventory
+- alter master catalog stock
+
+Customer:
+
+CAN:
+- see whether a variant is orderable
+
+CANNOT:
+- see exact vendor stock
+- update stock
+- reserve stock manually
+
+--------------------------------------------------
+18. API RESPONSE PRIVACY
+--------------------------------------------------
+
+Customer-facing APIs must not expose:
+
+- exact stock quantity
+- internal inventory IDs if unnecessary
+- internal timestamps if unnecessary
+- vendor-private stock information
+- database implementation details
+
+Customer API should receive derived availability/orderability.
+
+Example:
+
+{
+  "available": true,
+  "orderable": true
+}
+
+or the existing equivalent contract.
+
+Do not leak exact stock.
+
+Vendor/admin APIs may expose stock where authorized.
+
+--------------------------------------------------
+19. STOCK ERROR CONTRACT
+--------------------------------------------------
+
+Use consistent server errors.
+
+At minimum distinguish:
+
+- OUT_OF_STOCK
+- INSUFFICIENT_STOCK
+- VARIANT_UNAVAILABLE
+- INVALID_QUANTITY
+- ORDER_ALREADY_PROCESSED / IDEMPOTENCY_CONFLICT if applicable
+
+Customer-friendly messages should be derived from these errors.
+
+Do not expose database errors directly.
+
+--------------------------------------------------
+20. TESTING REQUIREMENTS
+--------------------------------------------------
+
+Add focused automated tests for backend/database behavior.
+
+DO NOT perform browser automation.
+
+Required test coverage:
+
+A. Normal deduction
+- Stock 10
+- Order 3
+- Final stock 7
+
+B. Exact stock
+- Stock 10
+- Order 10
+- Final stock 0
+
+C. Insufficient stock
+- Stock 10
+- Order 11
+- Order fails
+- Stock remains 10
+
+D. Zero stock
+- Stock 0
+- Order 1
+- Order fails
+
+E. Negative quantity
+- Order -1
+- Order rejected
+
+F. Zero quantity
+- Order 0
+- Order rejected
+
+G. Multi-item atomicity
+- Item A sufficient
+- Item B insufficient
+- Entire order fails
+- Item A stock remains unchanged
+
+H. Concurrent checkout
+- Two requests attempt to consume overlapping stock
+- Total successful deductions must never exceed original stock
+- Stock never becomes negative
+
+I. Duplicate submission
+- Same checkout request submitted twice
+- Only one order created
+- Stock deducted once
+
+J. Cancellation/rejection restoration
+- Deduct stock
+- Cancel/reject according to permitted lifecycle
+- Restore exactly once
+
+K. Duplicate restoration
+- Attempt restoration twice
+- Second attempt must not increase stock again
+
+L. Vendor isolation
+- Vendor A cannot modify Vendor B stock
+
+M. Customer privacy
+- Customer API does not expose exact stock
+
+N. Historical snapshot
+- Order preserves original price/product/variant information
+
+O. Vendor stock update
+- Vendor changes stock from 5 → 10
+- Customer orderability reflects the new state
+
+--------------------------------------------------
+21. REGRESSION PROTECTION
+--------------------------------------------------
+
+Run existing relevant tests.
+
+Do NOT modify unrelated behavior.
+
+Confirm these remain intact:
+
+- Master Catalog
+- Add to My Store
+- Multiple variants
+- Variant pricing
+- Customer global search
+- Product details
+- Cart
+- Reorder / Buy Again
+- One-store cart rule
+- Vendor order management
+- Order status transitions
+- Historical snapshots
+- Vendor isolation
+- Customer privacy
+
+Do not change the Delivery Partner architecture yet.
+
+--------------------------------------------------
+22. DATABASE / MIGRATION RULE
+--------------------------------------------------
+
+Before creating a migration:
+
+INSPECT the current schema and existing migrations.
+
+If the current schema already supports the required stock behavior, do not create unnecessary tables.
+
+If a schema change is genuinely required for atomic deduction/restoration/idempotency:
+
+- create the smallest additive migration
+- do not rename existing tables
+- do not delete existing columns
+- do not rewrite historical data
+- do not alter unrelated migrations
+- preserve existing IDs
+- preserve existing historical order records
+
+Do NOT introduce an inventory ledger or reservation subsystem unless the current schema absolutely requires it.
+
+--------------------------------------------------
+23. IMPLEMENTATION SAFETY
+--------------------------------------------------
+
+Before modifying code:
+
+1. Inspect current stock-related APIs.
+2. Inspect product_variants schema.
+3. Inspect cart checkout/order creation transaction.
+4. Inspect order status transition logic.
+5. Inspect cancellation/rejection logic.
+6. Inspect current vendor stock-management UI.
+7. Identify the smallest safe implementation path.
+
+Then implement Phase 5.
+
+Do not make broad refactors.
+
+--------------------------------------------------
+24. ACCEPTANCE CRITERIA
+--------------------------------------------------
+
+Phase 5 is complete only when:
+
+[ ] Stock is owned by product_variant.
+[ ] Customer cannot purchase unavailable variants.
+[ ] Stock is revalidated at checkout.
+[ ] Stock is atomically deducted at successful order creation.
+[ ] Stock can never become negative.
+[ ] Concurrent orders cannot oversell stock.
+[ ] Multi-item checkout is atomic.
+[ ] Failed checkout does not partially consume stock.
+[ ] Duplicate checkout cannot double-deduct stock.
+[ ] Cancellation/rejection restoration is safe and idempotent.
+[ ] Vendor can update only their own stock.
+[ ] Stock = 0 makes the variant non-orderable.
+[ ] Customer cannot see exact stock.
+[ ] Historical order snapshots remain unchanged.
+[ ] Existing order lifecycle remains intact.
+[ ] Existing Master Catalog remains intact.
+[ ] Existing variants remain intact.
+[ ] Reorder behavior remains intact.
+[ ] Vendor order management remains intact.
+[ ] No Delivery Partner functionality is introduced.
+[ ] No production deployment occurs.
+
+--------------------------------------------------
+25. REQUIRED OUTPUT AFTER IMPLEMENTATION
+--------------------------------------------------
+
+After implementation, provide a concise implementation report containing:
+
+1. Files changed
+2. Database migrations created, if any
+3. Stock deduction mechanism
+4. Stock restoration mechanism
+5. Idempotency mechanism
+6. Concurrency protection
+7. Customer-facing changes
+8. Vendor-facing changes
+9. API/security changes
+10. Automated test results:
+   - passed
+   - failed
+   - skipped
+11. Typecheck/build results
+12. Any known limitations
+13. Any manual browser checks I should perform
+
+DO NOT claim manual browser testing was completed.
+
+STOP after the implementation report.
+
+Do not start Phase 6.

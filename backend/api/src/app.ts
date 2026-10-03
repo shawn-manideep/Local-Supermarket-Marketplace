@@ -131,6 +131,7 @@ export function createApp() {
       if (error instanceof HttpError) {
         response.status(error.statusCode).json({
           error: error.message,
+          ...(error.code ? { code: error.code } : {}),
           ...(error.details ? { details: error.details } : {}),
         });
         return;

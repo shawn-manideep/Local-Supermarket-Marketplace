@@ -239,7 +239,7 @@ test("Phase 10 reuses lifecycle delivery actions and immutable delivery UI field
 test("order inputs reject client-owned and unsupported values", () => {
   const addressId = crypto.randomUUID();
   assert.equal(
-    customerOrderCreateSchema.safeParse({ addressId, paymentMethod: "COD" }).success,
+    customerOrderCreateSchema.safeParse({ addressId, paymentMethod: "COD", cartId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID() }).success,
     true,
   );
   assert.equal(

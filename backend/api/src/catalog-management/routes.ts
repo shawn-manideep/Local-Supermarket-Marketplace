@@ -756,10 +756,13 @@ catalogManagementRouter.patch("/api/vendor/products/:productId/stock-quantity", 
   if (!parsed.success) { sendValidationError(response, parsed.error); return; }
   const storeId = vendorStoreId(request);
   const id = productId(request);
-  await requireProductInStore(storeId, id);
-  const variants = await getDb().select().from(productVariants).where(eq(productVariants.productId, id));
-  if (variants.length > 1) throw new HttpError(409, "Update stock on individual variants when a product has multiple variants");
   const product = await getDb().transaction(async (transaction) => {
+    const [owned] = await transaction.select().from(products)
+      .where(productOwnershipPredicate(storeId, id)).limit(1).for("update");
+    if (!owned) throw new HttpError(404, "Product not found");
+    const variants = await transaction.select().from(productVariants)
+      .where(eq(productVariants.productId, id)).orderBy(asc(productVariants.id)).for("update");
+    if (variants.length > 1) throw new HttpError(409, "Update stock on individual variants when a product has multiple variants");
     const [updated] = await transaction.update(products).set({ stockQuantity: parsed.data.stockQuantity, updatedAt: new Date() })
       .where(productOwnershipPredicate(storeId, id)).returning();
     if (variants.length === 1) await transaction.update(productVariants)
