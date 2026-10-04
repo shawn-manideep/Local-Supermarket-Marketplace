@@ -1,0 +1,217 @@
+PHASE 6 CORRECTION — DEVELOPMENT-ONLY DELIVERY PARTNER PROVISIONING
+
+IMPORTANT CONTEXT:
+
+The current product has only:
+
+1. Customer Portal
+2. Vendor Portal
+3. Delivery Partner Portal
+
+There is currently NO Admin Portal.
+
+The Phase 6 implementation correctly added the Delivery Partner role, username foundation, partner portal, authorization, and backend provisioning APIs.
+
+However, I cannot manually test the Delivery Partner Portal because there is currently no Admin UI through which I can create a partner account.
+
+DO NOT BUILD AN ADMIN PORTAL.
+
+DO NOT add an Admin Dashboard.
+
+DO NOT expose partner provisioning to Customer or Vendor users.
+
+DO NOT change the existing Customer or Vendor portals.
+
+DO NOT start Phase 7.
+
+--------------------------------------------------
+OBJECTIVE
+--------------------------------------------------
+
+Provide a safe DEVELOPMENT-ONLY way to create exactly the test Delivery Partner account required for manual browser acceptance.
+
+Reuse the already implemented backend/admin provisioning capability.
+
+The purpose is ONLY to create a temporary development/test Delivery Partner so that I can manually verify the Phase 6 portal.
+
+--------------------------------------------------
+REQUIREMENTS
+--------------------------------------------------
+
+1. Development environment only.
+
+2. Do NOT modify production.
+
+3. Do NOT create an Admin UI.
+
+4. Do NOT add partner-provisioning controls to the Vendor Portal.
+
+5. Do NOT add partner-provisioning controls to the Customer Portal.
+
+6. Do NOT weaken role authorization.
+
+7. Do NOT bypass Supabase Auth.
+
+8. Do NOT store plaintext passwords in the application database.
+
+9. Reuse the existing Phase 6 partner provisioning service/API.
+
+--------------------------------------------------
+TEST PARTNER
+--------------------------------------------------
+
+Create one development/test Delivery Partner with:
+
+Username:
+deliverytest1
+
+Display Name:
+Test Delivery Partner
+
+Status:
+ACTIVE
+
+Use a secure development password.
+
+Do not expose the password in application logs, API responses, frontend code, or database records.
+
+If an existing development provisioning mechanism already exists, use it instead of creating another one.
+
+--------------------------------------------------
+SAFE PROVISIONING METHOD
+--------------------------------------------------
+
+Preferred approach:
+
+Create/use a development-only server-side provisioning script or existing development provisioning command.
+
+It must:
+
+- run only in development
+- verify the environment is non-production
+- use the existing partner provisioning service
+- create the Supabase Auth user
+- create the DELIVERY_PARTNER application identity/profile
+- create the username mapping
+- create the partner profile
+- set ACTIVE
+- be idempotent
+
+If `deliverytest1` already exists:
+
+- do NOT create a duplicate
+- verify it belongs to DELIVERY_PARTNER
+- verify it is ACTIVE
+- safely reuse the existing development test account
+
+--------------------------------------------------
+CLEANUP
+--------------------------------------------------
+
+Provide a development-only cleanup mechanism for the test account.
+
+Cleanup must remove the temporary test account safely from:
+
+- Supabase Auth
+- application profile
+- username registry
+- delivery partner profile
+- any Phase 6 test-only records
+
+Do not delete unrelated users.
+
+Do not delete production data.
+
+Do not delete real customer/vendor accounts.
+
+--------------------------------------------------
+SECURITY
+--------------------------------------------------
+
+The provisioning mechanism must contain an explicit development/environment guard.
+
+For example, conceptually:
+
+if environment is production:
+    refuse to run
+
+Do not rely only on the developer remembering not to run it.
+
+Do not create a public HTTP endpoint such as:
+
+POST /create-test-partner
+
+unless it is strictly development-only and protected.
+
+A local/server-side provisioning script is preferred.
+
+--------------------------------------------------
+NO OTHER CHANGES
+--------------------------------------------------
+
+Do NOT modify:
+
+- Customer authentication
+- Vendor authentication
+- Admin backend authorization
+- Delivery Partner authentication architecture
+- Username rules
+- Master Catalog
+- Product variants
+- Cart
+- Checkout
+- Stock management
+- Reorder
+- Vendor orders
+- Order lifecycle
+- Phase 5 inventory behavior
+
+Do NOT implement:
+
+- delivery assignment
+- Accept Duty
+- Reject Duty
+- Pickup
+- OUT_FOR_DELIVERY
+- DELIVERED
+- notifications
+- GPS
+- maps
+- tracking
+
+--------------------------------------------------
+VERIFICATION
+--------------------------------------------------
+
+After creating the development test partner, verify server-side:
+
+- user exists in Supabase Auth
+- application role = DELIVERY_PARTNER
+- username = deliverytest1
+- username is globally registered
+- partner status = ACTIVE
+- partner profile exists
+- no duplicate account was created
+
+Then provide me with:
+
+1. The exact command/procedure I should use to provision the test account if I need to recreate it.
+2. The login username.
+3. How to safely clean up the test account after manual testing.
+4. Confirmation that no production data was touched.
+
+DO NOT provide the test password in logs or source code.
+
+--------------------------------------------------
+IMPORTANT
+--------------------------------------------------
+
+After completing this correction:
+
+STOP.
+
+Do not start Phase 7.
+
+Do not make any other architectural changes.
+
+The next step will be my manual browser acceptance of the Delivery Partner Portal.

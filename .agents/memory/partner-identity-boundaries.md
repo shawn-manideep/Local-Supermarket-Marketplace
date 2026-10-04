@@ -14,3 +14,9 @@ Use the explicit ASCII 3–30-character username rule, including accepting the f
 **Why:** The approved prerequisite contradicts itself by listing `shar` as invalid while specifying a minimum of three characters. The implementation decision, announced before proceeding, follows the explicit numeric rule rather than the contradictory example.
 
 **How to apply:** Preserve identical client/server rules and lowercase-only normalization of otherwise valid input; do not silently introduce a five-character minimum.
+
+The current product has only Customer, Vendor and Delivery Partner portals, with no Admin Portal. Do not create an Admin Portal/Dashboard or expose partner provisioning to Customer or Vendor users.
+
+**Why:** The user explicitly corrected the product scope; backend administrative capabilities do not imply an approved administrative UI.
+
+**How to apply:** Manual partner acceptance uses guarded development-only server provisioning, not additional portal controls. Keep production and unrelated accounts untouched.
