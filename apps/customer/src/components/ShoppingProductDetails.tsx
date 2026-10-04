@@ -34,7 +34,7 @@ export function ShoppingProductDetails({
   const addLabel = purchasable ? `Add ${quantity} to Cart`
     : needsChoice ? "Choose an option first" : selected ? variantAvailabilityLabel(product, selected) : status;
   return (
-    <ScrollView contentContainerStyle={[commonStyles.page, hasCart && styles.cartClearance]}>
+    <ScrollView style={commonStyles.viewport} contentContainerStyle={[commonStyles.page, hasCart && styles.cartClearance]}>
       <View style={commonStyles.container}>
         <Pressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack} style={styles.navigation}>
           <Text style={styles.link}>← {backLabel}</Text>

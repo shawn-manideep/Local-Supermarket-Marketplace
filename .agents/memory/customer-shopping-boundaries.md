@@ -60,3 +60,13 @@ and safe return navigation without losing shopping context.
 **How to apply:** Do not apply a blanket discovery reset to every return from
 Cart. Respect the basket's store intent, validate its current location
 eligibility, and never change the basket as a navigation side effect.
+
+Marketplace content must be reachable at a normal desktop window size without
+resizing or changing zoom. Preserve one clear vertical scrolling area, mobile
+scrolling, contextual basket access and clearance for the final product row.
+
+**Why:** The user identified desktop scrolling as an acceptance blocker and
+explicitly prohibited a new scrolling architecture or global browser-only fixes.
+
+**How to apply:** Keep scrolling corrections within Customer layout; do not
+change data, shopping rules or navigation behavior to work around layout.

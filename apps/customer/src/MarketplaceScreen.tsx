@@ -479,7 +479,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   if (!product && (searchQuery.trim() || globalCategoryId) && pincode) {
     content = (
-      <ScrollView key="global-product-search" contentContainerStyle={commonStyles.page}>
+      <ScrollView key="global-product-search" style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <View style={styles.storeHeading}>
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>⌕</Text></View>
@@ -523,7 +523,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       onQuantityChange={setQuantity} onAdd={variant => void addToCart(product, variant, quantity)} />;
   } else if (store) {
     content = (
-      <ScrollView key={`store-${store.id}-${categoryId}`} contentContainerStyle={commonStyles.page}>
+      <ScrollView key={`store-${store.id}-${categoryId}`} style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <View style={styles.storeHero}>
             {store.logoImageUrl ? <Image source={{ uri: store.logoImageUrl }} style={styles.storeHeroImage} /> : <PlaceholderImage name={store.name} style={styles.storeHeroImage} />}
@@ -571,7 +571,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     const activeAddress = addresses.find((a) => a.id === selectedAddressId) ?? addresses.find((a) => a.pincode === pincode) ?? addresses[0];
 
     content = (
-      <ScrollView key="store-discovery" contentContainerStyle={commonStyles.page}>
+      <ScrollView key="store-discovery" style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <View style={styles.header}>
             <Text style={styles.greeting}>Hello,</Text>
@@ -662,7 +662,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   return (
     <>
-      <View style={{ flex: 1 }}>
+      <View style={[{ flex: 1 }, commonStyles.viewport]}>
         {content}
         {!!addedNotice && <View accessibilityRole="alert" style={styles.addedToast}><Text style={styles.addedToastText}>✓  {addedNotice}</Text></View>}
         {cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel="Retry basket summary" onPress={() => void refreshCart()} style={styles.cartError}>

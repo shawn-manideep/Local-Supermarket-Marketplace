@@ -1,4 +1,5 @@
 import { StyleSheet, Platform } from "react-native";
+import { webViewportFlex } from "./lib/viewport-layout";
 
 export const colors = {
   bg: "#F6F8FD",
@@ -58,6 +59,9 @@ export const shadows = {
 };
 
 export const commonStyles = StyleSheet.create({
+  // ScrollView already supplies overflow-y:auto on web. Bound its height,
+  // rather than enabling a second scrolling area on the document.
+  viewport: Platform.OS === "web" ? webViewportFlex : {},
   page: {
     paddingTop: Platform.OS === "web" ? 24 : 24,
     paddingBottom: 100,

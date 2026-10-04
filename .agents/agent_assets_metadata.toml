@@ -28,3 +28,17 @@ mtime_ms = 1791098986950
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/90044eb0-eaa1-4d36-be2a-468f5f7b9565/b1bceb25-6fbc-42b4-8f80-6ab1120362db"
 storage_version_token = "1791099026775601"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "IdDAqK0Q5gXj8_yZSA0QQ"
+uri = "file://docs/PHASE8_SCROLLING_CORRECTION_REPORT.md"
+type = "text"
+title = "Phase 8 scrolling correction report"
+description = "Layout correction, 48 passing Customer tests, build results and the pending 12-point manual checklist."
+logical_id = "a06b6685-2576-41fb-8f10-dc8d7d5975d0"
+content_hash = "sha256:fde2d896a9c73e42a8f094e0fe1d73e9b9fb823ef29a5227bc709f917740a822"
+size = 6093
+mtime_ms = 1791100049090
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/a06b6685-2576-41fb-8f10-dc8d7d5975d0/6ce905c2-9d15-4426-b172-067afb632cd3"
+storage_version_token = "1791100059136951"
+content_type = "text/markdown"

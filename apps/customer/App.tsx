@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import {
   customerApi,
@@ -20,6 +21,7 @@ import { supabase, supabaseConfigured } from "./src/lib/supabase";
 import { MarketplaceScreen } from "./src/MarketplaceScreen";
 import { CartScreen } from "./src/CartScreen";
 import { OrdersScreen } from "./src/OrdersScreen";
+import { customerWebShellBounds } from "./src/lib/viewport-layout";
 import {
   colors,
   radius,
@@ -760,6 +762,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 }
 
 function CustomerApp() {
+  const { height: viewportHeight } = useWindowDimensions();
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
   const [requestedStoreId, setRequestedStoreId] = useState<string | undefined>();
@@ -771,9 +774,9 @@ function CustomerApp() {
     "account",
   ];
   return (
-    <View style={styles.shell}>
-      <View style={styles.content}>
-        <View style={{ flex: 1, display: screen === "home" ? "flex" : "none" }}>
+    <View style={[styles.shell, Platform.OS === "web" && customerWebShellBounds(viewportHeight)]}>
+      <View style={[styles.content, commonStyles.viewport]}>
+        <View style={[{ flex: 1, display: screen === "home" ? "flex" : "none" }, commonStyles.viewport]}>
           <MarketplaceScreen
             active={screen === "home"}
             openAddresses={() => setScreen("addresses")}

@@ -1,0 +1,359 @@
+PHASE 8 CORRECTION — CUSTOMER MARKETPLACE DESKTOP VERTICAL SCROLLING
+
+ISSUE FOUND DURING MANUAL BROWSER ACCEPTANCE:
+
+The Customer Marketplace/Home product listing is NOT vertically scrollable at the normal desktop browser window size.
+
+Observed behavior:
+
+- Product cards continue below the visible viewport.
+- The page does not provide normal vertical scrolling.
+- The lower products cannot be reached at the current desktop window size.
+- If the browser/window is minimized or the viewport becomes smaller, the layout changes and additional products become accessible.
+- This indicates an incorrect height/overflow/flex layout in the Customer application.
+
+This is a Phase 8 acceptance blocker.
+
+--------------------------------------------------
+OBJECTIVE
+--------------------------------------------------
+
+Fix the Customer Marketplace so that the customer can normally scroll through the complete page/product list at:
+
+- desktop width
+- desktop height
+- tablet width
+- mobile width
+
+The user must NOT need to resize/minimize the browser to access products.
+
+--------------------------------------------------
+IMPORTANT SCOPE CONTROL
+--------------------------------------------------
+
+This is a focused UI/layout correction only.
+
+DO NOT change:
+
+- API
+- database
+- Master Catalog
+- product data
+- product variants
+- pricing
+- stock
+- checkout
+- cart business rules
+- reorder logic
+- vendor portal
+- Delivery Partner portal
+- delivery workflow
+- authentication
+- order lifecycle
+
+Do not create a new scrolling architecture.
+
+Do not rewrite the Customer application.
+
+--------------------------------------------------
+1. INSPECT THE ACTUAL SCROLL CONTAINER
+--------------------------------------------------
+
+Before modifying code, inspect:
+
+- apps/customer/src/App.tsx
+- MarketplaceScreen.tsx
+- Home/history components
+- parent layout containers
+- navigation containers
+- web-specific CSS
+- global CSS
+- any SafeArea/View/ScrollView wrappers
+- any height: 100%
+- height: 100vh
+- min-height/max-height
+- overflow: hidden
+- overflow-y
+- flex: 1
+- position: fixed
+- position: sticky
+- absolute positioning
+
+Identify which element currently owns vertical scrolling.
+
+Do NOT guess.
+
+Determine why the page is unable to scroll at the normal desktop viewport.
+
+--------------------------------------------------
+2. CUSTOMER WEB MUST HAVE NORMAL PAGE SCROLL
+--------------------------------------------------
+
+For the Customer Web application:
+
+The complete page must be vertically scrollable when content exceeds the viewport height.
+
+If the current architecture intentionally uses a fixed application shell, then the content area itself must have:
+
+overflow-y: auto
+
+and a correctly calculated available height.
+
+Do not allow a parent container to prevent the content from scrolling.
+
+Avoid:
+
+overflow: hidden
+
+on an ancestor that prevents the marketplace content from reaching the page scroll area.
+
+--------------------------------------------------
+3. DO NOT BREAK MOBILE SCROLLING
+--------------------------------------------------
+
+The fix must work across:
+
+Desktop
+Tablet
+Mobile
+
+Do not solve desktop scrolling by creating a mobile-only behavior.
+
+Do not introduce nested scroll containers unless absolutely necessary.
+
+Prefer ONE clear vertical scrolling area for the Customer Marketplace content.
+
+--------------------------------------------------
+4. PRODUCT GRID
+--------------------------------------------------
+
+The product grid must naturally extend vertically.
+
+Example:
+
+Product
+Product
+Product
+Product
+Product
+...
+more products
+
+The user should be able to:
+
+- use mouse wheel
+- use trackpad
+- use scrollbar where available
+- use touch scrolling on mobile/tablet
+
+and reach every product.
+
+--------------------------------------------------
+5. HEADER / SEARCH / CATEGORY AREA
+--------------------------------------------------
+
+Preserve the current header/search/category behavior.
+
+Do not make the entire application header unnecessarily scroll away if it is intentionally fixed/sticky.
+
+If the header is sticky:
+
+- it must not block product content
+- the scrollable content must have appropriate top spacing
+- the product list must remain accessible
+
+Do not let a fixed header consume the entire available viewport.
+
+--------------------------------------------------
+6. CONTEXTUAL CART BAR
+--------------------------------------------------
+
+The contextual cart bar must NOT prevent page scrolling.
+
+If it is sticky/fixed at the bottom:
+
+- product content must remain reachable
+- the last row of products must not be permanently hidden behind it
+- add appropriate bottom padding to the scrolling content
+
+Example concept:
+
+content
+...
+last product row
+bottom spacing
+cart bar
+
+The customer must be able to scroll far enough to see/interact with the final product row.
+
+Do NOT remove the contextual cart bar.
+
+--------------------------------------------------
+7. DO NOT USE BROWSER WINDOW RESIZING AS THE FIX
+--------------------------------------------------
+
+The solution must NOT depend on:
+
+- minimizing browser
+- manually resizing browser
+- changing zoom
+- reducing browser height
+
+At a normal desktop viewport, the user must be able to scroll normally.
+
+--------------------------------------------------
+8. TEST WITH A LONG PRODUCT LIST
+--------------------------------------------------
+
+Use the current existing marketplace data.
+
+Do not create fake products.
+
+The page should contain enough existing products to exceed the viewport.
+
+Verify that the user can scroll from the first product to the final visible product.
+
+Specifically verify the bottom of the product list.
+
+--------------------------------------------------
+9. RESPONSIVE CHECKS
+--------------------------------------------------
+
+Test at approximately:
+
+Desktop:
+1440 × 900
+
+Tablet:
+1024 × 768
+
+Mobile:
+390 × 844
+
+The exact browser dimensions do not need to be exact, but test comparable viewport sizes.
+
+At every size:
+
+- page scrolls
+- product grid scrolls
+- search remains usable
+- category navigation remains usable
+- Add to Cart/Choose Option buttons remain visible
+- contextual cart bar does not cover products
+- no horizontal overflow is introduced
+
+--------------------------------------------------
+10. BACK / NAVIGATION
+--------------------------------------------------
+
+After fixing scrolling, verify:
+
+Marketplace
+→ Product Details
+→ Back
+
+still returns correctly.
+
+Search
+→ Product
+→ Back
+
+must preserve the expected context.
+
+Do not modify navigation logic unless the scrolling fix exposes a genuine layout issue.
+
+--------------------------------------------------
+11. IMPORTANT REACT NATIVE WEB CONSIDERATION
+--------------------------------------------------
+
+This application uses Expo/React Native Web.
+
+Do not blindly apply browser-only CSS to the entire application.
+
+Inspect the existing React Native Web layout first.
+
+Use the existing platform-aware styling approach where appropriate.
+
+If web-specific CSS is required, scope it specifically to the Customer Web marketplace rather than globally changing all React Native screens.
+
+--------------------------------------------------
+12. NO API / DATA CHANGES
+--------------------------------------------------
+
+This fix should require:
+
+NO database migration.
+
+NO API changes.
+
+NO data changes.
+
+NO seed changes.
+
+NO product changes.
+
+If you believe an API/database change is required, STOP and explain why instead of making the change.
+
+--------------------------------------------------
+13. TESTS
+--------------------------------------------------
+
+Add/update focused UI/layout tests only where useful.
+
+At minimum verify that the relevant marketplace container does not prevent content overflow/scrolling.
+
+Run existing Customer tests.
+
+Do NOT perform automated browser testing.
+
+I will manually verify the browser.
+
+--------------------------------------------------
+14. BUILD / TYPECHECK
+--------------------------------------------------
+
+After the fix:
+
+- Customer typecheck
+- Customer tests
+- Customer web export/build
+- workspace typecheck if appropriate
+
+No production deployment.
+
+--------------------------------------------------
+15. REQUIRED MANUAL CHECKLIST
+--------------------------------------------------
+
+After implementation, give me a short checklist specifically covering:
+
+1. Desktop normal window — scroll from top to bottom.
+2. Desktop mouse-wheel scrolling.
+3. Desktop scrollbar/trackpad scrolling.
+4. Tablet viewport scrolling.
+5. Mobile viewport scrolling.
+6. Last product row is reachable.
+7. Contextual cart bar does not cover the last products.
+8. Search still works.
+9. Category scrolling still works.
+10. Product Details navigation still works.
+11. Back navigation still works.
+12. No horizontal overflow.
+
+--------------------------------------------------
+16. REQUIRED REPORT
+--------------------------------------------------
+
+Report:
+
+1. Root cause of the scrolling problem.
+2. Files changed.
+3. Exact layout/overflow correction.
+4. Whether any API/database/data changed.
+5. Customer tests.
+6. Typecheck/build.
+7. Any known limitations.
+
+DO NOT start Phase 9.
+
+STOP after this correction report.
