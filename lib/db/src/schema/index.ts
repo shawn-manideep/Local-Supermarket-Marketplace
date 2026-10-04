@@ -16,7 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const appRoleEnum = pgEnum("app_role", ["customer", "vendor", "admin"]);
+export const appRoleEnum = pgEnum("app_role", ["customer", "vendor", "admin", "delivery_partner"]);
 export const storeStatusEnum = pgEnum("store_status", [
   "PENDING_APPROVAL",
   "ACTIVE",
@@ -76,6 +76,19 @@ export const customers = pgTable("customers", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+export const identityUsernames = pgTable("identity_usernames", {
+  userId: uuid("user_id").primaryKey().references(() => userProfiles.id, { onDelete: "cascade" }),
+  normalizedUsername: text("normalized_username").notNull().unique(),
+  createdAt: createdAt(), updatedAt: updatedAt(),
+});
+export const deliveryPartnerProfiles = pgTable("delivery_partner_profiles", {
+  userId: uuid("user_id").primaryKey().references(() => userProfiles.id, { onDelete: "cascade" }),
+  displayName: text("display_name").notNull(),
+  contactNumber: text("contact_number"),
+  status: text("status").notNull().default("ACTIVE"),
+  createdAt: createdAt(), updatedAt: updatedAt(),
+}, table => [check("delivery_partner_status_check", sql`${table.status} IN ('ACTIVE','INACTIVE')`)]);
 
 export const customerAddresses = pgTable(
   "customer_addresses",
@@ -552,3 +565,14 @@ export const customerRepeatRequests = pgTable(
     index("customer_repeat_requests_source_order_idx").on(table.sourceOrderId),
   ],
 );
+
+export const deliveryAssignments = pgTable("delivery_assignments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
+  partnerUserId: uuid("partner_user_id").notNull().references(() => deliveryPartnerProfiles.userId, { onDelete: "restrict" }),
+  status: text("status").notNull().default("ASSIGNED"),
+  createdAt: createdAt(), updatedAt: updatedAt(),
+}, table => [
+  check("delivery_assignment_status_check", sql`${table.status} IN ('PENDING','ASSIGNED','PICKUP_PENDING','OUT_FOR_DELIVERY','DELIVERED','CANCELLED','REJECTED')`),
+  index("delivery_assignments_partner_created_idx").on(table.partnerUserId, table.createdAt),
+]);

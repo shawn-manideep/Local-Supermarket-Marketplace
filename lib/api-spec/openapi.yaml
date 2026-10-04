@@ -11,6 +11,113 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /delivery-partner/login:
+    post:
+      operationId: signInDeliveryPartner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartnerCredentials" }
+      responses:
+        "200":
+          description: Supabase tokens for an active authenticated partner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerSessionOutcome" }
+        "401": { description: Invalid username or password }
+        "403": { description: Verified account is inactive }
+        "429": { description: Too many sign-in attempts }
+  /delivery-partner/me:
+    get:
+      operationId: getDeliveryPartnerProfile
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Current active partner's safe profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerProfileOutcome" }
+        "401": { description: Authentication required }
+        "403": { description: Partner role and active status required }
+  /delivery-partner/dashboard:
+    get:
+      operationId: getDeliveryPartnerDashboard
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Authenticated partner's counts for today in Asia/Kolkata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerDashboardOutcome" }
+        "401": { description: Authentication required }
+        "403": { description: Partner role and active status required }
+  /delivery-partner/deliveries:
+    get:
+      operationId: getDeliveryPartnerDeliveries
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Own assignment metadata only; no customer or order details, no actions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerDeliveriesOutcome" }
+        "401": { description: Authentication required }
+        "403": { description: Partner role and active status required }
+  /admin/delivery-partners:
+    get:
+      operationId: listAdminDeliveryPartners
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Administrator's partner directory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerDirectoryOutcome" }
+        "401": { description: Authentication required }
+        "403": { description: Admin role required }
+    post:
+      operationId: provisionAdminDeliveryPartner
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartnerProvisionInput" }
+      responses:
+        "201":
+          description: Provisioned partner, never password or Auth email
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerAdministrationOutcome" }
+        "400": { description: Invalid details }
+        "401": { description: Authentication required }
+        "403": { description: Admin role required }
+        "409": { description: Username already in use }
+  /admin/delivery-partners/{partnerId}/status:
+    patch:
+      operationId: updateAdminDeliveryPartnerStatus
+      security: [{ customerBearer: [] }]
+      parameters:
+        - in: path
+          name: partnerId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartnerStatusInput" }
+      responses:
+        "200":
+          description: Updated partner status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerAdministrationOutcome" }
+        "400": { description: Invalid status }
+        "401": { description: Authentication required }
+        "403": { description: Admin role required }
+        "404": { description: Partner not found }
   /customer/orders:
     post:
       operationId: placeCustomerOrder
@@ -145,6 +252,100 @@ components:
       type: http
       scheme: bearer
   schemas:
+    PartnerCredentials:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 3, maxLength: 30, pattern: "^[A-Za-z][A-Za-z0-9_]{2,29}$" }
+        password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
+    PartnerSessionOutcome:
+      type: object
+      required: [session]
+      properties:
+        session:
+          type: object
+          required: [access_token, refresh_token]
+          properties:
+            access_token: { type: string }
+            refresh_token: { type: string }
+    PartnerProfile:
+      type: object
+      required: [username, displayName, contactNumber, status]
+      properties:
+        username: { type: string }
+        displayName: { type: string }
+        contactNumber: { type: [string, "null"] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    PartnerProfileOutcome:
+      type: object
+      required: [partner]
+      properties:
+        partner: { $ref: "#/components/schemas/PartnerProfile" }
+    PartnerAdminRecord:
+      allOf:
+        - { $ref: "#/components/schemas/PartnerProfile" }
+        - type: object
+          required: [id, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    PartnerDirectoryOutcome:
+      type: object
+      required: [partners]
+      properties:
+        partners: { type: array, items: { $ref: "#/components/schemas/PartnerAdminRecord" } }
+    PartnerAdministrationOutcome:
+      type: object
+      required: [partner]
+      properties:
+        partner: { $ref: "#/components/schemas/PartnerAdminRecord" }
+    PartnerProvisionInput:
+      type: object
+      additionalProperties: false
+      required: [username, password, displayName, status]
+      properties:
+        username: { type: string, minLength: 3, maxLength: 30, pattern: "^[A-Za-z][A-Za-z0-9_]{2,29}$" }
+        password: { type: string, minLength: 8, maxLength: 128, writeOnly: true }
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        contactNumber: { type: [string, "null"], pattern: "^(?:\\+91)?[6-9]\\d{9}$" }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    PartnerStatusInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    PartnerDashboardOutcome:
+      type: object
+      required: [summary]
+      properties:
+        summary:
+          type: object
+          required: [total, pending, assigned, inProgress, completed, cancelled, rejected]
+          properties:
+            total: { type: integer, minimum: 0 }
+            pending: { type: integer, minimum: 0 }
+            assigned: { type: integer, minimum: 0 }
+            inProgress: { type: integer, minimum: 0 }
+            completed: { type: integer, minimum: 0 }
+            cancelled: { type: integer, minimum: 0 }
+            rejected: { type: integer, minimum: 0 }
+    PartnerDeliveriesOutcome:
+      type: object
+      required: [deliveries]
+      properties:
+        deliveries:
+          type: array
+          items:
+            type: object
+            required: [id, status, createdAt, updatedAt]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [PENDING, ASSIGNED, PICKUP_PENDING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, REJECTED] }
+              createdAt: { type: string, format: date-time }
+              updatedAt: { type: string, format: date-time }
     CustomerCheckoutSubmission:
       type: object
       additionalProperties: false

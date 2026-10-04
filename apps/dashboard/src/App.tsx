@@ -4,8 +4,11 @@ import { AdminStorePanel } from "./AdminStorePanel";
 import { ApiRequestError, apiRequest } from "./api";
 import { supabase, supabaseConfigMissing } from "./supabase";
 import { VendorStorePanel } from "./VendorStorePanel";
+import { DeliveryPartnerPortal } from "./DeliveryPartnerPortal";
+import { DeliveryPartnerLogin } from "./DeliveryPartnerLogin";
+import { AdminDeliveryPartners } from "./AdminDeliveryPartners";
 
-type Role = "customer" | "vendor" | "admin";
+type Role = "customer" | "vendor" | "admin" | "delivery_partner";
 type AuthProfile = { auth: { userId: string; role: Role; storeId: string | null } };
 
 export default function App() {
@@ -17,6 +20,18 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [notice, setNotice] = useState<{ message: string; kind: "success" | "error" } | null>(null);
+  const [partnerMode, setPartnerMode] = useState(() => window.location.pathname.replace(/\/$/, "").endsWith("/delivery-partner"));
+  const [adminView, setAdminView] = useState<"stores" | "partners">("stores");
+  const selectPortal = (partner: boolean) => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    window.history.pushState(null, "", partner ? `${base}/delivery-partner` : `${base}/`);
+    setPartnerMode(partner);
+  };
+  useEffect(() => {
+    const syncPortal = () => setPartnerMode(window.location.pathname.replace(/\/$/, "").endsWith("/delivery-partner"));
+    window.addEventListener("popstate", syncPortal);
+    return () => window.removeEventListener("popstate", syncPortal);
+  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -42,6 +57,8 @@ export default function App() {
       if (!active) return;
       setSession(nextSession);
       setProfile(null);
+      setNotice(null);
+      setAdminView("stores");
       setAuthLoading(false);
     });
     return () => {
@@ -63,6 +80,11 @@ export default function App() {
       .then((response) => {
         if (active) {
           setProfile(response.auth);
+          if (response.auth.role === "delivery_partner") {
+            const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+            window.history.replaceState(null, "", `${base}/delivery-partner`);
+            setPartnerMode(true);
+          }
         }
       })
       .catch(async (error) => {
@@ -125,6 +147,12 @@ export default function App() {
   }
 
   if (!session) {
+    if (partnerMode) return <DeliveryPartnerLogin onCancel={() => selectPortal(false)} onAuthenticated={async tokens => {
+      if (!supabase) throw new Error("Authentication is unavailable.");
+      const { error } = await supabase.auth.setSession(tokens);
+      if (error) throw new Error("Your session could not be established. Please sign in again.");
+      setNotice(null);
+    }} />;
     return (
       <main className="page"><div className="dashboard-shell"><AuthFrame>
         <form className="auth-form" onSubmit={signIn}>
@@ -135,6 +163,7 @@ export default function App() {
           <label>Email address<input data-testid="input-email" autoComplete="email" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="email" value={email} required /></label>
           <label>Password<input data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} type="password" value={password} required /></label>
           <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
+          <button className="text-button" onClick={() => selectPortal(true)} type="button">Delivery Partner sign in</button>
         </form>
       </AuthFrame></div></main>
     );
@@ -146,6 +175,13 @@ export default function App() {
 
   if (authError || !profile) {
     return <main className="page"><div className="dashboard-shell"><AuthFrame><AuthState title="Could not verify access" message={authError || "The account permissions response was incomplete."} action={signOut} /></AuthFrame></div></main>;
+  }
+
+  if (profile.role === "delivery_partner") {
+    return <DeliveryPartnerPortal key={profile.userId} token={session.access_token} onSignOut={signOut} />;
+  }
+  if (partnerMode) {
+    return <main className="page"><AuthFrame><AuthState title="Delivery Partner access required" message="This portal is only available to active Delivery Partner accounts." action={signOut} actionLabel="Sign out" /></AuthFrame></main>;
   }
 
   if (profile.role === "customer") {
@@ -196,7 +232,13 @@ export default function App() {
         {profile.role === "vendor" ? (
           <div className="empty-state"><strong>No vendor store is linked</strong><span>Your account is approved for vendor access, but no store has been assigned yet.</span></div>
         ) : (
-          <AdminStorePanel onMessage={onMessage} token={session.access_token} />
+          <>
+            <nav aria-label="Administration sections" className="mode-tabs">
+              <button type="button" className={adminView === "stores" ? "active" : ""} onClick={() => setAdminView("stores")}>Stores</button>
+              <button type="button" className={adminView === "partners" ? "active" : ""} onClick={() => setAdminView("partners")}>Delivery Partners</button>
+            </nav>
+            {adminView === "partners" ? <AdminDeliveryPartners token={session.access_token} /> : <AdminStorePanel onMessage={onMessage} token={session.access_token} />}
+          </>
         )}
       </div>
     </main>

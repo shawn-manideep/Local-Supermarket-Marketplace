@@ -1,6 +1,21 @@
 import { z } from "zod";
 export { formatQuantity, formatVariantName, formatPrice } from "./variant-formatting.js";
 
+export const RESERVED_USERNAMES = ["admin", "administrator", "support", "system", "api", "root", "delivery", "vendor", "customer", "login", "logout", "dashboard"] as const;
+export const usernameSchema = z.string().min(3).max(30)
+  .regex(/^[A-Za-z][A-Za-z0-9_]{2,29}$/, "Use 3–30 ASCII letters, numbers or underscores, starting with a letter")
+  .refine(value => !RESERVED_USERNAMES.includes(value.toLowerCase() as typeof RESERVED_USERNAMES[number]), "This username is reserved")
+  .transform(value => value.toLowerCase());
+export const partnerLoginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
+export const partnerProvisionSchema = z.object({
+  username: usernameSchema,
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().min(1).max(100),
+  contactNumber: z.string().regex(/^(?:\+91)?[6-9]\d{9}$/, "Use a valid Indian contact number").nullable().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+}).strict();
+export const partnerStatusSchema = z.object({ status: z.enum(["ACTIVE", "INACTIVE"]) }).strict();
+
 export const supabasePublicConfigSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),

@@ -8,6 +8,7 @@ import { customerCartRouter } from "./customer-cart/index.js";
 import { HttpError } from "./http.js";
 import { storeManagementRouter } from "./store-management/index.js";
 import { ordersRouter } from "./orders/index.js";
+import { deliveryPartnerRouter } from "./delivery-partner/routes.js";
 import { createApiRateLimit } from "./security.js";
 
 export type IntegrationErrorDiagnostic = {
@@ -104,6 +105,7 @@ export function createApp() {
   });
 
   app.use(authRouter);
+  app.use(deliveryPartnerRouter);
   app.use(storeManagementRouter);
   app.use(catalogManagementRouter);
   app.use(masterCatalogRouter);

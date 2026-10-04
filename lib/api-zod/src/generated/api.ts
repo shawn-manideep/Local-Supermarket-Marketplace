@@ -8,6 +8,148 @@
 import * as zod from 'zod';
 
 
+export const signInDeliveryPartnerBodyUsernameMin = 3;
+export const signInDeliveryPartnerBodyUsernameMax = 30;
+
+
+export const signInDeliveryPartnerBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
+export const signInDeliveryPartnerBodyPasswordMax = 128;
+
+
+
+export const SignInDeliveryPartnerBody = zod.object({
+  "username": zod.string().min(signInDeliveryPartnerBodyUsernameMin).max(signInDeliveryPartnerBodyUsernameMax).regex(signInDeliveryPartnerBodyUsernameRegExp),
+  "password": zod.string().min(1).max(signInDeliveryPartnerBodyPasswordMax)
+})
+
+export const SignInDeliveryPartnerResponse = zod.object({
+  "session": zod.object({
+  "access_token": zod.string(),
+  "refresh_token": zod.string()
+})
+})
+
+
+export const GetDeliveryPartnerProfileResponse = zod.object({
+  "partner": zod.object({
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "contactNumber": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+})
+})
+
+
+export const getDeliveryPartnerDashboardResponseSummaryTotalMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryPendingMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryAssignedMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryInProgressMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryCompletedMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryCancelledMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryRejectedMin = 0;
+
+
+
+export const GetDeliveryPartnerDashboardResponse = zod.object({
+  "summary": zod.object({
+  "total": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryTotalMin),
+  "pending": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryPendingMin),
+  "assigned": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryAssignedMin),
+  "inProgress": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryInProgressMin),
+  "completed": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryCompletedMin),
+  "cancelled": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryCancelledMin),
+  "rejected": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryRejectedMin)
+})
+})
+
+
+export const GetDeliveryPartnerDeliveriesResponse = zod.object({
+  "deliveries": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['PENDING', 'ASSIGNED', 'PICKUP_PENDING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'REJECTED']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+export const ListAdminDeliveryPartnersResponse = zod.object({
+  "partners": zod.array(zod.object({
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "contactNumber": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})))
+})
+
+
+export const provisionAdminDeliveryPartnerBodyUsernameMin = 3;
+export const provisionAdminDeliveryPartnerBodyUsernameMax = 30;
+
+
+export const provisionAdminDeliveryPartnerBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
+export const provisionAdminDeliveryPartnerBodyPasswordMin = 8;
+export const provisionAdminDeliveryPartnerBodyPasswordMax = 128;
+
+export const provisionAdminDeliveryPartnerBodyDisplayNameMax = 100;
+
+export const provisionAdminDeliveryPartnerBodyContactNumberRegExp = new RegExp('^(?:\\+91)?[6-9]\\d{9}$');
+
+
+export const ProvisionAdminDeliveryPartnerBody = zod.object({
+  "username": zod.string().min(provisionAdminDeliveryPartnerBodyUsernameMin).max(provisionAdminDeliveryPartnerBodyUsernameMax).regex(provisionAdminDeliveryPartnerBodyUsernameRegExp),
+  "password": zod.string().min(provisionAdminDeliveryPartnerBodyPasswordMin).max(provisionAdminDeliveryPartnerBodyPasswordMax),
+  "displayName": zod.string().min(1).max(provisionAdminDeliveryPartnerBodyDisplayNameMax),
+  "contactNumber": zod.string().regex(provisionAdminDeliveryPartnerBodyContactNumberRegExp).nullish(),
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+})
+
+export const ProvisionAdminDeliveryPartnerResponse = zod.object({
+  "partner": zod.object({
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "contactNumber": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+export const UpdateAdminDeliveryPartnerStatusParams = zod.object({
+  "partnerId": zod.coerce.string().uuid()
+})
+
+export const UpdateAdminDeliveryPartnerStatusBody = zod.object({
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+})
+
+export const UpdateAdminDeliveryPartnerStatusResponse = zod.object({
+  "partner": zod.object({
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "contactNumber": zod.string().nullable(),
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
 /**
  * @summary Atomically place one order per cart and deduct variant stock once
  */

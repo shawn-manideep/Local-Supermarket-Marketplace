@@ -5,6 +5,7 @@ const WINDOW_MS = 60_000;
 const READ_LIMIT = 300;
 const GENERAL_LIMIT = 60;
 const ORDER_LIMIT = 10;
+const PARTNER_LOGIN_LIMIT = 10;
 const MAX_KEYS = 10_000;
 
 export function createApiRateLimit() {
@@ -24,11 +25,13 @@ export function createApiRateLimit() {
     }
     const identity = request.ip || request.socket.remoteAddress || "unknown";
     const isMutation = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method);
-    const scope = request.method === "POST" && request.path === "/api/customer/orders"
+    const scope = request.method === "POST" && request.path === "/api/delivery-partner/login"
+      ? "partner-login"
+      : request.method === "POST" && request.path === "/api/customer/orders"
       ? "orders"
       : isMutation ? "mutations" : "reads";
     const key = `${identity}:${scope}`;
-    const limit = scope === "orders" ? ORDER_LIMIT : scope === "mutations" ? GENERAL_LIMIT : READ_LIMIT;
+    const limit = scope === "orders" ? ORDER_LIMIT : scope === "partner-login" ? PARTNER_LOGIN_LIMIT : scope === "mutations" ? GENERAL_LIMIT : READ_LIMIT;
     const bucket = buckets.get(key);
     if (!bucket || bucket.resetAt <= now) {
       buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });

@@ -85,6 +85,20 @@
       "when": 1791035000000,
       "tag": "0011_order_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791084000000,
+      "tag": "0012_delivery_partner_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791084000001,
+      "tag": "0013_delivery_partner_foundation",
+      "breakpoints": true
     }
   ]
 }

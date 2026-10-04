@@ -1,0 +1,474 @@
+Proceed with the minimal shared username foundation as part of Phase 6.
+
+You do NOT need a separate username implementation from me.
+
+The approved username rules are:
+
+1. USERNAME IS A SHARED GLOBAL IDENTITY
+--------------------------------------------------
+
+Username uniqueness is GLOBAL across all application roles:
+
+- CUSTOMER
+- VENDOR
+- ADMIN where applicable
+- DELIVERY_PARTNER
+
+The same username cannot exist for two identities.
+
+Uniqueness must be case-insensitive.
+
+Examples:
+
+Sharanya
+SHARANYA
+sharanya
+
+must be treated as the same username.
+
+Do not create separate username namespaces per role.
+
+--------------------------------------------------
+2. USERNAME FORMAT
+--------------------------------------------------
+
+Use these rules:
+
+- ASCII characters only
+- Minimum 3 characters
+- Maximum 30 characters
+- First character must be a letter
+- Remaining characters may contain:
+  - letters
+  - numbers
+  - underscore
+- No spaces
+- No special characters
+- Normalize usernames consistently, preferably lowercase for comparison/storage
+
+Examples of valid usernames:
+
+sharanya
+sharanya1
+sharanya_1
+vendor123
+
+Examples of invalid usernames:
+
+12sharanya
+shar
+sharanya name
+sharanya-name
+sharanya@gmail.com
+@sharanya
+
+Do not silently alter an invalid username supplied by the user.
+
+Return a validation error.
+
+--------------------------------------------------
+3. USERNAME DATA MODEL
+--------------------------------------------------
+
+Create the smallest shared username/identity mapping structure required.
+
+Do NOT store passwords in this structure.
+
+Supabase Auth remains responsible for passwords, sessions and authentication.
+
+The username structure should conceptually maintain:
+
+- id
+- user_id / identity_id
+- normalized_username
+- display_username if necessary
+- created_at
+- updated_at
+
+The authoritative relationship remains:
+
+Supabase Auth user ID
+        ↓
+application identity/profile
+        ↓
+username
+
+Do not duplicate password storage.
+
+--------------------------------------------------
+4. EXISTING LOGIN MUST NOT BREAK
+--------------------------------------------------
+
+This is extremely important.
+
+The current application uses email/password sign-in.
+
+DO NOT replace that existing login flow yet.
+
+Existing:
+
+CUSTOMER email/password login
+VENDOR email/password login
+ADMIN email/password login
+
+must continue working exactly as before.
+
+Do not force existing users to migrate to username login in this phase.
+
+Do not remove email from existing authentication.
+
+--------------------------------------------------
+5. DELIVERY PARTNER LOGIN
+--------------------------------------------------
+
+Delivery Partner login will use:
+
+USERNAME + PASSWORD
+
+The username must resolve to the correct Supabase Auth identity.
+
+Then the existing Supabase password/session mechanism should authenticate the account.
+
+Do NOT implement a second password system.
+
+Do NOT store partner passwords in PostgreSQL.
+
+Do NOT create a custom password hashing mechanism.
+
+--------------------------------------------------
+6. HOW USERNAME LOGIN SHOULD WORK
+--------------------------------------------------
+
+Implement a secure server-side username resolution flow.
+
+Conceptually:
+
+username
+   ↓
+normalize
+   ↓
+lookup global username registry
+   ↓
+resolve associated Supabase/Auth identity
+   ↓
+authenticate using existing Supabase Auth credentials/session architecture
+   ↓
+resolve application role
+   ↓
+allow access only if role/status is authorized
+
+Do not trust a client-provided role.
+
+Do not expose internal Auth identifiers unnecessarily.
+
+Do not expose the username registry as a public directory.
+
+--------------------------------------------------
+7. DELIVERY PARTNER PROVISIONING
+--------------------------------------------------
+
+Admin provisioning should create:
+
+1. Supabase Auth identity
+2. Application user/profile with DELIVERY_PARTNER role
+3. Global username mapping
+4. Delivery Partner profile
+
+These operations must be handled safely.
+
+If any required step fails, do not leave a partially provisioned partner.
+
+Use the existing backend/admin architecture and transaction/safety patterns wherever possible.
+
+--------------------------------------------------
+8. EXISTING USERS
+--------------------------------------------------
+
+DO NOT force existing customers/vendors/admins to receive usernames during this Phase 6 implementation.
+
+Existing accounts may continue using email login.
+
+However, the shared username structure must support future username assignment.
+
+If existing accounts already have usernames, preserve them.
+
+Do not automatically invent usernames such as:
+
+customer12345
+
+unless the existing application already requires this.
+
+--------------------------------------------------
+9. GLOBAL DUPLICATE PROTECTION
+--------------------------------------------------
+
+The database must enforce uniqueness.
+
+Do not rely only on frontend validation.
+
+The normalized username must have a database-level unique constraint/index.
+
+Concurrent creation attempts for the same username must result in only one successful username claim.
+
+The other request must receive a clean duplicate-username error.
+
+--------------------------------------------------
+10. RESERVED USERNAMES
+--------------------------------------------------
+
+Protect obvious system/reserved names such as:
+
+admin
+administrator
+support
+system
+api
+root
+delivery
+vendor
+customer
+login
+logout
+dashboard
+
+Use a small explicit reserved-name list.
+
+Do not create an unnecessarily large reserved-word system.
+
+--------------------------------------------------
+11. USERNAME IMMUTABILITY
+--------------------------------------------------
+
+For now:
+
+USERNAME IS IMMUTABLE AFTER CREATION.
+
+Do not implement username change functionality.
+
+If an account needs a different username in the future, that should be a separately designed workflow.
+
+--------------------------------------------------
+12. SECURITY
+--------------------------------------------------
+
+Do not expose:
+
+- Supabase Auth internal identifiers unnecessarily
+- password information
+- password hashes
+- internal username registry fields
+- private partner information
+
+Username lookup must not become an unrestricted user-enumeration endpoint.
+
+Use appropriate generic authentication errors where necessary.
+
+--------------------------------------------------
+13. DELIVERY PARTNER STATUS
+--------------------------------------------------
+
+After resolving the username and authenticating the account:
+
+verify:
+
+role = DELIVERY_PARTNER
+
+AND
+
+status = ACTIVE
+
+Only then allow access to the Delivery Partner Portal.
+
+Inactive partners must be denied.
+
+--------------------------------------------------
+14. DO NOT CHANGE PHASE 5
+--------------------------------------------------
+
+This username foundation must not modify:
+
+- stock deduction
+- stock restoration
+- checkout
+- cart
+- order inventory
+- product variants
+
+Phase 5 behavior is already manually accepted.
+
+Preserve it exactly.
+
+--------------------------------------------------
+15. DO NOT CHANGE EXISTING CUSTOMER/VENDOR AUTH
+--------------------------------------------------
+
+Do not redesign:
+
+- customer email login
+- vendor email login
+- admin email login
+- existing Supabase session handling
+- existing logout
+- existing role resolution
+
+Only add the shared username capability required for Delivery Partner login.
+
+--------------------------------------------------
+16. MIGRATION SAFETY
+--------------------------------------------------
+
+Before implementing:
+
+Inspect the existing authentication schema and migrations.
+
+Create the smallest additive migration necessary.
+
+Do not rename or delete existing auth/profile columns.
+
+Do not migrate existing users unnecessarily.
+
+Do not modify production.
+
+Development database only.
+
+--------------------------------------------------
+17. REQUIRED TESTS
+--------------------------------------------------
+
+Add tests for:
+
+A. Valid username accepted.
+
+B. Invalid username rejected.
+
+C. Username shorter than 3 characters rejected.
+
+D. Username longer than 30 characters rejected.
+
+E. Username beginning with a number rejected.
+
+F. Username containing spaces rejected.
+
+G. Username containing unsupported special characters rejected.
+
+H. Case-insensitive duplicate username rejected.
+
+I. Concurrent duplicate username creation allows only one success.
+
+J. Delivery Partner can authenticate using username/password.
+
+K. Existing customer email/password login still works.
+
+L. Existing vendor email/password login still works.
+
+M. Existing admin authentication still works.
+
+N. Inactive Delivery Partner cannot access partner portal.
+
+O. Customer cannot use partner endpoints.
+
+P. Vendor cannot use partner endpoints.
+
+Q. Partner cannot access another partner's profile.
+
+R. Passwords are never stored in the username table.
+
+S. Supabase Auth remains the password/session authority.
+
+--------------------------------------------------
+18. IMPLEMENTATION PRINCIPLE
+--------------------------------------------------
+
+Keep this deliberately minimal.
+
+The goal is NOT to redesign authentication.
+
+The goal is:
+
+CURRENT:
+
+Existing Customer/Vendor/Admin
+→ Email + Password
+→ Supabase Auth
+
+NEW:
+
+Delivery Partner
+→ Username + Password
+→ existing Supabase Auth/session architecture
+→ DELIVERY_PARTNER role
+→ Partner Portal
+
+Shared username registry provides the identity lookup.
+
+--------------------------------------------------
+19. PHASE 6 SCOPE REMAINS UNCHANGED
+--------------------------------------------------
+
+After adding this prerequisite, continue with the original Phase 6 scope:
+
+- Delivery Partner role
+- Admin provisioning
+- Partner profile
+- Active/inactive
+- Username/password partner login
+- Partner authorization
+- Partner dashboard
+- My Deliveries foundation
+- Profile
+- Logout
+- Security
+- Empty-state delivery view
+
+Still DO NOT implement:
+
+- delivery assignment
+- Accept Duty
+- Reject Duty
+- Pickup
+- OUT_FOR_DELIVERY
+- DELIVERED
+- notifications
+- GPS
+- maps
+- tracking
+
+Those remain Phase 7.
+
+--------------------------------------------------
+20. REQUIRED REPORT
+--------------------------------------------------
+
+At the end, report separately:
+
+A. Username foundation
+- schema
+- validation
+- uniqueness
+- login resolution
+- security
+
+B. Delivery Partner
+- role
+- provisioning
+- profile
+- portal
+- authorization
+
+C. Regression
+- existing customer login
+- existing vendor login
+- existing admin login
+- Phase 5 stock behavior
+
+D. Tests
+- passed
+- failed
+- skipped
+
+E. Typecheck/build
+
+F. Manual browser checklist
+
+DO NOT start Phase 7.
+STOP after the Phase 6 report.

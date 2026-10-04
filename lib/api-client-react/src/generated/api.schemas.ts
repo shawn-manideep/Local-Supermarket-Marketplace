@@ -5,6 +5,153 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PartnerCredentials {
+  /**
+     * @minLength 3
+     * @maxLength 30
+     * @pattern ^[A-Za-z][A-Za-z0-9_]{2,29}$
+     */
+  username: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export type PartnerSessionOutcomeSession = {
+  access_token: string;
+  refresh_token: string;
+};
+
+export interface PartnerSessionOutcome {
+  session: PartnerSessionOutcomeSession;
+}
+
+export type PartnerProfileStatus = typeof PartnerProfileStatus[keyof typeof PartnerProfileStatus];
+
+
+export const PartnerProfileStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface PartnerProfile {
+  username: string;
+  displayName: string;
+  /** @nullable */
+  contactNumber: string | null;
+  status: PartnerProfileStatus;
+}
+
+export interface PartnerProfileOutcome {
+  partner: PartnerProfile;
+}
+
+export type PartnerAdminRecord = PartnerProfile & {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface PartnerDirectoryOutcome {
+  partners: PartnerAdminRecord[];
+}
+
+export interface PartnerAdministrationOutcome {
+  partner: PartnerAdminRecord;
+}
+
+export type PartnerProvisionInputStatus = typeof PartnerProvisionInputStatus[keyof typeof PartnerProvisionInputStatus];
+
+
+export const PartnerProvisionInputStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface PartnerProvisionInput {
+  /**
+     * @minLength 3
+     * @maxLength 30
+     * @pattern ^[A-Za-z][A-Za-z0-9_]{2,29}$
+     */
+  username: string;
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  password: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  displayName: string;
+  /**
+     * @nullable
+     * @pattern ^(?:\+91)?[6-9]\d{9}$
+     */
+  contactNumber?: string | null;
+  status: PartnerProvisionInputStatus;
+}
+
+export type PartnerStatusInputStatus = typeof PartnerStatusInputStatus[keyof typeof PartnerStatusInputStatus];
+
+
+export const PartnerStatusInputStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface PartnerStatusInput {
+  status: PartnerStatusInputStatus;
+}
+
+export type PartnerDashboardOutcomeSummary = {
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 0 */
+  pending: number;
+  /** @minimum 0 */
+  assigned: number;
+  /** @minimum 0 */
+  inProgress: number;
+  /** @minimum 0 */
+  completed: number;
+  /** @minimum 0 */
+  cancelled: number;
+  /** @minimum 0 */
+  rejected: number;
+};
+
+export interface PartnerDashboardOutcome {
+  summary: PartnerDashboardOutcomeSummary;
+}
+
+export type PartnerDeliveriesOutcomeDeliveriesItemStatus = typeof PartnerDeliveriesOutcomeDeliveriesItemStatus[keyof typeof PartnerDeliveriesOutcomeDeliveriesItemStatus];
+
+
+export const PartnerDeliveriesOutcomeDeliveriesItemStatus = {
+  PENDING: 'PENDING',
+  ASSIGNED: 'ASSIGNED',
+  PICKUP_PENDING: 'PICKUP_PENDING',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'CANCELLED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export type PartnerDeliveriesOutcomeDeliveriesItem = {
+  id: string;
+  status: PartnerDeliveriesOutcomeDeliveriesItemStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface PartnerDeliveriesOutcome {
+  deliveries: PartnerDeliveriesOutcomeDeliveriesItem[];
+}
+
 export type CustomerCheckoutSubmissionPaymentMethod = typeof CustomerCheckoutSubmissionPaymentMethod[keyof typeof CustomerCheckoutSubmissionPaymentMethod];
 
 

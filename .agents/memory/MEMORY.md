@@ -15,3 +15,5 @@
 - [Customer reorder boundaries](customer-reorder-boundaries.md) — exact historical identities enter a current-price cart; never substitute, place an order, or overwrite history.
 - [OpenAPI generation compatibility](openapi-generation-compatibility.md) — Orval path/query exports can collide; generated mutation headers need DOM iterable typing.
 - [Isolated PostgreSQL testing](isolated-postgres-testing.md) — disposable clusters must not inherit managed database connection defaults.
+- [Partner identity boundaries](partner-identity-boundaries.md) — preserve accepted stock/email sessions; shared usernames use the explicit 3–30 rule over contradictory examples.
+- [Supabase query results](supabase-query-results.md) — multi-statement SELECT batches may expose only the final result set; verify counts separately.

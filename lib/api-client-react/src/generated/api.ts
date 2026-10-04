@@ -25,6 +25,15 @@ import type {
   CustomerShoppingCategories,
   GetCustomerShoppingCategoriesParams,
   HealthStatus,
+  PartnerAdministrationOutcome,
+  PartnerCredentials,
+  PartnerDashboardOutcome,
+  PartnerDeliveriesOutcome,
+  PartnerDirectoryOutcome,
+  PartnerProfileOutcome,
+  PartnerProvisionInput,
+  PartnerSessionOutcome,
+  PartnerStatusInput,
   PreviewCustomerReorderParams,
   ReorderOutcome,
   ReorderPreview,
@@ -58,6 +67,537 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getSignInDeliveryPartnerUrl = () => {
+
+
+
+
+  return `/api/delivery-partner/login`
+}
+
+export const signInDeliveryPartner = async (partnerCredentials: PartnerCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerSessionOutcome>(getSignInDeliveryPartnerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(partnerCredentials)
+  }
+);}
+
+
+
+
+
+export const getSignInDeliveryPartnerMutationKey = () => ['signInDeliveryPartner'] as const;
+
+export const getSignInDeliveryPartnerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInDeliveryPartner>>, TError,SignInDeliveryPartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof signInDeliveryPartner>>, TError,SignInDeliveryPartnerMutationVariables, TContext> => {
+
+const mutationKey = getSignInDeliveryPartnerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signInDeliveryPartner>>, SignInDeliveryPartnerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  signInDeliveryPartner(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SignInDeliveryPartnerMutationResult = NonNullable<Awaited<ReturnType<typeof signInDeliveryPartner>>>
+    export type SignInDeliveryPartnerMutationBody = BodyType<PartnerCredentials>
+    export type SignInDeliveryPartnerMutationError = ErrorType<void>
+    export type SignInDeliveryPartnerMutationVariables = {data: BodyType<PartnerCredentials>}
+
+    export const useSignInDeliveryPartner = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInDeliveryPartner>>, TError,SignInDeliveryPartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof signInDeliveryPartner>>,
+        TError,
+        SignInDeliveryPartnerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSignInDeliveryPartnerMutationOptions(options));
+    }
+
+export const getGetDeliveryPartnerProfileUrl = () => {
+
+
+
+
+  return `/api/delivery-partner/me`
+}
+
+export const getDeliveryPartnerProfile = async ( options?: Parameters<typeof customFetch>[1]): Promise<PartnerProfileOutcome> => {
+
+  return customFetch<PartnerProfileOutcome>(getGetDeliveryPartnerProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeliveryPartnerProfileQueryKey = () => {
+    return [
+    `/api/delivery-partner/me`
+    ] as const;
+    }
+
+
+export const getGetDeliveryPartnerProfileQueryOptions = <TData = Awaited<ReturnType<typeof getDeliveryPartnerProfile>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeliveryPartnerProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryPartnerProfile>>> = ({ signal }) => getDeliveryPartnerProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeliveryPartnerProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getDeliveryPartnerProfile>>>
+export type GetDeliveryPartnerProfileQueryError = ErrorType<void>
+
+
+
+export function useGetDeliveryPartnerProfile<TData = Awaited<ReturnType<typeof getDeliveryPartnerProfile>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeliveryPartnerProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDeliveryPartnerDashboardUrl = () => {
+
+
+
+
+  return `/api/delivery-partner/dashboard`
+}
+
+export const getDeliveryPartnerDashboard = async ( options?: Parameters<typeof customFetch>[1]): Promise<PartnerDashboardOutcome> => {
+
+  return customFetch<PartnerDashboardOutcome>(getGetDeliveryPartnerDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeliveryPartnerDashboardQueryKey = () => {
+    return [
+    `/api/delivery-partner/dashboard`
+    ] as const;
+    }
+
+
+export const getGetDeliveryPartnerDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeliveryPartnerDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>> = ({ signal }) => getDeliveryPartnerDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeliveryPartnerDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>>
+export type GetDeliveryPartnerDashboardQueryError = ErrorType<void>
+
+
+
+export function useGetDeliveryPartnerDashboard<TData = Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeliveryPartnerDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDeliveryPartnerDeliveriesUrl = () => {
+
+
+
+
+  return `/api/delivery-partner/deliveries`
+}
+
+export const getDeliveryPartnerDeliveries = async ( options?: Parameters<typeof customFetch>[1]): Promise<PartnerDeliveriesOutcome> => {
+
+  return customFetch<PartnerDeliveriesOutcome>(getGetDeliveryPartnerDeliveriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeliveryPartnerDeliveriesQueryKey = () => {
+    return [
+    `/api/delivery-partner/deliveries`
+    ] as const;
+    }
+
+
+export const getGetDeliveryPartnerDeliveriesQueryOptions = <TData = Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeliveryPartnerDeliveriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>> = ({ signal }) => getDeliveryPartnerDeliveries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeliveryPartnerDeliveriesQueryResult = NonNullable<Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>>
+export type GetDeliveryPartnerDeliveriesQueryError = ErrorType<void>
+
+
+
+export function useGetDeliveryPartnerDeliveries<TData = Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryPartnerDeliveries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeliveryPartnerDeliveriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminDeliveryPartnersUrl = () => {
+
+
+
+
+  return `/api/admin/delivery-partners`
+}
+
+export const listAdminDeliveryPartners = async ( options?: Parameters<typeof customFetch>[1]): Promise<PartnerDirectoryOutcome> => {
+
+  return customFetch<PartnerDirectoryOutcome>(getListAdminDeliveryPartnersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminDeliveryPartnersQueryKey = () => {
+    return [
+    `/api/admin/delivery-partners`
+    ] as const;
+    }
+
+
+export const getListAdminDeliveryPartnersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminDeliveryPartnersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminDeliveryPartners>>> = ({ signal }) => listAdminDeliveryPartners({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminDeliveryPartnersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminDeliveryPartners>>>
+export type ListAdminDeliveryPartnersQueryError = ErrorType<void>
+
+
+
+export function useListAdminDeliveryPartners<TData = Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminDeliveryPartnersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getProvisionAdminDeliveryPartnerUrl = () => {
+
+
+
+
+  return `/api/admin/delivery-partners`
+}
+
+export const provisionAdminDeliveryPartner = async (partnerProvisionInput: PartnerProvisionInput, options?: Parameters<typeof customFetch>[1]): Promise<PartnerAdministrationOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerAdministrationOutcome>(getProvisionAdminDeliveryPartnerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(partnerProvisionInput)
+  }
+);}
+
+
+
+
+
+export const getProvisionAdminDeliveryPartnerMutationKey = () => ['provisionAdminDeliveryPartner'] as const;
+
+export const getProvisionAdminDeliveryPartnerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof provisionAdminDeliveryPartner>>, TError,ProvisionAdminDeliveryPartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof provisionAdminDeliveryPartner>>, TError,ProvisionAdminDeliveryPartnerMutationVariables, TContext> => {
+
+const mutationKey = getProvisionAdminDeliveryPartnerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof provisionAdminDeliveryPartner>>, ProvisionAdminDeliveryPartnerMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  provisionAdminDeliveryPartner(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ProvisionAdminDeliveryPartnerMutationResult = NonNullable<Awaited<ReturnType<typeof provisionAdminDeliveryPartner>>>
+    export type ProvisionAdminDeliveryPartnerMutationBody = BodyType<PartnerProvisionInput>
+    export type ProvisionAdminDeliveryPartnerMutationError = ErrorType<void>
+    export type ProvisionAdminDeliveryPartnerMutationVariables = {data: BodyType<PartnerProvisionInput>}
+
+    export const useProvisionAdminDeliveryPartner = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof provisionAdminDeliveryPartner>>, TError,ProvisionAdminDeliveryPartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof provisionAdminDeliveryPartner>>,
+        TError,
+        ProvisionAdminDeliveryPartnerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getProvisionAdminDeliveryPartnerMutationOptions(options));
+    }
+
+export const getUpdateAdminDeliveryPartnerStatusUrl = (partnerId: string,) => {
+
+
+
+
+  return `/api/admin/delivery-partners/${partnerId}/status`
+}
+
+export const updateAdminDeliveryPartnerStatus = async (partnerId: string,
+    partnerStatusInput: PartnerStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<PartnerAdministrationOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerAdministrationOutcome>(getUpdateAdminDeliveryPartnerStatusUrl(partnerId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(partnerStatusInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminDeliveryPartnerStatusMutationKey = () => ['updateAdminDeliveryPartnerStatus'] as const;
+
+export const getUpdateAdminDeliveryPartnerStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminDeliveryPartnerStatus>>, TError,UpdateAdminDeliveryPartnerStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminDeliveryPartnerStatus>>, TError,UpdateAdminDeliveryPartnerStatusMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminDeliveryPartnerStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminDeliveryPartnerStatus>>, UpdateAdminDeliveryPartnerStatusMutationVariables> = (props) => {
+          const {partnerId,data} = props ?? {};
+
+          return  updateAdminDeliveryPartnerStatus(partnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminDeliveryPartnerStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminDeliveryPartnerStatus>>>
+    export type UpdateAdminDeliveryPartnerStatusMutationBody = BodyType<PartnerStatusInput>
+    export type UpdateAdminDeliveryPartnerStatusMutationError = ErrorType<void>
+    export type UpdateAdminDeliveryPartnerStatusMutationVariables = {partnerId: string;data: BodyType<PartnerStatusInput>}
+
+    export const useUpdateAdminDeliveryPartnerStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminDeliveryPartnerStatus>>, TError,UpdateAdminDeliveryPartnerStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminDeliveryPartnerStatus>>,
+        TError,
+        UpdateAdminDeliveryPartnerStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminDeliveryPartnerStatusMutationOptions(options));
+    }
 
 export const getPlaceCustomerOrderUrl = () => {
 
