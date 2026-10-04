@@ -3,7 +3,7 @@ name: Partner identity boundaries
 description: Approved identity scope and non-obvious username requirement interpretation.
 ---
 
-Delivery Partner identity work must preserve the manually accepted Phase 5 stock behavior and existing customer/vendor/admin email login, Supabase sessions, logout, and role-resolution architecture.
+Delivery Partner work must preserve the manually accepted Phase 5 stock behavior and Phase 6 portal, plus existing customer/vendor/admin email login, Supabase sessions, logout, and role-resolution architecture.
 
 **Why:** The user explicitly declared Phase 5 manually accepted and prohibited authentication redesign during the partner extension.
 

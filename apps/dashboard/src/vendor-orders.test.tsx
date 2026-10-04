@@ -15,10 +15,30 @@ test("preparation stops at ready and historical or terminal statuses offer no pr
   for (const status of ["READY", "OUT_FOR_DELIVERY", "DELIVERED", "REJECTED", "CANCELLED"] as const)
     assert.deepEqual(vendorActions(status, "orders"), []);
 });
-test("existing delivery actions remain confined to the separate delivery view", () => {
-  assert.deepEqual(vendorActions("READY", "delivery").map(item => item.action), ["OUT_FOR_DELIVERY"]);
-  assert.deepEqual(vendorActions("OUT_FOR_DELIVERY", "delivery").map(item => item.action), ["DELIVER"]);
+test("vendor delivery view never dispatches or completes partner deliveries", () => {
+  assert.deepEqual(vendorActions("READY", "delivery"), []);
+  assert.deepEqual(vendorActions("OUT_FOR_DELIVERY", "delivery"), []);
   assert.deepEqual(vendorActions("PLACED", "delivery"), []);
+});
+test("vendor order details use partner assignment contracts and hide opaque selection IDs", async () => {
+  const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
+  const panel = source.slice(source.indexOf("function VendorDeliveryAssignmentPanel"), source.indexOf("function AdminSummaryTiles"));
+  assert.match(panel, /\/api\/vendor\/orders\/\$\{encodeURIComponent\(detail\.id\)\}\/delivery/);
+  assert.match(panel, /\/api\/vendor\/delivery-partners/);
+  assert.match(panel, /partner\.status === "ACTIVE"/);
+  assert.match(panel, /detail\.status === "READY" && canReplace/);
+  assert.match(panel, /const replaceable = !response\.assignment \|\| \["PENDING", "REJECTED", "CANCELLED"\]\.includes\(response\.assignment\.status\)/);
+  assert.match(panel, /const canReplace = !assignment \|\| \["PENDING", "REJECTED", "CANCELLED"\]\.includes\(assignment\.status\)/);
+  assert.match(panel, /Replacing this assignment will cancel the current pending duty/);
+  assert.match(panel, /Replace pending delivery\?/);
+  assert.doesNotMatch(panel, /\["PENDING", "REJECTED", "CANCELLED", "ACCEPTED"|canReplace = .*PICKED_UP|canReplace = .*OUT_FOR_DELIVERY/);
+  assert.match(panel, /JSON\.stringify\(\{ partnerId \}\)/);
+  assert.match(panel, /assignment\.partnerName/);
+  assert.match(panel, /<option key=\{partner\.id\} value=\{partner\.id\}>\{partner\.displayName\}<\/option>/);
+  assert.doesNotMatch(panel, /<strong>\{assignment\.id\}|>Delivery · \{assignment\.id\}</);
+  assert.match(source, /<VendorDeliveryAssignmentPanel token=\{token\} detail=\{detail\} disabled=\{busy\} \/>/);
+  assert.match(panel, /window\.setInterval\(refreshWhenVisible, 45_000\)/);
+  assert.match(panel, /requestScope !== renderedScope\.current/);
 });
 test("snapshot variant names are preserved exactly, with snapshot-only legacy fallback", () => {
   assert.equal(historicalVariantLabel({ variantNameSnapshot: "Original Brand — 1 kg" }), "Original Brand — 1 kg");
@@ -79,6 +99,7 @@ test("each preparation action has a specific progress label", () => {
   assert.equal(actionProgress.REJECT, "Rejecting...");
   assert.equal(actionProgress.PREPARE, "Starting preparation...");
   assert.equal(actionProgress.READY, "Marking ready...");
+  assert.deepEqual(Object.keys(actionProgress).sort(), ["ACCEPT", "PREPARE", "READY", "REJECT"]);
 });
 test("detail opens as its own view, with fulfillment, receipt, actions and append-only timeline in order", async () => {
   const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
@@ -103,14 +124,17 @@ test("rejection needs accessible confirmation and preserves the optional reason"
 test("vendor refresh is manual, periodic and visibility-aware without a second status architecture", async () => {
   const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
   const vendor = source.slice(source.indexOf("function VendorOrderOperations"));
-  assert.match(vendor, /window\.setInterval\(refreshVisible, 30_000\)/);
+  assert.match(vendor, /window\.setInterval\(refreshVisible, 45_000\)/);
   assert.match(vendor, /document\.visibilityState !== "visible"/);
   assert.match(vendor, /window\.addEventListener\("focus", refreshVisible\)/);
   assert.match(vendor, /window\.clearInterval\(timer\)/);
   assert.match(vendor, /Refresh Order/);
   assert.match(vendor, /Refresh List/);
   assert.match(vendor, /setSelected\(response\.order\)/);
-  assert.match(vendor, /requestGeneration !== detailGeneration\.current/);
+  assert.match(vendor, /requestGeneration === detailGeneration\.current && requestScope === currentScope\.current/);
+  assert.match(vendor, /setDetailRefreshing\(true\)/);
+  assert.match(vendor, /void load\(true\)/);
+  assert.match(vendor, /void openDetail\(detailTargetId, true\)/);
   assert.match(vendor, /setOrders\(\[\]\); setCounts\(\{\}\)/);
   assert.match(vendor, /renderedScope\.current !== scope/);
 });
@@ -120,7 +144,7 @@ test("vendor errors omit raw diagnostics and stale detail prevents actions", asy
   assert.doesNotMatch(vendor, /cause\.message/);
   assert.match(vendor, /We couldn't load your orders/);
   assert.match(vendor, /We couldn't update this order/);
-  assert.match(vendor, /busy \|\| detailLoading \|\| detailError/);
+  assert.match(vendor, /detailLoading \|\| detailRefreshing \|\| detailError \|\| error/);
   assert.match(vendor, /!actionGate\.current\.start\(\)/);
 });
 test("tablet and phone queue layouts stack labeled cells and keep details and confirmation in viewport", async () => {

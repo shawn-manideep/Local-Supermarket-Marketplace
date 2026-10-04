@@ -14,14 +14,24 @@ test("partner login validates literal username input and uses Supabase session t
   assert.match(app, /<DeliveryPartnerPortal key=\{profile\.userId\}/);
   assert.match(app, /supabase\.auth\.signInWithPassword\(\{\s*email: email\.trim\(\),\s*password,/);
 });
-test("portal uses partner-only scoped APIs, read-only profile, no delivery actions and clears cached data", async () => {
+test("portal uses partner-only scoped APIs, delivers status actions, and clears cached data on authorization loss", async () => {
   const portal = await source("DeliveryPartnerPortal.tsx");
   for (const path of ["me", "dashboard", "deliveries"]) assert.match(portal, new RegExp(`/api/delivery-partner/${path}`));
-  assert.doesNotMatch(portal, /\/api\/vendor|\/api\/customer|\/api\/admin|method: "(POST|PATCH|PUT|DELETE)"|Accept Duty|Reject Duty|Mark Delivered|Start Delivery|<input|<textarea/);
+  assert.match(portal, /\/api\/delivery-partner\/deliveries\/\$\{encodeURIComponent\(current\.id\)\}\/actions/);
+  assert.match(portal, /method: "POST", body: JSON\.stringify\(\{ action \}\)/);
+  assert.match(portal, /PENDING: \[\{ action: "ACCEPT"/);
+  assert.match(portal, /ACCEPTED: \[\{ action: "PICKUP"/);
+  assert.match(portal, /PICKED_UP: \[\{ action: "START"/);
+  assert.match(portal, /OUT_FOR_DELIVERY: \[\{ action: "DELIVER"/);
+  assert.match(portal, /role="alertdialog"/);
+  assert.doesNotMatch(portal, /\/api\/vendor|\/api\/customer|\/api\/admin|<input|<textarea|delivery\.id\.slice/);
   assert.match(portal, /setData\(EMPTY\)/);
   assert.match(portal, /controller\.abort\(\)/);
   assert.match(portal, /No deliveries assigned yet/);
   assert.match(portal, /requestError\.status === 403 \? requestError\.message/);
+  assert.match(portal, /window\.setInterval\(\(\) => \{ void reload\(controller\.signal\); \}, POLL_MS\)/);
+  assert.match(portal, /snapshotAddress/);
+  assert.doesNotMatch(portal, /deliveryContactPhone|customerAccountId|userId|delivery\.id\.slice/);
 });
 test("admin provisioning submits only approved fields, leaves username immutable and never preserves a password after save", async () => {
   const admin = await source("AdminDeliveryPartners.tsx");

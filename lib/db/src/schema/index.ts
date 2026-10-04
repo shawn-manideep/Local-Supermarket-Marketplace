@@ -570,9 +570,25 @@ export const deliveryAssignments = pgTable("delivery_assignments", {
   id: uuid("id").primaryKey().defaultRandom(),
   orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
   partnerUserId: uuid("partner_user_id").notNull().references(() => deliveryPartnerProfiles.userId, { onDelete: "restrict" }),
-  status: text("status").notNull().default("ASSIGNED"),
+  status: text("status").notNull().default("PENDING"),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  pickedUpAt: timestamp("picked_up_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
   createdAt: createdAt(), updatedAt: updatedAt(),
 }, table => [
-  check("delivery_assignment_status_check", sql`${table.status} IN ('PENDING','ASSIGNED','PICKUP_PENDING','OUT_FOR_DELIVERY','DELIVERED','CANCELLED','REJECTED')`),
+  check("delivery_assignment_state", sql`${table.status} IN ('PENDING','ACCEPTED','REJECTED','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED','CANCELLED')`),
+  check("delivery_assignment_timestamps", sql`
+    (${table.status} <> 'REJECTED' OR ${table.rejectedAt} IS NOT NULL)
+    AND (${table.status} NOT IN ('ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED') OR ${table.acceptedAt} IS NOT NULL)
+    AND (${table.status} NOT IN ('PICKED_UP','OUT_FOR_DELIVERY','DELIVERED') OR ${table.pickedUpAt} IS NOT NULL)
+    AND (${table.status} <> 'DELIVERED' OR ${table.deliveredAt} IS NOT NULL)
+    AND (${table.acceptedAt} IS NULL OR ${table.acceptedAt} >= ${table.assignedAt})
+    AND (${table.rejectedAt} IS NULL OR ${table.rejectedAt} >= ${table.assignedAt})
+    AND (${table.pickedUpAt} IS NULL OR ${table.pickedUpAt} >= ${table.acceptedAt})
+    AND (${table.deliveredAt} IS NULL OR ${table.deliveredAt} >= ${table.pickedUpAt})`),
+  uniqueIndex("delivery_one_active_assignment").on(table.orderId).where(sql`${table.status} IN ('PENDING','ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY')`),
+  index("delivery_assignments_order_time").on(table.orderId, table.assignedAt.desc()),
   index("delivery_assignments_partner_created_idx").on(table.partnerUserId, table.createdAt),
 ]);

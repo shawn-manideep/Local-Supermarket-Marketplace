@@ -591,6 +591,9 @@ ordersRouter.get("/api/vendor/orders/:orderId", requireRole("vendor"), asyncHand
 ordersRouter.post("/api/vendor/orders/:orderId/actions", requireRole("vendor"), asyncHandler(async (req, res) => {
   const parsed = vendorOrderActionSchema.safeParse(req.body);
   if (!parsed.success) throw new HttpError(400, "Invalid order action", validationDetails(parsed.error));
+  if (parsed.data.action === "OUT_FOR_DELIVERY" || parsed.data.action === "DELIVER") {
+    throw new HttpError(403, "Only the assigned active Delivery Partner can perform this action.", undefined, "UNAUTHORIZED_DELIVERY_ACTION");
+  }
   const id = orderId(req); const storeId = (req as AuthenticatedRequest).auth?.storeId;
   if (!storeId) throw new HttpError(404, "Vendor store not found");
   const updated = await getDb().transaction(async tx => {

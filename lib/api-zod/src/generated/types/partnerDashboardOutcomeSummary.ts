@@ -21,4 +21,12 @@ export type PartnerDashboardOutcomeSummary = {
   cancelled: number;
   /** @minimum 0 */
   rejected: number;
+  /** @minimum 0 */
+  accepted?: number;
+  /** @minimum 0 */
+  pickedUp?: number;
+  /** @minimum 0 */
+  outForDelivery?: number;
+  /** @minimum 0 */
+  delivered?: number;
 };

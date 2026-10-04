@@ -122,34 +122,89 @@ export type PartnerDashboardOutcomeSummary = {
   cancelled: number;
   /** @minimum 0 */
   rejected: number;
+  /** @minimum 0 */
+  accepted?: number;
+  /** @minimum 0 */
+  pickedUp?: number;
+  /** @minimum 0 */
+  outForDelivery?: number;
+  /** @minimum 0 */
+  delivered?: number;
 };
 
 export interface PartnerDashboardOutcome {
   summary: PartnerDashboardOutcomeSummary;
 }
 
-export type PartnerDeliveriesOutcomeDeliveriesItemStatus = typeof PartnerDeliveriesOutcomeDeliveriesItemStatus[keyof typeof PartnerDeliveriesOutcomeDeliveriesItemStatus];
+export type DeliveryAssignmentStatus = typeof DeliveryAssignmentStatus[keyof typeof DeliveryAssignmentStatus];
 
 
-export const PartnerDeliveriesOutcomeDeliveriesItemStatus = {
+export const DeliveryAssignmentStatus = {
   PENDING: 'PENDING',
-  ASSIGNED: 'ASSIGNED',
-  PICKUP_PENDING: 'PICKUP_PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  PICKED_UP: 'PICKED_UP',
   OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
   DELIVERED: 'DELIVERED',
   CANCELLED: 'CANCELLED',
-  REJECTED: 'REJECTED',
 } as const;
 
-export type PartnerDeliveriesOutcomeDeliveriesItem = {
+/**
+ * @nullable
+ */
+export type DeliveryAssignmentDeliveryAddress = { [key: string]: unknown } | null;
+
+export interface DeliveryAssignment {
   id: string;
-  status: PartnerDeliveriesOutcomeDeliveriesItemStatus;
+  orderId: string;
+  orderReference: string;
+  storeName: string;
+  orderStatus: string;
+  orderTotal: string;
+  partnerName: string;
+  status: DeliveryAssignmentStatus;
+  assignedAt: string;
+  /** @nullable */
+  acceptedAt: string | null;
+  /** @nullable */
+  rejectedAt: string | null;
+  /** @nullable */
+  pickedUpAt: string | null;
+  /** @nullable */
+  deliveredAt: string | null;
   createdAt: string;
   updatedAt: string;
-};
+  /** @nullable */
+  deliveryAddress: DeliveryAssignmentDeliveryAddress;
+  /** @nullable */
+  recipientName: string | null;
+}
+
+export interface DeliveryAssignRequest {
+  partnerId: string;
+}
+
+export type DeliveryDutyRequestAction = typeof DeliveryDutyRequestAction[keyof typeof DeliveryDutyRequestAction];
+
+
+export const DeliveryDutyRequestAction = {
+  ACCEPT: 'ACCEPT',
+  REJECT: 'REJECT',
+  PICKUP: 'PICKUP',
+  START: 'START',
+  DELIVER: 'DELIVER',
+} as const;
+
+export interface DeliveryDutyRequest {
+  action: DeliveryDutyRequestAction;
+}
+
+export interface DeliveryAssignmentOutcome {
+  assignment: DeliveryAssignment | null;
+}
 
 export interface PartnerDeliveriesOutcome {
-  deliveries: PartnerDeliveriesOutcomeDeliveriesItem[];
+  deliveries: DeliveryAssignment[];
 }
 
 export type CustomerCheckoutSubmissionPaymentMethod = typeof CustomerCheckoutSubmissionPaymentMethod[keyof typeof CustomerCheckoutSubmissionPaymentMethod];
@@ -279,6 +334,23 @@ export interface CustomerShoppingCategories {
 export interface HealthStatus {
   status: string;
 }
+
+export type GetEligibleDeliveryPartners200PartnersItemStatus = typeof GetEligibleDeliveryPartners200PartnersItemStatus[keyof typeof GetEligibleDeliveryPartners200PartnersItemStatus];
+
+
+export const GetEligibleDeliveryPartners200PartnersItemStatus = {
+  ACTIVE: 'ACTIVE',
+} as const;
+
+export type GetEligibleDeliveryPartners200PartnersItem = {
+  id: string;
+  displayName: string;
+  status: GetEligibleDeliveryPartners200PartnersItemStatus;
+};
+
+export type GetEligibleDeliveryPartners200 = {
+  partners: GetEligibleDeliveryPartners200PartnersItem[];
+};
 
 export type PreviewCustomerReorderParams = {
 addressId: string;

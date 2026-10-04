@@ -11,6 +11,83 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /vendor/orders/{orderId}/delivery:
+    parameters:
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getVendorOrderDelivery
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Latest assignment for own-store order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryAssignmentOutcome" }
+    post:
+      operationId: assignVendorOrderDelivery
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeliveryAssignRequest" }
+      responses:
+        "200":
+          description: Created pending assignment; pending replacement preserves prior cancelled record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryAssignmentOutcome" }
+  /vendor/delivery-partners:
+    get:
+      operationId: getEligibleDeliveryPartners
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Active partner display names and opaque selection identifiers only
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [partners]
+                properties:
+                  partners:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, displayName, status]
+                      properties:
+                        id: { type: string, format: uuid }
+                        displayName: { type: string }
+                        status: { type: string, enum: [ACTIVE] }
+  /delivery-partner/deliveries/{assignmentId}:
+    parameters:
+      - { name: assignmentId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getOwnDeliveryDetails
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Own assignment and minimum fulfillment snapshot; rejected/cancelled addresses withheld
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryAssignmentOutcome" }
+  /delivery-partner/deliveries/{assignmentId}/actions:
+    parameters:
+      - { name: assignmentId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: performOwnDeliveryAction
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeliveryDutyRequest" }
+      responses:
+        "200":
+          description: State-checked transactional duty/order transition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeliveryAssignmentOutcome" }
   /delivery-partner/login:
     post:
       operationId: signInDeliveryPartner
@@ -332,20 +409,58 @@ components:
             completed: { type: integer, minimum: 0 }
             cancelled: { type: integer, minimum: 0 }
             rejected: { type: integer, minimum: 0 }
+            accepted: { type: integer, minimum: 0 }
+            pickedUp: { type: integer, minimum: 0 }
+            outForDelivery: { type: integer, minimum: 0 }
+            delivered: { type: integer, minimum: 0 }
+    DeliveryAssignment:
+      type: object
+      required: [id, orderId, orderReference, storeName, orderStatus, orderTotal, partnerName, status, assignedAt, acceptedAt, rejectedAt, pickedUpAt, deliveredAt, createdAt, updatedAt, deliveryAddress, recipientName]
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        orderReference: { type: string }
+        storeName: { type: string }
+        orderStatus: { type: string }
+        orderTotal: { type: string }
+        partnerName: { type: string }
+        status: { type: string, enum: [PENDING, ACCEPTED, REJECTED, PICKED_UP, OUT_FOR_DELIVERY, DELIVERED, CANCELLED] }
+        assignedAt: { type: string, format: date-time }
+        acceptedAt: { type: [string, "null"], format: date-time }
+        rejectedAt: { type: [string, "null"], format: date-time }
+        pickedUpAt: { type: [string, "null"], format: date-time }
+        deliveredAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deliveryAddress: { type: [object, "null"], additionalProperties: true }
+        recipientName: { type: [string, "null"] }
+    DeliveryAssignRequest:
+      type: object
+      additionalProperties: false
+      required: [partnerId]
+      properties:
+        partnerId: { type: string, format: uuid }
+    DeliveryDutyRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: { type: string, enum: [ACCEPT, REJECT, PICKUP, START, DELIVER] }
+    DeliveryAssignmentOutcome:
+      type: object
+      required: [assignment]
+      properties:
+        assignment:
+          anyOf:
+            - { $ref: "#/components/schemas/DeliveryAssignment" }
+            - { type: "null" }
     PartnerDeliveriesOutcome:
       type: object
       required: [deliveries]
       properties:
         deliveries:
           type: array
-          items:
-            type: object
-            required: [id, status, createdAt, updatedAt]
-            properties:
-              id: { type: string, format: uuid }
-              status: { type: string, enum: [PENDING, ASSIGNED, PICKUP_PENDING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, REJECTED] }
-              createdAt: { type: string, format: date-time }
-              updatedAt: { type: string, format: date-time }
+          items: { $ref: "#/components/schemas/DeliveryAssignment" }
     CustomerCheckoutSubmission:
       type: object
       additionalProperties: false

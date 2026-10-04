@@ -6,7 +6,9 @@ import {
   type OrderStatus,
   type OrderSummary,
   type Store,
+  type VendorDeliveryPartner,
 } from "./api";
+import type { DeliveryAssignment } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { actionProgress, createVendorActionGate, vendorActions, vendorEmptyMessage, vendorStatusLabel, type VendorOrderAction } from "./vendor-orders";
 import { VendorOrderReceipt } from "./VendorOrderReceipt";
 import "./vendor-orders.css";
@@ -16,6 +18,158 @@ const money = (value: string | number) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 const statusLabel = (value: string) => value.replaceAll("_", " ");
 const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor delivery" : "Platform partner";
+const deliveryStatusLabel = (value: string) => value.replaceAll("_", " ");
+
+function VendorDeliveryAssignmentPanel({ token, detail, disabled = false }: { token: string; detail: OrderDetail; disabled?: boolean }) {
+  const [assignment, setAssignment] = useState<DeliveryAssignment | null>(null);
+  const [partners, setPartners] = useState<VendorDeliveryPartner[]>([]);
+  const [partnerId, setPartnerId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmReplacement, setConfirmReplacement] = useState(false);
+  const requestGeneration = useRef(0);
+  const actionGate = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const replacementDialog = useRef<HTMLDialogElement>(null);
+  const scope = `${token}:${detail.id}`;
+  const renderedScope = useRef(scope);
+  renderedScope.current = scope;
+
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    const generation = ++requestGeneration.current;
+    const requestScope = scope;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await apiRequest<{ assignment: DeliveryAssignment | null }>(
+        `/api/vendor/orders/${encodeURIComponent(detail.id)}/delivery`, token, { signal },
+      );
+      if (signal?.aborted || generation !== requestGeneration.current || requestScope !== renderedScope.current) return;
+      setAssignment(response.assignment);
+      const replaceable = !response.assignment || ["PENDING", "REJECTED", "CANCELLED"].includes(response.assignment.status);
+      if (detail.status === "READY" && replaceable) {
+        const directory = await apiRequest<{ partners: VendorDeliveryPartner[] }>("/api/vendor/delivery-partners", token, { signal });
+        if (signal?.aborted || generation !== requestGeneration.current || requestScope !== renderedScope.current) return;
+        setPartners(directory.partners.filter((partner) => partner.status === "ACTIVE"));
+      } else {
+        setPartners([]);
+      }
+    } catch {
+      if (!signal?.aborted && generation === requestGeneration.current && requestScope === renderedScope.current) {
+        setError("Delivery assignment could not be loaded. Retry to check its current state.");
+      }
+    } finally {
+      if (!signal?.aborted && generation === requestGeneration.current && requestScope === renderedScope.current) setLoading(false);
+    }
+  }, [detail.id, detail.status, scope, token]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    renderedScope.current = scope;
+    setAssignment(null);
+    setPartners([]);
+    setPartnerId("");
+    setLoading(true);
+    void refresh(controller.signal);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible" && !actionGate.current && !controller.signal.aborted)
+        void refresh(controller.signal);
+    };
+    const timer = window.setInterval(refreshWhenVisible, 45_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      if (controllerRef.current === controller) controllerRef.current = null;
+      ++requestGeneration.current;
+    };
+  }, [refresh, scope]);
+
+  useEffect(() => {
+    if (confirmReplacement && assignment?.status === "PENDING") replacementDialog.current?.showModal();
+    else replacementDialog.current?.close();
+  }, [confirmReplacement, assignment?.status]);
+
+  const assign = async () => {
+    const signal = controllerRef.current?.signal;
+    const requestScope = scope;
+    if (disabled || requestScope !== renderedScope.current || !partnerId || saving || actionGate.current || detail.status !== "READY" || !signal || signal.aborted) return;
+    actionGate.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await apiRequest<{ assignment: DeliveryAssignment | null }>(
+        `/api/vendor/orders/${encodeURIComponent(detail.id)}/delivery`,
+        token,
+        { method: "POST", body: JSON.stringify({ partnerId }), signal },
+      );
+      if (signal.aborted || requestScope !== renderedScope.current) return;
+      setAssignment(response.assignment);
+      setPartnerId("");
+      // Re-read the server-owned assignment after the write.
+      await refresh(signal);
+    } catch {
+      if (!signal.aborted && requestScope === renderedScope.current) {
+        await refresh(signal);
+        if (!signal.aborted && requestScope === renderedScope.current)
+          setError("Partner assignment could not be completed. Review the current assignment before trying again.");
+      }
+    } finally {
+      actionGate.current = false;
+      if (!signal.aborted && requestScope === renderedScope.current) setSaving(false);
+    }
+  };
+
+  const canReplace = !assignment || ["PENDING", "REJECTED", "CANCELLED"].includes(assignment.status);
+  const beginAssign = () => {
+    if (assignment?.status === "PENDING") setConfirmReplacement(true);
+    else void assign();
+  };
+  return (
+    <div className="vendor-info-block vendor-delivery-assignment" aria-label="Delivery assignment">
+      <div className="vendor-assignment-heading">
+        <div><h3 className="vendor-subtitle">Delivery partner</h3><p className="vendor-text-muted">Partner fulfillment is managed separately from order preparation.</p></div>
+        <button className="vendor-text-button" type="button" disabled={loading || saving || disabled} onClick={() => void refresh()}>{loading ? "Checking…" : "Refresh"}</button>
+      </div>
+      {error && <div className="vendor-notice vendor-notice-error" role="alert"><span>{error}</span><button className="vendor-secondary-button" type="button" disabled={loading} onClick={() => void refresh()}>Retry</button></div>}
+      {loading ? <div className="vendor-delivery-skeleton" aria-label="Loading delivery assignment" /> : assignment ? (
+        <div className="vendor-assignment-current">
+          <div><span className="vendor-text-muted">Assigned to</span><strong>{assignment.partnerName}</strong></div>
+          <span className={`vendor-status-badge vendor-status-${assignment.status.toLowerCase()}`}>{deliveryStatusLabel(assignment.status)}</span>
+          {assignment.status === "PENDING" && <p className="vendor-assignment-warning">Replacing this assignment will cancel the current pending duty before a new partner is assigned.</p>}
+          {["REJECTED", "CANCELLED"].includes(assignment.status) && <p className="vendor-text-muted">This assignment is closed. A replacement may be selected when the order is ready.</p>}
+        </div>
+      ) : <p className="vendor-text-muted">No delivery partner has been assigned.</p>}
+      {!loading && detail.status === "READY" && canReplace && (
+        <div className="vendor-assignment-select">
+          <label htmlFor="delivery-partner-select">{assignment?.status === "PENDING" ? "Choose a replacement partner" : "Choose an active partner"}</label>
+          <div>
+            <select id="delivery-partner-select" value={partnerId} onChange={(event) => setPartnerId(event.target.value)} disabled={saving || !!error || disabled}>
+              <option value="">Select a partner</option>
+              {partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.displayName}</option>)}
+            </select>
+            <button className="vendor-primary-button" type="button" disabled={!partnerId || saving || !!error || disabled} onClick={beginAssign}>{saving ? "Assigning…" : assignment?.status === "PENDING" ? "Replace pending assignment" : "Assign partner"}</button>
+          </div>
+          {!partners.length && !error && <small>No active partners are available.</small>}
+        </div>
+      )}
+      {!loading && detail.status !== "READY" && !assignment && <p className="vendor-text-muted">Partner assignment becomes available when preparation is marked ready.</p>}
+      <dialog className="vendor-order-reject-dialog" ref={replacementDialog} aria-labelledby="vendor-replace-delivery-title" onCancel={() => setConfirmReplacement(false)}>
+        <h3 id="vendor-replace-delivery-title">Replace pending delivery?</h3>
+        <p>The current pending duty for {assignment?.partnerName} will be cancelled before the new partner is assigned.</p>
+        <div className="vendor-order-confirm-actions">
+          <button type="button" className="vendor-secondary-button" autoFocus onClick={() => setConfirmReplacement(false)}>Keep current partner</button>
+          <button type="button" className="vendor-primary-button" disabled={!partnerId || saving || !!error || disabled} onClick={() => { setConfirmReplacement(false); void assign(); }}>{saving ? "Replacing…" : "Confirm replacement"}</button>
+        </div>
+      </dialog>
+    </div>
+  );
+}
 
 function AdminSummaryTiles({ counts }: { counts: Record<string, number> }) {
   return (
@@ -154,8 +308,9 @@ const time = (value: string) => new Date(value).toLocaleTimeString(undefined, { 
 const orderVendorTabs: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED", "REJECTED", "CANCELLED"];
 const deliveryVendorTabs: OrderStatus[] = ["READY", "OUT_FOR_DELIVERY", "DELIVERED"];
 
-function VendorDetail({ detail, busy, pendingAction, vendorView, onAction, onClose }: {
+function VendorDetail({ detail, token, busy, pendingAction, vendorView, onAction, onClose }: {
   detail: OrderDetail;
+  token: string;
   busy: boolean;
   pendingAction: VendorOrderAction | null;
   vendorView: "orders" | "delivery";
@@ -202,6 +357,7 @@ function VendorDetail({ detail, busy, pendingAction, vendorView, onAction, onClo
         </div>
 
         <div className="vendor-detail-side">
+            <VendorDeliveryAssignmentPanel token={token} detail={detail} disabled={busy} />
            {available.length > 0 ? (
              <div className="vendor-action-block">
                <h3 className="vendor-subtitle">Vendor Actions</h3>
@@ -264,6 +420,7 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   const [selected, setSelected] = useState<OrderDetail | null>(null);
   const [detailTargetId, setDetailTargetId] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailRefreshing, setDetailRefreshing] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -297,27 +454,28 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   const load = useCallback(async (quiet = false) => {
     if (actionGate.current.pending) return;
     const requestGeneration = ++listGeneration.current;
+    const requestScope = scope;
     if (!quiet) setLoading(true);
     setError("");
     try {
       const response = await apiRequest<OrderListEnvelope>(`/api/vendor/orders?${query}`, token);
-      if (requestGeneration === listGeneration.current) {
+      if (requestGeneration === listGeneration.current && requestScope === currentScope.current) {
         setOrders(response.orders); setCounts(response.counts); setPagination(response.pagination);
       }
     } catch {
-      if (requestGeneration === listGeneration.current) { 
+      if (requestGeneration === listGeneration.current && requestScope === currentScope.current) {
         setError("We couldn't load your orders. Please refresh or try again.");
       } 
     } finally { 
-      if (requestGeneration === listGeneration.current) setLoading(false); 
+      if (requestGeneration === listGeneration.current && requestScope === currentScope.current) setLoading(false);
     }
-  }, [query, token, storeId]);
+  }, [query, scope, token]);
 
   useEffect(() => {
     ++listGeneration.current; ++detailGeneration.current;
     renderedScope.current = scope;
     setOrders([]); setCounts({}); setPage(1); setStatus(vendorView === "delivery" ? "READY" : "PLACED");
-    setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError("");
+    setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError(""); setDetailRefreshing(false);
     return () => { ++listGeneration.current; ++detailGeneration.current; };
   }, [token, storeId, vendorView]);
   useEffect(() => { void load(); }, [load]);
@@ -325,23 +483,28 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   const openDetail = useCallback(async (id: string, quiet = false, reconcilingAction = false) => {
     if (!id.trim() || (actionGate.current.pending && !reconcilingAction)) return;
     const requestGeneration = ++detailGeneration.current;
+    const requestScope = scope;
     setDetailTargetId(id);
-    if (!quiet) { setDetailLoading(true); setDetailError(""); }
+    if (quiet) setDetailRefreshing(true);
+    else { setDetailRefreshing(false); setDetailLoading(true); setDetailError(""); }
     try { 
       const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${id}`, token); 
-      if (requestGeneration === detailGeneration.current) {
+      if (requestGeneration === detailGeneration.current && requestScope === currentScope.current) {
         setSelected(response.order);
         setDetailError("");
       }
     } catch {
-      if (requestGeneration === detailGeneration.current) {
+      if (requestGeneration === detailGeneration.current && requestScope === currentScope.current) {
         if (!quiet) setSelected(null);
         setDetailError("We couldn't refresh this order. Please retry before taking an action.");
       }
     } finally { 
-      if (requestGeneration === detailGeneration.current) setDetailLoading(false); 
+      if (requestGeneration === detailGeneration.current && requestScope === currentScope.current) {
+        setDetailLoading(false);
+        setDetailRefreshing(false);
+      }
     }
-  }, [token, storeId]);
+  }, [scope, token]);
 
   useEffect(() => {
     const refreshVisible = () => {
@@ -349,7 +512,7 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
       void load(true);
       if (detailTargetId) void openDetail(detailTargetId, true);
     };
-    const timer = window.setInterval(refreshVisible, 30_000);
+    const timer = window.setInterval(refreshVisible, 45_000);
     window.addEventListener("focus", refreshVisible);
     document.addEventListener("visibilitychange", refreshVisible);
     return () => {
@@ -360,7 +523,7 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   }, [load, openDetail, detailTargetId]);
 
   const action = async (name: VendorOrderAction, note?: string) => {
-    if (!selected || busy || detailLoading || detailError ||
+    if (!selected || busy || detailLoading || detailRefreshing || detailError || error ||
       !vendorActions(selected.status, vendorView).some(item => item.action === name) || !actionGate.current.start()) return;
     const id = selected.id;
     const requestScope = scope;
@@ -391,7 +554,7 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   const closeDetail = () => {
     if (actionGate.current.pending) return;
     ++detailGeneration.current;
-    setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError(""); setDetailLoading(false);
+    setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError(""); setDetailLoading(false); setDetailRefreshing(false);
     void load(true);
   };
 
@@ -400,12 +563,12 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   if (detailTargetId) return <section className="vendor-operations-section" aria-label="Vendor order details">
     <div className="vendor-section-header">
       <button className="vendor-secondary-button" type="button" disabled={busy} onClick={closeDetail}>Back to Orders</button>
-      <button className="vendor-secondary-button" type="button" disabled={busy || detailLoading} onClick={() => void openDetail(detailTargetId)}>{detailLoading ? "Refreshing..." : "Refresh Order"}</button>
+       <button className="vendor-secondary-button" type="button" disabled={busy || detailLoading || detailRefreshing} onClick={() => void openDetail(detailTargetId)}>{detailLoading || detailRefreshing ? "Refreshing..." : "Refresh Order"}</button>
     </div>
     {!!actionError && <div role="alert" className="vendor-notice vendor-notice-error">{actionError}</div>}
-    {!!detailError && <div role="alert" className="vendor-notice vendor-notice-error"><span>{detailError}</span><button className="vendor-secondary-button" type="button" disabled={detailLoading} onClick={() => void openDetail(detailTargetId)}>Retry detail</button></div>}
+    {!!detailError && <div role="alert" className="vendor-notice vendor-notice-error"><span>{detailError}</span><button className="vendor-secondary-button" type="button" disabled={detailLoading || detailRefreshing} onClick={() => void openDetail(detailTargetId)}>Retry detail</button></div>}
     {detailLoading ? <div aria-live="polite" className="vendor-card vendor-empty-state"><strong>Loading order details...</strong></div> :
-      selected && <VendorDetail key={selected.id} detail={selected} busy={busy || !!detailError} pendingAction={pendingAction} vendorView={vendorView} onAction={action} onClose={closeDetail} />}
+       selected && <VendorDetail key={selected.id} detail={selected} token={token} busy={busy || detailLoading || detailRefreshing || !!detailError || !!error} pendingAction={pendingAction} vendorView={vendorView} onAction={action} onClose={closeDetail} />}
   </section>;
 
   return (
@@ -413,7 +576,7 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
       <div className="vendor-section-header">
         <div>
           <h2 className="vendor-title">{vendorView === "delivery" ? "Delivery Operations" : "Order Management"}</h2>
-          <p className="vendor-text-muted">{vendorView === "delivery" ? "Manage orders ready for dispatch and track active deliveries." : "Review new orders, accept or reject, prepare, and mark ready. Updates every 30 seconds while this page is visible."}</p>
+          <p className="vendor-text-muted">{vendorView === "delivery" ? "Manage orders ready for dispatch and track active deliveries." : "Review new orders, accept or reject, prepare, and mark ready. Updates every 45 seconds while this page is visible."}</p>
         </div>
         <button className="vendor-secondary-button" disabled={loading} onClick={() => void load()} type="button">{loading ? "Refreshing..." : "Refresh List"}</button>
       </div>

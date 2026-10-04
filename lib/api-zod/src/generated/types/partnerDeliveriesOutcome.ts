@@ -5,8 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { PartnerDeliveriesOutcomeDeliveriesItem } from './partnerDeliveriesOutcomeDeliveriesItem';
+import type { DeliveryAssignment } from './deliveryAssignment';
 
 export interface PartnerDeliveriesOutcome {
-  deliveries: PartnerDeliveriesOutcomeDeliveriesItem[];
+  deliveries: DeliveryAssignment[];
 }

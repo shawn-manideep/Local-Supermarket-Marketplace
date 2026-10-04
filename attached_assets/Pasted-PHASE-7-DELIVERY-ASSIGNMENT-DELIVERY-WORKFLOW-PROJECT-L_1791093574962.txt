@@ -1,0 +1,1146 @@
+PHASE 7 — DELIVERY ASSIGNMENT & DELIVERY WORKFLOW
+
+PROJECT:
+Local Supermarket Marketplace
+
+OBJECTIVE:
+Implement the actual delivery workflow on top of the completed Phase 6 Delivery Partner foundation.
+
+TARGET FLOW:
+
+CUSTOMER
+    ↓
+ORDER PLACED
+    ↓
+VENDOR ACCEPTS
+    ↓
+PREPARING
+    ↓
+READY
+    ↓
+VENDOR ASSIGNS DELIVERY PARTNER
+    ↓
+DELIVERY PARTNER RECEIVES ASSIGNMENT
+    ↓
+PARTNER ACCEPTS / REJECTS DUTY
+    ↓
+PARTNER PICKS UP ORDER
+    ↓
+OUT_FOR_DELIVERY
+    ↓
+DELIVERED
+
+This phase introduces the actual delivery assignment and execution workflow.
+
+IMPORTANT:
+- Phase 5 Stock Management is already manually accepted.
+- Phase 6 Delivery Partner Portal is already manually accepted.
+- Do not redesign either phase.
+- Reuse the existing Delivery Partner identity/profile/authorization.
+- Reuse the existing Order and Order Status architecture.
+- Do not create a second order lifecycle.
+- Do not create a second delivery status system unless absolutely necessary.
+- Do not implement GPS/maps/tracking.
+- Do not implement external SMS/WhatsApp notifications.
+- Do not implement online payment changes.
+- Do not deploy to production.
+- Do not start Phase 8.
+
+--------------------------------------------------
+1. SCOPE
+--------------------------------------------------
+
+IMPLEMENT:
+
+1. Vendor delivery assignment
+2. Delivery Partner assignment records
+3. Delivery Partner assignment notification/in-app visibility
+4. Partner Accept Duty
+5. Partner Reject Duty
+6. Partner Pickup
+7. OUT_FOR_DELIVERY
+8. DELIVERED
+9. Customer delivery status visibility
+10. Vendor delivery status visibility
+11. Assignment authorization
+12. Assignment ownership protection
+13. Delivery workflow validation
+14. Relevant status history
+15. Delivery-specific automated tests
+
+DO NOT IMPLEMENT:
+
+- GPS
+- live location
+- maps
+- route optimization
+- driver navigation
+- delivery distance calculation
+- delivery fee calculation
+- partner payout
+- vehicle management
+- external notifications
+- push notification infrastructure
+- SMS
+- WhatsApp
+- email notifications
+- ratings/reviews
+- customer address redesign
+- stock redesign
+- Master Catalog changes
+- authentication redesign
+
+--------------------------------------------------
+2. EXISTING ORDER LIFECYCLE
+--------------------------------------------------
+
+The existing order lifecycle is:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Exceptions include:
+
+REJECTED
+CANCELLED
+
+Do NOT create a competing delivery lifecycle.
+
+Delivery assignment and partner duty state must work with the existing order lifecycle.
+
+The order remains the authoritative business object.
+
+--------------------------------------------------
+3. DELIVERY ASSIGNMENT MODEL
+--------------------------------------------------
+
+Use the Delivery Partner assignment structure created in Phase 6.
+
+Before changing schema:
+
+INSPECT:
+
+- Phase 6 delivery assignment table
+- orders
+- order status history
+- stores
+- user_profiles
+- delivery partner profile
+- vendor authorization
+
+Do not create a duplicate assignment table.
+
+A delivery assignment should identify at minimum:
+
+- assignment ID
+- order ID
+- delivery partner ID
+- assignment status
+- assigned_at
+- accepted_at
+- rejected_at
+- picked_up_at
+- delivered_at
+- created_at
+- updated_at
+
+Use the smallest schema compatible with the existing Phase 6 structure.
+
+--------------------------------------------------
+4. ASSIGNMENT STATUS
+--------------------------------------------------
+
+Use a clear assignment state.
+
+Recommended:
+
+PENDING
+ACCEPTED
+REJECTED
+PICKED_UP
+OUT_FOR_DELIVERY
+DELIVERED
+CANCELLED
+
+Do not create unnecessary intermediate states.
+
+The order status remains:
+
+READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+The assignment status represents the partner's operational state.
+
+--------------------------------------------------
+5. VENDOR CAN ASSIGN ONLY READY ORDERS
+--------------------------------------------------
+
+A vendor may assign a Delivery Partner only when:
+
+order status = READY
+
+The vendor must NOT be able to assign a partner while order is:
+
+PLACED
+ACCEPTED
+PREPARING
+REJECTED
+CANCELLED
+DELIVERED
+
+If the order is not READY:
+
+return a clear validation error.
+
+Example:
+
+"Delivery partner can only be assigned after the order is marked Ready."
+
+--------------------------------------------------
+6. VENDOR ASSIGNMENT UI
+--------------------------------------------------
+
+Update the existing Vendor Order Details screen.
+
+When order status is:
+
+READY
+
+show:
+
+Delivery
+Assigned Partner
+[ Select Delivery Partner ]
+
+If no partner is assigned:
+
+show a clear:
+
+"Assign Delivery Partner"
+
+The vendor should see eligible active Delivery Partners.
+
+Display only useful information:
+
+- Partner name
+- Partner status
+
+Do not expose:
+
+- password
+- internal user IDs
+- private account information
+- unrelated partner records
+
+--------------------------------------------------
+7. ELIGIBLE PARTNERS
+--------------------------------------------------
+
+Only ACTIVE Delivery Partners can be assigned.
+
+INACTIVE partners must not appear as assignable.
+
+Do not allow assigning:
+
+- customer
+- vendor
+- admin
+- inactive partner
+- nonexistent partner
+
+The server must validate role and status even if the frontend filters the list.
+
+--------------------------------------------------
+8. VENDOR AUTHORIZATION
+--------------------------------------------------
+
+A vendor may assign only orders belonging to the vendor's own store.
+
+Vendor A must NOT be able to assign a Delivery Partner to:
+
+- Vendor B's order
+- another store's order
+
+Never trust:
+
+storeId
+vendorId
+partnerId
+
+from the client without server-side authorization.
+
+Resolve ownership from authenticated identity and database relationships.
+
+--------------------------------------------------
+9. ASSIGNMENT CREATION
+--------------------------------------------------
+
+When the vendor assigns a partner:
+
+1. Verify vendor owns the order/store.
+2. Verify order status = READY.
+3. Verify partner exists.
+4. Verify partner role = DELIVERY_PARTNER.
+5. Verify partner status = ACTIVE.
+6. Verify no conflicting active assignment exists.
+7. Create/update assignment transactionally.
+8. Record assignment timestamp.
+9. Make the assignment visible in the partner portal.
+
+Do not create duplicate active assignments.
+
+--------------------------------------------------
+10. REASSIGNMENT
+--------------------------------------------------
+
+Do not allow arbitrary reassignment while a partner is actively handling an order.
+
+Recommended rule:
+
+If assignment is:
+
+PENDING
+
+vendor may change the assigned partner.
+
+If assignment is:
+
+ACCEPTED
+PICKED_UP
+OUT_FOR_DELIVERY
+
+vendor must NOT silently replace the partner.
+
+If reassignment is genuinely required later, it must be an explicit workflow.
+
+Do not create a complex reassignment system in this phase.
+
+--------------------------------------------------
+11. DELIVERY PARTNER NOTIFICATION
+--------------------------------------------------
+
+Use IN-APP visibility only.
+
+No external notification service.
+
+When an order is assigned:
+
+The partner portal should show the new assignment.
+
+Dashboard should update when refreshed/polled according to the existing application architecture.
+
+Do not add WebSockets or push notification infrastructure just for this phase.
+
+A simple refresh/polling mechanism is acceptable if consistent with existing implementation.
+
+--------------------------------------------------
+12. PARTNER DASHBOARD
+--------------------------------------------------
+
+Update the Delivery Partner Dashboard.
+
+Show meaningful counts:
+
+- Pending
+- Accepted
+- Picked Up
+- Out for Delivery
+- Delivered
+
+Only include assignments belonging to the authenticated partner.
+
+Do not show other partners' deliveries.
+
+--------------------------------------------------
+13. MY DELIVERIES
+--------------------------------------------------
+
+Update the existing My Deliveries screen.
+
+Each assignment should show useful information such as:
+
+- Order reference
+- Store/vendor name
+- Assignment status
+- Order total if appropriate
+- Assigned date/time
+- Delivery address when the partner is authorized to view it
+
+Do not expose unnecessary customer information.
+
+Use clear status labels.
+
+--------------------------------------------------
+14. PARTNER ACCEPT DUTY
+--------------------------------------------------
+
+For:
+
+assignment status = PENDING
+
+show:
+
+[ Accept Duty ]
+[ Reject Duty ]
+
+Accepting:
+
+PENDING
+→ ACCEPTED
+
+Record accepted_at.
+
+Server must verify:
+
+- authenticated user is DELIVERY_PARTNER
+- partner is ACTIVE
+- assignment belongs to authenticated partner
+- assignment is still PENDING
+- order is still eligible
+
+Do not allow a partner to accept another partner's assignment.
+
+--------------------------------------------------
+15. PARTNER REJECT DUTY
+--------------------------------------------------
+
+For:
+
+assignment status = PENDING
+
+allow:
+
+[ Reject Duty ]
+
+Before rejection, show a confirmation.
+
+Optional rejection reason may be supported if the existing architecture already has a suitable field.
+
+On rejection:
+
+PENDING
+→ REJECTED
+
+Record rejected_at.
+
+The order itself must NOT automatically become REJECTED.
+
+IMPORTANT:
+
+Delivery assignment rejection is NOT the same as customer/vendor order rejection.
+
+The vendor's READY order remains READY and can later be assigned appropriately.
+
+Do not silently cancel the customer order.
+
+--------------------------------------------------
+16. REASSIGN AFTER PARTNER REJECTION
+--------------------------------------------------
+
+After a partner rejects the assignment:
+
+- assignment becomes REJECTED
+- vendor sees that assignment was rejected
+- order remains READY
+- vendor can assign another ACTIVE Delivery Partner
+
+Do not automatically choose another partner.
+
+Do not auto-assign.
+
+--------------------------------------------------
+17. PICKUP
+--------------------------------------------------
+
+After:
+
+assignment = ACCEPTED
+
+Partner should see:
+
+[ Mark Picked Up ]
+
+Do not allow pickup before acceptance.
+
+On pickup:
+
+assignment:
+ACCEPTED
+→ PICKED_UP
+
+Record picked_up_at.
+
+At this point the order should remain operationally consistent with the existing lifecycle.
+
+Do not immediately mark DELIVERED.
+
+--------------------------------------------------
+18. OUT FOR DELIVERY
+--------------------------------------------------
+
+After pickup, allow:
+
+[ Start Delivery ]
+
+or equivalent clear action.
+
+Transition:
+
+assignment:
+PICKED_UP
+→ OUT_FOR_DELIVERY
+
+order:
+READY
+→ OUT_FOR_DELIVERY
+
+Both changes must happen transactionally.
+
+Only the assigned active Delivery Partner may perform this action.
+
+Vendor must not be able to arbitrarily mark an order OUT_FOR_DELIVERY through a client-side status override.
+
+Use existing legal order-transition mechanisms.
+
+--------------------------------------------------
+19. DELIVERED
+--------------------------------------------------
+
+For:
+
+assignment = OUT_FOR_DELIVERY
+
+show:
+
+[ Mark Delivered ]
+
+On successful completion:
+
+assignment:
+OUT_FOR_DELIVERY
+→ DELIVERED
+
+order:
+OUT_FOR_DELIVERY
+→ DELIVERED
+
+Record delivered_at.
+
+Both must happen transactionally.
+
+Only the assigned Delivery Partner may complete delivery.
+
+Do not allow:
+
+- customer to mark delivered
+- unrelated vendor to mark delivered
+- another delivery partner to mark delivered
+
+--------------------------------------------------
+20. STATUS HISTORY
+--------------------------------------------------
+
+Use the existing order_status_history mechanism.
+
+Record the existing order transitions:
+
+READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Do not create a second customer-visible order status history system.
+
+Assignment-specific events may be recorded in the assignment structure/history only if necessary.
+
+Preserve existing historical order records.
+
+--------------------------------------------------
+21. CUSTOMER VISIBILITY
+--------------------------------------------------
+
+Customer should see the delivery progress using the existing order tracking/status UI.
+
+After assignment but before pickup:
+
+Order remains:
+
+READY
+
+Customer may see:
+
+"Delivery partner assigned"
+
+only if the existing UI supports such information cleanly.
+
+After partner starts delivery:
+
+Order becomes:
+
+OUT_FOR_DELIVERY
+
+Customer sees:
+
+"Out for delivery"
+
+After completion:
+
+Order becomes:
+
+DELIVERED
+
+Customer sees:
+
+"Delivered"
+
+Do not expose partner private information unnecessarily.
+
+If showing partner name, use only the appropriate display name.
+
+Do not expose:
+
+- username
+- internal IDs
+- phone number unless the existing business rules explicitly require it
+- private profile fields
+
+--------------------------------------------------
+22. VENDOR VISIBILITY
+--------------------------------------------------
+
+Vendor Order Details should show:
+
+- assigned partner
+- assignment status
+- delivery progress
+
+Examples:
+
+Assigned:
+Test Delivery Partner
+
+Status:
+Accepted
+
+or:
+
+Out for Delivery
+
+or:
+
+Delivered
+
+Do not allow vendor to perform partner-only actions.
+
+--------------------------------------------------
+23. DELIVERY ADDRESS PRIVACY
+--------------------------------------------------
+
+The assigned Delivery Partner may see only the fulfillment information necessary to deliver the assigned order.
+
+This may include:
+
+- recipient name if required
+- delivery address
+- relevant delivery instructions
+- order reference
+- ordered items/quantities if needed for delivery
+
+Do not expose unrelated customer data.
+
+Do not provide access to the customer's entire account.
+
+--------------------------------------------------
+24. STOCK MUST NOT CHANGE
+--------------------------------------------------
+
+CRITICAL:
+
+Phase 5 already deducts stock at successful order placement.
+
+Phase 7 MUST NOT deduct or restore stock.
+
+These transitions must NOT modify inventory:
+
+READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Do not add stock operations to delivery actions.
+
+--------------------------------------------------
+25. CANCELLATION / REJECTION INTERACTION
+--------------------------------------------------
+
+Respect the existing order cancellation rules.
+
+Do not invent new customer cancellation behavior.
+
+If an order is already:
+
+OUT_FOR_DELIVERY
+or
+DELIVERED
+
+do not allow ordinary customer cancellation.
+
+If a delivery assignment is rejected:
+
+- assignment becomes REJECTED
+- order remains READY
+- vendor can assign another partner
+
+Do not mark the order REJECTED.
+
+--------------------------------------------------
+26. CONCURRENCY / DOUBLE ACTIONS
+--------------------------------------------------
+
+All delivery actions must be server-side transactional and state-checked.
+
+Examples:
+
+Partner double-clicks Accept Duty.
+
+Expected:
+- one successful transition
+- no duplicate acceptance
+
+Two requests attempt pickup.
+
+Expected:
+- only one succeeds
+
+Partner A attempts to accept Partner B's assignment.
+
+Expected:
+- authorization failure
+
+Partner tries to mark a DELIVERED assignment as delivered again.
+
+Expected:
+- rejected safely
+- no duplicate status/history event
+
+Vendor tries to assign two partners simultaneously.
+
+Expected:
+- only one active assignment exists
+
+Use database constraints/transactional checks where necessary.
+
+--------------------------------------------------
+27. ASSIGNMENT OWNERSHIP
+--------------------------------------------------
+
+Every partner operation must resolve:
+
+authenticated user
+→ delivery partner profile
+→ assignment ownership
+
+Never accept:
+
+partnerId
+
+as proof of authorization.
+
+The server must determine the partner from the authenticated session.
+
+--------------------------------------------------
+28. CUSTOMER/VENDOR/PARTNER ROLE ISOLATION
+--------------------------------------------------
+
+CUSTOMER:
+
+Can:
+- view own orders
+- view own delivery status
+
+Cannot:
+- assign partners
+- accept duties
+- pickup
+- start delivery
+- mark delivered
+
+VENDOR:
+
+Can:
+- view own store orders
+- assign active partners to own READY orders
+- view assignment progress
+
+Cannot:
+- accept partner duty
+- pickup
+- mark delivery complete as partner
+
+DELIVERY_PARTNER:
+
+Can:
+- view own assignments
+- accept own pending assignment
+- reject own pending assignment
+- pickup own accepted assignment
+- start delivery for own picked-up assignment
+- mark own out-for-delivery assignment delivered
+
+Cannot:
+- access another partner's assignments
+- access vendor management
+- access customer management
+- assign themselves to arbitrary orders
+- manipulate stock
+
+ADMIN:
+
+Existing backend administrative capabilities remain unchanged.
+
+Do not build an Admin Portal.
+
+--------------------------------------------------
+29. API DESIGN
+--------------------------------------------------
+
+Reuse existing API conventions.
+
+Conceptually required APIs:
+
+VENDOR:
+
+GET eligible delivery partners
+
+POST/PUT assign delivery partner
+
+GET assignment status for own order
+
+PARTNER:
+
+GET my deliveries
+
+GET my delivery details
+
+POST accept duty
+
+POST reject duty
+
+POST pickup
+
+POST start delivery
+
+POST mark delivered
+
+CUSTOMER:
+
+Existing order endpoint should return appropriate delivery/order status.
+
+Do not expose unnecessary internal assignment fields.
+
+Exact route naming should follow the existing project conventions.
+
+--------------------------------------------------
+30. ERROR CONTRACT
+--------------------------------------------------
+
+Use clear structured errors.
+
+At minimum:
+
+ORDER_NOT_READY
+PARTNER_NOT_FOUND
+PARTNER_INACTIVE
+INVALID_ASSIGNMENT
+ASSIGNMENT_NOT_PENDING
+ASSIGNMENT_ALREADY_HANDLED
+NOT_ASSIGNED_PARTNER
+INVALID_DELIVERY_TRANSITION
+DELIVERY_ALREADY_COMPLETED
+UNAUTHORIZED_DELIVERY_ACTION
+
+Do not expose raw database errors.
+
+--------------------------------------------------
+31. DATABASE SAFETY
+--------------------------------------------------
+
+Before migration:
+
+Inspect:
+
+- Phase 6 assignment table
+- order schema
+- status history
+- partner profile
+- existing constraints
+
+Create only the smallest migration required.
+
+Must enforce as much as practical:
+
+- one active assignment per order
+- valid partner identity
+- valid assignment state
+- timestamps
+- appropriate foreign keys
+
+Do not rewrite historical orders.
+
+Do not modify existing order snapshots.
+
+Do not modify Master Catalog.
+
+Do not modify product variants.
+
+Do not modify stock fields.
+
+Development database only.
+
+--------------------------------------------------
+32. RLS / SECURITY
+--------------------------------------------------
+
+If RLS is used:
+
+Partner can read/update only their own assignments.
+
+Vendor can manage assignments only for orders belonging to their own store.
+
+Customer can read only delivery information associated with their own order.
+
+No role should gain broad access merely because an assignment ID is known.
+
+Backend authorization must remain authoritative even if RLS/service-role access is used.
+
+--------------------------------------------------
+33. AUDITABILITY
+--------------------------------------------------
+
+Every meaningful delivery transition must be traceable through timestamps and/or existing order status history.
+
+At minimum:
+
+Assignment:
+- assigned_at
+- accepted_at
+- rejected_at
+- picked_up_at
+- delivered_at
+
+Order:
+- existing status history
+
+Do not create an unnecessarily complex audit subsystem.
+
+--------------------------------------------------
+34. TESTING
+--------------------------------------------------
+
+DO NOT perform automated browser testing.
+
+Add focused automated backend/database/contract tests.
+
+Required:
+
+A. Vendor can assign active partner to READY order.
+
+B. Vendor cannot assign partner to non-READY order.
+
+C. Vendor cannot assign partner to another vendor's order.
+
+D. Inactive partner cannot be assigned.
+
+E. Customer cannot assign partner.
+
+F. Partner sees only own assignments.
+
+G. Partner A cannot access Partner B assignment.
+
+H. Pending assignment can be accepted.
+
+I. Pending assignment can be rejected.
+
+J. Rejected assignment does not reject/cancel the order.
+
+K. READY order can be reassigned after partner rejection.
+
+L. Accepted assignment can be picked up.
+
+M. Pickup cannot happen before acceptance.
+
+N. Picked-up assignment can start delivery.
+
+O. OUT_FOR_DELIVERY order status is updated correctly.
+
+P. Only assigned partner can start delivery.
+
+Q. OUT_FOR_DELIVERY assignment can be marked delivered.
+
+R. Only assigned partner can mark delivered.
+
+S. Delivered assignment cannot be delivered twice.
+
+T. Concurrent accept attempts are safe.
+
+U. Concurrent pickup attempts are safe.
+
+V. Concurrent assignment attempts do not create multiple active assignments.
+
+W. Stock is NOT changed by delivery transitions.
+
+X. Customer sees correct delivery status.
+
+Y. Vendor sees correct assignment status.
+
+Z. Historical order snapshots remain unchanged.
+
+AA. Existing Phase 5 stock behavior remains unchanged.
+
+AB. Existing Phase 6 partner login remains unchanged.
+
+AC. Existing customer/vendor authentication remains unchanged.
+
+AD. Existing reorder remains unchanged.
+
+--------------------------------------------------
+35. MANUAL BROWSER TESTS
+--------------------------------------------------
+
+After implementation, STOP and give me a manual browser checklist.
+
+I will manually verify:
+
+1. Customer places an order.
+2. Vendor accepts order.
+3. Vendor moves order to Preparing.
+4. Vendor marks order Ready.
+5. Vendor sees active Delivery Partners.
+6. Vendor assigns Delivery Partner.
+7. Partner sees new assignment.
+8. Partner accepts duty.
+9. Vendor sees Accepted.
+10. Partner marks Picked Up.
+11. Partner starts delivery.
+12. Vendor sees Out for Delivery.
+13. Customer sees Out for Delivery.
+14. Partner marks Delivered.
+15. Vendor sees Delivered.
+16. Customer sees Delivered.
+17. Partner cannot access another partner's order.
+18. Vendor cannot perform partner-only actions.
+19. Customer cannot perform delivery actions.
+20. Stock remains unchanged throughout delivery transitions.
+21. Double-click/refresh does not duplicate actions.
+22. Rejected partner assignment leaves order READY.
+23. Vendor can assign another partner after rejection.
+
+Do not claim these browser tests were completed.
+
+--------------------------------------------------
+36. REGRESSION PROTECTION
+--------------------------------------------------
+
+Verify that these remain intact:
+
+- Customer authentication
+- Vendor authentication
+- Delivery Partner authentication
+- Master Catalog
+- Vendor product management
+- Multiple variants
+- Customer global search
+- Cart
+- Reorder / Buy Again
+- Stock deduction
+- Stock restoration
+- Vendor Order Management
+- Order history
+- Historical snapshots
+- One-store cart rule
+- Customer privacy
+- Vendor isolation
+- Partner isolation
+
+Do not modify unrelated functionality.
+
+--------------------------------------------------
+37. BUILD / TYPECHECK
+--------------------------------------------------
+
+Run:
+
+- full workspace typecheck
+- backend tests
+- relevant customer tests
+- relevant dashboard tests
+- API build
+- dashboard build
+- customer web export/build where supported
+
+Do not deploy.
+
+Do not run production migrations.
+
+--------------------------------------------------
+38. IMPORTANT SCOPE CONTROL
+--------------------------------------------------
+
+DO NOT implement Phase 8.
+
+DO NOT redesign Customer Home.
+
+DO NOT add advanced notifications.
+
+DO NOT add GPS.
+
+DO NOT add maps.
+
+DO NOT add tracking.
+
+DO NOT add payment.
+
+DO NOT add ratings.
+
+DO NOT add delivery partner payouts.
+
+DO NOT build Admin Portal.
+
+DO NOT refactor authentication.
+
+DO NOT modify stock logic.
+
+--------------------------------------------------
+39. REQUIRED IMPLEMENTATION REPORT
+--------------------------------------------------
+
+After implementation, provide a concise report containing:
+
+1. Files changed
+2. Database migrations created
+3. Assignment model
+4. Assignment state machine
+5. Vendor assignment flow
+6. Partner workflow
+7. Customer visibility
+8. Vendor visibility
+9. Authorization/security
+10. Concurrency protection
+11. Stock protection
+12. API endpoints
+13. Automated test results:
+    - passed
+    - failed
+    - skipped
+14. Typecheck/build results
+15. Regression results
+16. Known limitations
+17. Manual browser acceptance checklist
+
+STOP after the report.
+
+DO NOT start Phase 8.
+DO NOT deploy to production.

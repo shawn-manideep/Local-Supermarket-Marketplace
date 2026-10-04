@@ -280,9 +280,34 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
   const cancelInFlight = useRef(false);
   const [localOrder, setLocalOrder] = useState(order);
   const [error, setError] = useState("");
+  const refreshGeneration = useRef(0);
+
+  // Keep the accepted receipt/status screen current without a second tracking model.
+  useEffect(() => {
+    setLocalOrder(order);
+    const controller = new AbortController();
+    const refreshStatus = async () => {
+      if (cancelInFlight.current) return;
+      const generation = ++refreshGeneration.current;
+      try {
+        const result = await customerApi<{ order: CustomerOrderDetail }>(`/api/customer/orders/${order.id}`, { signal: controller.signal });
+        if (!controller.signal.aborted && generation === refreshGeneration.current) {
+          setLocalOrder(result.order);
+          setError("");
+        }
+      } catch {
+        if (!controller.signal.aborted && generation === refreshGeneration.current) {
+          setError("Could not refresh order status. Your last verified status is shown.");
+        }
+      }
+    };
+    const timer = setInterval(() => { void refreshStatus(); }, 45_000);
+    return () => { controller.abort(); clearInterval(timer); ++refreshGeneration.current; };
+  }, [order]);
 
   const handleCancel = async () => {
     if (cancelInFlight.current) return;
+    ++refreshGeneration.current;
     cancelInFlight.current = true;
     setCancelLoading(true); setError("");
     try {

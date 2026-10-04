@@ -7,6 +7,7 @@ import { asyncHandler, HttpError, validationDetails } from "../http.js";
 import { partnerRepository, publicPartner } from "./repository.js";
 import { loginPartner, provisionPartner, supabasePartnerAuth } from "./auth-service.js";
 import { requireDeliveryPartner } from "./middleware.js";
+import { deliveryWorkflow } from "./workflow.js";
 
 export const deliveryPartnerRouter = Router();
 deliveryPartnerRouter.use("/api/delivery-partner", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
@@ -23,10 +24,37 @@ deliveryPartnerRouter.get("/api/delivery-partner/me", requireDeliveryPartner(), 
   res.json({ partner: publicPartner(profile) });
 }));
 deliveryPartnerRouter.get("/api/delivery-partner/dashboard", requireDeliveryPartner(), asyncHandler(async (req, res) => {
-  res.json({ summary: await partnerRepository().dashboard((req as AuthenticatedRequest).auth!.userId) });
+  res.json({ summary: await deliveryWorkflow().dashboard((req as AuthenticatedRequest).auth!.userId) });
 }));
 deliveryPartnerRouter.get("/api/delivery-partner/deliveries", requireDeliveryPartner(), asyncHandler(async (req, res) => {
-  res.json({ deliveries: await partnerRepository().deliveries((req as AuthenticatedRequest).auth!.userId) });
+  res.json({ deliveries: await deliveryWorkflow().own((req as AuthenticatedRequest).auth!.userId) });
+}));
+const identifier = (value: unknown) => {
+  const id = z.string().uuid().safeParse(value);
+  if (!id.success) throw new HttpError(400, "Invalid delivery identifier.", undefined, "INVALID_ASSIGNMENT");
+  return id.data;
+};
+deliveryPartnerRouter.get("/api/vendor/delivery-partners", requireRole("vendor"), asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ partners: await deliveryWorkflow().eligible((req as AuthenticatedRequest).auth!) });
+}));
+deliveryPartnerRouter.get("/api/vendor/orders/:orderId/delivery", requireRole("vendor"), asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ assignment: await deliveryWorkflow().vendorRead((req as AuthenticatedRequest).auth!, identifier(req.params.orderId)) });
+}));
+deliveryPartnerRouter.post("/api/vendor/orders/:orderId/delivery", requireRole("vendor"), asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const input = z.object({ partnerId: z.string().uuid() }).strict().safeParse(req.body);
+  if (!input.success) throw new HttpError(400, "Invalid delivery assignment.", undefined, "INVALID_ASSIGNMENT");
+  res.json({ assignment: await deliveryWorkflow().assign((req as AuthenticatedRequest).auth!, identifier(req.params.orderId), input.data.partnerId) });
+}));
+deliveryPartnerRouter.get("/api/delivery-partner/deliveries/:assignmentId", requireDeliveryPartner(), asyncHandler(async (req, res) => {
+  res.json({ assignment: await deliveryWorkflow().own((req as AuthenticatedRequest).auth!.userId, identifier(req.params.assignmentId)) });
+}));
+deliveryPartnerRouter.post("/api/delivery-partner/deliveries/:assignmentId/actions", requireDeliveryPartner(), asyncHandler(async (req, res) => {
+  const input = z.object({ action: z.enum(["ACCEPT","REJECT","PICKUP","START","DELIVER"]) }).strict().safeParse(req.body);
+  if (!input.success) throw new HttpError(400, "Invalid delivery action.", undefined, "INVALID_DELIVERY_TRANSITION");
+  res.json({ assignment: await deliveryWorkflow().action((req as AuthenticatedRequest).auth!.userId, identifier(req.params.assignmentId), input.data.action) });
 }));
 deliveryPartnerRouter.get("/api/admin/delivery-partners", requireRole("admin"), asyncHandler(async (_req, res) => {
   res.json({ partners: await partnerRepository().list() });

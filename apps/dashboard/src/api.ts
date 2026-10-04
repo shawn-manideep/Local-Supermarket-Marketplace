@@ -214,6 +214,13 @@ export interface OrderListEnvelope {
   pagination: { page: number; pageSize: number; total: number };
 }
 
+export interface VendorDeliveryPartner {
+  /** Opaque selection key. Never render this value. */
+  id: string;
+  displayName: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
 interface ApiErrorPayload {
   error?: string;
   details?: Array<{ path?: Array<string | number>; message?: string }>;

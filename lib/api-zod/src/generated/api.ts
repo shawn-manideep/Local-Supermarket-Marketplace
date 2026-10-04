@@ -8,6 +8,131 @@
 import * as zod from 'zod';
 
 
+export const GetVendorOrderDeliveryParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const GetVendorOrderDeliveryResponse = zod.object({
+  "assignment": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeName": zod.string(),
+  "orderStatus": zod.string(),
+  "orderTotal": zod.string(),
+  "partnerName": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "rejectedAt": zod.coerce.date().nullable(),
+  "pickedUpAt": zod.coerce.date().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deliveryAddress": zod.record(zod.string(), zod.unknown()).nullable(),
+  "recipientName": zod.string().nullable()
+}),zod.null()])
+})
+
+
+export const AssignVendorOrderDeliveryParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const AssignVendorOrderDeliveryBody = zod.object({
+  "partnerId": zod.string().uuid()
+})
+
+export const AssignVendorOrderDeliveryResponse = zod.object({
+  "assignment": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeName": zod.string(),
+  "orderStatus": zod.string(),
+  "orderTotal": zod.string(),
+  "partnerName": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "rejectedAt": zod.coerce.date().nullable(),
+  "pickedUpAt": zod.coerce.date().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deliveryAddress": zod.record(zod.string(), zod.unknown()).nullable(),
+  "recipientName": zod.string().nullable()
+}),zod.null()])
+})
+
+
+export const GetEligibleDeliveryPartnersResponse = zod.object({
+  "partners": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "status": zod.enum(['ACTIVE'])
+}))
+})
+
+
+export const GetOwnDeliveryDetailsParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const GetOwnDeliveryDetailsResponse = zod.object({
+  "assignment": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeName": zod.string(),
+  "orderStatus": zod.string(),
+  "orderTotal": zod.string(),
+  "partnerName": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "rejectedAt": zod.coerce.date().nullable(),
+  "pickedUpAt": zod.coerce.date().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deliveryAddress": zod.record(zod.string(), zod.unknown()).nullable(),
+  "recipientName": zod.string().nullable()
+}),zod.null()])
+})
+
+
+export const PerformOwnDeliveryActionParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const PerformOwnDeliveryActionBody = zod.object({
+  "action": zod.enum(['ACCEPT', 'REJECT', 'PICKUP', 'START', 'DELIVER'])
+})
+
+export const PerformOwnDeliveryActionResponse = zod.object({
+  "assignment": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeName": zod.string(),
+  "orderStatus": zod.string(),
+  "orderTotal": zod.string(),
+  "partnerName": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "rejectedAt": zod.coerce.date().nullable(),
+  "pickedUpAt": zod.coerce.date().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deliveryAddress": zod.record(zod.string(), zod.unknown()).nullable(),
+  "recipientName": zod.string().nullable()
+}),zod.null()])
+})
+
+
 export const signInDeliveryPartnerBodyUsernameMin = 3;
 export const signInDeliveryPartnerBodyUsernameMax = 30;
 
@@ -54,6 +179,14 @@ export const getDeliveryPartnerDashboardResponseSummaryCancelledMin = 0;
 
 export const getDeliveryPartnerDashboardResponseSummaryRejectedMin = 0;
 
+export const getDeliveryPartnerDashboardResponseSummaryAcceptedMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryPickedUpMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryOutForDeliveryMin = 0;
+
+export const getDeliveryPartnerDashboardResponseSummaryDeliveredMin = 0;
+
 
 
 export const GetDeliveryPartnerDashboardResponse = zod.object({
@@ -64,7 +197,11 @@ export const GetDeliveryPartnerDashboardResponse = zod.object({
   "inProgress": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryInProgressMin),
   "completed": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryCompletedMin),
   "cancelled": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryCancelledMin),
-  "rejected": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryRejectedMin)
+  "rejected": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryRejectedMin),
+  "accepted": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryAcceptedMin).optional(),
+  "pickedUp": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryPickedUpMin).optional(),
+  "outForDelivery": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryOutForDeliveryMin).optional(),
+  "delivered": zod.number().int().min(getDeliveryPartnerDashboardResponseSummaryDeliveredMin).optional()
 })
 })
 
@@ -72,9 +209,22 @@ export const GetDeliveryPartnerDashboardResponse = zod.object({
 export const GetDeliveryPartnerDeliveriesResponse = zod.object({
   "deliveries": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "status": zod.enum(['PENDING', 'ASSIGNED', 'PICKUP_PENDING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'REJECTED']),
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeName": zod.string(),
+  "orderStatus": zod.string(),
+  "orderTotal": zod.string(),
+  "partnerName": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "rejectedAt": zod.coerce.date().nullable(),
+  "pickedUpAt": zod.coerce.date().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "deliveryAddress": zod.record(zod.string(), zod.unknown()).nullable(),
+  "recipientName": zod.string().nullable()
 }))
 })
 

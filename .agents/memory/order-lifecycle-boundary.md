@@ -25,14 +25,21 @@ Vendor operational reads must remain scoped to the authenticated vendor's
 single store and must never expose commission or customer ownership internals,
 including action responses. Admin order operations remain read-only unless a
 future approved phase explicitly grants lifecycle actions.
-MVP delivery remains vendor-owned: use the same order lifecycle for
-READY→OUT_FOR_DELIVERY→DELIVERED, show immutable delivery snapshots, and do
-not add delivery agents, assignment, tracking, location, or a second delivery
-status model.
+Delivery execution is now assigned-partner-owned under the approved Phase 7
+scope. Use the same order lifecycle READY→OUT_FOR_DELIVERY→DELIVERED and
+immutable fulfillment snapshots. The separate assignment duty state must never
+become a competing customer order lifecycle.
+
+**Why:** Phase 7 explicitly transfers dispatch/completion from the vendor to
+the assigned active partner, while prohibiting inventory effects and historical
+order rewrites.
+
+**How to apply:** Vendor preparation still stops at READY. Do not restore vendor
+dispatch/completion permissions as a shortcut for legacy orders without an
+assignment; legacy fulfillment remediation needs explicit approval.
 
 Vendor order preparation stops at READY. The preparation screen must not offer
-dispatch or delivery actions; preserve those in the separate existing
-vendor-owned delivery workflow.
+dispatch or delivery actions; the assigned partner performs delivery execution.
 
 **Why:** The user explicitly scoped Vendor Order Management to
 PLACED→ACCEPTED→PREPARING→READY, with PLACED→REJECTED as the rejection path,

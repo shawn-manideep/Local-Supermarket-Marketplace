@@ -23,7 +23,11 @@ import type {
   CustomerCheckoutOutcome,
   CustomerCheckoutSubmission,
   CustomerShoppingCategories,
+  DeliveryAssignRequest,
+  DeliveryAssignmentOutcome,
+  DeliveryDutyRequest,
   GetCustomerShoppingCategoriesParams,
+  GetEligibleDeliveryPartners200,
   HealthStatus,
   PartnerAdministrationOutcome,
   PartnerCredentials,
@@ -67,6 +71,385 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetVendorOrderDeliveryUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/vendor/orders/${orderId}/delivery`
+}
+
+export const getVendorOrderDelivery = async (orderId: string, options?: Parameters<typeof customFetch>[1]): Promise<DeliveryAssignmentOutcome> => {
+
+  return customFetch<DeliveryAssignmentOutcome>(getGetVendorOrderDeliveryUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVendorOrderDeliveryQueryKey = (orderId: string,) => {
+    return [
+    `/api/vendor/orders/${orderId}/delivery`
+    ] as const;
+    }
+
+
+export const getGetVendorOrderDeliveryQueryOptions = <TData = Awaited<ReturnType<typeof getVendorOrderDelivery>>, TError = ErrorType<unknown>>(orderId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorOrderDelivery>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVendorOrderDeliveryQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVendorOrderDelivery>>> = ({ signal }) => getVendorOrderDelivery(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVendorOrderDelivery>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVendorOrderDeliveryQueryResult = NonNullable<Awaited<ReturnType<typeof getVendorOrderDelivery>>>
+export type GetVendorOrderDeliveryQueryError = ErrorType<unknown>
+
+
+
+export function useGetVendorOrderDelivery<TData = Awaited<ReturnType<typeof getVendorOrderDelivery>>, TError = ErrorType<unknown>>(
+ orderId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorOrderDelivery>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVendorOrderDeliveryQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAssignVendorOrderDeliveryUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/vendor/orders/${orderId}/delivery`
+}
+
+export const assignVendorOrderDelivery = async (orderId: string,
+    deliveryAssignRequest: DeliveryAssignRequest, options?: Parameters<typeof customFetch>[1]): Promise<DeliveryAssignmentOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DeliveryAssignmentOutcome>(getAssignVendorOrderDeliveryUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(deliveryAssignRequest)
+  }
+);}
+
+
+
+
+
+export const getAssignVendorOrderDeliveryMutationKey = () => ['assignVendorOrderDelivery'] as const;
+
+export const getAssignVendorOrderDeliveryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignVendorOrderDelivery>>, TError,AssignVendorOrderDeliveryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignVendorOrderDelivery>>, TError,AssignVendorOrderDeliveryMutationVariables, TContext> => {
+
+const mutationKey = getAssignVendorOrderDeliveryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignVendorOrderDelivery>>, AssignVendorOrderDeliveryMutationVariables> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  assignVendorOrderDelivery(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignVendorOrderDeliveryMutationResult = NonNullable<Awaited<ReturnType<typeof assignVendorOrderDelivery>>>
+    export type AssignVendorOrderDeliveryMutationBody = BodyType<DeliveryAssignRequest>
+    export type AssignVendorOrderDeliveryMutationError = ErrorType<unknown>
+    export type AssignVendorOrderDeliveryMutationVariables = {orderId: string;data: BodyType<DeliveryAssignRequest>}
+
+    export const useAssignVendorOrderDelivery = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignVendorOrderDelivery>>, TError,AssignVendorOrderDeliveryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assignVendorOrderDelivery>>,
+        TError,
+        AssignVendorOrderDeliveryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssignVendorOrderDeliveryMutationOptions(options));
+    }
+
+export const getGetEligibleDeliveryPartnersUrl = () => {
+
+
+
+
+  return `/api/vendor/delivery-partners`
+}
+
+export const getEligibleDeliveryPartners = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetEligibleDeliveryPartners200> => {
+
+  return customFetch<GetEligibleDeliveryPartners200>(getGetEligibleDeliveryPartnersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEligibleDeliveryPartnersQueryKey = () => {
+    return [
+    `/api/vendor/delivery-partners`
+    ] as const;
+    }
+
+
+export const getGetEligibleDeliveryPartnersQueryOptions = <TData = Awaited<ReturnType<typeof getEligibleDeliveryPartners>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEligibleDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEligibleDeliveryPartnersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEligibleDeliveryPartners>>> = ({ signal }) => getEligibleDeliveryPartners({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEligibleDeliveryPartners>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEligibleDeliveryPartnersQueryResult = NonNullable<Awaited<ReturnType<typeof getEligibleDeliveryPartners>>>
+export type GetEligibleDeliveryPartnersQueryError = ErrorType<unknown>
+
+
+
+export function useGetEligibleDeliveryPartners<TData = Awaited<ReturnType<typeof getEligibleDeliveryPartners>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEligibleDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEligibleDeliveryPartnersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOwnDeliveryDetailsUrl = (assignmentId: string,) => {
+
+
+
+
+  return `/api/delivery-partner/deliveries/${assignmentId}`
+}
+
+export const getOwnDeliveryDetails = async (assignmentId: string, options?: Parameters<typeof customFetch>[1]): Promise<DeliveryAssignmentOutcome> => {
+
+  return customFetch<DeliveryAssignmentOutcome>(getGetOwnDeliveryDetailsUrl(assignmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOwnDeliveryDetailsQueryKey = (assignmentId: string,) => {
+    return [
+    `/api/delivery-partner/deliveries/${assignmentId}`
+    ] as const;
+    }
+
+
+export const getGetOwnDeliveryDetailsQueryOptions = <TData = Awaited<ReturnType<typeof getOwnDeliveryDetails>>, TError = ErrorType<unknown>>(assignmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOwnDeliveryDetails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOwnDeliveryDetailsQueryKey(assignmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOwnDeliveryDetails>>> = ({ signal }) => getOwnDeliveryDetails(assignmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: assignmentId !== null && assignmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOwnDeliveryDetails>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOwnDeliveryDetailsQueryResult = NonNullable<Awaited<ReturnType<typeof getOwnDeliveryDetails>>>
+export type GetOwnDeliveryDetailsQueryError = ErrorType<unknown>
+
+
+
+export function useGetOwnDeliveryDetails<TData = Awaited<ReturnType<typeof getOwnDeliveryDetails>>, TError = ErrorType<unknown>>(
+ assignmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOwnDeliveryDetails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOwnDeliveryDetailsQueryOptions(assignmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPerformOwnDeliveryActionUrl = (assignmentId: string,) => {
+
+
+
+
+  return `/api/delivery-partner/deliveries/${assignmentId}/actions`
+}
+
+export const performOwnDeliveryAction = async (assignmentId: string,
+    deliveryDutyRequest: DeliveryDutyRequest, options?: Parameters<typeof customFetch>[1]): Promise<DeliveryAssignmentOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DeliveryAssignmentOutcome>(getPerformOwnDeliveryActionUrl(assignmentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(deliveryDutyRequest)
+  }
+);}
+
+
+
+
+
+export const getPerformOwnDeliveryActionMutationKey = () => ['performOwnDeliveryAction'] as const;
+
+export const getPerformOwnDeliveryActionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof performOwnDeliveryAction>>, TError,PerformOwnDeliveryActionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof performOwnDeliveryAction>>, TError,PerformOwnDeliveryActionMutationVariables, TContext> => {
+
+const mutationKey = getPerformOwnDeliveryActionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof performOwnDeliveryAction>>, PerformOwnDeliveryActionMutationVariables> = (props) => {
+          const {assignmentId,data} = props ?? {};
+
+          return  performOwnDeliveryAction(assignmentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PerformOwnDeliveryActionMutationResult = NonNullable<Awaited<ReturnType<typeof performOwnDeliveryAction>>>
+    export type PerformOwnDeliveryActionMutationBody = BodyType<DeliveryDutyRequest>
+    export type PerformOwnDeliveryActionMutationError = ErrorType<unknown>
+    export type PerformOwnDeliveryActionMutationVariables = {assignmentId: string;data: BodyType<DeliveryDutyRequest>}
+
+    export const usePerformOwnDeliveryAction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof performOwnDeliveryAction>>, TError,PerformOwnDeliveryActionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof performOwnDeliveryAction>>,
+        TError,
+        PerformOwnDeliveryActionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPerformOwnDeliveryActionMutationOptions(options));
+    }
 
 export const getSignInDeliveryPartnerUrl = () => {
 

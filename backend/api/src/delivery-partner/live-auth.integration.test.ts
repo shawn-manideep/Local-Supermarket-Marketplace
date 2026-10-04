@@ -83,7 +83,7 @@ test("development Supabase Auth and actual HTTP APIs: partner provisioning/login
       assert.equal("id" in own, false);
       const dashboard = await request("/api/delivery-partner/dashboard", partnerToken);
       assert.equal(dashboard.status, 200);
-      assert.deepEqual((await payload(dashboard)).summary, { total: 0, pending: 0, assigned: 0, inProgress: 0, completed: 0, cancelled: 0, rejected: 0 });
+      assert.deepEqual((await payload(dashboard)).summary, { total: 0, pending: 0, assigned: 0, inProgress: 0, completed: 0, cancelled: 0, rejected: 0, accepted: 0, pickedUp: 0, outForDelivery: 0, delivered: 0 });
       const deliveries = await request(`/api/delivery-partner/deliveries?partnerId=${b.id}`, partnerToken);
       assert.equal(deliveries.status, 200);
       assert.deepEqual((await payload(deliveries)).deliveries, []);
@@ -92,6 +92,22 @@ test("development Supabase Auth and actual HTTP APIs: partner provisioning/login
     await t.test("customer, vendor and admin cannot use partner operational endpoints", async () => {
       for (const token of tokens.values()) for (const route of ["me", "dashboard", "deliveries"])
         assert.equal((await request(`/api/delivery-partner/${route}`, token)).status, 403);
+    });
+    await t.test("Phase 7 assignment and duty HTTP routes retain strict role isolation", async () => {
+      const id = randomUUID();
+      for (const [role, token] of tokens) {
+        if (role !== "vendor") {
+          assert.equal((await request("/api/vendor/delivery-partners", token)).status,403);
+          assert.equal((await request(`/api/vendor/orders/${id}/delivery`,token,"POST",{partnerId:a.id})).status,403);
+        }
+        assert.equal((await request(`/api/delivery-partner/deliveries/${id}`,token)).status,403);
+        assert.equal((await request(`/api/delivery-partner/deliveries/${id}/actions`,token,"POST",{action:"DELIVER"})).status,403);
+      }
+      assert.equal((await request(`/api/vendor/orders/${id}/delivery`,partnerToken,"POST",{partnerId:a.id})).status,403);
+      assert.equal((await request(`/api/delivery-partner/deliveries/${id}/actions`,partnerToken,"POST",{action:"START"})).status,403);
+      for (const action of ["OUT_FOR_DELIVERY","DELIVER"]) {
+        assert.equal((await request(`/api/vendor/orders/${id}/actions`,tokens.get("vendor")!,"POST",{action})).status,403);
+      }
     });
     await t.test("partner cannot read marketplace orders or provision/manage accounts", async () => {
       for (const route of ["/api/customer/orders", "/api/vendor/orders", "/api/admin/orders", "/api/admin/delivery-partners"])
