@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertDevelopmentTarget } from "./dev-test-account.js";
+import { assertDevelopmentTarget, parseTestAccountCommand } from "./dev-test-account.js";
 
 const env = {
   NODE_ENV: "development",
@@ -9,6 +9,15 @@ const env = {
   SUPABASE_ANON_KEY: "unused-test-key",
   SUPABASE_SERVICE_ROLE_KEY: "unused-test-key",
 };
+test("development command accepts pnpm's forwarded separator and rejects ambiguous arguments", () => {
+  for (const command of ["provision", "verify", "cleanup"]) {
+    assert.equal(parseTestAccountCommand([command]), command);
+    assert.equal(parseTestAccountCommand(["--", command]), command);
+  }
+  for (const args of [[], ["--"], ["unknown"], ["provision", "cleanup"], ["--", "verify", "extra"]]) {
+    assert.throws(() => parseTestAccountCommand(args));
+  }
+});
 test("development command accepts only explicitly enabled allowlisted Auth and DB targets", () => {
   assert.doesNotThrow(() => assertDevelopmentTarget(env));
   assert.doesNotThrow(() => assertDevelopmentTarget({ ...env, REPLIT_ENVIRONMENT: "production" }));

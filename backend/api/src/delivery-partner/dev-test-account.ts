@@ -10,6 +10,14 @@ const USERNAME = "deliverytest1";
 const DISPLAY_NAME = "Test Delivery Partner";
 const MARKER = "phase6_development_test_account";
 
+export function parseTestAccountCommand(args: string[]) {
+  const commands = args[0] === "--" ? args.slice(1) : args;
+  if (commands.length !== 1 || !["provision", "verify", "cleanup"].includes(commands[0]!)) {
+    throw new Error("Use exactly one command: provision, verify or cleanup.");
+  }
+  return commands[0]!;
+}
+
 // Check both independent connection targets before creating clients or opening DB connections.
 export function assertDevelopmentTarget(env: NodeJS.ProcessEnv) {
   // REPLIT_ENVIRONMENT describes the platform environment and is "production"
@@ -162,7 +170,7 @@ async function run(command: string | undefined) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  run(process.argv[2]).catch(() => {
+  Promise.resolve().then(() => run(parseTestAccountCommand(process.argv.slice(2)))).catch(() => {
     // Suppress external SDK/SQL errors: they may include connection details or sensitive request data.
     console.error("Development test-account command failed safely. Check development configuration, account ownership/status and required Secrets; no credentials are logged.");
     process.exitCode = 1;
