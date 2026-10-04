@@ -9,6 +9,7 @@ import { ShoppingProductCard } from "./components/ShoppingProductCard";
 import { ShoppingProductDetails } from "./components/ShoppingProductDetails";
 import type { CustomerShoppingCategory } from "./lib/api";
 import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId, shoppingError } from "./lib/shopping";
+import { HomeHistory } from "./HomeHistory";
 
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
@@ -70,10 +71,12 @@ function customerVariantLabel(variant: CustomerProductVariant) {
   return formatVariantName(variant.quantityValue, variant.quantityUnit);
 }
 
-export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean }) {
+export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
   const [pincode, setPincode] = useState("");
   const [stores, setStores] = useState<CustomerStore[]>([]);
+  const [storeDirectoryPincode, setStoreDirectoryPincode] = useState("");
   const [homeCategories, setHomeCategories] = useState<CustomerShoppingCategory[]>([]);
   const [globalCategoryId, setGlobalCategoryId] = useState("");
   const [searchRetry, setSearchRetry] = useState(0);
@@ -95,6 +98,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const [loadingStores, setLoadingStores] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [error, setError] = useState("");
+  const [shoppingIntentNotice, setShoppingIntentNotice] = useState("");
   
   const [searchQuery, setSearchQuery] = useState("");
   const [storeSearchQuery, setStoreSearchQuery] = useState("");
@@ -104,6 +108,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const [adding, setAdding] = useState(false);
   const [addedNotice, setAddedNotice] = useState("");
   const [cartUnits, setCartUnits] = useState(0);
+  const [cartStoreName, setCartStoreName] = useState("");
+  const [cartSummaryError, setCartSummaryError] = useState(false);
 
   const [switchDialogVisible, setSwitchDialogVisible] = useState(false);
   const [switchDialogLoading, setSwitchDialogLoading] = useState(false);
@@ -116,8 +122,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const pendingCategoryId = useRef("");
   const cartAddInFlight = useRef(false);
   const productRefreshGeneration = useRef(0);
+  const defaultAddressId = useRef("");
+  const selectedAddressIdRef = useRef("");
 
   const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(storeSearchQuery.toLowerCase())), [stores, storeSearchQuery]);
+  const currentStoreId = store?.id;
 
   const clearCatalog = () => {
     ++catalogGeneration.current;
@@ -130,6 +139,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   const selectStore = (nextStore: CustomerStore | null) => {
     pendingCategoryId.current = "";
+    setShoppingIntentNotice("");
     clearCatalog();
     setError("");
     if (!nextStore) setLoadingCatalog(false);
@@ -137,29 +147,42 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   };
 
   useEffect(() => {
-    if (resetToken > 0) selectStore(null);
+    if (resetToken > 0) { setShoppingIntentNotice(""); selectStore(null); }
   }, [resetToken]);
 
   const loadAddresses = useCallback(() => {
     setLoadingAddresses(true); setError("");
-    customerApi<{ addresses: CustomerAddress[] }>("/api/customer/addresses")
+    const controller = new AbortController();
+    customerApi<{ addresses: CustomerAddress[] }>("/api/customer/addresses", { signal: controller.signal })
       .then(({ addresses: next }) => {
+        if (controller.signal.aborted) return;
         setAddresses(next);
-        const selected = next.find((address) => address.isDefault) ?? next[0];
+        const nextDefaultId = next.find((address) => address.isDefault)?.id ?? next[0]?.id ?? "";
+        const priorSelectionStillExists = next.some(address => address.id === selectedAddressIdRef.current);
+        const defaultChanged = !!defaultAddressId.current && defaultAddressId.current !== nextDefaultId;
+        const selected = defaultChanged || !priorSelectionStillExists
+          ? next.find(address => address.id === nextDefaultId) ?? next[0]
+          : next.find(address => address.id === selectedAddressIdRef.current) ?? next.find(address => address.id === nextDefaultId) ?? next[0];
+        defaultAddressId.current = nextDefaultId;
+        selectedAddressIdRef.current = selected?.id ?? "";
+        setSelectedAddressId(selected?.id ?? "");
         setPincode(selected?.pincode ?? "");
       })
-      .catch((reason) => setError(shoppingError(reason, "Unable to load delivery addresses. Please try again.")))
-      .finally(() => setLoadingAddresses(false));
+      .catch((reason) => { if (!controller.signal.aborted) setError(shoppingError(reason, "Unable to load delivery addresses. Please try again.")); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingAddresses(false); });
+    return () => controller.abort();
   }, []);
 
-  useEffect(() => { if (active) loadAddresses(); }, [loadAddresses, active]);
+  useEffect(() => active ? loadAddresses() : undefined, [loadAddresses, active]);
   const refreshCart = useCallback(async () => {
     try {
-      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart");
+      const result = await customerApi<{ cart: { storeName: string; items: Array<{ quantity: number }> } | null }>("/api/customer/cart");
       const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
       setCartUnits(count);
+      setCartStoreName(result.cart?.storeName ?? "");
+      setCartSummaryError(false);
       onCartUnitsChange?.(count);
-    } catch { /* Shopping remains available if cart summary refresh fails. */ }
+    } catch { setCartSummaryError(true); }
   }, [onCartUnitsChange]);
   useEffect(() => { if (active) void refreshCart(); }, [refreshCart, active]);
   useEffect(() => {
@@ -172,15 +195,26 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 
   const loadStores = useCallback(() => {
     const generation = ++discoveryGeneration.current;
-    if (!pincode) { setStores([]); setStore(null); clearCatalog(); setLoadingStores(false); return; }
-    setLoadingStores(true); setError(""); setStore(null); clearCatalog();
+    if (!pincode) { setStores([]); setStoreDirectoryPincode(""); setStore(null); clearCatalog(); setLoadingStores(false); return; }
+    setLoadingStores(true); setError(""); setStores([]); setStoreDirectoryPincode(""); setStore(null); clearCatalog();
     customerApi<{ stores: CustomerStore[] }>(`/api/customer/stores?pincode=${pincode}`)
-      .then(({ stores: next }) => { if (generation === discoveryGeneration.current) setStores(next); })
+      .then(({ stores: next }) => { if (generation === discoveryGeneration.current) { setStores(next); setStoreDirectoryPincode(pincode); } })
       .catch((reason) => { if (generation === discoveryGeneration.current) setError(shoppingError(reason, "Unable to find supermarkets. Please try again.")); })
       .finally(() => { if (generation === discoveryGeneration.current) setLoadingStores(false); });
   }, [pincode]);
 
   useEffect(() => { loadStores(); }, [loadStores]);
+  useEffect(() => {
+    if (!active || !requestedStoreId || !pincode || loadingAddresses || loadingStores || storeDirectoryPincode !== pincode) return;
+    const eligibleStore = stores.find(candidate => candidate.id === requestedStoreId);
+    if (eligibleStore) {
+      setShoppingIntentNotice("");
+      if (store?.id !== eligibleStore.id) selectStore(eligibleStore);
+    } else {
+      setShoppingIntentNotice("Your basket’s supermarket is not available for this delivery location. Your basket has not been changed.");
+    }
+    onStoreRequestHandled?.();
+  }, [active, requestedStoreId, pincode, loadingAddresses, loadingStores, storeDirectoryPincode, stores]);
   useEffect(() => {
     if (!pincode) { setHomeCategories([]); return; }
     let active = true;
@@ -348,9 +382,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     try {
       const fresh = await currentCartSelection(selected, variant.id, generation);
       if (generation !== catalogGeneration.current) return;
-      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(fresh.product, fresh.variant, qty, confirmStoreSwitch)) });
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }>; storeName?: string } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(fresh.product, fresh.variant, qty, confirmStoreSwitch)) });
       const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
       setCartUnits(count); onCartUnitsChange?.(count);
+      setCartStoreName(result.cart?.storeName ?? selected.storeName ?? store?.name ?? "");
+      setCartSummaryError(false);
       setAddedNotice(`${selected.name} · ${customerVariantLabel(variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
     } catch (reason) {
@@ -380,9 +416,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         setSwitchDialogVisible(false); setPendingProduct(null);
         return;
       }
-      const result = await customerApi<{ cart: { items: Array<{ quantity: number }> } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(fresh.product, fresh.variant, pendingProduct.qty, true)) });
+      const result = await customerApi<{ cart: { items: Array<{ quantity: number }>; storeName?: string } | null }>("/api/customer/cart/items", { method:"POST", body:JSON.stringify(cartItemInput(fresh.product, fresh.variant, pendingProduct.qty, true)) });
       const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
       setCartUnits(count); onCartUnitsChange?.(count);
+      setCartStoreName(result.cart?.storeName ?? pendingProduct.product.storeName ?? store?.name ?? "");
+      setCartSummaryError(false);
       setSwitchDialogVisible(false);
       setAddedNotice(`${pendingProduct.product.name} · ${customerVariantLabel(pendingProduct.variant)} added to cart`);
       setTimeout(() => setAddedNotice(""), 2600);
@@ -530,7 +568,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       </ScrollView>
     );
   } else {
-    const activeAddress = addresses.find((a) => a.pincode === pincode) || addresses[0];
+    const activeAddress = addresses.find((a) => a.id === selectedAddressId) ?? addresses.find((a) => a.pincode === pincode) ?? addresses[0];
 
     content = (
       <ScrollView key="store-discovery" contentContainerStyle={commonStyles.page}>
@@ -550,17 +588,14 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
 
           {productSearchField("Search products across nearby stores...")}
+          {!!shoppingIntentNotice && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{shoppingIntentNotice}</Text>}
           {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. Search still works. Tap to retry.</Text></Pressable>}
           <View style={[styles.searchBar, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
             <SearchIcon />
             <TextInput style={styles.searchInput} placeholder="Search supermarkets..." placeholderTextColor={colors.muted} value={storeSearchQuery} onChangeText={setStoreSearchQuery} />
           </View>
 
-          <View style={styles.promo}>
-            <Text style={styles.promoTitle}>Fresh Groceries{"\n"}Delivered to Your Door</Text>
-            <Text style={styles.promoText}>Quality products from your local stores.</Text>
-            <View style={styles.promoPill}><Text style={styles.promoPillText}>Shop now  ›</Text></View>
-          </View>
+          <Text style={[typography.caption, { marginTop: spacing.md }]}>Browse eligible supermarkets and their current grocery options.</Text>
           {homeCategories.length > 0 && <View style={{ marginBottom: spacing.xl }}>
             <Text style={[typography.title3, { marginBottom: spacing.md }]}>Shop by Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.md }}>
@@ -570,6 +605,14 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
               </Pressable>)}
             </ScrollView>
           </View>}
+          <HomeHistory key={`home-history-${!active || loadingAddresses ? "inactive" : `${activeAddress?.id ?? "none"}-${pincode}`}`}
+            active={active && !loadingAddresses} addressId={activeAddress?.id ?? ""} stores={stores}
+            storesReady={!loadingStores && !loadingAddresses && storeDirectoryPincode === pincode}
+            onOpenStore={(storeId) => {
+              const eligibleStore = stores.find(candidate => candidate.id === storeId);
+              if (eligibleStore && storeDirectoryPincode === pincode && !loadingStores && currentStoreId !== eligibleStore.id) selectStore(eligibleStore);
+            }}
+            onOpenOrder={(id) => onOpenOrder?.(id)} onCart={openCart} />
           <Text style={[typography.title3, { marginBottom: spacing.md }]}>Supermarkets Near You</Text>
           
           {loadingAddresses || loadingStores ? (
@@ -622,8 +665,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       <View style={{ flex: 1 }}>
         {content}
         {!!addedNotice && <View accessibilityRole="alert" style={styles.addedToast}><Text style={styles.addedToastText}>✓  {addedNotice}</Text></View>}
-        {cartUnits > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`Go to cart, ${cartUnits} items`} disabled={adding || switchDialogLoading} onPress={openCart} style={styles.stickyCart}>
-          <Text style={styles.stickyCartTitle}>Go to Cart</Text>
+        {cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel="Retry basket summary" onPress={() => void refreshCart()} style={styles.cartError}>
+          <Text style={styles.cartErrorText}>Basket details couldn’t load.</Text><Text style={styles.cartErrorLink}>Retry</Text>
+        </Pressable>}
+        {cartUnits > 0 && !cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel={`Go to cart, ${cartUnits} items${cartStoreName ? ` from ${cartStoreName}` : ""}`} disabled={adding || switchDialogLoading} onPress={openCart} style={styles.stickyCart}>
+          <View style={{ flex: 1 }}><Text style={styles.stickyCartTitle}>Go to Cart</Text><Text style={styles.stickyStoreName} numberOfLines={1}>{cartStoreName || "Your supermarket basket"}</Text></View>
           <Text style={styles.stickyCartCount}>{cartUnits} {cartUnits === 1 ? "Item" : "Items"}  →</Text>
         </Pressable>}
       </View>
@@ -698,9 +744,13 @@ const styles = StyleSheet.create({
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.muted, alignItems: "center", justifyContent: "center" },
   radioSelected: { borderColor: colors.accent },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-  stickyCart: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: 12, minHeight: 54, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.accent, flexDirection: "row", alignItems: "center", justifyContent: "space-between", ...shadows.md },
+  stickyCart: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: 12, minHeight: 64, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.accent, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, ...shadows.md },
   stickyCartTitle: { color: colors.card, fontSize: 16, fontWeight: "800" },
+  stickyStoreName: { color: colors.card, fontSize: 11, opacity: 0.88 },
   stickyCartCount: { color: colors.card, fontSize: 14, fontWeight: "700" },
+  cartError: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: 12, minHeight: 54, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.highlight, flexDirection: "row", alignItems: "center", justifyContent: "space-between", ...shadows.md },
+  cartErrorText: { color: colors.danger, fontSize: 13, fontWeight: "600" },
+  cartErrorLink: { color: colors.ink, fontWeight: "800" },
   addedToast: { position: "absolute", bottom: 78, left: spacing.lg, right: spacing.lg, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.ink, alignItems: "center", ...shadows.sm },
   addedToastText: { color: colors.card, fontWeight: "700", fontSize: 13 },
   disabled: { opacity: 0.5 },

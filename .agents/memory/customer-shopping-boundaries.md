@@ -38,3 +38,25 @@ The user has now manually verified Product Details, multi-variant selection, qua
 **Why:** The reorder brief explicitly confirms this flow and limits the phase to customer reorder.
 
 **How to apply:** Add reorder to existing order history without a Home, search, details, or cart redesign. Do not run automated browser acceptance, claim new manual acceptance, or deploy to production.
+
+Phases 1–7 are completed and manually accepted, including the Delivery Partner
+workflow and customer order status. Customer Home/Marketplace presentation and
+navigation refinements are now explicitly authorized, without rewriting the
+accepted shopping, reorder, stock, authorization or delivery business rules.
+
+**Why:** The user explicitly confirmed acceptance in the Customer UX refinement
+brief; earlier no-Home-change restrictions were tied to narrower prior work.
+
+**How to apply:** Preserve functional behavior and existing endpoints while
+refining shopping presentation. Reserve browser acceptance for the user.
+
+Distinguish an explicit Home action from Cart → Continue Shopping. Home should
+show Home; Continue Shopping should retain the relevant store/search/detail
+context when possible, including after an order-history reorder.
+
+**Why:** The user requires both immediately accessible Home shopping sections
+and safe return navigation without losing shopping context.
+
+**How to apply:** Do not apply a blanket discovery reset to every return from
+Cart. Respect the basket's store intent, validate its current location
+eligibility, and never change the basket as a navigation side effect.

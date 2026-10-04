@@ -14,3 +14,17 @@ mtime_ms = 1790866453214
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/2c62a7b6-4f21-4103-be6f-2ea6426adf88/bc348a1e-6f75-4565-921c-c7ae1b6e12a5"
 storage_version_token = "1790866528850788"
 content_type = "text/html"
+
+[[outputs]]
+id = "qlWaxrqsVCGx2vZmSq3AL"
+uri = "file://docs/PHASE8_CUSTOMER_UX_REPORT.md"
+type = "text"
+title = "Phase 8 implementation report"
+description = "Changes, regression/build results, limitations and the pending 30-item manual browser checklist."
+logical_id = "90044eb0-eaa1-4d36-be2a-468f5f7b9565"
+content_hash = "sha256:c52ee4b927078ea10a0fc760facf8a62632f9eae0001d0aa289efe4b153937a9"
+size = 15786
+mtime_ms = 1791098986950
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/90044eb0-eaa1-4d36-be2a-468f5f7b9565/b1bceb25-6fbc-42b4-8f80-6ab1120362db"
+storage_version_token = "1791099026775601"
+content_type = "text/markdown"

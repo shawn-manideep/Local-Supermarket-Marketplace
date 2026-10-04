@@ -16,12 +16,13 @@ function BasketIcon() {
   );
 }
 
-export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void; continueShopping: () => void }) {
+export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void; continueShopping: (storeId?: string) => void }) {
   const [cart, setCart] = useState<CustomerCart | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const quantityQueues = useRef<Record<string, { target: number; running: boolean }>>({});
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const checkoutInFlight = useRef(false);
@@ -30,7 +31,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
   const [clearLoading, setClearLoading] = useState(false);
 
   const load = async () => {
-    setLoading(true); setMessage("");
+    setLoading(true); setMessage(""); setLoadFailed(false);
     try {
       const [cartResult, addressResult] = await Promise.all([
         customerApi<{ cart: CustomerCart | null }>("/api/customer/cart"),
@@ -39,7 +40,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
       setCart(cartResult.cart); setAddresses(addressResult.addresses);
       const selected = addressResult.addresses.find((address) => address.isDefault) ?? addressResult.addresses[0];
       if (selected) setAddressId(selected.id);
-    } catch (reason) { setMessage(shoppingError(reason, "Unable to load your cart. Please try again.")); }
+    } catch (reason) { setLoadFailed(true); setMessage(shoppingError(reason, "Unable to load your cart. Please try again.")); }
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, []);
@@ -124,14 +125,12 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
     <ScrollView contentContainerStyle={commonStyles.page}>
       <View style={[commonStyles.container, { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }]}>
         <Text style={styles.emptyHeader}>My Cart</Text>
-        <View style={styles.emptyBasket}>
-          <BasketIcon />
-        </View>
-        <Text style={typography.title1}>Your basket is empty</Text>
-        <Text style={[typography.body, { textAlign: "center" }]}>Add fresh groceries from a local supermarket to get started.</Text>
+        {!loadFailed && <View style={styles.emptyBasket}><BasketIcon /></View>}
+        <Text style={typography.title1}>{loadFailed ? "Basket unavailable" : "Your basket is empty"}</Text>
+        {!loadFailed && <Text style={[typography.body, { textAlign: "center" }]}>Add fresh groceries from a local supermarket to get started.</Text>}
         {!!message && <Text style={[typography.caption, { color: colors.danger }]}>{message}</Text>}
-        <Pressable accessibilityRole="button" onPress={continueShopping} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Continue shopping</Text></Pressable>
-        {!!message && <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={typography.bodySemibold}>Try again</Text></Pressable>}
+        <Pressable accessibilityRole="button" onPress={() => continueShopping()} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Continue shopping</Text></Pressable>
+        {loadFailed && <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={typography.bodySemibold}>Try again</Text></Pressable>}
       </View>
     </ScrollView>
   );
@@ -140,7 +139,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
     <>
       <ScrollView contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
-          <Pressable accessibilityRole="button" onPress={continueShopping} style={{ marginBottom: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.accent }]}>← Continue shopping</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => continueShopping(cart.storeId)} style={{ marginBottom: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.accent }]}>← Continue shopping</Text></Pressable>
           <View style={styles.cartHeader}><Text style={styles.cartHeaderText}>My Cart</Text><Pressable accessibilityRole="button" onPress={clear}><Text style={styles.clearText}>Clear</Text></Pressable></View>
           <Text style={[typography.caption, { marginBottom: spacing.md }]}>{cart.items.length} {cart.items.length === 1 ? "item" : "items"} · {cart.storeName}</Text>
           

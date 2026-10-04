@@ -107,7 +107,7 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping
   );
 }
 
-function RepeatOrderDialog({ orderId, orderItemId, onClose, onAdded, onContinueShopping }: { orderId: string | null; orderItemId?: string; onClose: () => void; onAdded: () => void; onContinueShopping: () => void }) {
+export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onClose, onAdded, onContinueShopping }: { orderId: string | null; orderItemId?: string; initialAddressId?: string; onClose: () => void; onAdded: () => void; onContinueShopping: () => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [preview, setPreview] = useState<RepeatOrderPreview | null>(null);
@@ -142,12 +142,12 @@ function RepeatOrderDialog({ orderId, orderItemId, onClose, onAdded, onContinueS
       .then(({ addresses: next }) => {
         if (!active) return;
         setAddresses(next);
-        setAddressId((next.find(address => address.isDefault) ?? next[0])?.id ?? "");
+        setAddressId((next.find(address => address.id === initialAddressId) ?? next.find(address => address.isDefault) ?? next[0])?.id ?? "");
       })
       .catch(() => { if (active) setMessage("We couldn't load your delivery addresses. Please try again."); })
       .finally(() => { if (active) setLoadingAddresses(false); });
     return () => { active = false; };
-  }, [orderId, orderItemId]);
+  }, [orderId, orderItemId, initialAddressId]);
 
   useEffect(() => {
     if (!orderId || !addressId) return;

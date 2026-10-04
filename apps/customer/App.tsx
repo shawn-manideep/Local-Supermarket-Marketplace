@@ -762,6 +762,8 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 function CustomerApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [orderId, setOrderId] = useState<string | undefined>();
+  const [requestedStoreId, setRequestedStoreId] = useState<string | undefined>();
+  const [homeResetToken, setHomeResetToken] = useState(0);
   const [cartUnits, setCartUnits] = useState(0);
   const navItems: Array<"home" | "orders" | "account"> = [
     "home",
@@ -776,14 +778,20 @@ function CustomerApp() {
             active={screen === "home"}
             openAddresses={() => setScreen("addresses")}
             openCart={() => setScreen("cart")}
-            resetToken={0}
+            resetToken={homeResetToken}
             onCartUnitsChange={setCartUnits}
+            requestedStoreId={requestedStoreId}
+            onStoreRequestHandled={() => setRequestedStoreId(undefined)}
+            onOpenOrder={(id) => { setOrderId(id); setScreen("orders"); }}
           />
         </View>
         {screen === "home" ? null : screen === "cart" ? (
           <CartScreen
             openAddresses={() => setScreen("addresses")}
-            continueShopping={() => setScreen("home")}
+            continueShopping={(storeId) => {
+              setRequestedStoreId(storeId);
+              setScreen("home");
+            }}
             onOrderPlaced={(id) => {
               setOrderId(id);
               setScreen("orders");
@@ -819,6 +827,10 @@ function CustomerApp() {
             key={item}
             onPress={() => {
               setOrderId(undefined);
+              if (item === "home") {
+                setRequestedStoreId(undefined);
+                setHomeResetToken(value => value + 1);
+              }
               setScreen(item);
             }}
             style={styles.navItem}

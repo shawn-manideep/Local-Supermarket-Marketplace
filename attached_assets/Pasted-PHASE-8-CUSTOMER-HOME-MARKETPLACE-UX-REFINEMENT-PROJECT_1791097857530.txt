@@ -1,0 +1,821 @@
+PHASE 8 — CUSTOMER HOME & MARKETPLACE UX REFINEMENT
+
+PROJECT:
+Local Supermarket Marketplace
+
+OBJECTIVE:
+Refine the Customer Portal's Home, Marketplace, navigation, discovery, and shopping UX based on the existing approved architecture and previously identified customer-facing issues.
+
+IMPORTANT:
+Phases 1–7 are completed and manually accepted.
+
+DO NOT break or redesign the approved functionality.
+
+The following are already accepted and must remain intact:
+
+- Master Catalog
+- Vendor product management
+- Product variants
+- Global customer search
+- Product details
+- Cart
+- Reorder / Buy Again
+- Stock management
+- Vendor order management
+- Delivery Partner workflow
+- Customer order status
+- Historical order snapshots
+- One-store cart rule
+- Customer/vendor/partner authorization
+
+This phase is CUSTOMER UX REFINEMENT ONLY.
+
+--------------------------------------------------
+1. CURRENT CUSTOMER EXPERIENCE GOALS
+--------------------------------------------------
+
+The Customer Portal should make it immediately clear:
+
+1. What supermarkets/stores are available.
+2. Which store the customer is currently shopping from.
+3. What products are available in that store.
+4. What the customer recently ordered.
+5. What store the customer recently used.
+6. How to search products globally.
+7. How to navigate back safely.
+8. How to access the cart contextually.
+9. How to continue shopping without losing context.
+
+The experience should be simple enough for a normal grocery customer without requiring them to understand the underlying catalog structure.
+
+--------------------------------------------------
+2. CUSTOMER HOME
+--------------------------------------------------
+
+Review and refine the Customer Home screen.
+
+The Home screen should provide clear sections such as:
+
+- Search
+- Available Supermarkets
+- Recently Ordered
+- Recent Store
+- Categories / product discovery
+- Relevant shopping content
+
+Do not add unnecessary dashboard-style widgets.
+
+Do not overload the Home screen.
+
+Prioritize shopping.
+
+--------------------------------------------------
+3. AVAILABLE SUPERMARKETS
+--------------------------------------------------
+
+Customer should be able to discover supermarkets/stores that are currently eligible for shopping.
+
+Use the existing store/pincode eligibility logic.
+
+Do not expose stores that the customer cannot actually shop from.
+
+Each store should communicate enough information for the customer to understand what they are selecting.
+
+Do not expose vendor-private information.
+
+Do not expose internal store IDs.
+
+If there are no eligible stores:
+
+Show a clear empty state.
+
+Example:
+
+"No supermarkets are currently available in your area."
+
+Provide an appropriate retry/change-location/pincode action if the existing application supports it.
+
+--------------------------------------------------
+4. RECENT STORE
+--------------------------------------------------
+
+Add/refine a "Recent Store" section.
+
+If the customer has previously completed or placed an order from a store, show the most relevant recent store.
+
+The customer should be able to tap the store and return to shopping there.
+
+Do not automatically switch the active store without a clear user action.
+
+If there is no previous store:
+
+Do not show fake data.
+
+Use an appropriate empty state or omit the section.
+
+--------------------------------------------------
+5. RECENTLY ORDERED
+--------------------------------------------------
+
+Add/refine a "Recently Ordered" section.
+
+Use the customer's actual order history.
+
+Show useful information such as:
+
+- Product
+- Variant
+- Store
+- Current availability
+- Current price where appropriate
+- Reorder / Buy Again action
+
+Do not use historical price as the current shopping price.
+
+Do not silently substitute another product or variant.
+
+Use the already-approved exact historical identity behavior from Phase 3.
+
+If an item is no longer available:
+
+Clearly indicate that it is unavailable.
+
+Do not invent a replacement.
+
+If there are no previous orders:
+
+Show a useful empty state.
+
+Example:
+
+"No orders yet."
+
+--------------------------------------------------
+6. BUY AGAIN
+--------------------------------------------------
+
+Preserve the already-approved Reorder / Buy Again behavior.
+
+Buy Again must:
+
+- use exact historical product/variant/store identity
+- use current price
+- use current availability
+- use current stock/orderability
+- never restore historical price
+- never silently substitute another variant
+- respect the one-store cart rule
+
+Do not rewrite the reorder backend.
+
+Only improve its presentation/accessibility from Home where necessary.
+
+--------------------------------------------------
+7. GLOBAL SEARCH
+--------------------------------------------------
+
+Preserve the approved global customer search.
+
+Customer should be able to search without first selecting a category.
+
+Examples:
+
+"rice"
+"milk"
+"eggs"
+"apple"
+
+Search should be understandable to a normal customer.
+
+Category selection is optional.
+
+Do not force:
+
+Category → Subcategory → Product
+
+before search.
+
+Search results must remain store-scoped to the customer's selected/eligible shopping context.
+
+--------------------------------------------------
+8. SEARCH UX
+--------------------------------------------------
+
+Review:
+
+- search field visibility
+- typing behavior
+- loading state
+- empty results
+- error state
+- retry
+- clearing search
+- returning to Home
+- returning from Product Details
+
+Do not add unnecessary search filters.
+
+Do not expose internal product identifiers.
+
+Do not expose exact vendor stock.
+
+Customer should see derived availability such as:
+
+Available
+Out of stock
+Unavailable
+
+--------------------------------------------------
+9. CATEGORY UX
+--------------------------------------------------
+
+Categories should help discovery but must NOT be required for global search.
+
+Keep category navigation simple.
+
+If categories are displayed:
+
+- make them easy to scroll
+- avoid excessive horizontal overflow
+- make selected state obvious
+- preserve the current store context
+
+Do not change Master Catalog taxonomy in this phase.
+
+Do not create new master categories.
+
+--------------------------------------------------
+10. PRODUCT CARD UX
+--------------------------------------------------
+
+Review product cards for:
+
+- product name
+- brand where available
+- variant/price presentation
+- availability
+- Add button
+- Choose option button
+- image
+- spacing
+
+Fix the previously identified issue where:
+
+PRICE and ADD BUTTON overlap or visually collide.
+
+The card must remain readable on:
+
+- desktop
+- tablet-sized browser
+- mobile-sized browser
+
+Do not allow long product names to break the layout.
+
+Do not expose exact stock.
+
+--------------------------------------------------
+11. MULTIPLE VARIANT PRODUCTS
+--------------------------------------------------
+
+For products with multiple variants:
+
+Example:
+
+Rice:
+500 g
+1 kg
+2 kg
+5 kg
+
+Customer must clearly understand that they need to choose a variant.
+
+Preserve the already-approved Product Details behavior.
+
+Do not create synthetic variants.
+
+Do not change variant pricing/stock logic.
+
+--------------------------------------------------
+12. SINGLE-VARIANT PRODUCTS
+--------------------------------------------------
+
+For products with one purchasable variant:
+
+Preserve the existing approved behavior where the variant can be selected automatically when appropriate.
+
+Do not introduce an unnecessary extra variant-selection step.
+
+--------------------------------------------------
+13. OUT-OF-STOCK UX
+--------------------------------------------------
+
+Out-of-stock products should remain understandable.
+
+Show:
+
+- Out of stock
+- Unavailable
+- Disabled Add/Choose action as appropriate
+
+Do not show exact stock.
+
+Do not allow adding unavailable products to cart.
+
+Do not silently hide every out-of-stock result unless the current product-discovery behavior already intentionally does so.
+
+--------------------------------------------------
+14. CART UX
+--------------------------------------------------
+
+The permanent Cart bottom navigation/menu must remain removed.
+
+Preserve contextual cart behavior.
+
+When the customer has items in cart:
+
+show a clear contextual cart bar/action.
+
+Example:
+
+"Go to Cart — 2 Items"
+
+The customer should be able to continue shopping.
+
+Do not force the customer into the cart after every Add to Cart action.
+
+Do not create a permanent duplicate cart navigation.
+
+--------------------------------------------------
+15. CART CONTEXT
+--------------------------------------------------
+
+The customer should always understand:
+
+- which store the cart belongs to
+- how many items are in cart
+- when adding from another store would cause a store conflict
+
+Preserve the existing one-store cart rule.
+
+If adding from another store:
+
+use the existing clear confirmation/replacement behavior.
+
+Do not silently replace the cart.
+
+--------------------------------------------------
+16. BACK / RETURN NAVIGATION
+--------------------------------------------------
+
+Review all important navigation paths:
+
+Home
+→ Store
+→ Category
+→ Search
+→ Product Details
+→ Cart
+
+Back should return the customer to the expected previous shopping context.
+
+Examples:
+
+Product Details → Back
+
+should return to the previous product/search/store context rather than unexpectedly resetting Home.
+
+Search → Product → Back
+
+should preserve the search context where technically practical.
+
+Cart → Continue Shopping
+
+should return to the relevant store shopping context.
+
+Do not introduce broken navigation stacks.
+
+--------------------------------------------------
+17. SCROLLING
+--------------------------------------------------
+
+Review customer pages for scrolling problems.
+
+Verify:
+
+- Home scrolls correctly
+- Search results scroll
+- Product lists scroll
+- Product Details scroll
+- Cart scrolls
+- long product names/descriptions do not block actions
+- bottom content is reachable
+- contextual cart bar does not cover content
+
+Do not introduce nested scrolling unnecessarily.
+
+--------------------------------------------------
+18. SCREEN RESOLUTION
+--------------------------------------------------
+
+Review customer web rendering at:
+
+- desktop width
+- tablet width
+- mobile width
+
+The UI must not:
+
+- clip content
+- overlap buttons
+- hide important actions
+- create horizontal scrolling unnecessarily
+- push Add buttons outside cards
+
+Do not redesign the entire visual system.
+
+Make focused corrections.
+
+--------------------------------------------------
+19. STORE CONTEXT
+--------------------------------------------------
+
+The active store should always be clear when shopping.
+
+Customer should know:
+
+"Shopping from:
+Development Store A"
+
+or equivalent existing store presentation.
+
+Do not allow products from another store to silently appear in the current store's catalog.
+
+Preserve store isolation.
+
+--------------------------------------------------
+20. STORE SWITCHING
+--------------------------------------------------
+
+If the customer chooses another supermarket:
+
+- explicitly change shopping store
+- preserve existing cart conflict behavior
+- do not silently merge carts from different stores
+
+If cart contains another store's items:
+
+show the existing confirmation before clearing/replacing the cart.
+
+--------------------------------------------------
+21. PINCODE / ELIGIBILITY
+--------------------------------------------------
+
+Preserve existing pincode/store eligibility logic.
+
+Do not replace the current eligibility implementation.
+
+Home should clearly communicate when the selected location has no eligible stores.
+
+Do not expose internal eligibility calculations.
+
+--------------------------------------------------
+22. ORDER STATUS / DELIVERY
+--------------------------------------------------
+
+Customer order details must continue to display the approved Phase 7 delivery lifecycle:
+
+READY
+OUT_FOR_DELIVERY
+DELIVERED
+
+Do not create another tracking system.
+
+Do not redesign delivery workflow.
+
+Home may optionally surface relevant active orders if the existing architecture supports it, but do not add unnecessary notification infrastructure.
+
+--------------------------------------------------
+23. ACTIVE ORDER VISIBILITY
+--------------------------------------------------
+
+If a customer currently has an active order, consider a simple contextual section such as:
+
+"Your current order"
+
+with:
+
+- order reference
+- current status
+- store
+- View Order
+
+Do not create a second order-management system.
+
+Do not duplicate the entire Orders screen.
+
+--------------------------------------------------
+24. EMPTY STATES
+--------------------------------------------------
+
+Create useful empty states for:
+
+No stores
+No recent orders
+No recent store
+No search results
+No cart items
+No active orders
+
+Empty states should be:
+
+- clear
+- short
+- actionable where appropriate
+
+Do not use fake products/orders/stores.
+
+--------------------------------------------------
+25. ERROR STATES
+--------------------------------------------------
+
+Review:
+
+- API failure
+- search failure
+- store loading failure
+- product loading failure
+- cart failure
+- checkout failure
+
+Use clear customer-friendly messages.
+
+Do not expose raw database/API errors.
+
+Provide retry where appropriate.
+
+--------------------------------------------------
+26. LOADING STATES
+--------------------------------------------------
+
+Avoid blank screens while loading.
+
+Use the existing loading/skeleton patterns where available.
+
+Do not add excessive animations.
+
+Keep the experience responsive.
+
+--------------------------------------------------
+27. CUSTOMER PRIVACY
+--------------------------------------------------
+
+Customer UI/API must continue NOT exposing:
+
+- exact stock
+- internal IDs
+- vendor private information
+- internal database timestamps
+- SKU/external vendor codes unless explicitly customer-facing
+- partner internal IDs
+
+Preserve the Phase 2 privacy rules.
+
+--------------------------------------------------
+28. DO NOT CHANGE BUSINESS LOGIC
+--------------------------------------------------
+
+This phase is primarily UX.
+
+Do NOT change:
+
+- stock deduction timing
+- stock restoration
+- price authority
+- variant identity
+- order creation
+- order status transitions
+- vendor authorization
+- delivery partner authorization
+- Master Catalog business rules
+- reorder identity rules
+- one-store cart rule
+
+If a UX issue exposes a backend bug, identify it and make the smallest safe correction only.
+
+--------------------------------------------------
+29. PERFORMANCE
+--------------------------------------------------
+
+Avoid unnecessary API calls.
+
+Reuse existing data where practical.
+
+Do not add polling to ordinary catalog/search screens unless an existing approved workflow requires it.
+
+Do not introduce a new state-management system.
+
+Do not introduce a new caching platform.
+
+--------------------------------------------------
+30. IMPLEMENTATION APPROACH
+--------------------------------------------------
+
+Before changing code:
+
+1. Inspect current Customer Home.
+2. Inspect MarketplaceScreen.
+3. Inspect customer navigation.
+4. Inspect search implementation.
+5. Inspect product cards.
+6. Inspect Product Details.
+7. Inspect cart navigation.
+8. Inspect recent/reorder data already available.
+9. Inspect store/pincode discovery.
+10. Inspect existing order-detail status rendering.
+
+Identify the smallest set of files requiring changes.
+
+Do not rewrite the customer application.
+
+--------------------------------------------------
+31. TESTING
+--------------------------------------------------
+
+DO NOT perform automated browser testing.
+
+Add/update focused tests for:
+
+A. Home renders available stores.
+
+B. No-store empty state.
+
+C. Recent Store uses actual customer history.
+
+D. Recently Ordered uses actual order history.
+
+E. Buy Again preserves exact historical identity.
+
+F. Search works without category.
+
+G. Search results remain store-scoped.
+
+H. Multiple variants require appropriate selection.
+
+I. Single purchasable variant behaves correctly.
+
+J. Out-of-stock variant cannot be added.
+
+K. Cart contextual bar appears only when appropriate.
+
+L. One-store cart rule remains intact.
+
+M. Back navigation preserves shopping context.
+
+N. Product cards do not overlap price/add controls.
+
+O. Mobile layout does not clip important actions.
+
+P. Customer cannot see exact stock.
+
+Q. Active order status displays correctly.
+
+R. Delivery status remains correct after Phase 7.
+
+S. Existing cart behavior remains intact.
+
+T. Existing reorder behavior remains intact.
+
+U. Existing stock behavior remains intact.
+
+V. Existing vendor order behavior remains intact.
+
+W. Existing Delivery Partner workflow remains intact.
+
+--------------------------------------------------
+32. REGRESSION TESTING
+--------------------------------------------------
+
+Run the existing relevant suites.
+
+Confirm:
+
+- Customer authentication
+- Vendor authentication
+- Delivery Partner authentication
+- Master Catalog
+- Vendor product management
+- Product variants
+- Search
+- Cart
+- Checkout
+- Reorder
+- Stock
+- Vendor orders
+- Delivery workflow
+- Historical orders
+
+No unrelated regressions.
+
+--------------------------------------------------
+33. MANUAL BROWSER ACCEPTANCE
+--------------------------------------------------
+
+After implementation, STOP and give me a manual browser checklist.
+
+I will manually test:
+
+1. Customer login.
+2. Home loads correctly.
+3. Available supermarkets are shown.
+4. Recent Store appears after an order.
+5. Recently Ordered appears after an order.
+6. Search "rice" without selecting a category.
+7. Search results are correct.
+8. Product with multiple variants.
+9. Product with one variant.
+10. Out-of-stock product.
+11. Add to Cart.
+12. Contextual Go to Cart bar.
+13. Continue Shopping.
+14. One-store cart conflict.
+15. Product Details → Back.
+16. Search → Product → Back.
+17. Cart → Continue Shopping.
+18. Home scrolling.
+19. Product list scrolling.
+20. Product card price/Add button layout.
+21. Desktop layout.
+22. Mobile-sized layout.
+23. No exact stock shown.
+24. Active order status.
+25. Out-for-delivery status.
+26. Delivered status.
+27. Buy Again.
+28. Customer logout/login.
+29. Vendor portal still works.
+30. Delivery Partner workflow still works.
+
+Do not claim browser testing was completed.
+
+--------------------------------------------------
+34. DATABASE SAFETY
+--------------------------------------------------
+
+This phase should preferably require NO database migration.
+
+If a migration appears necessary:
+
+STOP and explain why before applying it.
+
+Do not change production.
+
+Do not rewrite existing data.
+
+Do not modify historical orders.
+
+--------------------------------------------------
+35. BUILD / TYPECHECK
+--------------------------------------------------
+
+Run:
+
+- workspace typecheck
+- customer tests
+- relevant dashboard tests
+- API tests
+- dashboard build
+- customer web export/build
+- API build if relevant
+
+Do not deploy.
+
+--------------------------------------------------
+36. REQUIRED IMPLEMENTATION REPORT
+--------------------------------------------------
+
+After implementation provide:
+
+1. Files changed
+2. UX changes
+3. Home changes
+4. Search changes
+5. Store discovery changes
+6. Recently Ordered changes
+7. Recent Store changes
+8. Cart/navigation changes
+9. Responsive layout changes
+10. API changes, if any
+11. Database migrations, if any
+12. Automated tests:
+    - passed
+    - failed
+    - skipped
+13. Typecheck/build results
+14. Regression results
+15. Known limitations
+16. Manual browser checklist
+
+STOP after the report.
+
+DO NOT start Phase 9.
+DO NOT deploy to production.
