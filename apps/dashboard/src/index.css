@@ -134,7 +134,7 @@ body {
 }
 
 .session-status i {
-  background: #4e9666;
+  background: #1a3ecb;
   border-radius: 50%;
   box-shadow: 0 0 0 4px #e0f2e3;
   height: 7px;
@@ -199,7 +199,7 @@ p {
 
 .phase-badge {
   background: #d9eadb;
-  color: #286143;
+  color: #2f13b9;
 }
 
 .auth-strip,
@@ -208,7 +208,7 @@ p {
   background: #fff;
   border: 1px solid #dce8dd;
   border-radius: 18px;
-  box-shadow: 0 14px 40px rgb(37 67 48 / 6%);
+  box-shadow: 0 14px 40px rgb(29, 35, 211/ 6%);
 }
 
 .auth-strip {
@@ -331,7 +331,7 @@ p {
 }
 
 label {
-  color: #40574a;
+  color: #1622d0;
   display: grid;
   font-size: 13px;
   font-weight: 700;
@@ -418,7 +418,7 @@ button {
 .text-button {
   background: transparent;
   border: 0;
-  color: #286143;
+  color: #1a20d1;
   padding: 7px;
 }
 
@@ -439,13 +439,13 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgb(52 118 77 / 28%);
+  outline: 3px solid rgb(25, 37, 210/ 28%);
   outline-offset: 2px;
 }
 
 .count-pill {
   background: #e8f2e9;
-  color: #34764d;
+  color: #2115cb;
 }
 
 .status {
@@ -456,7 +456,7 @@ a:focus-visible {
 
 .status-active {
   background: #e0f2e3;
-  color: #287344;
+  color: #202ccf;
 }
 
 .status-pending_approval {
@@ -536,7 +536,7 @@ a:focus-visible {
   align-items: center;
   background: #edf5ee;
   border-radius: 999px;
-  color: #286143;
+  color: #1421e1;
   display: inline-flex;
   font-size: 14px;
   padding: 7px 10px 7px 12px;
@@ -572,7 +572,7 @@ a:focus-visible {
 }
 
 .switch-label input {
-  accent-color: #34764d;
+  accent-color: #1a37c7;
   width: auto;
 }
 
@@ -705,7 +705,7 @@ a:focus-visible {
 }
 
 .catalog-summary strong {
-  color: #286143;
+  color: #1f3ebd;
   font-size: 20px;
 }
 
@@ -758,7 +758,7 @@ a:focus-visible {
 }
 
 .lifecycle-dot.is-active {
-  color: #287344;
+  color: #0d1bde;
 }
 
 .row-actions {
@@ -833,7 +833,7 @@ a:focus-visible {
 .product-placeholder {
   align-items: center;
   background: #dfeee2;
-  color: #286143;
+  color: #3617cf;
   display: flex;
   font-size: 18px;
   font-weight: 800;
@@ -886,7 +886,7 @@ a:focus-visible {
 }
 
 .availability-badge.available {
-  color: #287344;
+  color: #1a27db;
 }
 
 .availability-badge.unavailable {
@@ -1443,7 +1443,7 @@ a:focus-visible {
 .vendor-text-button:focus-visible,
 .vendor-input:focus-visible,
 .vendor-textarea:focus-visible,
-.vendor-select:focus-visible { outline: 3px solid rgba(14, 121, 70, 0.25); outline-offset: 2px; }
+.vendor-select:focus-visible { outline: 3px solid rgb(32, 37, 203, 0.25); outline-offset: 2px; }
 
 .vendor-primary-button { background: var(--primary); border: 1px solid var(--primary); color: var(--primary-text); }
 .vendor-primary-button:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }

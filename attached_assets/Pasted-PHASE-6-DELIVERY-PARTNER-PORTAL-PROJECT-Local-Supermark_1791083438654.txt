@@ -1,0 +1,879 @@
+PHASE 6 — DELIVERY PARTNER PORTAL
+
+PROJECT:
+Local Supermarket Marketplace
+
+OBJECTIVE:
+Introduce a dedicated Delivery Partner role and portal into the existing marketplace architecture.
+
+The target business flow is:
+
+Customer
+   ↓
+Order
+   ↓
+Vendor
+   ↓
+Delivery Partner
+   ↓
+Customer
+
+Phase 6 is ONLY the Delivery Partner identity, authentication, profile, authorization, dashboard foundation, and portal UI.
+
+DO NOT implement the actual delivery assignment or delivery execution workflow yet.
+
+That will be Phase 7.
+
+--------------------------------------------------
+1. IMPORTANT SCOPE BOUNDARY
+--------------------------------------------------
+
+IMPLEMENT IN THIS PHASE:
+
+- Delivery Partner role
+- Delivery Partner account/profile
+- Username/password login
+- Partner authentication
+- Partner authorization
+- Partner active/inactive state
+- Delivery Partner portal
+- Partner dashboard
+- Partner order/duty data structures required for the portal
+- Basic pending/assigned/completed/cancelled/rejected views where supported
+- Secure partner-only API access
+- Partner navigation and logout
+- Foundation required for Phase 7
+
+DO NOT IMPLEMENT IN THIS PHASE:
+
+- Vendor → Delivery Partner assignment
+- Automatic delivery assignment
+- Delivery Partner accepting/rejecting a duty
+- Pickup workflow
+- OUT_FOR_DELIVERY transition
+- DELIVERED transition
+- Delivery notifications
+- Delivery partner location tracking
+- GPS
+- Maps
+- Route optimization
+- External SMS
+- WhatsApp notifications
+- Push notification infrastructure
+- Payment changes
+- Customer delivery UI redesign
+- Vendor order workflow redesign
+- Stock logic changes
+- Master Catalog changes
+- Reorder changes
+
+Do not start Phase 7.
+
+--------------------------------------------------
+2. PRESERVE CURRENT ARCHITECTURE
+--------------------------------------------------
+
+The current marketplace already contains:
+
+- Customer authentication
+- Vendor authentication
+- Admin authentication
+- Role-based authorization
+- Stores
+- Orders
+- Order items
+- Order status history
+- Product variants
+- Stock management
+- Master Catalog
+- Vendor order management
+
+Do not replace the existing authentication architecture.
+
+Do not create a second authentication system.
+
+Extend the existing role-based architecture cleanly.
+
+Supabase Auth remains responsible for:
+
+- password authentication
+- sessions
+- tokens
+- authenticated user identity
+
+Application database records remain responsible for:
+
+- application role
+- partner profile
+- partner status
+- partner-specific business data
+
+--------------------------------------------------
+3. DELIVERY PARTNER ROLE
+--------------------------------------------------
+
+Introduce a new application role:
+
+DELIVERY_PARTNER
+
+The role must be distinct from:
+
+- CUSTOMER
+- VENDOR
+- ADMIN
+
+Do not reuse VENDOR or CUSTOMER permissions.
+
+Role authorization must be enforced server-side.
+
+Never trust a client-provided role.
+
+The authenticated user's server-side role must determine access.
+
+--------------------------------------------------
+4. DELIVERY PARTNER ACCOUNT
+--------------------------------------------------
+
+A Delivery Partner account should contain at minimum:
+
+- user identity
+- username
+- active/inactive status
+- partner profile
+- display name
+- mobile/contact information if the existing architecture supports it
+- created_at
+- updated_at
+
+Do not store a plaintext password in the application database.
+
+Passwords must continue to be handled by Supabase Auth.
+
+--------------------------------------------------
+5. ACCOUNT CREATION
+--------------------------------------------------
+
+Delivery Partner accounts are NOT customer self-registration accounts.
+
+For Phase 6, partner accounts should be provisioned through an authorized administrative workflow.
+
+Use the existing admin authorization model.
+
+Admin should be able to create/provision a Delivery Partner account with:
+
+- Username
+- Password
+- Display Name
+- Contact Number if supported
+- Active/Inactive status
+
+Do not create public "Sign up as Delivery Partner".
+
+Do not allow customers to change their own role to DELIVERY_PARTNER.
+
+Do not allow vendors to change their own role.
+
+Do not expose partner provisioning to customers.
+
+--------------------------------------------------
+6. USERNAME RULES
+--------------------------------------------------
+
+Reuse the existing username architecture/rules already approved for the marketplace.
+
+Do not create a different username format for Delivery Partners.
+
+Username must be:
+
+- globally unique
+- case-insensitive for uniqueness
+- normalized consistently
+- validated server-side
+
+Do not create a separate partner username namespace.
+
+Do not allow duplicate usernames across:
+
+- customers
+- vendors
+- admins where applicable
+- delivery partners
+
+--------------------------------------------------
+7. LOGIN
+--------------------------------------------------
+
+Delivery Partner login must use:
+
+Username
++
+Password
+
+Do not require Gmail/email as the login identifier.
+
+Do not require phone number as the login identifier.
+
+After successful login:
+
+- establish the existing authenticated session
+- resolve the application role
+- verify DELIVERY_PARTNER role
+- load partner profile/status
+- route to Delivery Partner Portal
+
+Inactive partners must NOT be allowed to access partner functionality.
+
+Use the existing session/logout architecture.
+
+--------------------------------------------------
+8. ACTIVE / INACTIVE STATUS
+--------------------------------------------------
+
+Delivery Partner must have a clear status:
+
+ACTIVE
+INACTIVE
+
+ACTIVE:
+- can log in
+- can access partner portal
+- can later receive delivery assignments in Phase 7
+
+INACTIVE:
+- cannot access partner functionality
+- existing session must be denied/invalidated at protected API boundaries
+- should receive a clear inactive-account message
+
+Do not delete inactive partner records.
+
+Historical delivery information must remain associated with the partner.
+
+--------------------------------------------------
+9. DELIVERY PARTNER PROFILE
+--------------------------------------------------
+
+Create the smallest appropriate partner profile structure.
+
+Recommended conceptual model:
+
+delivery_partner_profile
+
+Fields should include only information actually needed now.
+
+For example:
+
+- id
+- user_id
+- display_name
+- contact_number if supported
+- status
+- created_at
+- updated_at
+
+Do not add unnecessary fields such as:
+
+- vehicle tracking
+- GPS coordinates
+- route
+- driver license metadata
+- bank details
+- payout configuration
+- live availability engine
+
+Those are outside Phase 6.
+
+--------------------------------------------------
+10. DELIVERY PARTNER PORTAL
+--------------------------------------------------
+
+Create a dedicated portal for DELIVERY_PARTNER users.
+
+The portal must NOT look like the Vendor dashboard.
+
+Use a simple delivery-focused layout.
+
+Suggested navigation:
+
+Dashboard
+My Deliveries
+Profile
+Logout
+
+Do not show:
+
+- Vendor catalog
+- Master Catalog
+- Vendor orders
+- Vendor stock
+- Customer management
+- Admin controls
+
+--------------------------------------------------
+11. PARTNER DASHBOARD
+--------------------------------------------------
+
+Dashboard should provide a simple operational summary.
+
+Suggested sections:
+
+TODAY'S DELIVERIES
+
+- Pending
+- Assigned
+- In Progress
+- Completed
+- Cancelled/Rejected
+
+At Phase 6, these may be empty-state cards because assignment does not exist yet.
+
+Example:
+
+Today's Deliveries
+0
+
+Pending
+0
+
+In Progress
+0
+
+Completed
+0
+
+Do not create fake delivery records.
+
+Do not generate sample assignments in the database.
+
+--------------------------------------------------
+12. MY DELIVERIES
+--------------------------------------------------
+
+Create the foundation for a "My Deliveries" page.
+
+It should support the future delivery workflow but must not execute Phase 7 actions yet.
+
+Possible states:
+
+- Pending
+- Assigned
+- Pickup Pending
+- Out for Delivery
+- Delivered
+- Cancelled
+- Rejected
+
+However, do NOT add buttons such as:
+
+- Accept Duty
+- Reject Duty
+- Pickup
+- Start Delivery
+- Mark Delivered
+
+Those belong to Phase 7.
+
+For now the page may show:
+
+"No deliveries assigned yet."
+
+This is acceptable.
+
+--------------------------------------------------
+13. DELIVERY DATA MODEL
+--------------------------------------------------
+
+Before adding a new table:
+
+INSPECT the existing schema.
+
+Determine whether an existing delivery/order structure can safely support the Phase 6 foundation.
+
+Do not create duplicate delivery concepts.
+
+The target relationship for Phase 7 is:
+
+order
+→ delivery assignment
+→ delivery partner
+
+If the current schema does not contain a suitable assignment structure, create the smallest additive structure needed for Phase 7 readiness.
+
+A future assignment should conceptually identify:
+
+- order
+- delivery partner
+- assignment status
+- timestamps
+
+But do NOT implement assignment behavior yet.
+
+Do not create:
+
+- routing tables
+- tracking tables
+- location history
+- notification queues
+
+unless absolutely required by existing architecture.
+
+--------------------------------------------------
+14. PARTNER ORDER VISIBILITY
+--------------------------------------------------
+
+IMPORTANT SECURITY RULE:
+
+A Delivery Partner must NOT automatically gain access to all marketplace orders.
+
+Partner order visibility must eventually be assignment-based.
+
+For Phase 6, since assignment is not implemented yet:
+
+- partner may see zero assigned deliveries
+- partner may see only their own partner profile
+- partner must not see arbitrary vendor/customer orders
+
+Do not expose all READY orders to every partner.
+
+Do not expose all customer information globally.
+
+--------------------------------------------------
+15. CUSTOMER DATA PRIVACY
+--------------------------------------------------
+
+When delivery assignment is eventually implemented, the partner will need fulfillment information.
+
+For Phase 6, do not expose customer information unnecessarily.
+
+Do not create a general customer directory for delivery partners.
+
+Do not expose:
+
+- customer password
+- customer authentication data
+- payment credentials
+- unrelated customer orders
+- internal vendor data
+
+Only assignment-specific fulfillment information should be exposed later.
+
+--------------------------------------------------
+16. PARTNER AUTHORIZATION
+--------------------------------------------------
+
+Create server-side authorization helpers/middleware for:
+
+requireDeliveryPartner
+
+and use it on all partner APIs.
+
+Examples:
+
+GET /api/delivery-partner/me
+GET /api/delivery-partner/dashboard
+GET /api/delivery-partner/deliveries
+
+Exact route names may follow existing project conventions.
+
+Do not allow:
+
+CUSTOMER → partner endpoints
+VENDOR → partner endpoints
+ADMIN → partner operational endpoints unless explicitly authorized
+
+Admin may have administrative access where appropriate.
+
+--------------------------------------------------
+17. PARTNER API
+--------------------------------------------------
+
+Create minimal APIs required for Phase 6.
+
+At minimum:
+
+GET current partner profile
+
+GET partner dashboard summary
+
+GET partner's own deliveries/assignments
+
+The deliveries response may legitimately return:
+
+[]
+
+until Phase 7 assignment functionality exists.
+
+All APIs must:
+
+- require authentication
+- require DELIVERY_PARTNER role
+- verify partner status
+- scope records to authenticated partner identity
+
+Never accept arbitrary partnerId from the client as the authorization source.
+
+If an endpoint accepts partnerId for administrative purposes, independently authorize it.
+
+--------------------------------------------------
+18. PROFILE
+--------------------------------------------------
+
+Provide a simple partner profile page.
+
+Display:
+
+- Display Name
+- Username
+- Contact Number if available
+- Account Status
+
+Do not allow the partner to change:
+
+- role
+- status
+- username if username is immutable under the existing architecture
+
+If profile editing already has an established safe pattern, only allow appropriate profile fields.
+
+--------------------------------------------------
+19. LOGOUT
+--------------------------------------------------
+
+Use the existing logout/session clearing implementation.
+
+After logout:
+
+- partner cannot access protected pages using browser back
+- partner APIs must reject unauthenticated requests
+- cached partner data must not remain visible to another account
+
+Follow the same account-switching/session-clearing protections already established in the customer/vendor portals.
+
+--------------------------------------------------
+20. ROUTING
+--------------------------------------------------
+
+After authentication:
+
+CUSTOMER
+→ Customer application
+
+VENDOR
+→ Vendor dashboard
+
+ADMIN
+→ Admin functionality
+
+DELIVERY_PARTNER
+→ Delivery Partner Portal
+
+Do not allow a partner to manually navigate to vendor/customer protected screens and gain access.
+
+Frontend route protection is useful for UX.
+
+Backend authorization remains authoritative.
+
+--------------------------------------------------
+21. RESPONSIVE UI
+--------------------------------------------------
+
+The Delivery Partner Portal must work on:
+
+- desktop browser
+- mobile browser
+
+Keep the UI operational and simple.
+
+Prioritize:
+
+- clear status
+- large readable actions/labels
+- simple navigation
+- clean empty states
+
+Do not spend this phase on visual polish.
+
+Functionality is more important.
+
+--------------------------------------------------
+22. NO DELIVERY ACTIONS YET
+--------------------------------------------------
+
+This is a critical boundary.
+
+DO NOT implement:
+
+Vendor:
+READY
+↓
+Assign Partner
+
+or:
+
+Partner:
+Accept
+↓
+Pickup
+↓
+OUT_FOR_DELIVERY
+↓
+DELIVERED
+
+Those are Phase 7.
+
+The Phase 6 portal should establish the identity and secure destination for those future operations.
+
+--------------------------------------------------
+23. DATABASE SAFETY
+--------------------------------------------------
+
+Before creating migrations:
+
+1. Inspect all current migrations.
+2. Inspect user_profiles/role implementation.
+3. Inspect username implementation from the previous phase.
+4. Inspect order/delivery-related tables.
+5. Determine whether any existing delivery structure can be reused.
+6. Create only the minimum additive migration required.
+
+Never:
+
+- delete historical orders
+- rewrite order snapshots
+- change stock behavior
+- change product variants
+- change Master Catalog
+- modify customer order history
+- alter vendor ownership
+
+Existing production/development data must remain intact.
+
+Development database only.
+
+Do NOT run production migrations.
+
+--------------------------------------------------
+24. RLS / SECURITY
+--------------------------------------------------
+
+If the project uses PostgreSQL RLS or equivalent access controls:
+
+Delivery Partner records must be protected.
+
+Partner should only be able to access:
+
+- own profile
+- own assignments/deliveries
+
+Partners must not read another partner's records.
+
+If backend APIs use service/database credentials, every partner query must still contain explicit authenticated-partner scoping.
+
+Do not rely only on frontend filtering.
+
+--------------------------------------------------
+25. TESTING
+--------------------------------------------------
+
+Add focused automated tests.
+
+DO NOT perform browser automation.
+
+Required tests:
+
+A. Delivery Partner role exists.
+
+B. Partner profile creation works.
+
+C. Username uniqueness works globally.
+
+D. Partner login works using username/password.
+
+E. Active partner can access partner portal APIs.
+
+F. Inactive partner cannot access partner APIs.
+
+G. Customer cannot access partner APIs.
+
+H. Vendor cannot access partner APIs.
+
+I. Partner A cannot read Partner B's profile.
+
+J. Partner A cannot read Partner B's deliveries.
+
+K. Partner cannot read arbitrary marketplace orders.
+
+L. Partner dashboard returns correct empty state when no assignments exist.
+
+M. Logout/session protection works according to existing authentication architecture.
+
+N. Existing customer authentication remains working.
+
+O. Existing vendor authentication remains working.
+
+P. Existing admin authentication remains working.
+
+Q. Existing Master Catalog remains unchanged.
+
+R. Existing stock management remains unchanged.
+
+S. Existing vendor order management remains unchanged.
+
+T. Existing reorder functionality remains unchanged.
+
+--------------------------------------------------
+26. REGRESSION TESTING
+--------------------------------------------------
+
+Run the relevant existing suites.
+
+Expected important regression areas:
+
+- authentication
+- role authorization
+- username
+- customer shopping
+- cart
+- reorder
+- Master Catalog
+- vendor catalog
+- product variants
+- stock management
+- vendor orders
+- order lifecycle
+- historical snapshots
+
+Do not modify tests merely to make failures disappear.
+
+If a regression appears:
+
+- identify root cause
+- fix only the Phase 6-related issue
+- preserve existing behavior
+
+--------------------------------------------------
+27. BUILD / TYPECHECK
+--------------------------------------------------
+
+Before reporting completion:
+
+Run:
+
+- full workspace typecheck
+- API tests
+- relevant customer tests
+- relevant dashboard tests
+- API build
+- dashboard build
+- customer web export/build if supported by current project
+
+Do not claim browser testing was completed.
+
+Do not deploy.
+
+--------------------------------------------------
+28. MANUAL TEST CHECKLIST
+--------------------------------------------------
+
+After implementation, provide me with a manual browser test checklist.
+
+At minimum I will manually verify:
+
+1. Admin creates Delivery Partner.
+2. Partner appears as DELIVERY_PARTNER.
+3. Partner logs in using username/password.
+4. Partner reaches Delivery Partner Portal.
+5. Dashboard displays correctly.
+6. My Deliveries displays empty state when there are no assignments.
+7. Partner profile displays correctly.
+8. Partner logout works.
+9. Inactive partner cannot access portal.
+10. Customer cannot access partner portal.
+11. Vendor cannot access partner portal.
+12. Partner cannot access vendor dashboard.
+13. Partner cannot see arbitrary marketplace orders.
+14. Existing customer/vendor workflows still work.
+15. Existing stock behavior still works.
+
+--------------------------------------------------
+29. DO NOT OVERBUILD
+--------------------------------------------------
+
+Do NOT introduce:
+
+- microservices
+- separate authentication service
+- Redis
+- message broker
+- WebSockets
+- GPS
+- maps
+- push notification service
+- SMS provider
+- WhatsApp provider
+- route optimization
+- delivery pricing engine
+- driver payout engine
+- vehicle management
+- background job infrastructure
+
+Keep Phase 6 minimal.
+
+--------------------------------------------------
+30. IMPLEMENTATION APPROACH
+--------------------------------------------------
+
+Before editing:
+
+1. Inspect existing authentication implementation.
+2. Inspect current role enum/schema.
+3. Inspect username implementation.
+4. Inspect current dashboard routing.
+5. Inspect current API authorization helpers.
+6. Inspect current order/delivery schema.
+7. Inspect existing migrations.
+
+Then implement the smallest additive Delivery Partner architecture.
+
+Do not rewrite working authentication.
+
+Do not duplicate existing username logic.
+
+Do not duplicate existing role authorization.
+
+Do not modify unrelated modules.
+
+--------------------------------------------------
+31. REQUIRED IMPLEMENTATION REPORT
+--------------------------------------------------
+
+After implementation, STOP and provide only a concise report containing:
+
+1. Files changed
+2. Database migration(s), if any
+3. Delivery Partner role implementation
+4. Partner account/profile implementation
+5. Authentication implementation
+6. Authorization/security implementation
+7. Partner portal screens/routes
+8. API endpoints
+9. Database/RLS protections
+10. Automated test results:
+    - passed
+    - failed
+    - skipped
+11. Typecheck/build results
+12. Existing regression results
+13. Known limitations
+14. Manual browser test checklist
+
+IMPORTANT:
+
+Do NOT start Phase 7.
+
+Do NOT implement delivery assignment.
+
+Do NOT implement pickup/delivery status transitions.
+
+Do NOT implement notifications.
+
+STOP after the Phase 6 implementation report.

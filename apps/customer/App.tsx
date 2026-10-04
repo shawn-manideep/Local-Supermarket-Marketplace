@@ -792,10 +792,6 @@ function CustomerApp() {
         ) : screen === "orders" ? (
           <OrdersScreen
             initialOrderId={orderId}
-            onContinueShopping={() => {
-              setScreen("home");
-              setOrderId(undefined);
-            }}
             onRepeatAdded={() => {
               setScreen("cart");
               setOrderId(undefined);
