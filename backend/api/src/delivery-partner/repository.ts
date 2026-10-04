@@ -29,8 +29,9 @@ export function partnerRepository(db: Database = getDb()) {
         WHERE u.role='delivery_partner' ORDER BY p.created_at DESC`);
       return result.rows as PartnerRecord[];
     },
-    async provision(input: ProvisionInput, createIdentity: () => Promise<string>) {
+    async provision(input: ProvisionInput, createIdentity: () => Promise<string>, actorId?: string) {
       return db.transaction(async tx => {
+        if (actorId) await tx.execute(sql`SELECT set_config('app.admin_actor_id',${actorId},true)`);
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${"username:" + input.username},0))`);
         const exists = await tx.execute(sql`SELECT user_id FROM identity_usernames WHERE normalized_username=${input.username}`);
         if (exists.rows.length) throw new HttpError(409, "This username is already in use.", undefined, "USERNAME_TAKEN");
@@ -53,10 +54,22 @@ export function partnerRepository(db: Database = getDb()) {
         await tx.execute(sql`DELETE FROM user_profiles WHERE id=${id}`);
       });
     },
-    async status(id: string, status: "ACTIVE" | "INACTIVE") {
-      const result = await db.execute(sql`UPDATE delivery_partner_profiles p SET status=${status},updated_at=clock_timestamp()
-        WHERE p.user_id=${id} AND EXISTS(SELECT 1 FROM user_profiles u WHERE u.id=p.user_id AND u.role='delivery_partner') RETURNING p.user_id`);
-      if (!result.rows.length) throw new HttpError(404, "Partner not found.");
+    async status(id: string, status: "ACTIVE" | "INACTIVE", options?: { actorId: string; confirmActiveAssignments?: boolean }) {
+      await db.transaction(async tx => {
+        const current = await tx.execute(sql`SELECT p.status FROM delivery_partner_profiles p JOIN user_profiles u ON u.id=p.user_id
+          WHERE p.user_id=${id} AND u.role='delivery_partner' FOR UPDATE OF p`);
+        if (!current.rows.length) throw new HttpError(404, "Partner not found.");
+        if (options) {
+          const duties = await tx.execute(sql`SELECT count(*)::integer AS count FROM delivery_assignments
+            WHERE partner_user_id=${id} AND status IN ('PENDING','ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY')`);
+          if (status === "INACTIVE" && current.rows[0]!.status !== status && Number(duties.rows[0]!.count) > 0 && !options.confirmActiveAssignments) {
+            throw new HttpError(409, "This partner has active assignments. Confirm that existing deliveries will remain unchanged.",
+              { activeAssignments: duties.rows[0]!.count }, "ACTIVE_ASSIGNMENTS");
+          }
+          await tx.execute(sql`SELECT set_config('app.admin_actor_id',${options.actorId},true)`);
+        }
+        if (current.rows[0]!.status !== status) await tx.execute(sql`UPDATE delivery_partner_profiles SET status=${status},updated_at=clock_timestamp() WHERE user_id=${id}`);
+      });
       return this.profile(id);
     },
     async dashboard(id: string) {

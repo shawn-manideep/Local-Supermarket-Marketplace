@@ -10,6 +10,7 @@ import { storeManagementRouter } from "./store-management/index.js";
 import { ordersRouter } from "./orders/index.js";
 import { deliveryPartnerRouter } from "./delivery-partner/routes.js";
 import { createApiRateLimit } from "./security.js";
+import { adminManagementRouter } from "./admin-management/routes.js";
 
 export type IntegrationErrorDiagnostic = {
   causeCode?: string;
@@ -105,6 +106,7 @@ export function createApp() {
   });
 
   app.use(authRouter);
+  app.use(adminManagementRouter);
   app.use(deliveryPartnerRouter);
   app.use(storeManagementRouter);
   app.use(catalogManagementRouter);

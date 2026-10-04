@@ -8,6 +8,200 @@
 import * as zod from 'zod';
 
 
+export const GetAdminManagementDashboardResponse = zod.object({
+  "dashboard": zod.object({
+  "totalCustomers": zod.number().int(),
+  "activeCustomers": zod.number().int(),
+  "inactiveCustomers": zod.number().int(),
+  "totalVendors": zod.number().int(),
+  "pendingVendors": zod.number().int(),
+  "activeVendors": zod.number().int(),
+  "totalDeliveryPartners": zod.number().int(),
+  "activeDeliveryPartners": zod.number().int(),
+  "inactiveDeliveryPartners": zod.number().int()
+})
+})
+
+
+export const listAdminVendorsQueryPageDefault = 1;
+export const listAdminVendorsQueryPageMax = 100000;
+
+export const listAdminVendorsQueryPageSizeDefault = 20;
+export const listAdminVendorsQueryPageSizeMax = 100;
+
+export const listAdminVendorsQuerySearchMax = 120;
+
+
+
+export const ListAdminVendorsQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).max(listAdminVendorsQueryPageMax).default(listAdminVendorsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminVendorsQueryPageSizeMax).default(listAdminVendorsQueryPageSizeDefault),
+  "search": zod.coerce.string().max(listAdminVendorsQuerySearchMax).optional(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'INACTIVE']).optional()
+})
+
+export const ListAdminVendorsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+})),
+  "partners": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+})).optional(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int()
+})
+
+
+export const GetAdminVendorParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetAdminVendorResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+}).and(zod.object({
+  "contactNumber": zod.string().nullable(),
+  "orderCount": zod.number().int().nullable(),
+  "activeAssignments": zod.number().int(),
+  "allowedStatuses": zod.array(zod.string())
+}))
+})
+
+
+export const ChangeAdminVendorStatusParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ChangeAdminVendorStatusBody = zod.object({
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED'])
+})
+
+export const ChangeAdminVendorStatusResponse = zod.unknown()
+
+
+export const listAdminCustomersQueryPageDefault = 1;
+export const listAdminCustomersQueryPageMax = 100000;
+
+export const listAdminCustomersQueryPageSizeDefault = 20;
+export const listAdminCustomersQueryPageSizeMax = 100;
+
+export const listAdminCustomersQuerySearchMax = 120;
+
+
+
+export const ListAdminCustomersQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).max(listAdminCustomersQueryPageMax).default(listAdminCustomersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminCustomersQueryPageSizeMax).default(listAdminCustomersQueryPageSizeDefault),
+  "search": zod.coerce.string().max(listAdminCustomersQuerySearchMax).optional(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'INACTIVE']).optional()
+})
+
+export const ListAdminCustomersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+})),
+  "partners": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+})).optional(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int()
+})
+
+
+export const GetAdminCustomerParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetAdminCustomerResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+}).and(zod.object({
+  "contactNumber": zod.string().nullable(),
+  "orderCount": zod.number().int().nullable(),
+  "activeAssignments": zod.number().int(),
+  "allowedStatuses": zod.array(zod.string())
+}))
+})
+
+
+export const ChangeAdminCustomerStatusParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ChangeAdminCustomerStatusBody = zod.object({
+  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+})
+
+export const ChangeAdminCustomerStatusResponse = zod.unknown()
+
+
+export const GetAdminDeliveryPartnerParams = zod.object({
+  "partnerId": zod.coerce.string().uuid()
+})
+
+export const GetAdminDeliveryPartnerResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+}).and(zod.object({
+  "contactNumber": zod.string().nullable(),
+  "orderCount": zod.number().int().nullable(),
+  "activeAssignments": zod.number().int(),
+  "allowedStatuses": zod.array(zod.string())
+}))
+})
+
+
 export const GetVendorOrderDeliveryParams = zod.object({
   "orderId": zod.coerce.string().uuid()
 })
@@ -229,17 +423,47 @@ export const GetDeliveryPartnerDeliveriesResponse = zod.object({
 })
 
 
+export const listAdminDeliveryPartnersQueryPageDefault = 1;
+export const listAdminDeliveryPartnersQueryPageMax = 100000;
+
+export const listAdminDeliveryPartnersQueryPageSizeDefault = 20;
+export const listAdminDeliveryPartnersQueryPageSizeMax = 100;
+
+export const listAdminDeliveryPartnersQuerySearchMax = 120;
+
+
+
+export const ListAdminDeliveryPartnersQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).max(listAdminDeliveryPartnersQueryPageMax).default(listAdminDeliveryPartnersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminDeliveryPartnersQueryPageSizeMax).default(listAdminDeliveryPartnersQueryPageSizeDefault),
+  "search": zod.coerce.string().max(listAdminDeliveryPartnersQuerySearchMax).optional(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'INACTIVE']).optional()
+})
+
 export const ListAdminDeliveryPartnersResponse = zod.object({
-  "partners": zod.array(zod.object({
-  "username": zod.string(),
-  "displayName": zod.string(),
-  "contactNumber": zod.string().nullable(),
-  "status": zod.enum(['ACTIVE', 'INACTIVE'])
-}).and(zod.object({
+  "items": zod.array(zod.object({
   "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})))
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+})),
+  "partners": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable()
+})).optional(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int()
 })
 
 
@@ -282,8 +506,11 @@ export const UpdateAdminDeliveryPartnerStatusParams = zod.object({
   "partnerId": zod.coerce.string().uuid()
 })
 
+export const updateAdminDeliveryPartnerStatusBodyConfirmActiveAssignmentsDefault = false;
+
 export const UpdateAdminDeliveryPartnerStatusBody = zod.object({
-  "status": zod.enum(['ACTIVE', 'INACTIVE'])
+  "status": zod.enum(['ACTIVE', 'INACTIVE']),
+  "confirmActiveAssignments": zod.boolean().default(updateAdminDeliveryPartnerStatusBodyConfirmActiveAssignmentsDefault)
 })
 
 export const UpdateAdminDeliveryPartnerStatusResponse = zod.object({

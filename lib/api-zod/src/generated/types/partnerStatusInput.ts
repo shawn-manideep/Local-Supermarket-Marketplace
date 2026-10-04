@@ -9,4 +9,5 @@ import type { PartnerStatusInputStatus } from './partnerStatusInputStatus';
 
 export interface PartnerStatusInput {
   status: PartnerStatusInputStatus;
+  confirmActiveAssignments?: boolean;
 }

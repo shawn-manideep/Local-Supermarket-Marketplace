@@ -20,6 +20,11 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminAccountStatusInput,
+  AdminDashboardOutcome,
+  AdminDetailOutcome,
+  AdminManagementPage,
+  AdminVendorStatusInput,
   CustomerCheckoutOutcome,
   CustomerCheckoutSubmission,
   CustomerShoppingCategories,
@@ -29,11 +34,13 @@ import type {
   GetCustomerShoppingCategoriesParams,
   GetEligibleDeliveryPartners200,
   HealthStatus,
+  ListAdminCustomersParams,
+  ListAdminDeliveryPartnersParams,
+  ListAdminVendorsParams,
   PartnerAdministrationOutcome,
   PartnerCredentials,
   PartnerDashboardOutcome,
   PartnerDeliveriesOutcome,
-  PartnerDirectoryOutcome,
   PartnerProfileOutcome,
   PartnerProvisionInput,
   PartnerSessionOutcome,
@@ -71,6 +78,612 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetAdminManagementDashboardUrl = () => {
+
+
+
+
+  return `/api/admin/dashboard`
+}
+
+export const getAdminManagementDashboard = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminDashboardOutcome> => {
+
+  return customFetch<AdminDashboardOutcome>(getGetAdminManagementDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminManagementDashboardQueryKey = () => {
+    return [
+    `/api/admin/dashboard`
+    ] as const;
+    }
+
+
+export const getGetAdminManagementDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getAdminManagementDashboard>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminManagementDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminManagementDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminManagementDashboard>>> = ({ signal }) => getAdminManagementDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminManagementDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminManagementDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminManagementDashboard>>>
+export type GetAdminManagementDashboardQueryError = ErrorType<void>
+
+
+
+export function useGetAdminManagementDashboard<TData = Awaited<ReturnType<typeof getAdminManagementDashboard>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminManagementDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminManagementDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminVendorsUrl = (params?: ListAdminVendorsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/vendors?${stringifiedParams}` : `/api/admin/vendors`
+}
+
+export const listAdminVendors = async (params?: ListAdminVendorsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminManagementPage> => {
+
+  return customFetch<AdminManagementPage>(getListAdminVendorsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminVendorsQueryKey = (params?: ListAdminVendorsParams,) => {
+    return [
+    `/api/admin/vendors`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminVendorsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminVendors>>, TError = ErrorType<unknown>>(params?: ListAdminVendorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVendors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminVendorsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminVendors>>> = ({ signal }) => listAdminVendors(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminVendors>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminVendorsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminVendors>>>
+export type ListAdminVendorsQueryError = ErrorType<unknown>
+
+
+
+export function useListAdminVendors<TData = Awaited<ReturnType<typeof listAdminVendors>>, TError = ErrorType<unknown>>(
+ params?: ListAdminVendorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVendors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminVendorsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminVendorUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${id}`
+}
+
+export const getAdminVendor = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminDetailOutcome> => {
+
+  return customFetch<AdminDetailOutcome>(getGetAdminVendorUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminVendorQueryKey = (id: string,) => {
+    return [
+    `/api/admin/vendors/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminVendorQueryOptions = <TData = Awaited<ReturnType<typeof getAdminVendor>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminVendor>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminVendorQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminVendor>>> = ({ signal }) => getAdminVendor(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminVendor>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminVendorQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminVendor>>>
+export type GetAdminVendorQueryError = ErrorType<unknown>
+
+
+
+export function useGetAdminVendor<TData = Awaited<ReturnType<typeof getAdminVendor>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminVendor>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminVendorQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getChangeAdminVendorStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${id}/status`
+}
+
+export const changeAdminVendorStatus = async (id: string,
+    adminVendorStatusInput: AdminVendorStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getChangeAdminVendorStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminVendorStatusInput)
+  }
+);}
+
+
+
+
+
+export const getChangeAdminVendorStatusMutationKey = () => ['changeAdminVendorStatus'] as const;
+
+export const getChangeAdminVendorStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeAdminVendorStatus>>, TError,ChangeAdminVendorStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeAdminVendorStatus>>, TError,ChangeAdminVendorStatusMutationVariables, TContext> => {
+
+const mutationKey = getChangeAdminVendorStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeAdminVendorStatus>>, ChangeAdminVendorStatusMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeAdminVendorStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeAdminVendorStatusMutationResult = NonNullable<Awaited<ReturnType<typeof changeAdminVendorStatus>>>
+    export type ChangeAdminVendorStatusMutationBody = BodyType<AdminVendorStatusInput>
+    export type ChangeAdminVendorStatusMutationError = ErrorType<void>
+    export type ChangeAdminVendorStatusMutationVariables = {id: string;data: BodyType<AdminVendorStatusInput>}
+
+    export const useChangeAdminVendorStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeAdminVendorStatus>>, TError,ChangeAdminVendorStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeAdminVendorStatus>>,
+        TError,
+        ChangeAdminVendorStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeAdminVendorStatusMutationOptions(options));
+    }
+
+export const getListAdminCustomersUrl = (params?: ListAdminCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/customers?${stringifiedParams}` : `/api/admin/customers`
+}
+
+export const listAdminCustomers = async (params?: ListAdminCustomersParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminManagementPage> => {
+
+  return customFetch<AdminManagementPage>(getListAdminCustomersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminCustomersQueryKey = (params?: ListAdminCustomersParams,) => {
+    return [
+    `/api/admin/customers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminCustomersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminCustomers>>, TError = ErrorType<unknown>>(params?: ListAdminCustomersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminCustomersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminCustomers>>> = ({ signal }) => listAdminCustomers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminCustomers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminCustomers>>>
+export type ListAdminCustomersQueryError = ErrorType<unknown>
+
+
+
+export function useListAdminCustomers<TData = Awaited<ReturnType<typeof listAdminCustomers>>, TError = ErrorType<unknown>>(
+ params?: ListAdminCustomersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminCustomerUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/customers/${id}`
+}
+
+export const getAdminCustomer = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminDetailOutcome> => {
+
+  return customFetch<AdminDetailOutcome>(getGetAdminCustomerUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminCustomerQueryKey = (id: string,) => {
+    return [
+    `/api/admin/customers/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminCustomerQueryOptions = <TData = Awaited<ReturnType<typeof getAdminCustomer>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCustomer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminCustomerQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminCustomer>>> = ({ signal }) => getAdminCustomer(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminCustomer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminCustomerQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminCustomer>>>
+export type GetAdminCustomerQueryError = ErrorType<unknown>
+
+
+
+export function useGetAdminCustomer<TData = Awaited<ReturnType<typeof getAdminCustomer>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCustomer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminCustomerQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getChangeAdminCustomerStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/customers/${id}/status`
+}
+
+export const changeAdminCustomerStatus = async (id: string,
+    adminAccountStatusInput: AdminAccountStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getChangeAdminCustomerStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminAccountStatusInput)
+  }
+);}
+
+
+
+
+
+export const getChangeAdminCustomerStatusMutationKey = () => ['changeAdminCustomerStatus'] as const;
+
+export const getChangeAdminCustomerStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeAdminCustomerStatus>>, TError,ChangeAdminCustomerStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeAdminCustomerStatus>>, TError,ChangeAdminCustomerStatusMutationVariables, TContext> => {
+
+const mutationKey = getChangeAdminCustomerStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeAdminCustomerStatus>>, ChangeAdminCustomerStatusMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeAdminCustomerStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeAdminCustomerStatusMutationResult = NonNullable<Awaited<ReturnType<typeof changeAdminCustomerStatus>>>
+    export type ChangeAdminCustomerStatusMutationBody = BodyType<AdminAccountStatusInput>
+    export type ChangeAdminCustomerStatusMutationError = ErrorType<unknown>
+    export type ChangeAdminCustomerStatusMutationVariables = {id: string;data: BodyType<AdminAccountStatusInput>}
+
+    export const useChangeAdminCustomerStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeAdminCustomerStatus>>, TError,ChangeAdminCustomerStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeAdminCustomerStatus>>,
+        TError,
+        ChangeAdminCustomerStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeAdminCustomerStatusMutationOptions(options));
+    }
+
+export const getGetAdminDeliveryPartnerUrl = (partnerId: string,) => {
+
+
+
+
+  return `/api/admin/delivery-partners/${partnerId}`
+}
+
+export const getAdminDeliveryPartner = async (partnerId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminDetailOutcome> => {
+
+  return customFetch<AdminDetailOutcome>(getGetAdminDeliveryPartnerUrl(partnerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminDeliveryPartnerQueryKey = (partnerId: string,) => {
+    return [
+    `/api/admin/delivery-partners/${partnerId}`
+    ] as const;
+    }
+
+
+export const getGetAdminDeliveryPartnerQueryOptions = <TData = Awaited<ReturnType<typeof getAdminDeliveryPartner>>, TError = ErrorType<unknown>>(partnerId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDeliveryPartner>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminDeliveryPartnerQueryKey(partnerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminDeliveryPartner>>> = ({ signal }) => getAdminDeliveryPartner(partnerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: partnerId !== null && partnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminDeliveryPartner>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminDeliveryPartnerQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminDeliveryPartner>>>
+export type GetAdminDeliveryPartnerQueryError = ErrorType<unknown>
+
+
+
+export function useGetAdminDeliveryPartner<TData = Awaited<ReturnType<typeof getAdminDeliveryPartner>>, TError = ErrorType<unknown>>(
+ partnerId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDeliveryPartner>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminDeliveryPartnerQueryOptions(partnerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetVendorOrderDeliveryUrl = (orderId: string,) => {
 
@@ -746,17 +1359,24 @@ export function useGetDeliveryPartnerDeliveries<TData = Awaited<ReturnType<typeo
 
 
 
-export const getListAdminDeliveryPartnersUrl = () => {
+export const getListAdminDeliveryPartnersUrl = (params?: ListAdminDeliveryPartnersParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/admin/delivery-partners`
+  return stringifiedParams.length > 0 ? `/api/admin/delivery-partners?${stringifiedParams}` : `/api/admin/delivery-partners`
 }
 
-export const listAdminDeliveryPartners = async ( options?: Parameters<typeof customFetch>[1]): Promise<PartnerDirectoryOutcome> => {
+export const listAdminDeliveryPartners = async (params?: ListAdminDeliveryPartnersParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminManagementPage> => {
 
-  return customFetch<PartnerDirectoryOutcome>(getListAdminDeliveryPartnersUrl(),
+  return customFetch<AdminManagementPage>(getListAdminDeliveryPartnersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -769,23 +1389,23 @@ export const listAdminDeliveryPartners = async ( options?: Parameters<typeof cus
 
 
 
-export const getListAdminDeliveryPartnersQueryKey = () => {
+export const getListAdminDeliveryPartnersQueryKey = (params?: ListAdminDeliveryPartnersParams,) => {
     return [
-    `/api/admin/delivery-partners`
+    `/api/admin/delivery-partners`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListAdminDeliveryPartnersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListAdminDeliveryPartnersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError = ErrorType<void>>(params?: ListAdminDeliveryPartnersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListAdminDeliveryPartnersQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListAdminDeliveryPartnersQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminDeliveryPartners>>> = ({ signal }) => listAdminDeliveryPartners({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminDeliveryPartners>>> = ({ signal }) => listAdminDeliveryPartners(params, { signal, ...requestOptions });
 
 
 
@@ -800,11 +1420,11 @@ export type ListAdminDeliveryPartnersQueryError = ErrorType<void>
 
 
 export function useListAdminDeliveryPartners<TData = Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError = ErrorType<void>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListAdminDeliveryPartnersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminDeliveryPartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListAdminDeliveryPartnersQueryOptions(options)
+  const queryOptions = getListAdminDeliveryPartnersQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

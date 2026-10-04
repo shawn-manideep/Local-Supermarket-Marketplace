@@ -11,6 +11,111 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /admin/dashboard:
+    get:
+      operationId: getAdminManagementDashboard
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Real platform account counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDashboardOutcome" }
+        "401": { description: Authentication required }
+        "403": { description: Admin role required }
+  /admin/vendors:
+    get:
+      operationId: listAdminVendors
+      security: [{ customerBearer: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/ManagementPage" }
+        - { $ref: "#/components/parameters/ManagementPageSize" }
+        - { $ref: "#/components/parameters/ManagementSearch" }
+        - { $ref: "#/components/parameters/ManagementStatus" }
+      responses:
+        "200":
+          description: Paginated vendor/store directory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminManagementPage" }
+  /admin/vendors/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getAdminVendor
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Scoped management detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDetailOutcome" }
+  /admin/vendors/{id}/status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: changeAdminVendorStatus
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminVendorStatusInput" }
+      responses:
+        "200": { description: Existing legal store transition committed and audited }
+        "409": { description: Illegal or stale transition }
+  /admin/customers:
+    get:
+      operationId: listAdminCustomers
+      security: [{ customerBearer: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/ManagementPage" }
+        - { $ref: "#/components/parameters/ManagementPageSize" }
+        - { $ref: "#/components/parameters/ManagementSearch" }
+        - { $ref: "#/components/parameters/ManagementStatus" }
+      responses:
+        "200":
+          description: Paginated customer directory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminManagementPage" }
+  /admin/customers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getAdminCustomer
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Minimal customer management detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDetailOutcome" }
+  /admin/customers/{id}/status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: changeAdminCustomerStatus
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminAccountStatusInput" }
+      responses:
+        "200": { description: Customer access status committed and audited }
+  /admin/delivery-partners/{partnerId}:
+    parameters:
+      - { name: partnerId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getAdminDeliveryPartner
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Partner detail including active assignment warning count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDetailOutcome" }
   /vendor/orders/{orderId}/delivery:
     parameters:
       - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -145,12 +250,17 @@ paths:
     get:
       operationId: listAdminDeliveryPartners
       security: [{ customerBearer: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/ManagementPage" }
+        - { $ref: "#/components/parameters/ManagementPageSize" }
+        - { $ref: "#/components/parameters/ManagementSearch" }
+        - { $ref: "#/components/parameters/ManagementStatus" }
       responses:
         "200":
-          description: Administrator's partner directory
+          description: Paginated administrator partner directory, with legacy partners alias
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PartnerDirectoryOutcome" }
+              schema: { $ref: "#/components/schemas/AdminManagementPage" }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
     post:
@@ -319,6 +429,22 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   parameters:
+    ManagementPage:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100000, default: 1 }
+    ManagementPageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    ManagementSearch:
+      name: search
+      in: query
+      schema: { type: string, maxLength: 120 }
+    ManagementStatus:
+      name: status
+      in: query
+      schema: { type: string, enum: [PENDING_APPROVAL, ACTIVE, SUSPENDED, REJECTED, INACTIVE] }
     ReorderOrderId:
       in: path
       name: orderId
@@ -329,6 +455,70 @@ components:
       type: http
       scheme: bearer
   schemas:
+    AdminDashboardOutcome:
+      type: object
+      required: [dashboard]
+      properties:
+        dashboard:
+          type: object
+          required: [totalCustomers, activeCustomers, inactiveCustomers, totalVendors, pendingVendors, activeVendors, totalDeliveryPartners, activeDeliveryPartners, inactiveDeliveryPartners]
+          properties:
+            totalCustomers: { type: integer }
+            activeCustomers: { type: integer }
+            inactiveCustomers: { type: integer }
+            totalVendors: { type: integer }
+            pendingVendors: { type: integer }
+            activeVendors: { type: integer }
+            totalDeliveryPartners: { type: integer }
+            activeDeliveryPartners: { type: integer }
+            inactiveDeliveryPartners: { type: integer }
+    AdminManagementRow:
+      type: object
+      required: [id, displayName, email, username, status, createdAt, storeId, storeName]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        username: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        storeId: { type: [string, "null"], format: uuid }
+        storeName: { type: [string, "null"] }
+    AdminManagementPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AdminManagementRow" } }
+        partners: { type: array, items: { $ref: "#/components/schemas/AdminManagementRow" } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+    AdminDetailOutcome:
+      type: object
+      required: [account]
+      properties:
+        account:
+          allOf:
+            - { $ref: "#/components/schemas/AdminManagementRow" }
+            - type: object
+              required: [contactNumber, orderCount, activeAssignments, allowedStatuses]
+              properties:
+                contactNumber: { type: [string, "null"] }
+                orderCount: { type: [integer, "null"] }
+                activeAssignments: { type: integer }
+                allowedStatuses: { type: array, items: { type: string } }
+    AdminVendorStatusInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [PENDING_APPROVAL, ACTIVE, SUSPENDED, REJECTED] }
+    AdminAccountStatusInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
     PartnerCredentials:
       type: object
       additionalProperties: false
@@ -394,6 +584,7 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [ACTIVE, INACTIVE] }
+        confirmActiveAssignments: { type: boolean, default: false }
     PartnerDashboardOutcome:
       type: object
       required: [summary]

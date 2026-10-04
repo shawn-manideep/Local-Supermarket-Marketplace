@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { partnerLoginSchema, partnerProvisionSchema, partnerStatusSchema } from "@workspace/validation";
+import { partnerLoginSchema, partnerProvisionSchema } from "@workspace/validation";
 import { requireRole } from "../auth/middleware.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
@@ -8,6 +8,7 @@ import { partnerRepository, publicPartner } from "./repository.js";
 import { loginPartner, provisionPartner, supabasePartnerAuth } from "./auth-service.js";
 import { requireDeliveryPartner } from "./middleware.js";
 import { deliveryWorkflow } from "./workflow.js";
+import { adminManagement, managementQuery, partnerManagementStatusInput } from "../admin-management/service.js";
 
 export const deliveryPartnerRouter = Router();
 deliveryPartnerRouter.use("/api/delivery-partner", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
@@ -56,17 +57,29 @@ deliveryPartnerRouter.post("/api/delivery-partner/deliveries/:assignmentId/actio
   if (!input.success) throw new HttpError(400, "Invalid delivery action.", undefined, "INVALID_DELIVERY_TRANSITION");
   res.json({ assignment: await deliveryWorkflow().action((req as AuthenticatedRequest).auth!.userId, identifier(req.params.assignmentId), input.data.action) });
 }));
-deliveryPartnerRouter.get("/api/admin/delivery-partners", requireRole("admin"), asyncHandler(async (_req, res) => {
-  res.json({ partners: await partnerRepository().list() });
+deliveryPartnerRouter.get("/api/admin/delivery-partners", requireRole("admin"), asyncHandler(async (req, res) => {
+  const query = managementQuery.safeParse(req.query);
+  if (!query.success) throw new HttpError(400, "Invalid management query", validationDetails(query.error));
+  const result = await adminManagement().list("delivery-partners", query.data);
+  // Preserve the previous administrative envelope for existing callers.
+  res.json({ ...result, partners: result.items });
+}));
+deliveryPartnerRouter.get("/api/admin/delivery-partners/:partnerId", requireRole("admin"), asyncHandler(async (req, res) => {
+  const id = z.string().uuid().safeParse(req.params.partnerId);
+  if (!id.success) throw new HttpError(400, "Invalid partner ID");
+  res.json({ account: await adminManagement().detail("delivery-partners", id.data) });
 }));
 deliveryPartnerRouter.post("/api/admin/delivery-partners", requireRole("admin"), asyncHandler(async (req, res) => {
   const input = partnerProvisionSchema.safeParse(req.body);
   if (!input.success) throw new HttpError(400, "Invalid partner details.", validationDetails(input.error));
-  res.status(201).json({ partner: await provisionPartner(partnerRepository(), supabasePartnerAuth(), input.data) });
+  res.status(201).json({ partner: await provisionPartner(partnerRepository(), supabasePartnerAuth(), input.data, (req as AuthenticatedRequest).auth!.userId) });
 }));
 deliveryPartnerRouter.patch("/api/admin/delivery-partners/:partnerId/status", requireRole("admin"), asyncHandler(async (req, res) => {
   const id = z.string().uuid().safeParse(req.params.partnerId);
-  const input = partnerStatusSchema.safeParse(req.body);
+  const input = partnerManagementStatusInput.safeParse(req.body);
   if (!id.success || !input.success) throw new HttpError(400, "Invalid partner status update.");
-  res.json({ partner: await partnerRepository().status(id.data, input.data.status) });
+  res.json({ partner: await partnerRepository().status(id.data, input.data.status, {
+    actorId: (req as AuthenticatedRequest).auth!.userId,
+    confirmActiveAssignments: input.data.confirmActiveAssignments,
+  }) });
 }));

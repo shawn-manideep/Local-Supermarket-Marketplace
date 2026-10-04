@@ -64,7 +64,7 @@ try {
   for (const file of (await readdir(migrations)).filter(f => /^\d.*\.sql$/.test(f)).sort()) {
     await pool.query(await readFile(new URL(file, migrations), "utf8"));
   }
-  check(true, "all 15 ordered migrations replay on an empty isolated database");
+  check(true, "all ordered migrations replay on an empty isolated database");
   for (const actor of [ca, cb, vb, partner]) {
     await pool.query("INSERT INTO auth.users(id) VALUES($1)", [actor.id]);
     if (actor.role !== "customer") {

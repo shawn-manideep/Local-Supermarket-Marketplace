@@ -44,13 +44,13 @@ export function supabasePartnerAuth(): PartnerAuthGateway {
     },
   };
 }
-export async function provisionPartner(repo: PartnerRepository, auth: PartnerAuthGateway, input: ProvisionInput) {
+export async function provisionPartner(repo: PartnerRepository, auth: PartnerAuthGateway, input: ProvisionInput, actorId?: string) {
   let createdId: string | undefined;
   try {
     const id = await repo.provision(input, async () => {
       createdId = await auth.create(input.password);
       return createdId;
-    });
+    }, actorId);
     await auth.activate(id);
     const profile = await repo.profile(id);
     if (!profile) throw new HttpError(502, "Partner profile could not be verified.");

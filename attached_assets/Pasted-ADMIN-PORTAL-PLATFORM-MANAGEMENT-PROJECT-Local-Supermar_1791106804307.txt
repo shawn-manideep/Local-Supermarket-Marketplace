@@ -1,0 +1,1054 @@
+ADMIN PORTAL — PLATFORM MANAGEMENT
+
+PROJECT:
+Local Supermarket Marketplace
+
+OBJECTIVE:
+Implement a dedicated Admin Portal for platform-level management of:
+
+1. Vendors
+2. Customers
+3. Delivery Partners
+
+The Admin Portal must use the existing ADMIN role and existing authentication architecture.
+
+IMPORTANT:
+The application currently has:
+
+- Customer Portal
+- Vendor Portal
+- Delivery Partner Portal
+- Backend ADMIN role/authentication
+
+There is currently NO Admin Portal UI.
+
+Create the Admin Portal now.
+
+This is a platform-management portal, NOT a replacement for the existing Vendor, Customer, or Delivery Partner portals.
+
+--------------------------------------------------
+1. SCOPE
+--------------------------------------------------
+
+IMPLEMENT:
+
+- Admin login/access
+- Admin dashboard
+- Vendor management
+- Customer management
+- Delivery Partner management
+- Account status management
+- Vendor/store approval management
+- Partner provisioning
+- Basic search/filtering
+- Account detail views
+- Safe account activation/deactivation
+- Appropriate auditability
+- Role-based authorization
+- Responsive Admin UI
+
+DO NOT IMPLEMENT:
+
+- Customer shopping
+- Vendor product management
+- Master Catalog management unless already supported by a separate approved admin capability
+- Stock management
+- Order fulfillment
+- Delivery execution
+- GPS
+- Maps
+- Payments
+- Financial settlement
+- Vendor payouts
+- Customer password viewing
+- Partner password viewing
+- Password storage
+- Role self-service changes
+- Admin self-registration
+
+--------------------------------------------------
+2. ADMIN AUTHENTICATION
+--------------------------------------------------
+
+Use the existing ADMIN authentication architecture.
+
+The existing admin authentication is email/password through the established Supabase Auth mechanism.
+
+DO NOT replace it with username/password.
+
+DO NOT create a second authentication system.
+
+Admin login:
+
+Email
++
+Password
+
+After successful authentication:
+
+- resolve the application role
+- verify ADMIN role server-side
+- route to Admin Portal
+
+A non-admin user must never gain access by manually navigating to the Admin Portal URL.
+
+--------------------------------------------------
+3. ADMIN PORTAL ROUTE
+--------------------------------------------------
+
+Create a dedicated Admin Portal route using the existing routing architecture.
+
+Example:
+
+/admin
+
+or the equivalent route consistent with the existing application.
+
+Do not interfere with:
+
+- Customer routes
+- Vendor routes
+- Delivery Partner routes
+
+--------------------------------------------------
+4. ADMIN DASHBOARD
+--------------------------------------------------
+
+Create a simple platform overview.
+
+Show real database values.
+
+Suggested summary cards:
+
+- Total Customers
+- Active Customers
+- Total Vendors
+- Pending Vendors
+- Active Vendors
+- Total Delivery Partners
+- Active Delivery Partners
+- Inactive Delivery Partners
+
+Do NOT use fake/sample numbers.
+
+If a metric is not available through the existing schema, do not invent it.
+
+Use the smallest appropriate queries.
+
+--------------------------------------------------
+5. ADMIN NAVIGATION
+--------------------------------------------------
+
+Admin Portal navigation:
+
+Dashboard
+Vendors
+Customers
+Delivery Partners
+Profile
+Logout
+
+Do not show:
+
+- Customer shopping navigation
+- Vendor catalog navigation
+- Vendor stock navigation
+- Delivery Partner operational navigation
+
+Admin Portal should have its own clear visual identity.
+
+--------------------------------------------------
+6. VENDOR MANAGEMENT
+--------------------------------------------------
+
+Create a Vendors page.
+
+Admin should be able to:
+
+- view vendors
+- search vendors
+- filter vendors
+- view vendor details
+- view associated store
+- view store status
+- approve vendor/store where applicable
+- reject vendor/store where applicable
+- suspend vendor/store where applicable
+- reactivate vendor/store where applicable
+
+Reuse the existing store statuses:
+
+PENDING_APPROVAL
+ACTIVE
+SUSPENDED
+REJECTED
+
+Do not create a second vendor/store status model.
+
+--------------------------------------------------
+7. VENDOR LIST
+--------------------------------------------------
+
+Display useful fields only.
+
+For example:
+
+- Shop Name
+- Vendor Name / Display Name
+- Username/email where appropriate
+- Store status
+- Created date
+- Actions
+
+Do not expose:
+
+- password
+- password hash
+- authentication tokens
+- internal secrets
+
+Do not expose unnecessary database fields.
+
+--------------------------------------------------
+8. VENDOR DETAILS
+--------------------------------------------------
+
+Vendor details should show:
+
+- Vendor identity
+- Shop name
+- Store
+- Store status
+- Account status if applicable
+- Created date
+- Relevant contact information if already available
+
+Do not display sensitive authentication information.
+
+Do not allow the admin to directly modify vendor products from this page unless the existing architecture already has an approved admin capability.
+
+Admin Portal Phase should focus on account/store management.
+
+--------------------------------------------------
+9. VENDOR APPROVAL
+--------------------------------------------------
+
+If a vendor/store is:
+
+PENDING_APPROVAL
+
+Admin can:
+
+APPROVE
+
+or
+
+REJECT
+
+Approval should use the existing store status architecture.
+
+Do not create another approval system.
+
+When approved:
+
+PENDING_APPROVAL
+→ ACTIVE
+
+When rejected:
+
+PENDING_APPROVAL
+→ REJECTED
+
+The exact existing legal transitions must be respected.
+
+Do not bypass backend transition rules.
+
+--------------------------------------------------
+10. VENDOR SUSPENSION
+--------------------------------------------------
+
+Admin may suspend an active vendor/store where the existing business model permits it.
+
+Example:
+
+ACTIVE
+→ SUSPENDED
+
+A suspended vendor must not be able to perform vendor operations that require an active store.
+
+Do not delete vendor data.
+
+Do not delete historical orders.
+
+Do not delete historical product/order snapshots.
+
+--------------------------------------------------
+11. VENDOR REACTIVATION
+--------------------------------------------------
+
+Admin may reactivate a suspended vendor when permitted.
+
+Example:
+
+SUSPENDED
+→ ACTIVE
+
+Reactivation must not:
+
+- recreate deleted data
+- modify historical orders
+- modify stock unexpectedly
+- alter historical snapshots
+
+--------------------------------------------------
+12. CUSTOMER MANAGEMENT
+--------------------------------------------------
+
+Create a Customers page.
+
+Admin should be able to:
+
+- view customers
+- search customers
+- filter customers
+- view customer details
+- activate/deactivate customer access where supported
+- view account status
+
+Do NOT expose:
+
+- password
+- password hash
+- authentication tokens
+- private security data
+
+--------------------------------------------------
+13. CUSTOMER LIST
+--------------------------------------------------
+
+Show appropriate fields:
+
+- Customer display name
+- Username if the account has one
+- Email if the existing account exposes it appropriately to admins
+- Account status
+- Created date
+- Actions
+
+Do not expose unnecessary private information.
+
+--------------------------------------------------
+14. CUSTOMER DETAILS
+--------------------------------------------------
+
+Customer details may show:
+
+- display name
+- account identifier where appropriate
+- email where appropriate
+- account status
+- created date
+- basic order count if already safely available
+
+Do NOT expose:
+
+- password
+- password hash
+- authentication tokens
+- payment credentials
+- private security information
+
+Do not create a general customer data dump.
+
+--------------------------------------------------
+15. CUSTOMER DEACTIVATION
+--------------------------------------------------
+
+Admin may deactivate a customer account.
+
+Use a clear status such as:
+
+ACTIVE
+INACTIVE
+
+Do not create a second authentication status model if an existing account/profile status can be safely extended.
+
+When inactive:
+
+- customer cannot use protected customer functionality
+- existing sessions should be denied at protected API boundaries where supported
+- customer data and historical orders remain preserved
+
+Do NOT delete the customer.
+
+--------------------------------------------------
+16. CUSTOMER REACTIVATION
+--------------------------------------------------
+
+Admin may reactivate an inactive customer.
+
+Expected:
+
+INACTIVE
+→ ACTIVE
+
+Historical orders, cart history, and account data remain preserved.
+
+--------------------------------------------------
+17. DELIVERY PARTNER MANAGEMENT
+--------------------------------------------------
+
+Create a Delivery Partners page.
+
+This should reuse the Phase 6 partner foundation.
+
+Admin can:
+
+- list partners
+- search partners
+- view partner profile
+- provision new partner
+- activate partner
+- deactivate partner
+- reactivate partner
+
+Do NOT create another partner model.
+
+--------------------------------------------------
+18. DELIVERY PARTNER CREATION
+--------------------------------------------------
+
+Admin can create a Delivery Partner using:
+
+- Username
+- Password
+- Display Name
+- Contact Number if supported
+- Status
+
+Use the existing Phase 6 provisioning service.
+
+DO NOT create another provisioning implementation.
+
+Password must:
+
+- be sent through the secure authentication/provisioning flow
+- never be stored in application tables
+- never appear in logs
+- never be returned by APIs
+
+The existing username validation rules remain authoritative.
+
+--------------------------------------------------
+19. DELIVERY PARTNER USERNAME
+--------------------------------------------------
+
+Reuse the existing global username registry.
+
+Rules remain:
+
+- 3–30 characters
+- first character letter
+- letters/numbers/underscore
+- case-insensitive uniqueness
+- reserved-name protection
+- immutable after creation
+
+Do NOT create a second username namespace.
+
+--------------------------------------------------
+20. DELIVERY PARTNER STATUS
+--------------------------------------------------
+
+Use the existing:
+
+ACTIVE
+INACTIVE
+
+state.
+
+When inactive:
+
+- partner cannot log in
+- existing protected partner APIs must reject access
+- partner must not be assignable to new deliveries
+
+When reactivated:
+
+- partner can log in again
+- partner becomes eligible for assignment according to existing Phase 7 rules
+
+Do not automatically modify existing delivery assignments when a partner is deactivated.
+
+If the partner has active assignments, show an appropriate warning to the admin rather than silently reassigning or cancelling deliveries.
+
+--------------------------------------------------
+21. ACTIVE DELIVERY PARTNER SAFETY
+--------------------------------------------------
+
+Before deactivating a Delivery Partner:
+
+Check whether the partner currently has:
+
+- PENDING assignments
+- ACCEPTED assignments
+- PICKED_UP assignments
+- OUT_FOR_DELIVERY assignments
+
+If active assignments exist:
+
+Show a warning.
+
+Do NOT silently:
+
+- cancel orders
+- reassign deliveries
+- mark deliveries delivered
+- alter customer orders
+
+The admin may need a separately designed reassignment workflow later.
+
+For this phase, preserve the existing delivery state safely.
+
+--------------------------------------------------
+22. ADMIN SEARCH
+--------------------------------------------------
+
+Provide simple search on:
+
+Vendors:
+- shop name
+- vendor name
+- username/email where appropriate
+
+Customers:
+- name
+- username/email where appropriate
+
+Delivery Partners:
+- display name
+- username
+
+Search must be server-backed where the dataset requires it.
+
+Do not download the entire user database to the browser just to search.
+
+--------------------------------------------------
+23. FILTERING
+--------------------------------------------------
+
+Provide useful filters.
+
+Vendors:
+- Pending
+- Active
+- Suspended
+- Rejected
+
+Customers:
+- Active
+- Inactive
+
+Delivery Partners:
+- Active
+- Inactive
+
+Do not create excessive filtering.
+
+--------------------------------------------------
+24. PAGINATION
+--------------------------------------------------
+
+Use server-side pagination for management lists if the existing API architecture supports it.
+
+Do not load thousands of records into the browser unnecessarily.
+
+Show:
+
+- current page
+- total/count where available
+- next/previous controls
+
+Follow existing project conventions.
+
+--------------------------------------------------
+25. ADMIN AUTHORIZATION
+--------------------------------------------------
+
+Every Admin API must verify:
+
+1. authenticated session
+2. ADMIN application role
+
+Never trust a client-provided role.
+
+A CUSTOMER cannot call Admin APIs.
+
+A VENDOR cannot call Admin APIs.
+
+A DELIVERY_PARTNER cannot call Admin APIs.
+
+Authorization must be enforced server-side.
+
+Frontend route protection is only a UX layer.
+
+--------------------------------------------------
+26. ADMIN SELF-PROTECTION
+--------------------------------------------------
+
+Do not implement admin self-registration.
+
+Do not allow an admin to change another user's role arbitrarily through a generic "Change Role" dropdown.
+
+The Admin Portal should manage approved application entities according to their dedicated workflows.
+
+Do NOT create:
+
+Customer → Admin
+Vendor → Admin
+Partner → Admin
+
+role conversion controls.
+
+Admin accounts remain controlled through the existing secure administrative mechanism.
+
+--------------------------------------------------
+27. AUDITABILITY
+--------------------------------------------------
+
+Administrative actions should be traceable.
+
+At minimum, record appropriate events for:
+
+- vendor approval
+- vendor rejection
+- vendor suspension
+- vendor reactivation
+- customer deactivation
+- customer reactivation
+- delivery partner creation
+- delivery partner activation
+- delivery partner deactivation
+- delivery partner reactivation
+
+Use the smallest appropriate audit mechanism.
+
+If an existing audit/event structure exists, reuse it.
+
+Do NOT build a large enterprise audit subsystem.
+
+At minimum capture where practical:
+
+- admin identity
+- action
+- target entity
+- timestamp
+
+Do not record passwords or secrets.
+
+--------------------------------------------------
+28. API DESIGN
+--------------------------------------------------
+
+Follow existing API conventions.
+
+Conceptually:
+
+ADMIN:
+
+GET /api/admin/dashboard
+
+GET /api/admin/vendors
+
+GET /api/admin/vendors/:id
+
+PATCH /api/admin/vendors/:id/status
+
+GET /api/admin/customers
+
+GET /api/admin/customers/:id
+
+PATCH /api/admin/customers/:id/status
+
+GET /api/admin/delivery-partners
+
+GET /api/admin/delivery-partners/:id
+
+POST /api/admin/delivery-partners
+
+PATCH /api/admin/delivery-partners/:id/status
+
+Exact route naming should follow the existing application conventions.
+
+Do not create duplicate endpoints if equivalent secure services already exist.
+
+--------------------------------------------------
+29. RESPONSE PRIVACY
+--------------------------------------------------
+
+Admin may receive more management information than customers/vendors/partners, but still do NOT expose:
+
+- passwords
+- password hashes
+- authentication tokens
+- service credentials
+- Supabase secrets
+- private internal secrets
+
+Only return fields required by the Admin Portal.
+
+--------------------------------------------------
+30. DATABASE SAFETY
+--------------------------------------------------
+
+Before creating migrations:
+
+Inspect the current schema and Phase 6/7 implementation.
+
+Reuse existing:
+
+- user_profiles
+- stores
+- delivery_partner_profile
+- username registry
+- role system
+- store status
+- partner status
+- existing audit/event structures if available
+
+Do not create duplicate user/vendor/partner tables.
+
+Do not create another role table if the existing role architecture is sufficient.
+
+Only create a migration if genuinely required for Admin Portal functionality.
+
+Development database only.
+
+NO production migration.
+
+--------------------------------------------------
+31. EXISTING BUSINESS RULES MUST REMAIN
+--------------------------------------------------
+
+Do not change:
+
+- Customer shopping
+- Vendor catalog
+- Master Catalog
+- Product variants
+- Stock
+- Checkout
+- Reorder
+- Vendor order workflow
+- Delivery assignment
+- Delivery partner workflow
+- Customer delivery status
+
+Admin Portal is a management layer over these existing entities.
+
+Do not give admins shortcuts that bypass existing business rules.
+
+--------------------------------------------------
+32. ORDER MANAGEMENT
+--------------------------------------------------
+
+Do NOT build full Admin Order Management in this phase.
+
+The user requested Admin management of:
+
+- Vendor
+- Customer
+- Delivery Partner
+
+Orders should remain managed through existing Vendor/Customer/Delivery Partner workflows.
+
+The Admin Portal may show summary counts where already available, but do not create admin order manipulation.
+
+Do not allow Admin to:
+
+- change order status arbitrarily
+- change stock
+- edit historical order prices
+- modify order snapshots
+- mark deliveries complete
+- assign arbitrary deliveries outside existing rules
+
+--------------------------------------------------
+33. RESPONSIVE ADMIN UI
+--------------------------------------------------
+
+Admin Portal should work on:
+
+- desktop
+- tablet
+
+Mobile should remain usable where practical.
+
+Prioritize desktop because administration is expected to be desktop-heavy.
+
+Ensure:
+
+- tables scroll correctly
+- action buttons remain reachable
+- filters do not overflow
+- dialogs fit within viewport
+- long lists are scrollable
+
+Do not introduce the Customer Portal scrolling bug into the Admin Portal.
+
+--------------------------------------------------
+34. LOADING / ERROR / EMPTY STATES
+--------------------------------------------------
+
+Provide proper states for:
+
+- loading
+- empty list
+- API error
+- permission denied
+- invalid action
+- duplicate username
+- inactive account
+- failed provisioning
+
+Examples:
+
+"No vendors found."
+
+"No customers found."
+
+"No delivery partners found."
+
+Do not show fake data.
+
+--------------------------------------------------
+35. CONFIRMATION FOR DESTRUCTIVE ACTIONS
+--------------------------------------------------
+
+For actions such as:
+
+- Suspend Vendor
+- Deactivate Customer
+- Deactivate Partner
+- Reject Vendor
+
+show a clear confirmation.
+
+Do not use destructive actions without confirmation.
+
+There should be no DELETE button for customer/vendor/partner records.
+
+Use status changes instead.
+
+--------------------------------------------------
+36. ADMIN PORTAL SECURITY TESTS
+--------------------------------------------------
+
+Add automated tests:
+
+A. Admin can authenticate.
+
+B. Admin can access admin dashboard.
+
+C. Customer cannot access Admin APIs.
+
+D. Vendor cannot access Admin APIs.
+
+E. Delivery Partner cannot access Admin APIs.
+
+F. Admin can list vendors.
+
+G. Admin can view vendor details.
+
+H. Admin can approve permitted vendor/store.
+
+I. Admin can suspend/reactivate vendor where permitted.
+
+J. Admin can list customers.
+
+K. Admin can view customer details.
+
+L. Admin can deactivate/reactivate customer.
+
+M. Admin can list delivery partners.
+
+N. Admin can create Delivery Partner.
+
+O. Duplicate partner username is rejected.
+
+P. Invalid partner username is rejected.
+
+Q. Admin can deactivate/reactivate partner.
+
+R. Inactive partner cannot log in.
+
+S. Deactivated customer cannot access protected customer APIs.
+
+T. Suspended vendor cannot perform restricted vendor operations.
+
+U. Partner with active assignments is not silently reassigned when deactivated.
+
+V. Passwords never appear in API responses.
+
+W. Admin cannot create another Admin through normal management UI.
+
+X. Existing Customer/Vendor/Partner workflows remain intact.
+
+--------------------------------------------------
+37. REGRESSION TESTS
+--------------------------------------------------
+
+Run the existing suites for:
+
+- Customer authentication
+- Vendor authentication
+- Delivery Partner authentication
+- Master Catalog
+- Customer shopping
+- Cart
+- Reorder
+- Stock
+- Vendor Orders
+- Delivery Assignment
+- Delivery Workflow
+- Customer UX
+
+Admin implementation must not break these.
+
+--------------------------------------------------
+38. BUILD / TYPECHECK
+--------------------------------------------------
+
+Run:
+
+- workspace typecheck
+- API tests
+- dashboard tests
+- customer tests
+- API build
+- dashboard build
+- customer web export/build
+
+Do NOT perform automated browser testing.
+
+I will manually test the Admin Portal.
+
+Do not deploy.
+
+--------------------------------------------------
+39. MANUAL ADMIN TEST CHECKLIST
+--------------------------------------------------
+
+After implementation, provide this checklist:
+
+1. Admin login.
+2. Admin Dashboard.
+3. Vendor list.
+4. Vendor search.
+5. Vendor details.
+6. Pending vendor approval.
+7. Vendor rejection.
+8. Vendor suspension.
+9. Vendor reactivation.
+10. Customer list.
+11. Customer search.
+12. Customer details.
+13. Customer deactivation.
+14. Customer reactivation.
+15. Delivery Partner list.
+16. Delivery Partner search.
+17. Create Delivery Partner.
+18. Duplicate username rejection.
+19. Invalid username rejection.
+20. Partner activation/deactivation.
+21. Partner reactivation.
+22. Active assignment warning before partner deactivation.
+23. Admin logout.
+24. Customer cannot access Admin Portal.
+25. Vendor cannot access Admin Portal.
+26. Delivery Partner cannot access Admin Portal.
+27. Admin Portal works on desktop.
+28. Admin tables scroll correctly.
+29. Existing customer/vendor/partner workflows still work.
+
+--------------------------------------------------
+40. IMPORTANT — NO ADMIN PORTAL FEATURE CREEP
+--------------------------------------------------
+
+Do NOT add:
+
+- Admin order editing
+- Admin stock editing
+- Admin product editing
+- Admin delivery execution
+- Admin customer impersonation
+- Admin password viewing
+- Admin password storage
+- Admin role assignment
+- Admin payment management
+- Vendor payouts
+- Financial accounting
+- GPS
+- maps
+- analytics platform
+- reporting platform
+- notification platform
+
+Those are separate future requirements.
+
+--------------------------------------------------
+41. IMPLEMENTATION APPROACH
+--------------------------------------------------
+
+Before coding:
+
+1. Inspect existing ADMIN role/authentication.
+2. Inspect user_profiles.
+3. Inspect vendor/store structure.
+4. Inspect customer structure.
+5. Inspect Delivery Partner structure.
+6. Inspect username registry.
+7. Inspect existing status transitions.
+8. Inspect existing partner provisioning service.
+9. Inspect existing authorization middleware.
+10. Inspect existing audit/event mechanisms.
+
+Reuse existing services.
+
+Do not duplicate business logic.
+
+--------------------------------------------------
+42. REQUIRED IMPLEMENTATION REPORT
+--------------------------------------------------
+
+After implementation provide:
+
+1. Files changed
+2. Admin routes/screens
+3. Admin authentication
+4. Vendor management
+5. Customer management
+6. Delivery Partner management
+7. Status workflows
+8. Auditability
+9. Authorization/security
+10. Database migrations, if any
+11. API endpoints
+12. Automated test results:
+    - passed
+    - failed
+    - skipped
+13. Typecheck/build results
+14. Regression results
+15. Known limitations
+16. Manual browser checklist
+
+IMPORTANT:
+
+Do NOT start Phase 10.
+
+Do NOT deploy to production.
+
+Do NOT modify production data.
+
+STOP after the Admin Portal implementation report.

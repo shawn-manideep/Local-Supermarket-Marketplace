@@ -5,6 +5,86 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AdminDashboardOutcomeDashboard = {
+  totalCustomers: number;
+  activeCustomers: number;
+  inactiveCustomers: number;
+  totalVendors: number;
+  pendingVendors: number;
+  activeVendors: number;
+  totalDeliveryPartners: number;
+  activeDeliveryPartners: number;
+  inactiveDeliveryPartners: number;
+};
+
+export interface AdminDashboardOutcome {
+  dashboard: AdminDashboardOutcomeDashboard;
+}
+
+export interface AdminManagementRow {
+  id: string;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  status: string | null;
+  createdAt: string;
+  /** @nullable */
+  storeId: string | null;
+  /** @nullable */
+  storeName: string | null;
+}
+
+export interface AdminManagementPage {
+  items: AdminManagementRow[];
+  partners?: AdminManagementRow[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export type AdminDetailOutcomeAccount = AdminManagementRow & ({
+  /** @nullable */
+  contactNumber: string | null;
+  /** @nullable */
+  orderCount: number | null;
+  activeAssignments: number;
+  allowedStatuses: string[];
+});
+
+export interface AdminDetailOutcome {
+  account: AdminDetailOutcomeAccount;
+}
+
+export type AdminVendorStatusInputStatus = typeof AdminVendorStatusInputStatus[keyof typeof AdminVendorStatusInputStatus];
+
+
+export const AdminVendorStatusInputStatus = {
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface AdminVendorStatusInput {
+  status: AdminVendorStatusInputStatus;
+}
+
+export type AdminAccountStatusInputStatus = typeof AdminAccountStatusInputStatus[keyof typeof AdminAccountStatusInputStatus];
+
+
+export const AdminAccountStatusInputStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export interface AdminAccountStatusInput {
+  status: AdminAccountStatusInputStatus;
+}
+
 export interface PartnerCredentials {
   /**
      * @minLength 3
@@ -105,6 +185,7 @@ export const PartnerStatusInputStatus = {
 
 export interface PartnerStatusInput {
   status: PartnerStatusInputStatus;
+  confirmActiveAssignments?: boolean;
 }
 
 export type PartnerDashboardOutcomeSummary = {
@@ -335,6 +416,59 @@ export interface HealthStatus {
   status: string;
 }
 
+export type ManagementPageParameter = number;
+
+export type ManagementPageSizeParameter = number;
+
+export type ManagementSearchParameter = string;
+
+export type ManagementStatusParameter = typeof ManagementStatusParameter[keyof typeof ManagementStatusParameter];
+
+
+export const ManagementStatusParameter = {
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  REJECTED: 'REJECTED',
+  INACTIVE: 'INACTIVE',
+} as const;
+
+export type ListAdminVendorsParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: ManagementPageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: ManagementPageSizeParameter;
+/**
+ * @maxLength 120
+ */
+search?: ManagementSearchParameter;
+status?: ManagementStatusParameter;
+};
+
+export type ListAdminCustomersParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: ManagementPageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: ManagementPageSizeParameter;
+/**
+ * @maxLength 120
+ */
+search?: ManagementSearchParameter;
+status?: ManagementStatusParameter;
+};
+
 export type GetEligibleDeliveryPartners200PartnersItemStatus = typeof GetEligibleDeliveryPartners200PartnersItemStatus[keyof typeof GetEligibleDeliveryPartners200PartnersItemStatus];
 
 
@@ -350,6 +484,24 @@ export type GetEligibleDeliveryPartners200PartnersItem = {
 
 export type GetEligibleDeliveryPartners200 = {
   partners: GetEligibleDeliveryPartners200PartnersItem[];
+};
+
+export type ListAdminDeliveryPartnersParams = {
+/**
+ * @minimum 1
+ * @maximum 100000
+ */
+page?: ManagementPageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: ManagementPageSizeParameter;
+/**
+ * @maxLength 120
+ */
+search?: ManagementSearchParameter;
+status?: ManagementStatusParameter;
 };
 
 export type PreviewCustomerReorderParams = {

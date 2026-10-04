@@ -17,7 +17,8 @@ import {
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, isUniqueViolation, validationDetails } from "../http.js";
-import { canTransitionStoreStatus, type StoreStatus } from "./status.js";
+import { type StoreStatus } from "./status.js";
+import { changeStoreStatus } from "./admin-status.js";
 
 export const storeManagementRouter = Router();
 
@@ -258,19 +259,8 @@ async function transitionStoreStatus(
   nextStatus: StoreStatus,
 ) {
   const storeId = requireUuidParam(request);
-  const store = await getStore(storeId);
-  if (!canTransitionStoreStatus(store.status as StoreStatus, nextStatus)) {
-    throw new HttpError(
-      409,
-      `Store cannot transition from ${store.status} to ${nextStatus}`,
-    );
-  }
-
-  const [updatedStore] = await getDb()
-    .update(stores)
-    .set({ status: nextStatus })
-    .where(eq(stores.id, storeId))
-    .returning();
+  const actorId = (request as AuthenticatedRequest).auth!.userId;
+  const updatedStore = await changeStoreStatus(storeId, nextStatus, actorId);
   response.json({ store: updatedStore });
 }
 

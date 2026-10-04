@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { eq } from "drizzle-orm";
+import { HttpError } from "../http.js";
 import type { AppRole } from "@workspace/shared-types";
 import { getSupabasePublicConfig } from "./config.js";
 import type { AuthContext, AuthenticatedRequest } from "./types.js";
@@ -37,7 +38,7 @@ async function resolveAuthContext(token: string): Promise<AuthContext | null> {
     return null;
   }
 
-  const { getDb, stores, userProfiles } = await import("@workspace/db");
+  const { customers, getDb, stores, userProfiles } = await import("@workspace/db");
   const db = getDb();
   const [profile] = await db
     .select({ role: userProfiles.role })
@@ -49,14 +50,25 @@ async function resolveAuthContext(token: string): Promise<AuthContext | null> {
     return null;
   }
 
+  if (profile.role === "customer") {
+    const [customer] = await db.select({ status: customers.status }).from(customers)
+      .where(eq(customers.id, user.id)).limit(1);
+    if (!customer || customer.status !== "ACTIVE") {
+      throw new HttpError(403, "Your customer account is inactive.", undefined, "CUSTOMER_INACTIVE");
+    }
+  }
+
   let storeId: string | null = null;
   if (profile.role === "vendor") {
     const [store] = await db
-      .select({ id: stores.id })
+      .select({ id: stores.id, status: stores.status })
       .from(stores)
       .where(eq(stores.ownerUserId, user.id))
       .limit(1);
     storeId = store?.id ?? null;
+    if (store?.status === "SUSPENDED" && profile.role === "vendor") {
+      throw new HttpError(403, "Your store is suspended. Contact the platform administrator.", undefined, "STORE_SUSPENDED");
+    }
   }
 
   return {

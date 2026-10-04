@@ -73,9 +73,24 @@ export const customers = pgTable("customers", {
     .references(() => userProfiles.id, { onDelete: "cascade" }),
   fullName: text("full_name"),
   phone: text("phone"),
+  status: text("status").notNull().default("ACTIVE"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, table => [check("customer_access_status_check", sql`${table.status} IN ('ACTIVE','INACTIVE')`)]);
+
+export const platformManagementEvents = pgTable("platform_management_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  actorUserId: uuid("actor_user_id").notNull(),
+  action: text("action").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: uuid("target_id").notNull(),
+  previousStatus: text("previous_status"),
+  nextStatus: text("next_status").notNull(),
+  createdAt: createdAt(),
+}, table => [
+  check("platform_management_events_target_type_check", sql`${table.targetType} IN ('store','customer','delivery_partner')`),
+  index("management_events_target_idx").on(table.targetType, table.targetId, table.createdAt),
+]);
 
 export const identityUsernames = pgTable("identity_usernames", {
   userId: uuid("user_id").primaryKey().references(() => userProfiles.id, { onDelete: "cascade" }),

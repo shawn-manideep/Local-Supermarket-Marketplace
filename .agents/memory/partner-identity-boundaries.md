@@ -15,8 +15,8 @@ Use the explicit ASCII 3–30-character username rule, including accepting the f
 
 **How to apply:** Preserve identical client/server rules and lowercase-only normalization of otherwise valid input; do not silently introduce a five-character minimum.
 
-The current product has only Customer, Vendor and Delivery Partner portals, with no Admin Portal. Do not create an Admin Portal/Dashboard or expose partner provisioning to Customer or Vendor users.
+The dedicated Admin Portal is now explicitly approved for account/store management. Partner provisioning remains Admin-only and must never be exposed to Customer or Vendor users.
 
-**Why:** The user explicitly corrected the product scope; backend administrative capabilities do not imply an approved administrative UI.
+**Why:** The user's Admin Portal brief explicitly superseded the earlier prohibition on an administrative UI, while retaining the existing email/password Admin authentication.
 
-**How to apply:** Manual partner acceptance uses guarded development-only server provisioning, not additional portal controls. Keep production and unrelated accounts untouched.
+**How to apply:** Reuse existing partner provisioning and identity rules through the Admin Portal. Keep production, unrelated accounts and operational customer/vendor/partner workflows untouched.
