@@ -39,16 +39,18 @@ The user has now manually verified Product Details, multi-variant selection, qua
 
 **How to apply:** Add reorder to existing order history without a Home, search, details, or cart redesign. Do not run automated browser acceptance, claim new manual acceptance, or deploy to production.
 
-Phases 1–7 are completed and manually accepted, including the Delivery Partner
-workflow and customer order status. Customer Home/Marketplace presentation and
-navigation refinements are now explicitly authorized, without rewriting the
-accepted shopping, reorder, stock, authorization or delivery business rules.
+Phases 1–8 are completed and manually accepted, including Delivery Partner
+workflow, customer order status, Home/Marketplace UX and the desktop scrolling
+correction. Preserve these accepted behaviors during release QA; do not redesign
+shopping, reorder, stock, authorization or delivery business rules.
 
-**Why:** The user explicitly confirmed acceptance in the Customer UX refinement
-brief; earlier no-Home-change restrictions were tied to narrower prior work.
+**Why:** The user explicitly confirmed Phases 1–8 acceptance in the release QA
+brief; QA permits minimal corrections only for concrete approved-requirement
+defects, not new features or redesign.
 
-**How to apply:** Preserve functional behavior and existing endpoints while
-refining shopping presentation. Reserve browser acceptance for the user.
+**How to apply:** Preserve functional behavior and existing endpoints. Run
+non-browser validation and reserve browser acceptance for the user; never claim
+the pending release checklist was manually executed by the agent.
 
 Distinguish an explicit Home action from Cart → Continue Shopping. Home should
 show Home; Continue Shopping should retain the relevant store/search/detail

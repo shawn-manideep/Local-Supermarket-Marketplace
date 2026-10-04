@@ -1,0 +1,1048 @@
+PHASE 9 — COMPLETE END-TO-END QA & RELEASE READINESS
+
+PROJECT:
+Local Supermarket Marketplace
+
+OBJECTIVE:
+Perform a comprehensive end-to-end QA, security, data-integrity, regression, and release-readiness validation of the completed marketplace.
+
+PHASES 1–8 ARE COMPLETE AND MANUALLY ACCEPTED.
+
+The approved system now includes:
+
+- Customer Portal
+- Vendor Portal
+- Delivery Partner Portal
+- Master Catalog
+- Vendor Store/Product Management
+- Product Variants
+- Customer Global Search
+- Cart
+- Reorder / Buy Again
+- Stock Management
+- Vendor Order Management
+- Delivery Partner Assignment
+- Delivery Workflow
+- Customer Delivery Status
+- Customer Home/Marketplace UX
+
+There is NO Admin Portal.
+
+Do not create an Admin Portal as part of Phase 9.
+
+--------------------------------------------------
+1. CRITICAL PHASE 9 RULE
+--------------------------------------------------
+
+PHASE 9 IS A QA / RELEASE READINESS PHASE.
+
+Do NOT make broad feature changes.
+
+Do NOT redesign architecture.
+
+Do NOT add new business features.
+
+Do NOT introduce new product requirements.
+
+Do NOT start deployment.
+
+Do NOT modify production.
+
+Do NOT create an Admin Portal.
+
+Only make a code change if testing identifies a concrete defect that prevents an approved requirement from working correctly.
+
+For every defect found:
+
+1. Identify the root cause.
+2. Explain the impact.
+3. Make the smallest safe correction.
+4. Add a regression test.
+5. Re-run affected tests.
+6. Re-run relevant regression tests.
+
+If no defect is found:
+
+DO NOT modify code merely for the sake of making changes.
+
+--------------------------------------------------
+2. RELEASE CANDIDATE PRINCIPLE
+--------------------------------------------------
+
+Treat the current codebase as a release candidate.
+
+Validate the complete business journey:
+
+CUSTOMER
+→ SEARCH
+→ PRODUCT
+→ VARIANT
+→ CART
+→ CHECKOUT
+→ ORDER
+
+VENDOR
+→ ACCEPT
+→ PREPARING
+→ READY
+→ ASSIGN DELIVERY PARTNER
+
+DELIVERY PARTNER
+→ ACCEPT DUTY
+→ PICKUP
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+CUSTOMER
+→ SEES DELIVERY STATUS
+→ SEES DELIVERED ORDER
+→ BUY AGAIN
+
+Validate the entire chain without bypassing normal APIs.
+
+--------------------------------------------------
+3. CUSTOMER END-TO-END JOURNEY
+--------------------------------------------------
+
+Validate:
+
+A. Customer login
+
+B. Customer Home
+
+C. Available supermarkets
+
+D. Store selection
+
+E. Global search without category
+
+F. Search results
+
+G. Product Details
+
+H. Multiple variant selection
+
+I. Single-variant behavior
+
+J. Quantity selection
+
+K. Add to Cart
+
+L. Contextual Cart
+
+M. One-store cart rule
+
+N. Checkout
+
+O. Order creation
+
+P. Order history
+
+Q. Buy Again
+
+R. Active order visibility
+
+S. Delivery status
+
+T. Logout/login persistence
+
+Verify the entire flow uses server-authoritative data.
+
+--------------------------------------------------
+4. CUSTOMER AUTHENTICATION
+--------------------------------------------------
+
+Verify:
+
+- valid login
+- invalid login
+- logout
+- expired/invalid session handling
+- protected route access
+- account switching
+- customer isolation
+
+Customer A must not access Customer B's:
+
+- orders
+- addresses
+- cart
+- reorder history
+- personal data
+
+Do not expose internal IDs unnecessarily.
+
+--------------------------------------------------
+5. MASTER CATALOG REGRESSION
+--------------------------------------------------
+
+Verify:
+
+- Master Catalog remains intact.
+- Vendor can search globally.
+- Vendor can add a master product to My Store.
+- Duplicate selection reuses the existing store listing.
+- Multiple variants remain supported.
+- Vendor commercial configuration remains store-specific.
+- Master Catalog does not contain vendor stock or price.
+- Archived master products cannot be newly selected.
+- Existing historical data remains intact.
+
+Do not redesign the catalog.
+
+--------------------------------------------------
+6. VENDOR PRODUCT REGRESSION
+--------------------------------------------------
+
+Verify vendor can:
+
+- view My Store
+- manage own products
+- configure price
+- configure stock
+- configure variants
+- enable/disable availability
+- add multiple variants
+- update stock
+
+Verify:
+
+Vendor A cannot modify Vendor B products or stock.
+
+Vendor cannot modify:
+
+- Master Catalog commercial data
+- historical order snapshots
+- another store's inventory
+
+--------------------------------------------------
+7. CUSTOMER SEARCH REGRESSION
+--------------------------------------------------
+
+Test searches such as:
+
+- rice
+- milk
+- eggs
+- apple
+
+Verify:
+
+- category is not required
+- results are relevant
+- selected store context is preserved
+- unavailable products are represented correctly
+- exact stock is not exposed
+- product details open correctly
+- back navigation works
+
+Verify empty search results and API failure states.
+
+--------------------------------------------------
+8. VARIANT REGRESSION
+--------------------------------------------------
+
+Test products with:
+
+- one variant
+- multiple variants
+- different units
+- different prices
+- zero stock
+- unavailable state
+
+Verify:
+
+- correct variant reaches cart
+- correct price is used
+- correct quantity is used
+- variant identity is preserved
+- unavailable variants cannot be ordered
+
+Do not introduce automatic unit conversion.
+
+--------------------------------------------------
+9. CART REGRESSION
+--------------------------------------------------
+
+Verify:
+
+- Add item
+- Increase quantity
+- Decrease quantity
+- Remove item
+- Continue shopping
+- Checkout
+- Empty cart
+- Cart store context
+- One-store cart rule
+
+Cross-store behavior:
+
+Customer has Store A cart.
+
+Customer attempts to add Store B product.
+
+Expected:
+
+- clear conflict
+- decline preserves Store A cart
+- confirmation replaces cart according to existing approved behavior
+
+Do not silently merge stores.
+
+--------------------------------------------------
+10. STOCK END-TO-END
+--------------------------------------------------
+
+Validate the complete inventory lifecycle.
+
+Example:
+
+Initial stock:
+10
+
+Customer orders:
+3
+
+Expected:
+7
+
+Then verify:
+
+- zero stock becomes non-orderable
+- insufficient stock is rejected
+- stock cannot become negative
+- concurrent checkout cannot oversell
+- failed multi-item checkout does not partially deduct
+- duplicate checkout does not double-deduct
+- permitted cancellation/rejection restoration is exactly once
+
+Delivery actions must NOT change stock.
+
+Verify:
+
+READY
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+does not change inventory.
+
+--------------------------------------------------
+11. ORDER CREATION
+--------------------------------------------------
+
+Verify successful order creation:
+
+- creates exactly one order
+- creates correct order items
+- captures current price
+- captures correct product/variant identity
+- captures historical snapshots
+- creates initial status history
+- deducts stock exactly once
+- clears/converts cart according to approved behavior
+
+If any order creation step fails:
+
+- transaction rolls back
+- no partial order
+- no partial stock deduction
+
+--------------------------------------------------
+12. ORDER SNAPSHOT INTEGRITY
+--------------------------------------------------
+
+Create an order.
+
+Then change:
+
+- current product name if permitted
+- current price
+- current stock
+- availability
+- vendor configuration
+
+Verify the historical order remains unchanged where snapshots are authoritative.
+
+Historical price must remain the price used at purchase.
+
+Do not rewrite historical orders.
+
+--------------------------------------------------
+13. REORDER / BUY AGAIN
+--------------------------------------------------
+
+Verify:
+
+- exact historical product identity
+- exact historical variant identity
+- exact historical store identity
+- current price
+- current availability
+- current stock/orderability
+- no substitutions
+- no historical price restoration
+
+If old item is unavailable:
+
+Show unavailable state.
+
+Do not silently select another product or variant.
+
+Cross-store cart conflicts must use the existing confirmation.
+
+--------------------------------------------------
+14. VENDOR ORDER WORKFLOW
+--------------------------------------------------
+
+Validate:
+
+PLACED
+→ ACCEPTED
+→ PREPARING
+→ READY
+
+Verify vendor can:
+
+- see New Orders
+- open order details
+- see correct product
+- see correct variant
+- see quantity
+- see unit price
+- see total
+- see fulfillment information
+- accept
+- reject when permitted
+- start preparing
+- mark ready
+
+Verify vendor cannot bypass legal transitions.
+
+Vendor dispatch/completion overrides must remain blocked.
+
+--------------------------------------------------
+15. DELIVERY ASSIGNMENT
+--------------------------------------------------
+
+Use a new READY order.
+
+Verify:
+
+Vendor sees eligible ACTIVE Delivery Partners.
+
+Vendor can assign one.
+
+Vendor cannot assign:
+
+- inactive partner
+- customer
+- vendor
+- nonexistent partner
+- partner to another vendor's order
+
+Vendor A cannot manipulate Vendor B's assignment.
+
+Verify one active assignment per order.
+
+--------------------------------------------------
+16. DELIVERY PARTNER WORKFLOW
+--------------------------------------------------
+
+Validate:
+
+PENDING
+→ ACCEPTED
+→ PICKED_UP
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Verify:
+
+- partner sees only own assignments
+- partner can accept own pending assignment
+- partner can reject own pending assignment
+- rejection leaves order READY
+- vendor can assign another partner after rejection
+- pickup requires acceptance
+- Start Delivery requires pickup
+- Mark Delivered requires OUT_FOR_DELIVERY
+- delivered assignment cannot be delivered twice
+
+Verify unauthorized partners cannot manipulate another partner's assignment.
+
+--------------------------------------------------
+17. CUSTOMER DELIVERY STATUS
+--------------------------------------------------
+
+Verify customer sees:
+
+READY
+
+then:
+
+OUT_FOR_DELIVERY
+
+then:
+
+DELIVERED
+
+The customer should use the existing order endpoint/history.
+
+Do not create a second tracking system.
+
+Do not expose internal assignment IDs.
+
+Do not expose unnecessary partner information.
+
+--------------------------------------------------
+18. DELIVERY DATA PRIVACY
+--------------------------------------------------
+
+Delivery Partner may only see information required to fulfill an assigned order.
+
+Verify partner cannot access:
+
+- unrelated customer accounts
+- unrelated orders
+- unrelated addresses
+- another partner's deliveries
+- vendor private data
+- customer authentication data
+
+Customer cannot see:
+
+- internal partner IDs
+- internal assignment IDs
+- private partner account information
+- exact inventory
+
+--------------------------------------------------
+19. ROLE ISOLATION MATRIX
+--------------------------------------------------
+
+Explicitly test:
+
+CUSTOMER:
+- own customer data only
+- no vendor controls
+- no partner controls
+
+VENDOR:
+- own store only
+- no customer account controls
+- no partner-only delivery actions
+
+DELIVERY_PARTNER:
+- own assignments only
+- no vendor catalog management
+- no vendor stock management
+- no arbitrary order access
+
+ADMIN BACKEND:
+- existing backend administrative functions only
+
+There is NO Admin Portal.
+
+Do not create one.
+
+--------------------------------------------------
+20. AUTHENTICATION REGRESSION
+--------------------------------------------------
+
+Verify:
+
+Customer:
+- existing email/password login
+
+Vendor:
+- existing email/password login
+
+Delivery Partner:
+- username/password login
+
+Existing authentication architecture must remain compatible.
+
+Verify logout and account switching.
+
+Verify a logged-out user cannot reuse cached protected data.
+
+--------------------------------------------------
+21. USERNAME REGRESSION
+--------------------------------------------------
+
+Verify:
+
+- 3–30 characters
+- leading letter
+- allowed characters
+- case-insensitive uniqueness
+- reserved names
+- immutable username
+- no plaintext passwords in application database
+- Delivery Partner username login works
+
+Existing customer/vendor email login must remain unaffected.
+
+--------------------------------------------------
+22. SECURITY / AUTHORIZATION REVIEW
+--------------------------------------------------
+
+Inspect all new/changed endpoints for:
+
+- authentication requirement
+- role validation
+- ownership validation
+- store scoping
+- partner scoping
+- customer scoping
+- IDOR protection
+- request validation
+- server-authoritative price
+- server-authoritative stock
+- server-authoritative role
+
+Do not trust:
+
+- client role
+- client store ID
+- client vendor ID
+- client partner ID
+- client price
+- client stock
+- client availability
+
+--------------------------------------------------
+23. API RESPONSE PRIVACY
+--------------------------------------------------
+
+Customer responses must not expose:
+
+- exact stock
+- internal stock fields
+- private vendor codes
+- unnecessary internal IDs
+- internal timestamps
+- database implementation details
+
+Partner responses must not expose unrelated customer/vendor data.
+
+Vendor responses must not expose other vendors' private data.
+
+--------------------------------------------------
+24. CONCURRENCY REVIEW
+--------------------------------------------------
+
+Verify critical concurrent operations:
+
+A. Two customers consume same stock.
+
+B. Two requests submit same checkout.
+
+C. Two partners accept competing assignments.
+
+D. Two pickup requests.
+
+E. Two Start Delivery requests.
+
+F. Two Mark Delivered requests.
+
+G. Vendor assigns partner concurrently.
+
+Expected:
+
+- no duplicate state transitions
+- no duplicate active assignment
+- no negative stock
+- no duplicate delivery completion
+- no duplicate order
+- no partial transaction
+
+--------------------------------------------------
+25. LEGACY DEVELOPMENT DATA
+--------------------------------------------------
+
+IMPORTANT:
+
+Phase 7 reported one legacy development order that is already:
+
+OUT_FOR_DELIVERY
+
+without a delivery assignment.
+
+DO NOT automatically backfill it.
+
+DO NOT change it silently.
+
+During QA:
+
+- document it
+- verify it remains untouched
+- verify it does not create a false regression
+- determine whether it requires a separately approved cleanup later
+
+Do not modify this record unless explicitly authorized.
+
+--------------------------------------------------
+26. DATABASE INTEGRITY
+--------------------------------------------------
+
+Run development-only integrity checks.
+
+Verify:
+
+- no orphaned orders
+- no orphaned order items
+- no invalid delivery assignments
+- no duplicate active assignment per order
+- no negative stock
+- no invalid role/profile relationships
+- no duplicate usernames
+- no broken foreign keys
+- no historical snapshot mutation
+
+Compare important pre/post fingerprints where practical.
+
+Do not modify production.
+
+--------------------------------------------------
+27. MIGRATION REVIEW
+--------------------------------------------------
+
+Review all marketplace migrations through the current phase.
+
+Verify:
+
+- migrations are ordered correctly
+- migrations are additive where expected
+- no destructive migration was introduced accidentally
+- development database is consistent
+- production migrations have NOT been run
+
+Do not create another migration unless a concrete defect requires it.
+
+--------------------------------------------------
+28. PERFORMANCE / UX SANITY
+--------------------------------------------------
+
+Perform a lightweight review for:
+
+- excessive API requests
+- obvious infinite loops
+- broken loading states
+- broken empty states
+- long blocking operations
+- duplicate network requests
+- console/runtime errors
+- unhandled promise failures
+
+Do not perform a broad performance optimization project.
+
+Document issues rather than introducing speculative optimizations.
+
+--------------------------------------------------
+29. RESPONSIVE CUSTOMER QA
+--------------------------------------------------
+
+Manually verify the accepted Phase 8 correction at:
+
+Desktop:
+1440 × 900 approximately
+
+Tablet:
+1024 × 768 approximately
+
+Mobile:
+390 × 844 approximately
+
+Verify:
+
+- vertical scrolling
+- product grid
+- product cards
+- search
+- category scrolling
+- contextual cart bar
+- Product Details
+- Cart
+- checkout
+- active order
+- delivery status
+
+No horizontal overflow or inaccessible content.
+
+--------------------------------------------------
+30. AUTOMATED TESTING
+--------------------------------------------------
+
+Run the complete existing automated test suite.
+
+Do NOT perform automated browser journeys.
+
+Include:
+
+- API
+- database/integration
+- authentication
+- customer
+- dashboard/vendor
+- delivery partner
+- shopping/reorder
+- inventory
+- order workflow
+- delivery workflow
+
+Report:
+
+- passed
+- failed
+- skipped
+
+For every skipped test:
+
+Explain why.
+
+Do not hide failures by skipping them.
+
+--------------------------------------------------
+31. BUILD VALIDATION
+--------------------------------------------------
+
+Run:
+
+- full workspace typecheck
+- API build
+- dashboard build
+- Customer web export/build
+- relevant generated contract validation
+
+No production deployment.
+
+--------------------------------------------------
+32. MANUAL BROWSER QA CHECKLIST
+--------------------------------------------------
+
+After automated QA, provide one consolidated manual checklist covering:
+
+CUSTOMER:
+
+1. Login
+2. Home
+3. Store selection
+4. Search
+5. Product Details
+6. Variants
+7. Cart
+8. Checkout
+9. Order
+10. Reorder
+11. Active order
+12. Delivery status
+13. Logout
+14. Mobile/tablet/desktop
+
+VENDOR:
+
+15. Login
+16. Product management
+17. Stock
+18. New Orders
+19. Accept
+20. Preparing
+21. Ready
+22. Assign Partner
+23. Delivery progress
+
+DELIVERY PARTNER:
+
+24. Login
+25. Dashboard
+26. New assignment
+27. Accept Duty
+28. Reject Duty
+29. Pickup
+30. Start Delivery
+31. Mark Delivered
+32. Own-assignment isolation
+33. Logout
+
+CROSS-ROLE:
+
+34. Customer cannot access vendor controls
+35. Customer cannot access partner controls
+36. Vendor cannot access partner controls
+37. Partner cannot access vendor controls
+38. Partner cannot access another partner's assignment
+39. Vendor cannot access another vendor's order
+40. Customer cannot access another customer's order
+
+--------------------------------------------------
+33. RELEASE BLOCKERS
+--------------------------------------------------
+
+Classify findings as:
+
+BLOCKER
+- security issue
+- data corruption
+- incorrect stock deduction
+- overselling
+- unauthorized access
+- broken order creation
+- broken delivery lifecycle
+- historical data mutation
+- production migration risk
+
+HIGH
+- major business workflow failure
+- major portal failure
+- significant customer inability to shop
+
+MEDIUM
+- non-critical workflow issue
+- recoverable UI problem
+
+LOW
+- cosmetic issue
+- minor visual inconsistency
+
+The application is NOT release-ready if any BLOCKER remains.
+
+--------------------------------------------------
+34. FIX POLICY
+--------------------------------------------------
+
+If a BLOCKER/HIGH defect is found:
+
+- fix the smallest possible scope
+- add regression coverage
+- rerun affected tests
+- rerun full relevant regression
+- document the fix
+
+If only LOW issues exist:
+
+Do not expand the project unnecessarily.
+
+Document them as known limitations.
+
+--------------------------------------------------
+35. PRODUCTION READINESS REVIEW
+--------------------------------------------------
+
+Review, but DO NOT execute deployment:
+
+GitHub:
+- correct repository
+- correct branch
+- no secrets committed
+- no development-only credentials committed
+- no temporary test passwords committed
+- no debug artifacts
+
+Environment:
+- required variables documented
+- production variables separated from development
+- no hardcoded credentials
+- no development Supabase project accidentally configured for production
+
+Database:
+- migration history understood
+- production migration plan documented
+- no production migration executed
+
+Backend:
+- production API build works
+- health endpoint available
+
+Frontend:
+- production API URL configurable
+- Supabase production configuration configurable
+
+Do not deploy.
+
+--------------------------------------------------
+36. PRODUCTION DEPLOYMENT IS PHASE 10
+--------------------------------------------------
+
+Do NOT:
+
+- deploy to Vercel
+- deploy to Railway
+- run production Supabase migrations
+- connect production domain
+- change DNS
+- switch production environment variables
+
+Phase 9 only determines whether the application is ready for Phase 10.
+
+--------------------------------------------------
+37. FINAL RELEASE DECISION
+--------------------------------------------------
+
+At the end provide a clear decision:
+
+RELEASE READY
+or
+NOT RELEASE READY
+
+If NOT RELEASE READY:
+
+List each blocker with:
+
+- issue
+- affected area
+- root cause
+- recommended fix
+
+If RELEASE READY:
+
+Provide:
+
+- confirmed test totals
+- confirmed builds
+- confirmed security checks
+- confirmed data integrity
+- known non-blocking limitations
+- exact Phase 10 prerequisites
+
+--------------------------------------------------
+38. REQUIRED FINAL REPORT
+--------------------------------------------------
+
+Create:
+
+docs/PHASE9_E2E_RELEASE_READINESS_REPORT.md
+
+Include:
+
+1. Scope
+2. Environment
+3. Automated test results
+4. Integration test results
+5. Authentication results
+6. Customer results
+7. Vendor results
+8. Delivery Partner results
+9. Inventory results
+10. Order lifecycle results
+11. Delivery lifecycle results
+12. Security/authorization results
+13. Data integrity results
+14. Responsive/manual QA checklist
+15. Known legacy development data
+16. Defects found
+17. Defects fixed
+18. Remaining limitations
+19. Build results
+20. Production readiness review
+21. Final RELEASE READY / NOT RELEASE READY decision
+
+IMPORTANT:
+
+Do not start Phase 10.
+
+Do not deploy.
+
+STOP after the Phase 9 report.
