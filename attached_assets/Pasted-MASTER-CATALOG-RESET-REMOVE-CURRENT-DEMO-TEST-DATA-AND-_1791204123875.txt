@@ -1,0 +1,320 @@
+MASTER CATALOG RESET — REMOVE CURRENT DEMO/TEST DATA AND ENABLE MY OWN CATALOG
+
+We need to reset the current Master Catalog because the existing categories and products are not the catalog I want to use.
+
+I want to start with my own grocery categories and products.
+
+IMPORTANT:
+This is a controlled catalog-data cleanup and Master Catalog authoring change only.
+
+DO NOT modify:
+- Customer accounts
+- Vendor accounts
+- Delivery Partner accounts
+- Admin authentication
+- Vendor stores
+- Vendor-specific prices
+- Vendor stock
+- Vendor variants unless directly required by an existing demo master listing
+- Carts
+- Orders
+- Order history
+- Historical order snapshots
+- Delivery assignments
+- Delivery workflow
+- Inventory/order deduction logic
+- Customer shopping logic
+- Reorder logic
+
+Before making changes, inspect the current Master Catalog implementation and identify exactly which master categories/products are existing test/demo/sample records.
+
+==================================================
+1. IDENTIFY CURRENT MASTER CATALOG DATA
+==================================================
+
+Inspect the current database/schema and determine:
+
+- Current master categories
+- Current master products
+- Which records are demo/test/sample data
+- Which master products/categories have already been selected by vendors
+- Which master products/categories are referenced by existing vendor listings
+- Which records are referenced by carts/orders/history
+
+DO NOT blindly delete all records.
+
+Create a clear classification:
+
+A. Safe demo/test records with no business references
+B. Demo/test records that have vendor references
+C. Records referenced by orders/history
+D. Records that appear to be genuine/current business data
+
+Only the records confirmed to be demo/test data should be reset.
+
+==================================================
+2. RESET DEMO MASTER CATALOG
+==================================================
+
+My goal is to start with my own Master Catalog.
+
+For demo/test master categories and products that have NO protected business references:
+
+- Remove them safely OR archive them according to the existing Master Catalog lifecycle.
+- Prefer the existing archive mechanism if hard deletion would violate existing integrity rules.
+- Do not bypass database constraints.
+- Do not disable foreign keys or RLS to force deletion.
+
+For demo/test records that are already referenced by vendor listings, carts, orders, or history:
+
+DO NOT hard-delete them.
+
+Instead:
+- Preserve the records required for referential integrity.
+- Archive/deactivate them where supported.
+- Ensure they do not appear as active choices in the new Master Catalog.
+
+Historical orders must remain unchanged.
+
+==================================================
+3. DO NOT DELETE VENDOR DATA
+==================================================
+
+This is extremely important.
+
+If a vendor has previously selected a demo master product, do NOT delete the vendor's store product/listing merely because the master demo product is being retired.
+
+Do not destroy vendor commercial data.
+
+Do not change:
+
+- vendor price
+- vendor stock
+- vendor availability
+- vendor SKU
+- vendor variants
+
+If a demo master record must remain for referential integrity, mark it archived/inactive and prevent new vendor selection.
+
+Existing historical relationships must remain valid.
+
+==================================================
+4. MASTER CATALOG SHOULD BECOME PLATFORM-OWNED
+==================================================
+
+Going forward, the Admin is responsible for creating and maintaining:
+
+- Master Categories
+- Master Products
+
+Vendors should NOT create arbitrary master categories/products.
+
+Vendor workflow remains:
+
+Master Catalog
+→ Select Product
+→ Add to My Store
+→ Configure own price/stock/variants
+
+A vendor selecting a product must NOT create it globally for other vendors.
+
+==================================================
+5. ADMIN MASTER CATEGORY MANAGEMENT
+==================================================
+
+Ensure Admin has a clear Master Category management interface.
+
+Admin must be able to:
+
+- Create Master Category
+- View Master Categories
+- Edit Master Category
+- Activate/deactivate/archive Master Category
+- Search/filter categories
+
+Example categories that I may create later:
+
+Rice & Grains
+Pulses
+Atta & Flours
+Edible Oils
+Spices
+Dry Fruits
+Sugar & Salt
+Biscuits
+Snacks
+Beverages
+Dairy
+Personal Care
+Household
+etc.
+
+Do NOT automatically create these examples.
+
+I will create my own actual categories.
+
+Master Category IDs must remain stable after creation.
+
+Do not allow accidental identity changes through editing.
+
+==================================================
+6. ADMIN MASTER PRODUCT MANAGEMENT
+==================================================
+
+Ensure Admin can create Master Products.
+
+Required information should use the fields already supported by the existing Master Catalog architecture.
+
+At minimum support the existing canonical fields such as:
+
+- Category
+- Product Name
+- Brand
+- Description
+- Image
+- Active/Archived status
+
+Do not invent unnecessary fields.
+
+Master Product ID must be generated by the system/database and must remain immutable.
+
+Admin must be able to:
+
+- Create product
+- Search product
+- Edit product
+- Archive/deactivate product
+- Reactivate product where allowed
+
+Do not hard-delete products that have protected references.
+
+==================================================
+7. VENDOR CATALOG BEHAVIOR
+==================================================
+
+After the reset:
+
+Vendor Portal should show the clean Master Catalog containing only active platform master records.
+
+Vendor must be able to:
+
+- Browse master categories
+- Search master products
+- Select a master product
+- Add it to My Store
+
+Selecting a product for Vendor A must NOT automatically add it to Vendor B.
+
+Vendor A and Vendor B must maintain independent:
+
+- Price
+- Stock
+- Availability
+- Selling configuration
+- Variants
+
+==================================================
+8. CUSTOMER BEHAVIOR
+==================================================
+
+Customer should continue seeing only products that are actually available through the selected vendor/store.
+
+Do not expose the Master Catalog directly to customers.
+
+Do not change customer marketplace behavior except where necessary to reflect the cleaned active catalog.
+
+==================================================
+9. EXCEL COMPATIBILITY
+==================================================
+
+This reset must remain compatible with the planned Admin Excel Master Catalog workflow.
+
+The eventual workflow will be:
+
+Admin
+→ Download Current Catalog Excel
+→ Edit Excel
+→ Upload Excel
+→ Validate
+→ Preview
+→ Confirm
+→ Apply
+
+The Master Catalog database remains the source of truth.
+
+Do not create a separate Excel database/table.
+
+==================================================
+10. SAFETY / DATABASE PROTECTION
+==================================================
+
+Before modifying data:
+
+- Produce a report of the records that will be affected.
+- Confirm whether each record is referenced.
+- Do not perform destructive deletion of protected records.
+- Do not alter historical order snapshots.
+- Do not alter customer order history.
+- Do not alter vendor commercial data.
+
+If a migration is required, make it narrowly scoped and idempotent.
+
+Do not modify unrelated migrations.
+
+==================================================
+11. TESTING
+==================================================
+
+Run only focused existing automated tests/typechecks/builds relevant to this change.
+
+Do NOT perform automated browser testing.
+
+After implementation, provide manual browser test steps for me.
+
+Manual test should include:
+
+1. Admin opens Master Catalog.
+2. Existing demo/test products are no longer active.
+3. Admin creates a new category.
+4. Admin creates a new master product under that category.
+5. Product appears in Master Catalog.
+6. Vendor opens Master Catalog.
+7. Vendor can find the new product.
+8. Vendor adds it to My Store.
+9. Another vendor does not automatically receive it.
+10. Vendor can configure independent price/stock/availability.
+11. Customer sees the product only through a vendor that has selected it.
+12. Existing orders/history remain unchanged.
+
+==================================================
+12. IMPLEMENTATION REPORT
+==================================================
+
+Create/update:
+
+docs/MASTER_CATALOG_RESET_REPORT.md
+
+Report:
+
+- Current demo/test records identified
+- Records archived/removed
+- Records intentionally preserved
+- Why protected records were preserved
+- Database migrations/files changed
+- Admin category functionality
+- Admin product functionality
+- Vendor behavior
+- Customer behavior
+- Tests/typecheck/build results
+- Any limitations
+
+IMPORTANT FINAL RULE:
+
+Do not add a new sample grocery catalog.
+
+I will create my own categories and products.
+
+The final Master Catalog should be clean and ready for me to populate.
+
+Do not proceed to any unrelated feature after this task.
+STOP after implementation and provide the report.
