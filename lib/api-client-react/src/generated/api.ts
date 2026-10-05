@@ -56,7 +56,11 @@ import type {
   ReorderOutcome,
   ReorderPreview,
   ReorderSubmission,
-  StockFailure
+  StockFailure,
+  StoreProfileInput,
+  StoreProfileOutcome,
+  VendorProfileInput,
+  VendorProvisionInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -557,6 +561,88 @@ export function useGetAdminManagementDashboard<TData = Awaited<ReturnType<typeof
 
 
 
+export const getCreateAdminVendorUrl = () => {
+
+
+
+
+  return `/api/admin/vendors`
+}
+
+export const createAdminVendor = async (vendorProvisionInput: VendorProvisionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminDetailOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminDetailOutcome>(getCreateAdminVendorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(vendorProvisionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminVendorMutationKey = () => ['createAdminVendor'] as const;
+
+export const getCreateAdminVendorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminVendor>>, TError,CreateAdminVendorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminVendor>>, TError,CreateAdminVendorMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminVendorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminVendor>>, CreateAdminVendorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminVendor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminVendorMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminVendor>>>
+    export type CreateAdminVendorMutationBody = BodyType<VendorProvisionInput>
+    export type CreateAdminVendorMutationError = ErrorType<void>
+    export type CreateAdminVendorMutationVariables = {data: BodyType<VendorProvisionInput>}
+
+    export const useCreateAdminVendor = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminVendor>>, TError,CreateAdminVendorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminVendor>>,
+        TError,
+        CreateAdminVendorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminVendorMutationOptions(options));
+    }
+
 export const getListAdminVendorsUrl = (params?: ListAdminVendorsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -634,6 +720,89 @@ export function useListAdminVendors<TData = Awaited<ReturnType<typeof listAdminV
 
 
 
+
+export const getUpdateAdminVendorProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${id}`
+}
+
+export const updateAdminVendorProfile = async (id: string,
+    vendorProfileInput: VendorProfileInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminDetailOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminDetailOutcome>(getUpdateAdminVendorProfileUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(vendorProfileInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminVendorProfileMutationKey = () => ['updateAdminVendorProfile'] as const;
+
+export const getUpdateAdminVendorProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminVendorProfile>>, TError,UpdateAdminVendorProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminVendorProfile>>, TError,UpdateAdminVendorProfileMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminVendorProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminVendorProfile>>, UpdateAdminVendorProfileMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAdminVendorProfile(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminVendorProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminVendorProfile>>>
+    export type UpdateAdminVendorProfileMutationBody = BodyType<VendorProfileInput>
+    export type UpdateAdminVendorProfileMutationError = ErrorType<void>
+    export type UpdateAdminVendorProfileMutationVariables = {id: string;data: BodyType<VendorProfileInput>}
+
+    export const useUpdateAdminVendorProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminVendorProfile>>, TError,UpdateAdminVendorProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminVendorProfile>>,
+        TError,
+        UpdateAdminVendorProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminVendorProfileMutationOptions(options));
+    }
 
 export const getGetAdminVendorUrl = (id: string,) => {
 
@@ -787,6 +956,241 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getChangeAdminVendorStatusMutationOptions(options));
+    }
+
+export const getLoginVendorUsernameUrl = () => {
+
+
+
+
+  return `/api/vendor/login`
+}
+
+export const loginVendorUsername = async (partnerCredentials: PartnerCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerSessionOutcome>(getLoginVendorUsernameUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(partnerCredentials)
+  }
+);}
+
+
+
+
+
+export const getLoginVendorUsernameMutationKey = () => ['loginVendorUsername'] as const;
+
+export const getLoginVendorUsernameMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginVendorUsername>>, TError,LoginVendorUsernameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginVendorUsername>>, TError,LoginVendorUsernameMutationVariables, TContext> => {
+
+const mutationKey = getLoginVendorUsernameMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginVendorUsername>>, LoginVendorUsernameMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginVendorUsername(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginVendorUsernameMutationResult = NonNullable<Awaited<ReturnType<typeof loginVendorUsername>>>
+    export type LoginVendorUsernameMutationBody = BodyType<PartnerCredentials>
+    export type LoginVendorUsernameMutationError = ErrorType<void>
+    export type LoginVendorUsernameMutationVariables = {data: BodyType<PartnerCredentials>}
+
+    export const useLoginVendorUsername = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginVendorUsername>>, TError,LoginVendorUsernameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loginVendorUsername>>,
+        TError,
+        LoginVendorUsernameMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoginVendorUsernameMutationOptions(options));
+    }
+
+export const getGetVendorStoreProfileUrl = () => {
+
+
+
+
+  return `/api/vendor/store`
+}
+
+export const getVendorStoreProfile = async ( options?: Parameters<typeof customFetch>[1]): Promise<StoreProfileOutcome> => {
+
+  return customFetch<StoreProfileOutcome>(getGetVendorStoreProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVendorStoreProfileQueryKey = () => {
+    return [
+    `/api/vendor/store`
+    ] as const;
+    }
+
+
+export const getGetVendorStoreProfileQueryOptions = <TData = Awaited<ReturnType<typeof getVendorStoreProfile>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorStoreProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVendorStoreProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVendorStoreProfile>>> = ({ signal }) => getVendorStoreProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVendorStoreProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVendorStoreProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getVendorStoreProfile>>>
+export type GetVendorStoreProfileQueryError = ErrorType<unknown>
+
+
+
+export function useGetVendorStoreProfile<TData = Awaited<ReturnType<typeof getVendorStoreProfile>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVendorStoreProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVendorStoreProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateVendorStoreProfileUrl = () => {
+
+
+
+
+  return `/api/vendor/store`
+}
+
+export const updateVendorStoreProfile = async (storeProfileInput: StoreProfileInput, options?: Parameters<typeof customFetch>[1]): Promise<StoreProfileOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StoreProfileOutcome>(getUpdateVendorStoreProfileUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(storeProfileInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateVendorStoreProfileMutationKey = () => ['updateVendorStoreProfile'] as const;
+
+export const getUpdateVendorStoreProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendorStoreProfile>>, TError,UpdateVendorStoreProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVendorStoreProfile>>, TError,UpdateVendorStoreProfileMutationVariables, TContext> => {
+
+const mutationKey = getUpdateVendorStoreProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVendorStoreProfile>>, UpdateVendorStoreProfileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateVendorStoreProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVendorStoreProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateVendorStoreProfile>>>
+    export type UpdateVendorStoreProfileMutationBody = BodyType<StoreProfileInput>
+    export type UpdateVendorStoreProfileMutationError = ErrorType<unknown>
+    export type UpdateVendorStoreProfileMutationVariables = {data: BodyType<StoreProfileInput>}
+
+    export const useUpdateVendorStoreProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendorStoreProfile>>, TError,UpdateVendorStoreProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVendorStoreProfile>>,
+        TError,
+        UpdateVendorStoreProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateVendorStoreProfileMutationOptions(options));
     }
 
 export const getListAdminCustomersUrl = (params?: ListAdminCustomersParams,) => {

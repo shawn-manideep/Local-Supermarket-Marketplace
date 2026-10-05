@@ -1,8 +1,17 @@
 import { Router } from "express";
 import { requireAuth } from "./middleware.js";
+import { vendorLoginSchema } from "@workspace/validation/vendor-profile";
+import { asyncHandler, HttpError, validationDetails } from "../http.js";
+import { loginVendor } from "../admin-management/vendor-profile.js";
 import type { AuthenticatedRequest } from "./types.js";
 
 export const authRouter = Router();
+authRouter.post("/api/vendor/login", asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const input = vendorLoginSchema.safeParse(req.body);
+  if (!input.success) throw new HttpError(400, "Invalid vendor credentials", validationDetails(input.error));
+  res.json(await loginVendor(input.data.username, input.data.password));
+}));
 
 authRouter.get("/api/auth/me", requireAuth(), async (request, response, next) => {
   const auth = (request as AuthenticatedRequest).auth;

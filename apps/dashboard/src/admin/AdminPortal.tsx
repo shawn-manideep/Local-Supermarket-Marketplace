@@ -4,10 +4,12 @@ import { ApiRequestError } from "../api";
 import { AdminMasterCatalogPanel } from "../AdminMasterCatalogPanel";
 import {
   changeAdminStatus,
+  createAdminVendor,
   createAdminPartner,
   getAdminAccount,
   getAdminDashboard,
   listAdminAccounts,
+  updateAdminVendor,
   type AccountStatus,
   type AdminDashboard,
   type AdminDetail,
@@ -15,6 +17,9 @@ import {
   type AdminPage,
   type AdminRow,
 } from "../admin-api";
+import { partnerProvisionSchema, storeUpdateSchema, usernameSchema } from "@workspace/validation";
+import { StoreProfileFields } from "../StoreProfileFields";
+import { readWeeklyHours, WeeklyHoursFields } from "../WeeklyHoursFields";
 import "./admin.css";
 
 type Section = "dashboard" | AdminKind | "profile" | "master-catalog";
@@ -47,6 +52,16 @@ const fallbackError = (error: unknown, purpose: string) => {
     return error.message || `The ${purpose} request could not be completed.`;
   }
   return `The ${purpose} request could not be completed. Check your connection and try again.`;
+};
+const vendorProfileError = (error: unknown, purpose: string) => {
+  if (error instanceof ApiRequestError && error.details?.length) {
+    const fieldMessages = error.details.map((issue) => {
+      const path = issue.path?.filter((part) => typeof part === "string").join(".");
+      return path ? `${path}: ${issue.message || "Invalid value"}` : issue.message || "Invalid value";
+    });
+    return `Please review the vendor profile: ${fieldMessages.join(" · ")}`;
+  }
+  return fallbackError(error, purpose);
 };
 const isDestructive = (status: string) => ["SUSPENDED", "REJECTED", "INACTIVE"].includes(status);
 const statusOptions: Record<AdminKind, Array<{ value: string; label: string }>> = {
@@ -276,7 +291,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           <div className="lb-admin-detail-head"><div><p className="lb-admin-eyebrow">Account record</p><h2>{detail?.displayName || "Account details"}</h2></div><button className="lb-admin-close" type="button" onClick={closeDetail} aria-label="Close details">×</button></div>
           {detailLoading && <div className="lb-admin-loading" aria-label="Loading account details"><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div>}
           {detailError && <div className="lb-admin-message error" role="alert">{detailError}{detailTarget && <button className="lb-admin-row-action" type="button" onClick={() => openDetail(detailTarget.kind, detailTarget.id)}>Try again</button>}</div>}
-          {detail && section !== "dashboard" && section !== "profile" && section !== "master-catalog" && <AccountDetail kind={section} account={detail} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} />}
+          {detail && section !== "dashboard" && section !== "profile" && section !== "master-catalog" && <AccountDetail kind={section} account={detail} token={token} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} onSaved={async () => { await refreshDetail(section, detail.id); reload(); setMessage({ text: "Vendor store profile saved.", kind: "success" }); }} />}
         </aside>
       </div>}
     </div>
@@ -350,6 +365,10 @@ function AccountDirectory({ kind, token, revision, onOpen, onProvisioned }: { ki
       <div className="lb-admin-panel-head"><div><h2>Provision a partner login</h2><span className="lb-admin-secondary">Creates a Delivery Partner account through the existing secure flow.</span></div><button className={`lb-admin-button ${showProvision ? "" : "primary"}`} type="button" onClick={() => setShowProvision((current) => !current)}>{showProvision ? "Close form" : "Add partner"}</button></div>
       {showProvision && <ProvisionForm token={token} onCancel={() => setShowProvision(false)} onComplete={(text) => { setShowProvision(false); setSearch(""); setSearchReady(""); setStatus(""); setPageNumber(1); onProvisioned(text); setFetchIndex((value) => value + 1); }} />}
     </section>}
+    {kind === "vendors" && <section className="lb-admin-panel lb-admin-provision">
+      <div className="lb-admin-panel-head"><div><h2>Create a vendor & store</h2><span className="lb-admin-secondary">Provision a login and complete neighborhood store profile.</span></div><button className={`lb-admin-button ${showProvision ? "" : "primary"}`} type="button" onClick={() => setShowProvision((current) => !current)}>{showProvision ? "Close form" : "Add vendor"}</button></div>
+      {showProvision && <VendorProvisionForm token={token} onCancel={() => setShowProvision(false)} onComplete={(text) => { setShowProvision(false); setSearch(""); setSearchReady(""); setStatus(""); setPageNumber(1); onProvisioned(text); setFetchIndex((value) => value + 1); }} />}
+    </section>}
     <div className="lb-admin-toolbar" style={{ marginTop: kind === "delivery-partners" ? 20 : 0 }}>
       <label className="lb-admin-search-wrap"><span className="lb-admin-search-icon" aria-hidden="true">⌕</span><input className="lb-admin-search" type="search" placeholder={`Search ${kindLabel[kind].toLowerCase()}…`} aria-label={`Search ${kindLabel[kind].toLowerCase()}`} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
       <select aria-label="Filter by status" value={status} onChange={(event) => resetStatus(event.target.value)}>{statusOptions[kind].map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select>
@@ -358,7 +377,7 @@ function AccountDirectory({ kind, token, revision, onOpen, onProvisioned }: { ki
     {error && <div className="lb-admin-message error" role="alert">{error}<button className="lb-admin-row-action" type="button" onClick={() => setFetchIndex((value) => value + 1)}>Try again</button></div>}
     <section className="lb-admin-panel">
       {loading && !page ? <div className="lb-admin-loading" aria-label={`Loading ${kindLabel[kind]}`}><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div> : error && !page ? <div className="lb-admin-empty"><strong>Directory could not be loaded</strong>Retry to check your permission and connection.</div> : page && page.items.length === 0 ? <div className="lb-admin-empty"><strong>No {kindLabel[kind].toLowerCase()} found</strong>{searchReady || status ? "Adjust the search or status filter and try again." : `No ${kindLabel[kind].toLowerCase()} are available yet.`}</div> : page && <>
-        <div className="lb-admin-table-wrap"><table className="lb-admin-table"><thead><tr><th>{title}</th>{kind === "vendors" && <th>Store status</th>}<th>{kind === "delivery-partners" ? "Username" : "Email / username"}</th><th>Created</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>
+        <div className="lb-admin-table-wrap"><table className="lb-admin-table"><thead><tr><th>{title}</th>{kind === "vendors" && <><th>Owner</th><th>Location</th><th>Store status</th></>}<th>{kind === "delivery-partners" || kind === "vendors" ? "Username" : "Email / username"}</th><th>Created</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>
           {page.items.map((row) => <AccountRow key={row.id} kind={kind} row={row} onOpen={() => onOpen(kind, row.id)} />)}
         </tbody></table></div>
         <div className="lb-admin-pagination"><span>Showing {start}–{end} of {page.total.toLocaleString("en-IN")} · Page {page.page} of {Math.max(1, Math.ceil(page.total / page.pageSize))}</span><div className="lb-admin-page-actions"><button type="button" disabled={loading || page.page <= 1} onClick={() => setPageNumber((current) => Math.max(1, current - 1))}>Previous</button><button type="button" disabled={loading || page.page * page.pageSize >= page.total} onClick={() => setPageNumber((current) => current + 1)}>Next</button></div></div>
@@ -372,9 +391,10 @@ function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onO
   const storeStatus = kind === "vendors" ? row.status : null;
   const accountStatus = kind === "vendors" ? (row.storeId ? row.status : null) : row.status;
   return <tr>
-    <td><span className="lb-admin-person">{kind === "vendors" ? row.storeName || "Not linked" : display}</span><span className="lb-admin-secondary">{kind === "vendors" ? display : row.username ? `@${row.username}` : "Account"}</span></td>
+    <td><span className="lb-admin-person">{kind === "vendors" ? row.storeName || "Not linked" : display}</span><span className="lb-admin-secondary">{kind === "vendors" ? [row.locality, row.city, row.pincode].filter(Boolean).join(" · ") || "Location not provided" : row.username ? `@${row.username}` : "Account"}</span></td>
+    {kind === "vendors" && <><td>{row.ownerName || "—"}</td><td>{[row.locality, row.city, row.pincode].filter(Boolean).join(", ") || "—"}</td></>}
     {kind === "vendors" && <td><StatusPill value={storeStatus} fallback={row.storeId ? "Unknown" : "Not linked"} /></td>}
-    <td>{kind === "delivery-partners" ? row.username || "—" : row.email || row.username || "—"}{kind !== "delivery-partners" && row.email && row.username && <span className="lb-admin-secondary">@{row.username}</span>}</td>
+    <td>{kind === "delivery-partners" || kind === "vendors" ? row.username || "—" : row.email || row.username || "—"}{kind !== "delivery-partners" && kind !== "vendors" && row.email && row.username && <span className="lb-admin-secondary">@{row.username}</span>}</td>
     <td>{formatDate(row.createdAt)}</td>
     <td><StatusPill value={accountStatus} fallback={row.storeId || kind !== "vendors" ? "Unknown" : "Not linked"} /></td>
     <td><button className="lb-admin-row-action" type="button" onClick={onOpen}>View details</button></td>
@@ -384,7 +404,9 @@ function StatusPill({ value, fallback }: { value: string | null; fallback: strin
   return <span className={`lb-admin-status ${statusClass(value)}`}>{value ? titleCaseStatus(value) : fallback}</span>;
 }
 
-function AccountDetail({ kind, account, busy, onStatus }: { kind: AdminKind; account: AdminDetail; busy: boolean; onStatus: (status: string) => void }) {
+function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind: AdminKind; account: AdminDetail; token: string; busy: boolean; onStatus: (status: string) => void; onSaved: () => void }) {
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const noVendorStore = kind === "vendors" && !account.storeId;
   const fields: Array<[string, string]> = [
     ["Display name", account.displayName || "—"],
@@ -394,19 +416,61 @@ function AccountDetail({ kind, account, busy, onStatus }: { kind: AdminKind; acc
     ["Account ID", account.id],
     ["Created", formatDate(account.createdAt)],
   ];
-  if (kind === "vendors") fields.splice(3, 0, ["Shop", account.storeName || "Not linked"], ["Store ID", account.storeId || "—"]);
+  if (kind === "vendors") fields.splice(3, 0, ["Shop", account.store?.name || account.storeName || "Not linked"], ["Owner", account.ownerName || account.store?.ownerName || "—"], ["City", account.city || account.store?.city || "—"], ["Locality", account.locality || account.store?.locality || "—"], ["Pincode", account.pincode || account.store?.pincode || "—"], ["Store ID", account.storeId || "—"]);
   if (kind !== "vendors" && account.orderCount !== null) fields.push(["Order count", String(account.orderCount)]);
   if (kind === "delivery-partners") fields.push(["Active assignments", String(account.activeAssignments)]);
   return <>
+    {kind === "vendors" && account.store && <form className="lb-admin-panel lb-admin-vendor-edit" onSubmit={async (event) => {
+      event.preventDefault(); if (savingProfile) return;
+      setSavingProfile(true); setProfileError("");
+      const form = new FormData(event.currentTarget);
+      const optional = (name: string) => String(form.get(name) ?? "").trim() || null;
+      try {
+        await updateAdminVendor(account.id, token, {
+          name: String(form.get("name") ?? "").trim(), ownerName: String(form.get("ownerName") ?? "").trim(),
+          phone: optional("phone"), email: optional("email"), description: optional("description"),
+          logoImageUrl: optional("logoImageUrl"), addressLine1: String(form.get("addressLine1") ?? "").trim(),
+          addressLine2: optional("addressLine2"), locality: String(form.get("locality") ?? "").trim(),
+          city: String(form.get("city") ?? "").trim(), state: String(form.get("state") ?? "").trim(),
+          pincode: String(form.get("pincode") ?? "").trim(),
+          deliveryFee: Number(form.get("deliveryFee") ?? 0), minimumOrderValue: Number(form.get("minimumOrderValue") ?? 0),
+          hours: readWeeklyHours(form),
+        });
+        onSaved();
+      } catch (error) { setProfileError(vendorProfileError(error, "vendor profile update")); }
+      finally { setSavingProfile(false); }
+    }}>
+      <div className="lb-admin-panel-head"><div><h3>Edit store profile</h3><span className="lb-admin-secondary">Login identity and status are managed separately.</span></div></div>
+      <StoreProfileFields values={account.store} disabled={savingProfile} />
+      <section className="lb-admin-hours-form lb-admin-edit-hours">
+        <div className="lb-admin-form-section"><h3>Weekly operating hours</h3><p>Edit all seven days. Closed days do not include opening or closing times.</p></div>
+        <WeeklyHoursFields hours={account.hours} disabled={savingProfile} />
+      </section>
+      {profileError && <div className="lb-admin-message error" role="alert">{profileError}</div>}
+      <div className="lb-admin-provision-footer"><span className="lb-admin-note">Username and password cannot be changed here.</span><button className="lb-admin-button primary" type="submit" disabled={savingProfile}>{savingProfile ? "Saving…" : "Save profile"}</button></div>
+    </form>}
     <div className="lb-admin-account-grid">
       {fields.map(([label, value]) => <div className="lb-admin-field" key={label}><label>{label}</label><input value={value} readOnly /></div>)}
       <div className="lb-admin-field"><label>{kind === "vendors" ? "Store status" : "Account status"}</label><input value={account.status ? titleCaseStatus(account.status) : noVendorStore ? "Not linked" : "Unknown"} readOnly /></div>
     </div>
     {kind === "delivery-partners" && account.activeAssignments > 0 && <div className="lb-admin-message notice" style={{ marginTop: 17 }}>This partner has {account.activeAssignments} active assignment{account.activeAssignments === 1 ? "" : "s"}. Deactivation preserves existing duties and blocks partner operations; this portal will not cancel or reassign work.</div>}
+    {kind === "vendors" && account.store && <VendorDetailGroups account={account} />}
+    {kind === "vendors" && account.hours && account.hours.length > 0 && <section className="lb-admin-panel lb-admin-detail-hours"><div className="lb-admin-panel-head"><h3>Operations · operating hours</h3></div><div>{account.hours.slice().sort((a,b) => a.dayOfWeek-b.dayOfWeek).map((hour) => <div className="lb-admin-hour-line" key={hour.dayOfWeek}><strong>{["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][hour.dayOfWeek]}</strong><span>{hour.isClosed ? "Closed" : `${hour.opensAt?.slice(0,5) ?? "—"}–${hour.closesAt?.slice(0,5) ?? "—"}`}</span></div>)}</div></section>}
     {noVendorStore && <div className="lb-admin-message notice" style={{ marginTop: 17 }}>No store is linked to this vendor. Store status changes are unavailable until a store is associated.</div>}
     {!noVendorStore && account.allowedStatuses.length > 0 && <div className="lb-admin-detail-actions">{account.allowedStatuses.filter((status) => status !== account.status).map((status) => <button key={status} className={`lb-admin-button ${isDestructive(status) ? "danger" : "primary"}`} type="button" disabled={busy} onClick={() => onStatus(status)}>{busy ? "Updating…" : actionLabel(kind, account.status, status)}</button>)}</div>}
     {account.allowedStatuses.length === 0 && !noVendorStore && <p className="lb-admin-note" style={{ marginTop: 18 }}>No status changes are currently permitted for this account.</p>}
   </>;
+}
+
+function VendorDetailGroups({ account }: { account: AdminDetail }) {
+  const store = account.store!;
+  const line = [store.addressLine1, store.addressLine2, store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ");
+  return <div className="lb-admin-vendor-groups">
+    <section><h3>Owner</h3><p>{store.ownerName || account.ownerName || "—"} · {store.phone || account.contactNumber || "No mobile"} · {store.email || account.email || "No email"}</p></section>
+    <section><h3>Store</h3><p>{store.name}</p><p>{store.description || "No store description provided."}</p>{store.logoImageUrl && <a href={store.logoImageUrl} target="_blank" rel="noreferrer">View store logo</a>}</section>
+    <section><h3>Store location</h3><p>{line || "Store address not provided."}</p></section>
+    <section><h3>Operations</h3><p>Delivery fee ₹{store.deliveryFee} · Minimum order ₹{store.minimumOrderValue}</p></section>
+  </div>;
 }
 function actionLabel(kind: AdminKind, current: string | null, next: string) {
   if (kind === "vendors") {
@@ -418,6 +482,75 @@ function actionLabel(kind: AdminKind, current: string | null, next: string) {
   if (next === "ACTIVE") return current === "INACTIVE" ? "Reactivate access" : "Activate access";
   if (next === "INACTIVE") return "Deactivate access";
   return `Set ${titleCaseStatus(next)}`;
+}
+
+function VendorProvisionForm({ token, onCancel, onComplete }: { token: string; onCancel: () => void; onComplete: (text: string) => void }) {
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const clearSecrets = () => {
+    if (passwordRef.current) passwordRef.current.value = "";
+    if (confirmRef.current) confirmRef.current.value = "";
+  };
+  useEffect(() => () => clearSecrets(), []);
+  const cancel = () => { clearSecrets(); onCancel(); };
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
+    const form = new FormData(event.currentTarget);
+    const usernameResult = usernameSchema.safeParse(String(form.get("username") ?? ""));
+    const password = passwordRef.current?.value ?? "";
+    const confirmPassword = confirmRef.current?.value ?? "";
+    const passwordResult = partnerProvisionSchema.shape.password.safeParse(password);
+    const phone = String(form.get("phone") ?? "").trim();
+    const phoneResult = storeUpdateSchema.shape.phone.safeParse(phone || null);
+    if (!usernameResult.success) { setError(usernameResult.error.issues[0]?.message || "Enter a valid username."); clearSecrets(); return; }
+    if (!passwordResult.success) { setError(passwordResult.error.issues[0]?.message || "Password does not meet the existing policy."); clearSecrets(); return; }
+    if (password !== confirmPassword) { setError("Passwords do not match."); clearSecrets(); return; }
+    if (!phoneResult.success) { setError(phoneResult.error.issues[0]?.message || "Enter a valid Indian mobile number."); clearSecrets(); return; }
+    const optional = (name: string) => String(form.get(name) ?? "").trim() || null;
+    const hours = readWeeklyHours(form);
+    setSaving(true); setError("");
+    try {
+      await createAdminVendor(token, {
+        username: usernameResult.data, password,
+        name: String(form.get("name") ?? "").trim(), ownerName: String(form.get("ownerName") ?? "").trim(),
+        phone: phone || null, email: optional("email"), description: optional("description"), logoImageUrl: optional("logoImageUrl"),
+        addressLine1: String(form.get("addressLine1") ?? "").trim(), addressLine2: optional("addressLine2"),
+        locality: String(form.get("locality") ?? "").trim(), city: String(form.get("city") ?? "").trim(),
+        state: String(form.get("state") ?? "").trim(), pincode: String(form.get("pincode") ?? "").trim(),
+        deliveryFee: Number(form.get("deliveryFee") || 0), minimumOrderValue: Number(form.get("minimumOrderValue") || 0),
+        hours,
+      });
+      clearSecrets();
+      onComplete(`Vendor “${usernameResult.data}” created and marked pending approval. The password is not shown or retained.`);
+    } catch (createError) {
+      setError(vendorProfileError(createError, "vendor creation"));
+      clearSecrets();
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <form onSubmit={(event) => void submit(event)}>
+    {error && <div className="lb-admin-message error" role="alert" style={{ margin: "15px 17px 0" }}>{error}</div>}
+    <section className="lb-admin-form-block">
+      <div className="lb-admin-form-section"><h3>Vendor login</h3><p>Credentials are used only to provision the secure vendor account. <span className="lb-required-note">* Required</span></p></div>
+      <div className="lb-admin-provision-grid">
+        <div className="lb-admin-field"><label htmlFor="vendor-create-username">Username <span className="lb-required-mark" aria-hidden="true">*</span></label><input id="vendor-create-username" name="username" autoComplete="off" maxLength={30} required /></div>
+        <div className="lb-admin-field"><label htmlFor="vendor-create-password">Password <span className="lb-required-mark" aria-hidden="true">*</span></label><input id="vendor-create-password" ref={passwordRef} type="password" autoComplete="new-password" minLength={8} maxLength={128} required /></div>
+        <div className="lb-admin-field"><label htmlFor="vendor-create-confirm">Confirm password <span className="lb-required-mark" aria-hidden="true">*</span></label><input id="vendor-create-confirm" ref={confirmRef} type="password" autoComplete="new-password" minLength={8} maxLength={128} required /></div>
+      </div>
+    </section>
+    <section className="lb-admin-form-block">
+      <StoreProfileFields disabled={saving} />
+    </section>
+    <section className="lb-admin-form-block lb-admin-hours-form">
+      <div className="lb-admin-form-section"><h3>Weekly operations</h3><p>Set the store’s opening hours. Closed is the default for each day.</p></div>
+      <WeeklyHoursFields disabled={saving} />
+    </section>
+    <div className="lb-admin-provision-footer"><p className="lb-admin-note">New stores start in Pending approval. No catalog items are added automatically.</p><div style={{ display: "flex", gap: 8 }}><button className="lb-admin-button" type="button" onClick={cancel} disabled={saving}>Cancel</button><button className="lb-admin-button primary" type="submit" disabled={saving}>{saving ? "Creating vendor…" : "Create vendor"}</button></div></div>
+  </form>;
 }
 
 function ProvisionForm({ token, onCancel, onComplete }: { token: string; onCancel: () => void; onComplete: (text: string) => void }) {

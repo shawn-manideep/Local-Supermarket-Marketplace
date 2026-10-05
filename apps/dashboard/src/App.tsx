@@ -7,6 +7,7 @@ import { DeliveryPartnerPortal } from "./DeliveryPartnerPortal";
 import { DeliveryPartnerLogin } from "./DeliveryPartnerLogin";
 import { AdminPortal } from "./admin/AdminPortal";
 import { matchesAdminPath } from "./admin/route-access";
+import { usernameSchema } from "@workspace/validation";
 
 type Role = "customer" | "vendor" | "admin" | "delivery_partner";
 type AuthProfile = { auth: { userId: string; role: Role; storeId: string | null } };
@@ -126,6 +127,29 @@ export default function App() {
     if (!supabase) return;
     setAuthLoading(true);
     try {
+      if (!adminMode && !email.trim().includes("@")) {
+        const parsed = usernameSchema.safeParse(email);
+        if (!parsed.success) {
+          setAuthError(parsed.error.issues[0]?.message || "Enter a valid vendor username.");
+          setPassword("");
+          setAuthLoading(false);
+          return;
+        }
+        const response = await apiRequest<{ session: { access_token: string; refresh_token: string } }>("/api/vendor/login", "", {
+          method: "POST",
+          body: JSON.stringify({ username: email, password }),
+        });
+        const { error } = await supabase.auth.setSession(response.session);
+        if (error) throw new Error("Your session could not be established. Please sign in again.");
+        setPassword("");
+        return;
+      }
+      if (adminMode && !email.trim().includes("@")) {
+        setAuthError("Admin sign-in requires your administrator email address.");
+        setPassword("");
+        setAuthLoading(false);
+        return;
+      }
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -137,8 +161,9 @@ export default function App() {
       } else {
         setPassword("");
       }
-    } catch {
-      setAuthError("Sign-in could not reach the authentication service. Try again.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Sign-in could not reach the authentication service. Try again.");
+      setPassword("");
     } finally {
       setAuthLoading(false);
     }
@@ -173,7 +198,7 @@ export default function App() {
           <h1>{adminMode ? "Admin Portal sign in" : "Sign in to store management"}</h1>
           <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : "Use your marketplace account to manage stores, catalog, and orders."}</p>
           {authError && <div className="auth-error" role="alert">{authError}</div>}
-          <label>Email address<input data-testid="input-email" autoComplete="email" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="email" value={email} required /></label>
+          <label>{adminMode ? "Email address" : "Email or vendor username"}<input data-testid="input-email" autoComplete={adminMode || email.includes("@") ? "email" : "username"} onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type={adminMode ? "email" : "text"} value={email} required /></label>
           <label>Password<input data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} type="password" value={password} required /></label>
           <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
           {!adminMode && <button className="text-button" onClick={() => selectPortal(true)} type="button">Delivery Partner sign in</button>}

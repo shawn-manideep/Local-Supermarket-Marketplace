@@ -1,0 +1,442 @@
+REPLIT PROMPT — Vendor Store Location + Admin Vendor Creation
+Objective
+Enhance the existing Vendor Profile and Admin Portal with two related capabilities:
+1. Add complete physical store location details to the existing Vendor/Store Profile.
+2. Allow an Admin to create and provision new Vendor accounts directly from the Admin Portal.
+The existing application architecture, authentication, Master Catalog, vendor product ownership, customer shopping, cart, orders, stock, delivery partner workflow, and historical order data must remain intact.
+Do not redesign or replace the existing Vendor architecture. Extend it safely.
+PART 1 — FIX THE CURRENT VENDOR PROFILE
+Current Problem
+The existing Vendor Profile does not contain sufficient physical store location information.
+A vendor represents an actual supermarket/store, so the platform needs to know where that store is located.
+The location information must be associated with the vendor/store, not with individual products.
+Add Store Location Information
+Extend the existing Vendor/Store profile with:
+Basic Store Information
+- Shop Name
+- Owner Name
+- Mobile Number
+- Email
+- Store Description
+- Store Logo
+Physical Store Address
+Add:
+- Address Line 1
+- Address Line 2
+- Area / Locality
+- City
+- State
+- Pincode
+For the current Indian market, ensure the form works naturally with Indian addresses.
+Example:
+Shop Name:
+Sri Lakshmi Supermarket
+
+Address Line 1:
+Plot No. 12, Main Road
+
+Address Line 2:
+Near Community Hall
+
+Area / Locality:
+Pragathi Nagar
+
+City:
+Hyderabad
+
+State:
+Telangana
+
+Pincode:
+500090
+
+Location Ownership
+The location belongs to the Vendor/Store profile.
+Do NOT add location fields to:
+- Master Products
+- Vendor Products
+- Product Variants
+- Orders as mutable vendor profile data
+Orders must continue to preserve their existing historical snapshots.
+If the current order architecture already stores an appropriate delivery/store address snapshot, do not replace or modify that mechanism unnecessarily.
+PART 2 — ADMIN CAN CREATE VENDORS
+Add a controlled Add Vendor workflow inside the existing Admin Portal.
+Navigation:
+Admin Portal
+    ↓
+Vendors
+    ↓
++ Add Vendor
+
+The Admin should be able to create a complete Vendor account and Store Profile from this screen.
+VENDOR CREATION FORM
+Organize the form into clear sections.
+Section 1 — Vendor Login / Account
+Fields:
+- Username
+- Password
+- Confirm Password
+Use the project's existing authentication architecture.
+Username Rules
+Reuse the existing username foundation and validation already implemented in the project.
+Do NOT create a second username system.
+The username must:
+- Be globally unique according to the existing implementation
+- Follow the existing username validation rules
+- Be normalized consistently
+- Not be editable later if the existing architecture treats usernames as immutable
+Do not store passwords in plaintext.
+Use the existing secure authentication mechanism.
+Section 2 — Vendor / Owner Details
+Fields:
+- Owner Name
+- Mobile Number
+- Email
+Use the existing validation conventions.
+Do not introduce a second authentication mechanism.
+Section 3 — Store Details
+Fields:
+- Shop Name
+- Store Description
+- Store Logo
+The Shop Name should represent the customer's visible store name.
+Section 4 — Physical Store Location
+Add:
+- Address Line 1
+- Address Line 2
+- Area / Locality
+- City
+- State
+- Pincode
+Make the required fields clearly distinguishable.
+Recommended required fields:
+- Shop Name
+- Address Line 1
+- Area / Locality
+- City
+- State
+- Pincode
+Address Line 2 can remain optional.
+Section 5 — Store Operations
+Only use fields that already exist in the current Vendor/Store architecture.
+If supported by the existing schema, allow:
+- Opening Time
+- Closing Time
+- Delivery Available
+- Minimum Order Amount
+Do not create duplicate fields if equivalent fields already exist.
+Reuse existing database columns and business logic wherever possible.
+Section 6 — Vendor Status
+Use the existing vendor/store status model.
+Do not create a new status enum if the current system already has:
+PENDING_APPROVAL
+ACTIVE
+SUSPENDED
+REJECTED
+
+Recommended Admin creation behavior:
+Admin creates Vendor
+        ↓
+Vendor created
+        ↓
+PENDING_APPROVAL
+        ↓
+Admin reviews
+        ↓
+ACTIVE
+
+If the existing Admin architecture intentionally allows Admin-created vendors to become ACTIVE immediately, preserve that existing convention rather than introducing a conflicting workflow.
+ADMIN VENDOR LIST
+Improve the existing Admin → Vendors list to display useful store information.
+Recommended columns:
+Field	Purpose
+Shop Name	Store identity
+Owner Name	Vendor owner
+Username	Login identity
+City	Store location
+Area / Locality	Store location
+Pincode	Store location
+Status	Account/store status
+Created Date	Admin reference
+Actions	View/Edit/Status
+
+
+Do not expose sensitive information such as passwords.
+VENDOR DETAILS PAGE
+When Admin opens a vendor, show the complete profile.
+Organize it as:
+Account
+- Username
+- Status
+- Created Date
+Owner
+- Owner Name
+- Mobile
+- Email
+Store
+- Shop Name
+- Description
+- Logo
+Store Location
+- Address Line 1
+- Address Line 2
+- Area / Locality
+- City
+- State
+- Pincode
+Operations
+- Existing supported operational fields
+EDIT VENDOR
+Admin should be able to edit appropriate Vendor/Store profile information.
+Admin may update:
+- Owner information
+- Contact information
+- Shop information
+- Store address/location
+- Existing supported store settings
+- Store status
+Do NOT allow Admin to change:
+- Password by directly writing into the database
+- Historical orders
+- Historical order snapshots
+- Vendor-owned product price
+- Vendor-owned stock
+- Vendor-owned availability
+- Vendor-specific selling configuration
+If password reset already exists in the authentication architecture, reuse it.
+IMPORTANT PRODUCT OWNERSHIP RULE
+Adding a Vendor through Admin must NOT automatically add products to that Vendor.
+After the Vendor account is created:
+Admin creates Vendor
+        ↓
+Vendor Store exists
+        ↓
+Vendor logs into Vendor Portal
+        ↓
+Vendor opens Master Catalog
+        ↓
+Vendor selects products
+        ↓
+Selected products become that Vendor's store listings
+
+Vendor A and Vendor B remain completely independent.
+For example:
+Master Catalog
+     │
+     ├── Basmati Rice
+     ├── Sugar
+     └── Cooking Oil
+     
+     ↓
+
+Vendor A
+ ├── Basmati Rice
+ └── Sugar
+
+Vendor B
+ ├── Sugar
+ └── Cooking Oil
+
+Vendor A selecting Basmati Rice must never automatically add it to Vendor B.
+IMPORTANT COMMERCIAL DATA RULE
+Creating or editing a Vendor profile must never modify:
+- Vendor product price
+- Stock
+- Available quantity
+- Selling unit
+- Pack configuration
+- Vendor-specific variants
+- SKU/external codes
+- Promotions
+- Orders
+These remain vendor-owned.
+CUSTOMER-FACING STORE LOCATION
+Where the existing customer UI displays a store/vendor, use the new location information where appropriate.
+At minimum, the customer should be able to understand:
+Sri Lakshmi Supermarket
+Pragathi Nagar
+Hyderabad
+Telangana
+500090
+
+Do not expose unnecessary internal database information.
+Do not add GPS/maps/location tracking unless already supported by the existing architecture.
+This task is about store address/location information, not live GPS.
+DATABASE REQUIREMENTS
+Before changing the schema:
+1. Inspect the existing Vendor/Store tables.
+2. Identify where the canonical vendor/store profile is currently stored.
+3. Reuse existing columns wherever possible.
+4. Add only genuinely missing location fields.
+5. Do not create a duplicate Vendor table.
+6. Do not create a second Store table if one already exists.
+Use a proper migration for any required schema changes.
+Do not modify production.
+Apply migration only to the development environment.
+API REQUIREMENTS
+Reuse the existing Admin Vendor APIs where possible.
+If missing, add appropriate server-side endpoints for:
+POST   /api/admin/vendors
+GET    /api/admin/vendors
+GET    /api/admin/vendors/:vendorId
+PATCH  /api/admin/vendors/:vendorId
+
+Do not blindly create these routes if equivalent routes already exist.
+All Admin Vendor operations must require existing server-side ADMIN authorization.
+Never rely only on frontend route protection.
+VALIDATION
+Validate on the server.
+At minimum:
+Required
+- Shop Name
+- Owner Name
+- Username
+- Password during creation
+- Address Line 1
+- Area / Locality
+- City
+- State
+- Pincode
+Pincode
+Use appropriate Indian pincode validation.
+Username
+Reuse the existing shared username validation.
+Password
+Reuse the existing authentication/password policy.
+Duplicate Vendor
+Prevent accidental duplicate vendor accounts according to the existing identity rules.
+Do not create duplicate stores for the same authenticated identity.
+SECURITY
+Admin-only operations must remain protected by:
+Authentication
++
+Server-side ADMIN role authorization
+
+A normal Vendor must not be able to call Admin Vendor creation/update APIs.
+A Customer must not be able to call them.
+A Delivery Partner must not be able to call them.
+Do not expose passwords or authentication secrets in:
+- API responses
+- logs
+- Admin UI
+- database queries
+- frontend state
+UI DESIGN
+Use the shared UI design system already established for the project.
+Do not create a separate Admin-specific visual language.
+Use the existing project tokens:
+- Primary Blue: #2563EB
+- Deep Navy: #1E3A8A
+- Light Blue: #F6F4FF
+- White: #FFFFFF
+- Primary Text: rgb(31,41,55)
+- Secondary Text: rgb(75,85,99)
+- Light Text: rgb(156,163,175)
+- Border: rgb(229,231,235)
+- Success: #10B981
+- Error: #EF4444
+Use:
+- Inter / existing fallback font
+- 16px rounded corners
+- subtle shadows
+- clean cards
+- consistent form controls
+- consistent buttons
+- responsive layout
+Reuse existing shared components instead of creating duplicate UI components.
+DO NOT CHANGE
+This task must NOT modify the behavior of:
+- Customer shopping
+- Master Catalog ownership
+- Vendor product selection
+- Vendor pricing
+- Vendor stock
+- Cart
+- Checkout
+- Orders
+- Reorder
+- Delivery Partner workflow
+- Delivery assignment
+- Delivery execution
+- Admin customer management
+- Admin delivery partner management
+- Historical order snapshots
+Do not introduce GPS tracking.
+Do not introduce payments.
+Do not introduce maps.
+Do not introduce notifications.
+Do not deploy.
+Do not run automated browser tests.
+TESTING
+Add focused tests for:
+Admin authorization
+- Admin can create Vendor
+- Non-admin cannot create Vendor
+- Admin can view Vendor
+- Admin can update Vendor
+Validation
+- Missing required fields rejected
+- Invalid pincode rejected
+- Invalid username rejected
+- Duplicate username rejected
+- Invalid password rejected
+Location
+Verify all store location fields are correctly persisted and returned.
+Vendor isolation
+Create:
+Vendor A
+Vendor B
+
+Verify their profiles and store information remain separate.
+Product isolation
+Verify creating Vendor A does not create any product listings for Vendor B.
+Commercial data protection
+Verify Vendor creation/update does not modify:
+- price
+- stock
+- availability
+- variants
+- SKU/external codes
+Historical data
+Verify existing order snapshots remain unchanged.
+Authentication
+Verify the newly created Vendor can use the existing Vendor login flow.
+Do not create a separate authentication system.
+DOCUMENTATION
+Update the appropriate documentation with:
+1. Current Vendor Profile structure
+2. New store location fields
+3. Admin Vendor creation workflow
+4. Vendor status lifecycle
+5. Authentication behavior
+6. Vendor/product ownership boundaries
+7. API changes
+8. Database migration
+9. Testing results
+Create/update:
+docs/ADMIN_VENDOR_CREATION_AND_STORE_LOCATION_IMPLEMENTATION_REPORT.md
+FINAL REQUIREMENT
+Before making changes, inspect the existing:
+- Vendor schema
+- Store schema
+- Vendor authentication
+- Admin Portal
+- Admin Vendor APIs
+- Vendor Portal
+- Shared UI components
+- Existing username/authentication system
+- Existing status model
+Then implement the minimum safe changes required.
+Do not rebuild existing functionality.
+Do not create duplicate tables, duplicate authentication, duplicate APIs, or duplicate UI components.
+At the end, report:
+1. Files changed
+2. Database migration created
+3. APIs added/modified
+4. UI changes
+5. Validation implemented
+6. Tests executed and exact pass/fail counts
+7. Confirmation that vendor commercial data was not changed
+8. Confirmation that historical orders were not changed
+9. Confirmation that existing customer/vendor/delivery functionality was preserved
+STOP after implementation and report. Do not deploy. Do not start another feature

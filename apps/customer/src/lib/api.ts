@@ -40,6 +40,10 @@ export interface OperatingHour {
 export interface CustomerStore {
   id: string;
   name: string;
+  locality?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
   description: string | null;
   logoImageUrl: string | null;
   phone: string | null;

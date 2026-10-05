@@ -21,4 +21,12 @@ export interface AdminManagementRow {
   storeId: string | null;
   /** @nullable */
   storeName: string | null;
+  /** @nullable */
+  ownerName?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  locality?: string | null;
+  /** @nullable */
+  pincode?: string | null;
 }

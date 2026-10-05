@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { getDb } from "@workspace/db";
+import { getDb, stores, storeOperatingHours } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { HttpError } from "../http.js";
 import { canTransitionStoreStatus, STORE_STATUSES, type StoreStatus } from "../store-management/status.js";
@@ -28,16 +29,18 @@ const partnerFrom = sql`FROM user_profiles p JOIN auth.users u ON u.id=p.id JOIN
 const joins = { vendors: vendorFrom, customers: customerFrom, "delivery-partners": partnerFrom };
 const role = { vendors: "vendor", customers: "customer", "delivery-partners": "delivery_partner" };
 const name = {
-  vendors: sql`coalesce(u.raw_user_meta_data->>'display_name',u.raw_user_meta_data->>'full_name',s.name)`,
+  vendors: sql`coalesce(s.owner_name,u.raw_user_meta_data->>'display_name',u.raw_user_meta_data->>'full_name',s.name)`,
   customers: sql`c.full_name`,
   "delivery-partners": sql`d.display_name`,
 };
 const status = { vendors: sql`s.status::text`, customers: sql`c.status`, "delivery-partners": sql`d.status` };
 const projection = (kind: ManagementKind) => sql`p.id, ${name[kind]} AS "displayName",
-  ${kind === "delivery-partners" ? sql`null::text` : sql`u.email`} AS email,
+  ${kind === "delivery-partners" ? sql`null::text` : kind === "vendors"
+    ? sql`coalesce(s.email,CASE WHEN u.email LIKE '%@accounts.localbasket.invalid' THEN null ELSE u.email END)` : sql`u.email`} AS email,
   n.normalized_username AS username, ${status[kind]} AS status, p.created_at AS "createdAt",
   ${kind === "vendors" ? sql`s.id` : sql`null::uuid`} AS "storeId",
-  ${kind === "vendors" ? sql`s.name` : sql`null::text`} AS "storeName"`;
+  ${kind === "vendors" ? sql`s.name` : sql`null::text`} AS "storeName"
+  ${kind === "vendors" ? sql`,s.owner_name AS "ownerName",s.city,s.locality,s.pincode` : sql``}`;
 
 export function adminManagement(db = getDb()) {
   return {
@@ -61,7 +64,7 @@ export function adminManagement(db = getDb()) {
       const searchClause = filters.search ? sql`AND (${name[kind]} ILIKE ${pattern}
         OR n.normalized_username ILIKE ${pattern}
         ${kind !== "delivery-partners" ? sql`OR u.email ILIKE ${pattern}` : sql``}
-        ${kind === "vendors" ? sql`OR s.name ILIKE ${pattern}` : sql``})` : sql``;
+        ${kind === "vendors" ? sql`OR s.name ILIKE ${pattern} OR s.city ILIKE ${pattern} OR s.locality ILIKE ${pattern} OR s.pincode ILIKE ${pattern}` : sql``})` : sql``;
       const where = sql`WHERE p.role::text=${role[kind]} ${searchClause}
         ${filters.status ? sql`AND ${status[kind]}=${filters.status}` : sql``}`;
       // One snapshot for count + page, deterministic tie-breaker for pagination.
@@ -83,6 +86,11 @@ export function adminManagement(db = getDb()) {
       const allowedStatuses = kind === "vendors"
         ? STORE_STATUSES.filter(next => row.status && canTransitionStoreStatus(row.status as StoreStatus, next))
         : [row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"];
+      if (kind === "vendors") {
+        const [store] = await db.select().from(stores).where(eq(stores.ownerUserId, id)).limit(1);
+        const hours = store ? await db.select().from(storeOperatingHours).where(eq(storeOperatingHours.storeId, store.id)) : [];
+        return { ...row, allowedStatuses, store: store ?? null, hours };
+      }
       return { ...row, allowedStatuses };
     },
     async vendorStatus(id: string, nextStatus: StoreStatus, actorId: string) {

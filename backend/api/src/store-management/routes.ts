@@ -82,6 +82,7 @@ storeManagementRouter.patch(
 
     const dbUpdates = {
       ...updates,
+      updatedAt: new Date(),
       deliveryFee:
         updates.deliveryFee === undefined
           ? undefined

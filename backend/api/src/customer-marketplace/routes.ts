@@ -26,6 +26,7 @@ export const customerMarketplaceRouter = Router();
 const publicStore = {
   id: stores.id, name: stores.name, description: stores.description,
   logoImageUrl: stores.logoImageUrl, phone: stores.phone,
+  locality: stores.locality, city: stores.city, state: stores.state, pincode: stores.pincode,
   deliveryFee: stores.deliveryFee, minimumOrderValue: stores.minimumOrderValue,
 };
 export const publicProduct = {

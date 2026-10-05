@@ -47,6 +47,7 @@ export function ShoppingProductDetails({
         <Text style={typography.hero}>{product.name}</Text>
         {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
         <Text style={[typography.bodySemibold, styles.store]}>Sold by {store.name}</Text>
+        {!![store.locality, store.city, store.state, store.pincode].filter(Boolean).length && <Text style={typography.caption}>{[store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ")}</Text>}
         <Text style={typography.caption}>Delivers to {pincode}</Text>
         <Text style={[typography.title1, styles.price]}>{productPriceLabel(product, selected)}</Text>
         <Text style={[typography.caption, !product.purchasable && styles.unavailable]}>{status}</Text>

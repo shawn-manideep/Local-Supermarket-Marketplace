@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./vendor-profile": {
+      "types": "./dist/vendor-profile.d.ts",
+      "import": "./dist/vendor-profile.js",
+      "default": "./dist/vendor-profile.js"
+    },
     "./variant-formatting": {
       "types": "./dist/variant-formatting.d.ts",
       "import": "./dist/variant-formatting.js",

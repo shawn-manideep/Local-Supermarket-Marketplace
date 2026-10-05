@@ -5,7 +5,7 @@ import { HttpError } from "../http.js";
 import type { PartnerRepository, ProvisionInput } from "./repository.js";
 
 export interface PartnerAuthGateway {
-  create(password: string): Promise<string>;
+  create(password: string, email?: string): Promise<string>;
   activate(id: string): Promise<void>;
   remove(id: string): Promise<void>;
   signIn(id: string | null, password: string): Promise<{ userId: string; access_token: string; refresh_token: string } | null>;
@@ -18,12 +18,15 @@ export function supabasePartnerAuth(): PartnerAuthGateway {
   const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
   const admin = createClient(config.SUPABASE_URL, key, options);
   return {
-    async create(password) {
+    async create(password, email) {
       const { data, error } = await admin.auth.admin.createUser({
-        email: `partner-${randomUUID()}@accounts.localbasket.invalid`,
+        email: email ?? `partner-${randomUUID()}@accounts.localbasket.invalid`,
         password, email_confirm: true, ban_duration: "876000h",
       });
-      if (error || !data.user) throw new HttpError(502, "Partner authentication account could not be created.");
+      if (error?.code === "email_exists" || error?.code === "user_already_exists") {
+        throw new HttpError(409, "This email is already registered.");
+      }
+      if (error || !data.user) throw new HttpError(502, "Authentication account could not be created.");
       return data.user.id;
     },
     async activate(id) {

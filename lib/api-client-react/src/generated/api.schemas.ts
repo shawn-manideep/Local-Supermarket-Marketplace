@@ -125,6 +125,14 @@ export interface AdminManagementRow {
   storeId: string | null;
   /** @nullable */
   storeName: string | null;
+  /** @nullable */
+  ownerName?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  locality?: string | null;
+  /** @nullable */
+  pincode?: string | null;
 }
 
 export interface AdminManagementPage {
@@ -135,6 +143,70 @@ export interface AdminManagementPage {
   total: number;
 }
 
+export type StoreProfileStatus = typeof StoreProfileStatus[keyof typeof StoreProfileStatus];
+
+
+export const StoreProfileStatus = {
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface StoreProfile {
+  id: string;
+  ownerUserId: string;
+  name: string;
+  /** @nullable */
+  ownerName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  logoImageUrl?: string | null;
+  /** @nullable */
+  addressLine1?: string | null;
+  /** @nullable */
+  addressLine2?: string | null;
+  /** @nullable */
+  locality?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  pincode?: string | null;
+  status: StoreProfileStatus;
+  deliveryFee: string;
+  minimumOrderValue: string;
+  /** @nullable */
+  commissionRate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreProfileHour {
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek: number;
+  isClosed: boolean;
+  /**
+     * HH:MM input; nullable for a closed day
+     * @nullable
+     */
+  opensAt?: string | null;
+  /**
+     * HH:MM input; closing must follow opening
+     * @nullable
+     */
+  closesAt?: string | null;
+}
+
 export type AdminDetailOutcomeAccount = AdminManagementRow & ({
   /** @nullable */
   contactNumber: string | null;
@@ -142,10 +214,237 @@ export type AdminDetailOutcomeAccount = AdminManagementRow & ({
   orderCount: number | null;
   activeAssignments: number;
   allowedStatuses: string[];
+  store?: StoreProfile | null;
+  hours?: StoreProfileHour[];
 });
 
 export interface AdminDetailOutcome {
   account: AdminDetailOutcomeAccount;
+}
+
+export interface StoreProfileInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  ownerName?: string;
+  /**
+     * Existing Indian phone validation
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * Contact email; editing does not change the Auth email
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  logoImageUrl?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  addressLine1?: string;
+  /**
+     * @maxLength 250
+     * @nullable
+     */
+  addressLine2?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  locality?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  city?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  state?: string;
+  /** @pattern ^[1-9][0-9]{5}$ */
+  pincode?: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  deliveryFee?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  minimumOrderValue?: number;
+}
+
+export interface VendorProfileInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  ownerName?: string;
+  /** @nullable */
+  phone?: string | null;
+  /**
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  logoImageUrl?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  addressLine1?: string;
+  /**
+     * @maxLength 250
+     * @nullable
+     */
+  addressLine2?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  locality?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  city?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  state?: string;
+  /** @pattern ^[1-9][0-9]{5}$ */
+  pincode?: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  deliveryFee?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  minimumOrderValue?: number;
+  /** @maxItems 7 */
+  hours?: StoreProfileHour[];
+}
+
+export interface VendorProvisionInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  ownerName: string;
+  /** @nullable */
+  phone?: string | null;
+  /**
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  logoImageUrl?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  addressLine1: string;
+  /**
+     * @maxLength 250
+     * @nullable
+     */
+  addressLine2?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  locality: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  city: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  state: string;
+  /** @pattern ^[1-9][0-9]{5}$ */
+  pincode: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  deliveryFee?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  minimumOrderValue?: number;
+  /** @maxItems 7 */
+  hours?: StoreProfileHour[];
+  /**
+     * Global existing registry; lowercase normalization; reserved names rejected
+     * @minLength 3
+     * @maxLength 30
+     * @pattern ^[A-Za-z][A-Za-z0-9_]{2,29}$
+     */
+  username: string;
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface StoreProfileOutcome {
+  store: StoreProfile;
 }
 
 export type AdminVendorStatusInputStatus = typeof AdminVendorStatusInputStatus[keyof typeof AdminVendorStatusInputStatus];

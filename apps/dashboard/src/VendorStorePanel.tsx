@@ -9,6 +9,7 @@ import {
 } from "./api";
 import { CatalogManagementPanel } from "./CatalogManagementPanel";
 import { OrderOperations } from "./OrderOperations";
+import { StoreProfileFields } from "./StoreProfileFields";
 
 const dayNames = [
   "Sunday",
@@ -300,6 +301,14 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
           description: form.get("description") || null,
           logoImageUrl: form.get("logoImageUrl") || null,
           phone: form.get("phone") || null,
+          ownerName: form.get("ownerName"),
+          email: form.get("email") || null,
+          addressLine1: form.get("addressLine1"),
+          addressLine2: form.get("addressLine2") || null,
+          locality: form.get("locality"),
+          city: form.get("city"),
+          state: form.get("state"),
+          pincode: form.get("pincode"),
           deliveryFee: Number(form.get("deliveryFee")),
           minimumOrderValue: Number(form.get("minimumOrderValue")),
         }),
@@ -387,38 +396,11 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
           <div className="vendor-card-heading">
             <div>
               <h3 className="vendor-subtitle">Store Information</h3>
-              <p className="vendor-text-muted">Protected fields are read-only here.</p>
+              <p className="vendor-text-muted">Store status and login identity are managed by the platform.</p>
             </div>
             <span className={`vendor-status-badge vendor-status-${store.status.toLowerCase()}`}>{store.status.replaceAll("_", " ")}</span>
           </div>
-          <label className="vendor-label">
-            Store Name
-            <input className="vendor-input" name="name" defaultValue={store.name} required disabled={storeBusy} />
-          </label>
-          <label className="vendor-label">
-            Description
-            <textarea className="vendor-textarea" name="description" defaultValue={store.description ?? ""} rows={4} disabled={storeBusy} />
-          </label>
-          <div className="vendor-two-column">
-            <label className="vendor-label">
-              Phone
-              <input className="vendor-input" name="phone" defaultValue={store.phone ?? ""} placeholder="+91 9876543210" disabled={storeBusy} />
-            </label>
-            <label className="vendor-label">
-              Logo URL
-              <input className="vendor-input" name="logoImageUrl" defaultValue={store.logoImageUrl ?? ""} type="url" disabled={storeBusy} />
-            </label>
-          </div>
-          <div className="vendor-two-column">
-            <label className="vendor-label">
-              Delivery Fee (₹)
-              <input className="vendor-input" name="deliveryFee" defaultValue={store.deliveryFee} inputMode="decimal" disabled={storeBusy} />
-            </label>
-            <label className="vendor-label">
-              Minimum Order Value (₹)
-              <input className="vendor-input" name="minimumOrderValue" defaultValue={store.minimumOrderValue} inputMode="decimal" disabled={storeBusy} />
-            </label>
-          </div>
+          <StoreProfileFields variant="vendor" disabled={storeBusy} values={store} />
           <div className="vendor-form-actions">
             <button className="vendor-primary-button" type="submit" disabled={storeBusy}>{storeBusy ? "Saving..." : "Save Store Information"}</button>
           </div>

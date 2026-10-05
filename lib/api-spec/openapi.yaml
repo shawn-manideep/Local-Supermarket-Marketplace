@@ -98,6 +98,23 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Admin role required }
   /admin/vendors:
+    post:
+      operationId: createAdminVendor
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VendorProvisionInput" }
+      responses:
+        "201":
+          description: Vendor identity and complete store provisioned; PENDING_APPROVAL; zero product listings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDetailOutcome" }
+        "400": { description: Invalid account or store profile }
+        "403": { description: Admin role required }
+        "409": { description: Username or authentication email already registered }
     get:
       operationId: listAdminVendors
       security: [{ customerBearer: [] }]
@@ -115,6 +132,23 @@ paths:
   /admin/vendors/{id}:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: updateAdminVendorProfile
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VendorProfileInput" }
+      responses:
+        "200":
+          description: Store-owned profile and specified daily hours updated; identity and commercial data unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminDetailOutcome" }
+        "400": { description: Invalid or disallowed fields }
+        "403": { description: Admin role required }
+        "404": { description: Vendor store not found }
     get:
       operationId: getAdminVendor
       security: [{ customerBearer: [] }]
@@ -138,6 +172,48 @@ paths:
       responses:
         "200": { description: Existing legal store transition committed and audited }
         "409": { description: Illegal or stale transition }
+  /vendor/login:
+    post:
+      operationId: loginVendorUsername
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PartnerCredentials" }
+      responses:
+        "200":
+          description: Existing Supabase password session for registered vendor username
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerSessionOutcome" }
+        "401": { description: Invalid username or password }
+        "403": { description: Existing store suspension rule }
+        "429": { description: Login rate limit exceeded }
+  /vendor/store:
+    get:
+      operationId: getVendorStoreProfile
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Existing vendor-owned store profile including physical location
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProfileOutcome" }
+    patch:
+      operationId: updateVendorStoreProfile
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf: [{ $ref: "#/components/schemas/StoreProfileInput" }]
+      responses:
+        "200":
+          description: Own store profile updated; no identity, commercial, delivery-area or order changes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StoreProfileOutcome" }
   /admin/customers:
     get:
       operationId: listAdminCustomers
@@ -645,6 +721,10 @@ components:
         createdAt: { type: string, format: date-time }
         storeId: { type: [string, "null"], format: uuid }
         storeName: { type: [string, "null"] }
+        ownerName: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        locality: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
     AdminManagementPage:
       type: object
       required: [items, page, pageSize, total]
@@ -668,6 +748,108 @@ components:
                 orderCount: { type: [integer, "null"] }
                 activeAssignments: { type: integer }
                 allowedStatuses: { type: array, items: { type: string } }
+                store:
+                  oneOf:
+                    - { $ref: "#/components/schemas/StoreProfile" }
+                    - { type: "null" }
+                hours: { type: array, items: { $ref: "#/components/schemas/StoreProfileHour" } }
+    StoreProfileHour:
+      type: object
+      additionalProperties: false
+      required: [dayOfWeek, isClosed]
+      properties:
+        dayOfWeek: { type: integer, minimum: 0, maximum: 6 }
+        isClosed: { type: boolean }
+        opensAt: { type: [string, "null"], description: HH:MM input; nullable for a closed day }
+        closesAt: { type: [string, "null"], description: HH:MM input; closing must follow opening }
+    StoreProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        ownerName: { type: string, minLength: 1, maxLength: 100 }
+        phone: { type: [string, "null"], description: Existing Indian phone validation }
+        email: { type: [string, "null"], format: email, maxLength: 254, description: Contact email; editing does not change the Auth email }
+        description: { type: [string, "null"], maxLength: 2000 }
+        logoImageUrl: { type: [string, "null"], format: uri, maxLength: 2048 }
+        addressLine1: { type: string, minLength: 1, maxLength: 250 }
+        addressLine2: { type: [string, "null"], maxLength: 250 }
+        locality: { type: string, minLength: 1, maxLength: 120 }
+        city: { type: string, minLength: 1, maxLength: 120 }
+        state: { type: string, minLength: 1, maxLength: 120 }
+        pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
+        deliveryFee: { type: number, minimum: 0, maximum: 1000000 }
+        minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
+    VendorProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        ownerName: { type: string, minLength: 1, maxLength: 100 }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"], format: email, maxLength: 254 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        logoImageUrl: { type: [string, "null"], format: uri, maxLength: 2048 }
+        addressLine1: { type: string, minLength: 1, maxLength: 250 }
+        addressLine2: { type: [string, "null"], maxLength: 250 }
+        locality: { type: string, minLength: 1, maxLength: 120 }
+        city: { type: string, minLength: 1, maxLength: 120 }
+        state: { type: string, minLength: 1, maxLength: 120 }
+        pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
+        deliveryFee: { type: number, minimum: 0, maximum: 1000000 }
+        minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
+        hours: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/StoreProfileHour" } }
+    VendorProvisionInput:
+      type: object
+      additionalProperties: false
+      required: [username, password, name, ownerName, addressLine1, locality, city, state, pincode]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        ownerName: { type: string, minLength: 1, maxLength: 100 }
+        phone: { type: [string, "null"] }
+        email: { type: [string, "null"], format: email, maxLength: 254 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        logoImageUrl: { type: [string, "null"], format: uri, maxLength: 2048 }
+        addressLine1: { type: string, minLength: 1, maxLength: 250 }
+        addressLine2: { type: [string, "null"], maxLength: 250 }
+        locality: { type: string, minLength: 1, maxLength: 120 }
+        city: { type: string, minLength: 1, maxLength: 120 }
+        state: { type: string, minLength: 1, maxLength: 120 }
+        pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
+        deliveryFee: { type: number, minimum: 0, maximum: 1000000 }
+        minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
+        hours: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/StoreProfileHour" } }
+        username: { type: string, minLength: 3, maxLength: 30, pattern: '^[A-Za-z][A-Za-z0-9_]{2,29}$', description: Global existing registry; lowercase normalization; reserved names rejected }
+        password: { type: string, format: password, writeOnly: true, minLength: 8, maxLength: 128 }
+    StoreProfile:
+      type: object
+      required: [id, ownerUserId, name, status, deliveryFee, minimumOrderValue, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        ownerUserId: { type: string, format: uuid }
+        name: { type: string }
+        ownerName: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        logoImageUrl: { type: [string, "null"] }
+        addressLine1: { type: [string, "null"] }
+        addressLine2: { type: [string, "null"] }
+        locality: { type: [string, "null"] }
+        city: { type: [string, "null"] }
+        state: { type: [string, "null"] }
+        pincode: { type: [string, "null"] }
+        status: { type: string, enum: [PENDING_APPROVAL, ACTIVE, SUSPENDED, REJECTED] }
+        deliveryFee: { type: string }
+        minimumOrderValue: { type: string }
+        commissionRate: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    StoreProfileOutcome:
+      type: object
+      required: [store]
+      properties:
+        store: { $ref: "#/components/schemas/StoreProfile" }
     AdminVendorStatusInput:
       type: object
       additionalProperties: false

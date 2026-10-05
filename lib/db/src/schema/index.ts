@@ -142,6 +142,14 @@ export const stores = pgTable(
     description: text("description"),
     logoImageUrl: text("logo_image_url"),
     phone: text("phone"),
+    ownerName: text("owner_name"),
+    email: text("email"),
+    addressLine1: text("address_line_1"),
+    addressLine2: text("address_line_2"),
+    locality: text("locality"),
+    city: text("city"),
+    state: text("state"),
+    pincode: text("pincode"),
     deliveryFee: numeric("delivery_fee", { precision: 12, scale: 2 })
       .notNull()
       .default("0"),
@@ -161,6 +169,7 @@ export const stores = pgTable(
   },
   (table) => [
     uniqueIndex("stores_owner_user_id_uidx").on(table.ownerUserId),
+    check("stores_physical_pincode_check", sql`${table.pincode} IS NULL OR ${table.pincode} ~ '^[1-9][0-9]{5}$'`),
   ],
 );
 

@@ -27,11 +27,13 @@ export function createApiRateLimit() {
     const isMutation = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method);
     const scope = request.method === "POST" && request.path === "/api/delivery-partner/login"
       ? "partner-login"
+      : request.method === "POST" && request.path === "/api/vendor/login"
+      ? "vendor-login"
       : request.method === "POST" && request.path === "/api/customer/orders"
       ? "orders"
       : isMutation ? "mutations" : "reads";
     const key = `${identity}:${scope}`;
-    const limit = scope === "orders" ? ORDER_LIMIT : scope === "partner-login" ? PARTNER_LOGIN_LIMIT : scope === "mutations" ? GENERAL_LIMIT : READ_LIMIT;
+    const limit = scope === "orders" ? ORDER_LIMIT : scope === "partner-login" || scope === "vendor-login" ? PARTNER_LOGIN_LIMIT : scope === "mutations" ? GENERAL_LIMIT : READ_LIMIT;
     const bucket = buckets.get(key);
     if (!bucket || bucket.resetAt <= now) {
       buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });

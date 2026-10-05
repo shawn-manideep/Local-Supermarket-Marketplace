@@ -133,6 +133,129 @@ export const GetAdminManagementDashboardResponse = zod.object({
 })
 
 
+export const createAdminVendorBodyNameMax = 120;
+
+export const createAdminVendorBodyOwnerNameMax = 100;
+
+export const createAdminVendorBodyEmailMax = 254;
+
+export const createAdminVendorBodyDescriptionMax = 2000;
+
+export const createAdminVendorBodyLogoImageUrlMax = 2048;
+
+export const createAdminVendorBodyAddressLine1Max = 250;
+
+export const createAdminVendorBodyAddressLine2Max = 250;
+
+export const createAdminVendorBodyLocalityMax = 120;
+
+export const createAdminVendorBodyCityMax = 120;
+
+export const createAdminVendorBodyStateMax = 120;
+
+export const createAdminVendorBodyPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+export const createAdminVendorBodyDeliveryFeeMin = 0;
+export const createAdminVendorBodyDeliveryFeeMax = 1000000;
+
+export const createAdminVendorBodyMinimumOrderValueMin = 0;
+export const createAdminVendorBodyMinimumOrderValueMax = 1000000;
+
+export const createAdminVendorBodyHoursItemDayOfWeekMin = 0;
+export const createAdminVendorBodyHoursItemDayOfWeekMax = 6;
+
+export const createAdminVendorBodyHoursMax = 7;
+
+export const createAdminVendorBodyUsernameMin = 3;
+export const createAdminVendorBodyUsernameMax = 30;
+
+
+export const createAdminVendorBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
+export const createAdminVendorBodyPasswordMin = 8;
+export const createAdminVendorBodyPasswordMax = 128;
+
+
+
+export const CreateAdminVendorBody = zod.object({
+  "name": zod.string().min(1).max(createAdminVendorBodyNameMax),
+  "ownerName": zod.string().min(1).max(createAdminVendorBodyOwnerNameMax),
+  "phone": zod.string().nullish(),
+  "email": zod.string().email().max(createAdminVendorBodyEmailMax).nullish(),
+  "description": zod.string().max(createAdminVendorBodyDescriptionMax).nullish(),
+  "logoImageUrl": zod.string().url().max(createAdminVendorBodyLogoImageUrlMax).nullish(),
+  "addressLine1": zod.string().min(1).max(createAdminVendorBodyAddressLine1Max),
+  "addressLine2": zod.string().max(createAdminVendorBodyAddressLine2Max).nullish(),
+  "locality": zod.string().min(1).max(createAdminVendorBodyLocalityMax),
+  "city": zod.string().min(1).max(createAdminVendorBodyCityMax),
+  "state": zod.string().min(1).max(createAdminVendorBodyStateMax),
+  "pincode": zod.string().regex(createAdminVendorBodyPincodeRegExp),
+  "deliveryFee": zod.number().min(createAdminVendorBodyDeliveryFeeMin).max(createAdminVendorBodyDeliveryFeeMax).optional(),
+  "minimumOrderValue": zod.number().min(createAdminVendorBodyMinimumOrderValueMin).max(createAdminVendorBodyMinimumOrderValueMax).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(createAdminVendorBodyHoursItemDayOfWeekMin).max(createAdminVendorBodyHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).max(createAdminVendorBodyHoursMax).optional(),
+  "username": zod.string().min(createAdminVendorBodyUsernameMin).max(createAdminVendorBodyUsernameMax).regex(createAdminVendorBodyUsernameRegExp).describe('Global existing registry; lowercase normalization; reserved names rejected'),
+  "password": zod.string().min(createAdminVendorBodyPasswordMin).max(createAdminVendorBodyPasswordMax)
+})
+
+export const createAdminVendorResponseAccountTwoHoursItemDayOfWeekMin = 0;
+export const createAdminVendorResponseAccountTwoHoursItemDayOfWeekMax = 6;
+
+
+
+export const CreateAdminVendorResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
+}).and(zod.object({
+  "contactNumber": zod.string().nullable(),
+  "orderCount": zod.number().int().nullable(),
+  "activeAssignments": zod.number().int(),
+  "allowedStatuses": zod.array(zod.string()),
+  "store": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(createAdminVendorResponseAccountTwoHoursItemDayOfWeekMin).max(createAdminVendorResponseAccountTwoHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).optional()
+}))
+})
+
+
 export const listAdminVendorsQueryPageDefault = 1;
 export const listAdminVendorsQueryPageMax = 100000;
 
@@ -159,7 +282,11 @@ export const ListAdminVendorsResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 })),
   "partners": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -169,7 +296,11 @@ export const ListAdminVendorsResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 })).optional(),
   "page": zod.number().int(),
   "pageSize": zod.number().int(),
@@ -177,9 +308,131 @@ export const ListAdminVendorsResponse = zod.object({
 })
 
 
+export const UpdateAdminVendorProfileParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateAdminVendorProfileBodyNameMax = 120;
+
+export const updateAdminVendorProfileBodyOwnerNameMax = 100;
+
+export const updateAdminVendorProfileBodyEmailMax = 254;
+
+export const updateAdminVendorProfileBodyDescriptionMax = 2000;
+
+export const updateAdminVendorProfileBodyLogoImageUrlMax = 2048;
+
+export const updateAdminVendorProfileBodyAddressLine1Max = 250;
+
+export const updateAdminVendorProfileBodyAddressLine2Max = 250;
+
+export const updateAdminVendorProfileBodyLocalityMax = 120;
+
+export const updateAdminVendorProfileBodyCityMax = 120;
+
+export const updateAdminVendorProfileBodyStateMax = 120;
+
+export const updateAdminVendorProfileBodyPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+export const updateAdminVendorProfileBodyDeliveryFeeMin = 0;
+export const updateAdminVendorProfileBodyDeliveryFeeMax = 1000000;
+
+export const updateAdminVendorProfileBodyMinimumOrderValueMin = 0;
+export const updateAdminVendorProfileBodyMinimumOrderValueMax = 1000000;
+
+export const updateAdminVendorProfileBodyHoursItemDayOfWeekMin = 0;
+export const updateAdminVendorProfileBodyHoursItemDayOfWeekMax = 6;
+
+export const updateAdminVendorProfileBodyHoursMax = 7;
+
+
+
+export const UpdateAdminVendorProfileBody = zod.object({
+  "name": zod.string().min(1).max(updateAdminVendorProfileBodyNameMax).optional(),
+  "ownerName": zod.string().min(1).max(updateAdminVendorProfileBodyOwnerNameMax).optional(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().email().max(updateAdminVendorProfileBodyEmailMax).nullish(),
+  "description": zod.string().max(updateAdminVendorProfileBodyDescriptionMax).nullish(),
+  "logoImageUrl": zod.string().url().max(updateAdminVendorProfileBodyLogoImageUrlMax).nullish(),
+  "addressLine1": zod.string().min(1).max(updateAdminVendorProfileBodyAddressLine1Max).optional(),
+  "addressLine2": zod.string().max(updateAdminVendorProfileBodyAddressLine2Max).nullish(),
+  "locality": zod.string().min(1).max(updateAdminVendorProfileBodyLocalityMax).optional(),
+  "city": zod.string().min(1).max(updateAdminVendorProfileBodyCityMax).optional(),
+  "state": zod.string().min(1).max(updateAdminVendorProfileBodyStateMax).optional(),
+  "pincode": zod.string().regex(updateAdminVendorProfileBodyPincodeRegExp).optional(),
+  "deliveryFee": zod.number().min(updateAdminVendorProfileBodyDeliveryFeeMin).max(updateAdminVendorProfileBodyDeliveryFeeMax).optional(),
+  "minimumOrderValue": zod.number().min(updateAdminVendorProfileBodyMinimumOrderValueMin).max(updateAdminVendorProfileBodyMinimumOrderValueMax).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(updateAdminVendorProfileBodyHoursItemDayOfWeekMin).max(updateAdminVendorProfileBodyHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).max(updateAdminVendorProfileBodyHoursMax).optional()
+})
+
+export const updateAdminVendorProfileResponseAccountTwoHoursItemDayOfWeekMin = 0;
+export const updateAdminVendorProfileResponseAccountTwoHoursItemDayOfWeekMax = 6;
+
+
+
+export const UpdateAdminVendorProfileResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "username": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "storeId": zod.string().uuid().nullable(),
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
+}).and(zod.object({
+  "contactNumber": zod.string().nullable(),
+  "orderCount": zod.number().int().nullable(),
+  "activeAssignments": zod.number().int(),
+  "allowedStatuses": zod.array(zod.string()),
+  "store": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(updateAdminVendorProfileResponseAccountTwoHoursItemDayOfWeekMin).max(updateAdminVendorProfileResponseAccountTwoHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).optional()
+}))
+})
+
+
 export const GetAdminVendorParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
+
+export const getAdminVendorResponseAccountTwoHoursItemDayOfWeekMin = 0;
+export const getAdminVendorResponseAccountTwoHoursItemDayOfWeekMax = 6;
+
+
 
 export const GetAdminVendorResponse = zod.object({
   "account": zod.object({
@@ -190,12 +443,44 @@ export const GetAdminVendorResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 }).and(zod.object({
   "contactNumber": zod.string().nullable(),
   "orderCount": zod.number().int().nullable(),
   "activeAssignments": zod.number().int(),
-  "allowedStatuses": zod.array(zod.string())
+  "allowedStatuses": zod.array(zod.string()),
+  "store": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(getAdminVendorResponseAccountTwoHoursItemDayOfWeekMin).max(getAdminVendorResponseAccountTwoHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).optional()
 }))
 })
 
@@ -209,6 +494,126 @@ export const ChangeAdminVendorStatusBody = zod.object({
 })
 
 export const ChangeAdminVendorStatusResponse = zod.unknown()
+
+
+export const loginVendorUsernameBodyUsernameMin = 3;
+export const loginVendorUsernameBodyUsernameMax = 30;
+
+
+export const loginVendorUsernameBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
+export const loginVendorUsernameBodyPasswordMax = 128;
+
+
+
+export const LoginVendorUsernameBody = zod.object({
+  "username": zod.string().min(loginVendorUsernameBodyUsernameMin).max(loginVendorUsernameBodyUsernameMax).regex(loginVendorUsernameBodyUsernameRegExp),
+  "password": zod.string().min(1).max(loginVendorUsernameBodyPasswordMax)
+})
+
+export const LoginVendorUsernameResponse = zod.object({
+  "session": zod.object({
+  "access_token": zod.string(),
+  "refresh_token": zod.string()
+})
+})
+
+
+export const GetVendorStoreProfileResponse = zod.object({
+  "store": zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+export const updateVendorStoreProfileBodyOneNameMax = 120;
+
+export const updateVendorStoreProfileBodyOneOwnerNameMax = 100;
+
+export const updateVendorStoreProfileBodyOneEmailMax = 254;
+
+export const updateVendorStoreProfileBodyOneDescriptionMax = 2000;
+
+export const updateVendorStoreProfileBodyOneLogoImageUrlMax = 2048;
+
+export const updateVendorStoreProfileBodyOneAddressLine1Max = 250;
+
+export const updateVendorStoreProfileBodyOneAddressLine2Max = 250;
+
+export const updateVendorStoreProfileBodyOneLocalityMax = 120;
+
+export const updateVendorStoreProfileBodyOneCityMax = 120;
+
+export const updateVendorStoreProfileBodyOneStateMax = 120;
+
+export const updateVendorStoreProfileBodyOnePincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+export const updateVendorStoreProfileBodyOneDeliveryFeeMin = 0;
+export const updateVendorStoreProfileBodyOneDeliveryFeeMax = 1000000;
+
+export const updateVendorStoreProfileBodyOneMinimumOrderValueMin = 0;
+export const updateVendorStoreProfileBodyOneMinimumOrderValueMax = 1000000;
+
+
+
+export const UpdateVendorStoreProfileBody = zod.object({
+  "name": zod.string().min(1).max(updateVendorStoreProfileBodyOneNameMax).optional(),
+  "ownerName": zod.string().min(1).max(updateVendorStoreProfileBodyOneOwnerNameMax).optional(),
+  "phone": zod.string().nullish().describe('Existing Indian phone validation'),
+  "email": zod.string().email().max(updateVendorStoreProfileBodyOneEmailMax).nullish().describe('Contact email; editing does not change the Auth email'),
+  "description": zod.string().max(updateVendorStoreProfileBodyOneDescriptionMax).nullish(),
+  "logoImageUrl": zod.string().url().max(updateVendorStoreProfileBodyOneLogoImageUrlMax).nullish(),
+  "addressLine1": zod.string().min(1).max(updateVendorStoreProfileBodyOneAddressLine1Max).optional(),
+  "addressLine2": zod.string().max(updateVendorStoreProfileBodyOneAddressLine2Max).nullish(),
+  "locality": zod.string().min(1).max(updateVendorStoreProfileBodyOneLocalityMax).optional(),
+  "city": zod.string().min(1).max(updateVendorStoreProfileBodyOneCityMax).optional(),
+  "state": zod.string().min(1).max(updateVendorStoreProfileBodyOneStateMax).optional(),
+  "pincode": zod.string().regex(updateVendorStoreProfileBodyOnePincodeRegExp).optional(),
+  "deliveryFee": zod.number().min(updateVendorStoreProfileBodyOneDeliveryFeeMin).max(updateVendorStoreProfileBodyOneDeliveryFeeMax).optional(),
+  "minimumOrderValue": zod.number().min(updateVendorStoreProfileBodyOneMinimumOrderValueMin).max(updateVendorStoreProfileBodyOneMinimumOrderValueMax).optional()
+})
+
+export const UpdateVendorStoreProfileResponse = zod.object({
+  "store": zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
 
 
 export const listAdminCustomersQueryPageDefault = 1;
@@ -237,7 +642,11 @@ export const ListAdminCustomersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 })),
   "partners": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -247,7 +656,11 @@ export const ListAdminCustomersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 })).optional(),
   "page": zod.number().int(),
   "pageSize": zod.number().int(),
@@ -259,6 +672,11 @@ export const GetAdminCustomerParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+export const getAdminCustomerResponseAccountTwoHoursItemDayOfWeekMin = 0;
+export const getAdminCustomerResponseAccountTwoHoursItemDayOfWeekMax = 6;
+
+
+
 export const GetAdminCustomerResponse = zod.object({
   "account": zod.object({
   "id": zod.string().uuid(),
@@ -268,12 +686,44 @@ export const GetAdminCustomerResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 }).and(zod.object({
   "contactNumber": zod.string().nullable(),
   "orderCount": zod.number().int().nullable(),
   "activeAssignments": zod.number().int(),
-  "allowedStatuses": zod.array(zod.string())
+  "allowedStatuses": zod.array(zod.string()),
+  "store": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(getAdminCustomerResponseAccountTwoHoursItemDayOfWeekMin).max(getAdminCustomerResponseAccountTwoHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).optional()
 }))
 })
 
@@ -293,6 +743,11 @@ export const GetAdminDeliveryPartnerParams = zod.object({
   "partnerId": zod.coerce.string().uuid()
 })
 
+export const getAdminDeliveryPartnerResponseAccountTwoHoursItemDayOfWeekMin = 0;
+export const getAdminDeliveryPartnerResponseAccountTwoHoursItemDayOfWeekMax = 6;
+
+
+
 export const GetAdminDeliveryPartnerResponse = zod.object({
   "account": zod.object({
   "id": zod.string().uuid(),
@@ -302,12 +757,44 @@ export const GetAdminDeliveryPartnerResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 }).and(zod.object({
   "contactNumber": zod.string().nullable(),
   "orderCount": zod.number().int().nullable(),
   "activeAssignments": zod.number().int(),
-  "allowedStatuses": zod.array(zod.string())
+  "allowedStatuses": zod.array(zod.string()),
+  "store": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "name": zod.string(),
+  "ownerName": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "logoImageUrl": zod.string().nullish(),
+  "addressLine1": zod.string().nullish(),
+  "addressLine2": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "pincode": zod.string().nullish(),
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
+  "deliveryFee": zod.string(),
+  "minimumOrderValue": zod.string(),
+  "commissionRate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).optional(),
+  "hours": zod.array(zod.object({
+  "dayOfWeek": zod.number().int().min(getAdminDeliveryPartnerResponseAccountTwoHoursItemDayOfWeekMin).max(getAdminDeliveryPartnerResponseAccountTwoHoursItemDayOfWeekMax),
+  "isClosed": zod.boolean(),
+  "opensAt": zod.string().nullish().describe('HH:MM input; nullable for a closed day'),
+  "closesAt": zod.string().nullish().describe('HH:MM input; closing must follow opening')
+})).optional()
 }))
 })
 
@@ -559,7 +1046,11 @@ export const ListAdminDeliveryPartnersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 })),
   "partners": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -569,7 +1060,11 @@ export const ListAdminDeliveryPartnersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
-  "storeName": zod.string().nullable()
+  "storeName": zod.string().nullable(),
+  "ownerName": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "pincode": zod.string().nullish()
 })).optional(),
   "page": zod.number().int(),
   "pageSize": zod.number().int(),

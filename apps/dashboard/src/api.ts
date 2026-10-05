@@ -11,6 +11,14 @@ export interface Store {
   description: string | null;
   logoImageUrl: string | null;
   phone: string | null;
+  ownerName: string | null;
+  email: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  locality: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
   deliveryFee: string;
   minimumOrderValue: string;
   commissionRate: string | null;
@@ -230,6 +238,7 @@ export class ApiRequestError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly details?: Array<{ path?: Array<string | number>; message?: string }>,
   ) {
     super(message);
     this.name = "ApiRequestError";
@@ -269,6 +278,7 @@ export async function apiRequest<T>(
     throw new ApiRequestError(
       detail ?? errorPayload?.error ?? `Request failed (${response.status})`,
       response.status,
+      errorPayload?.details,
     );
   }
 

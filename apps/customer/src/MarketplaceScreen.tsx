@@ -71,6 +71,9 @@ function SearchIcon() {
 function customerVariantLabel(variant: CustomerProductVariant) {
   return formatVariantName(variant.quantityValue, variant.quantityUnit);
 }
+function customerStoreLocation(store: CustomerStore) {
+  return [store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ");
+}
 
 export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void }) {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
@@ -533,7 +536,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
           <View style={styles.storeHeading}>
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{store.description ?? `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Closed"} · Serves {pincode}</Text></View>
+            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Closed"} · Serves {pincode}</Text></View>
           </View>
           {productSearchField("Search products across all nearby stores...")}
 
@@ -645,6 +648,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                     <View style={styles.storeInfo}>
                       <Text style={typography.title3} numberOfLines={1}>{item.name}</Text>
                        <Text style={typography.caption}>Delivery ₹{item.deliveryFee} · Min ₹{item.minimumOrderValue}</Text>
+                       {!!customerStoreLocation(item) && <Text style={typography.caption} numberOfLines={2}>{customerStoreLocation(item)}</Text>}
                        <Text style={typography.caption}>Serves {pincode}</Text>
                        <Text style={styles.shopNowText}>{item.operatingStatus === "OPEN" ? "Open now" : "Closed"}  ·  View store ›</Text>
                     </View>

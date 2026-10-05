@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminManagementRow } from './adminManagementRow';
+import type { StoreProfile } from './storeProfile';
+import type { StoreProfileHour } from './storeProfileHour';
 
 export type AdminDetailOutcomeAccount = AdminManagementRow & ({
   /** @nullable */
@@ -14,4 +16,6 @@ export type AdminDetailOutcomeAccount = AdminManagementRow & ({
   orderCount: number | null;
   activeAssignments: number;
   allowedStatuses: string[];
+  store?: StoreProfile | null;
+  hours?: StoreProfileHour[];
 });
