@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "@workspace/constants/theme.css";
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #1738de;
-  background: #f4f7f2;
+  font-family: var(--lb-font-family);
+  color: rgb(var(--lb-text));
+  background: rgb(var(--lb-light-blue));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -46,7 +46,7 @@ body {
   border-radius: 12px;
   color: #f4f3f0;
   display: flex;
-  font-family: "Space Mono", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 14px;
   font-weight: 700;
   height: 42px;
@@ -492,7 +492,7 @@ a:focus-visible {
 .order-table { overflow-x: auto; }
 .order-row { align-items: center; border-top: 1px solid #edf1ed; display: grid; gap: 12px; grid-template-columns: minmax(145px, 1.3fr) minmax(130px, 1fr) 120px 95px 110px; min-width: 690px; padding: 14px 0; }
 .order-row button { text-align: left; }
-.order-id { color: #286143; font-family: "Space Mono", monospace; font-size: 12px; }
+.order-id { color: #286143; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .order-customer, .order-amount { display: grid; gap: 3px; }
 .order-customer small, .order-amount small { color: #718078; font-size: 12px; }
 .order-customer .order-store { color: #40574a; font-weight: 750; }
@@ -1049,41 +1049,41 @@ a:focus-visible {
    ========================================================================== */
 
 .is-vendor {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  --font-sans: var(--lb-font-family);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --bg-page: #f2f5f3;
+  --bg-page: #f6f4ff;
   --bg-card: #ffffff;
-  --bg-sidebar: #0a2919;
+  --bg-sidebar: #1e3a8a;
   
-  --text-main: #13241b;
-  --text-muted: #5e7366;
-  --text-sidebar: #88a997;
+  --text-main: #1f2937;
+  --text-muted: #4b5563;
+  --text-sidebar: #dbe5ff;
   --text-sidebar-active: #ffffff;
 
-  --border-light: #e6ede8;
-  --border-strong: #c2d4c8;
+  --border-light: #e5e7eb;
+  --border-strong: #bfdbfe;
 
-  --primary: #0e7946;
-  --primary-hover: #0b6138;
+  --primary: #2563eb;
+  --primary-hover: #1e3a8a;
   --primary-text: #ffffff;
 
-  --accent: #eb6824;
-  --accent-hover: #d2541c;
+  --accent: #2563eb;
+  --accent-hover: #1e3a8a;
   --accent-text: #ffffff;
 
   --danger: #d93025;
   --danger-bg: #fceceb;
 
-  --success: #0e7946;
-  --success-bg: #e5f5ea;
+  --success: #10b981;
+  --success-bg: #ecfdf5;
 
   --warning: #9e6400;
   --warning-bg: #fff4ce;
   
-  --shadow-sm: 0 2px 8px rgba(10, 41, 25, 0.04);
-  --shadow-md: 0 8px 24px rgba(10, 41, 25, 0.06);
-  --shadow-float: 0 16px 40px rgba(10, 41, 25, 0.08);
+  --shadow-sm: 0 2px 8px rgba(30, 58, 138, 0.04);
+  --shadow-md: 0 8px 24px rgba(30, 58, 138, 0.06);
+  --shadow-float: 0 16px 40px rgba(30, 58, 138, 0.08);
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -1832,3 +1832,89 @@ a:focus-visible {
     width: 100%;
   }
 }
+
+/* Shared Local Basket surface layer: all three operations portals use the same
+   blue identity while each keeps its existing navigation and task structure. */
+body {
+  background: rgb(var(--lb-light-blue));
+  color: rgb(var(--lb-text));
+  font-family: var(--lb-font-family);
+}
+
+button, input, textarea, select {
+  font-family: var(--lb-font-family);
+}
+
+.page { color: rgb(var(--lb-text)); }
+.eyebrow, .text-button { color: #2563eb; }
+.phase-badge, .count-pill { background: #eff6ff; color: #1e3a8a; }
+.auth-frame, .auth-strip, .card, .notice {
+  border-color: #e5e7eb;
+  border-radius: 16px;
+}
+.auth-frame, .auth-strip, .card, .notice { background: #fff; }
+.auth-frame, .card { box-shadow: 0 8px 24px rgba(30, 58, 138, .055); }
+.section-heading h2, .topbar h1, h2, h3 { color: #1e3a8a; }
+.muted { color: #4b5563; }
+label { color: #374151; font-weight: 500; }
+input, textarea, select {
+  background-color: #fff;
+  border-color: #d1d5db;
+  border-radius: 9px;
+  color: #1f2937;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+.primary-button {
+  background: #2563eb;
+  border-color: #2563eb;
+  border-radius: 9px;
+  font-weight: 600;
+}
+.primary-button:hover:not(:disabled) { background: #1e3a8a; }
+.secondary-button { border-color: #d1d5db; color: #1e3a8a; border-radius: 9px; }
+.secondary-button:hover:not(:disabled) { background: #eff6ff; border-color: #bfdbfe; }
+.text-button { font-weight: 600; }
+.danger-button { color: #dc2626; border-color: #fecaca; background: #fff7f7; }
+.empty-state { background: #f8f9ff; border-color: #dbe4f3; color: #4b5563; }
+.mode-tabs { border-color: #e5e7eb; }
+.mode-tabs button { color: #4b5563; font-weight: 500; }
+.mode-tabs button.active { border-color: #2563eb; color: #1e3a8a; }
+.status-active { background: #ecfdf5; color: #047857; }
+.status-delivered { background: #ecfdf5; color: #047857; }
+.status-pending, .status-pending_approval { background: #eff6ff; color: #1e3a8a; }
+.status-accepted, .status-preparing, .status-ready { background: #eff6ff; color: #1e3a8a; }
+.status-out_for_delivery { background: #f6f4ff; color: #1e3a8a; }
+.status-suspended, .status-rejected, .status-cancelled { background: #fef2f2; color: #b91c1c; }
+.notice-success { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.notice-error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.delivery-queue { background: #1e3a8a; }
+.delivery-queue button { background: #294d9b; border-color: #3f62ac; }
+.delivery-queue button:hover, .delivery-queue button.active { background: #fff; border-color: #fff; color: #1e3a8a; }
+.summary-tile { background: #f6f9ff; border-color: #e5e7eb; }
+.summary-tile span { color: #4b5563; }
+.summary-tile strong { color: #1e3a8a; }
+.order-id { color: #1e3a8a; }
+.order-error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.is-vendor {
+  --bg-page: #f6f4ff;
+  --bg-sidebar: #1e3a8a;
+  --text-main: #1f2937;
+  --text-muted: #4b5563;
+  --border-light: #e5e7eb;
+  --border-strong: #bfdbfe;
+  --primary: #2563eb;
+  --primary-hover: #1e3a8a;
+  --accent: #2563eb;
+  --accent-hover: #1e3a8a;
+  --danger: #ef4444;
+  --success: #10b981;
+  --success-bg: #ecfdf5;
+}
+.is-vendor .vendor-sidebar, .is-vendor .vendor-mobile-header { background: #1e3a8a; }
+.is-vendor .vendor-nav button.active { background: rgba(255, 255, 255, .14); color: #fff; }
+.is-vendor .vendor-primary-button, .is-vendor .vendor-button-primary { background: #2563eb; border-color: #2563eb; }
+.is-vendor .vendor-primary-button:hover:not(:disabled), .is-vendor .vendor-button-primary:hover:not(:disabled) { background: #1e3a8a; }
+.is-vendor .vendor-card, .is-vendor .vendor-panel { border-radius: 16px; }

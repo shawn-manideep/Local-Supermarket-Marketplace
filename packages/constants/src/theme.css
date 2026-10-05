@@ -1,0 +1,14 @@
+:root {
+  --lb-primary: 37 99 235;
+  --lb-navy: 30 58 138;
+  --lb-light-blue: 246 244 255;
+  --lb-white: 255 255 255;
+  --lb-text: 31 41 55;
+  --lb-secondary-text: 75 85 99;
+  --lb-light-text: 156 163 175;
+  --lb-border: 229 231 235;
+  --lb-success: 16 185 129;
+  --lb-error: 239 68 68;
+  --lb-font-family: Inter, system-ui, -apple-system, sans-serif;
+  --lb-radius-card: 16px;
+}

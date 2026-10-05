@@ -11,6 +11,80 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /admin/master-catalog/excel:
+    get:
+      operationId: downloadMasterCatalogExcel
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Fresh canonical catalog workbook; never vendor commercial data
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { $ref: "#/components/schemas/CatalogWorkbook" }
+        "403": { description: Admin only }
+  /admin/master-catalog/excel/template:
+    get:
+      operationId: downloadMasterCatalogTemplate
+      security: [{ customerBearer: [] }]
+      responses:
+        "200":
+          description: Current-ID update template with workbook instructions
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { $ref: "#/components/schemas/CatalogWorkbook" }
+  /admin/master-catalog/excel/preview:
+    post:
+      operationId: previewMasterCatalogExcel
+      security: [{ customerBearer: [] }]
+      parameters:
+        - { name: filename, in: query, required: true, schema: { type: string, maxLength: 180 } }
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { $ref: "#/components/schemas/CatalogWorkbook" }
+      responses:
+        "200":
+          description: Validation and change preview; no database writes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogExcelPreview" }
+        "413": { description: Workbook exceeds upload or expansion limits }
+        "403": { description: Admin only }
+  /admin/master-catalog/excel/apply:
+    post:
+      operationId: applyMasterCatalogExcel
+      security: [{ customerBearer: [] }]
+      parameters:
+        - { name: filename, in: query, required: true, schema: { type: string, maxLength: 180 } }
+        - { name: X-Catalog-Preview, in: header, required: true, schema: { type: string, maxLength: 4096 } }
+        - { name: X-Catalog-Confirm, in: header, required: true, schema: { type: string, enum: ["true"] } }
+      requestBody:
+        required: true
+        content:
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema: { $ref: "#/components/schemas/CatalogWorkbook" }
+      responses:
+        "200":
+          description: Atomic canonical-only update and audit
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogExcelApplied" }
+        "400": { description: Invalid workbook or confirmation; zero changes }
+        "409": { description: Stale catalog or workbook; zero changes }
+        "403": { description: Admin only }
+  /admin/master-catalog/excel/history:
+    get:
+      operationId: getMasterCatalogExcelHistory
+      security: [{ customerBearer: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+      responses:
+        "200":
+          description: Import history and live canonical counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogExcelHistory" }
   /admin/dashboard:
     get:
       operationId: getAdminManagementDashboard
@@ -455,6 +529,93 @@ components:
       type: http
       scheme: bearer
   schemas:
+    CatalogWorkbook:
+      type: string
+      format: binary
+    CatalogExcelSummary:
+      type: object
+      required: [added, updated, archived, unchanged]
+      properties:
+        added: { type: integer }
+        updated: { type: integer }
+        archived: { type: integer }
+        unchanged: { type: integer }
+    CatalogExcelError:
+      type: object
+      required: [sheet, row, column, message]
+      properties:
+        sheet: { type: string }
+        row: { type: integer }
+        column: { type: string }
+        message: { type: string }
+    CatalogExcelField:
+      type: object
+      required: [field, before, after]
+      properties:
+        field: { type: string }
+        before: { type: ["string", "null"] }
+        after: { type: ["string", "null"] }
+    CatalogExcelChange:
+      type: object
+      required: [sheet, row, id, name, fields]
+      properties:
+        sheet: { type: string }
+        row: { type: integer }
+        id: { type: string }
+        name: { type: string }
+        fields: { type: array, items: { $ref: "#/components/schemas/CatalogExcelField" } }
+    CatalogExcelPreview:
+      type: object
+      required: [valid, errors, warnings, summary, changes]
+      properties:
+        valid: { type: boolean }
+        errors: { type: array, items: { $ref: "#/components/schemas/CatalogExcelError" } }
+        warnings: { type: array, items: { type: string } }
+        summary: { $ref: "#/components/schemas/CatalogExcelSummary" }
+        changes: { type: array, items: { $ref: "#/components/schemas/CatalogExcelChange" } }
+        previewToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+    CatalogExcelApplied:
+      type: object
+      required: [applied, summary, version]
+      properties:
+        applied: { type: boolean }
+        summary: { $ref: "#/components/schemas/CatalogExcelSummary" }
+        version: { type: integer }
+    CatalogExcelHistoryRow:
+      type: object
+      required: [version, createdAt, actorUserId, actorLabel, filename, added, updated, archived, unchanged, result]
+      properties:
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+        actorUserId: { type: string, format: uuid }
+        actorLabel: { type: string }
+        filename: { type: string }
+        added: { type: integer }
+        updated: { type: integer }
+        archived: { type: integer }
+        unchanged: { type: integer }
+        result: { type: string, enum: [APPLIED] }
+    CatalogExcelHistory:
+      type: object
+      required: [history, pagination, catalog]
+      properties:
+        history: { type: array, items: { $ref: "#/components/schemas/CatalogExcelHistoryRow" } }
+        pagination:
+          type: object
+          required: [page, pageSize, total]
+          properties:
+            page: { type: integer }
+            pageSize: { type: integer }
+            total: { type: integer }
+        catalog:
+          type: object
+          required: [products, categories, lastUpdated, updatedBy]
+          properties:
+            products: { type: integer }
+            categories: { type: integer }
+            lastUpdated: { type: ["string", "null"] }
+            updatedBy: { type: ["string", "null"] }
     AdminDashboardOutcome:
       type: object
       required: [dashboard]

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@workspace/constants": "workspace:*",
     "@workspace/validation": "workspace:*",
     "@supabase/supabase-js": "^2.49.1",
     "react": "catalog:",

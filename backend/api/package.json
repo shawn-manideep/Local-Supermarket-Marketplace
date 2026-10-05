@@ -18,6 +18,7 @@
     "@workspace/shared-types": "workspace:*",
     "@workspace/validation": "workspace:*",
     "drizzle-orm": "catalog:",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "zod": "catalog:"
   },

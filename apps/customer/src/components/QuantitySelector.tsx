@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet } from "react-native";
+import { CustomerText as Text } from "./CustomerTypography";
 import { colors, radius, typography } from "../theme";
 
 interface QuantitySelectorProps {

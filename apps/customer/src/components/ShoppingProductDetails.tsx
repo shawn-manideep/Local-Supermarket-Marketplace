@@ -1,4 +1,5 @@
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { CustomerText as Text } from "./CustomerTypography";
 import { formatPrice, formatVariantName } from "@workspace/validation/variant-formatting";
 import type { CustomerProduct, CustomerProductVariant, CustomerStore } from "../lib/api";
 import { activeVariants, canPurchaseVariant, productAvailabilityLabel, productPriceLabel, variantAvailabilityLabel } from "../lib/shopping";

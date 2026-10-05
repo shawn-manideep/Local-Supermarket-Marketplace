@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { CustomerText as Text } from "./components/CustomerTypography";
 import { customerApi, CustomerRequestError, type CustomerAddress, type CustomerCart, type CustomerCheckoutSubmission } from "./lib/api";
-import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
+import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { QuantitySelector } from "./components/QuantitySelector";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { PlaceholderImage } from "./components/PlaceholderImage";
@@ -230,14 +231,14 @@ function Line({label,value,strong=false}:{label:string;value:string;strong?:bool
 }
 
 const styles = StyleSheet.create({
-  emptyHeader: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: "800", padding: spacing.lg },
+  emptyHeader: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: fontWeights.bold, padding: spacing.lg },
   center: { alignItems: "center", justifyContent: "center" },
   emptyBasket: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
   cartItem: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
   cartImage: { width: 64, height: 64, borderRadius: radius.md },
   cartHeader: { backgroundColor: colors.accent, marginHorizontal: -spacing.lg, marginTop: -16, paddingHorizontal: spacing.lg, height: 60, marginBottom: spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cartHeaderText: { color: colors.card, fontSize: 20, fontWeight: "800" },
-  clearText: { color: colors.card, fontWeight: "600" },
+  cartHeaderText: { color: colors.card, fontSize: 20, fontWeight: fontWeights.semibold },
+  clearText: { color: colors.card, fontWeight: fontWeights.semibold },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 4 },
   divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing.sm },
   secondaryBtn: { backgroundColor: colors.soft, borderRadius: radius.md, height: 52, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: colors.line },

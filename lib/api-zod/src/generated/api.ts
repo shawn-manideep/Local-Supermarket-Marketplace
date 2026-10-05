@@ -8,6 +8,116 @@
 import * as zod from 'zod';
 
 
+export const DownloadMasterCatalogExcelResponse = zod.unknown()
+
+
+export const DownloadMasterCatalogTemplateResponse = zod.unknown()
+
+
+export const previewMasterCatalogExcelQueryFilenameMax = 180;
+
+
+
+export const PreviewMasterCatalogExcelQueryParams = zod.object({
+  "filename": zod.coerce.string().max(previewMasterCatalogExcelQueryFilenameMax)
+})
+
+export const PreviewMasterCatalogExcelResponse = zod.object({
+  "valid": zod.boolean(),
+  "errors": zod.array(zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int(),
+  "column": zod.string(),
+  "message": zod.string()
+})),
+  "warnings": zod.array(zod.string()),
+  "summary": zod.object({
+  "added": zod.number().int(),
+  "updated": zod.number().int(),
+  "archived": zod.number().int(),
+  "unchanged": zod.number().int()
+}),
+  "changes": zod.array(zod.object({
+  "sheet": zod.string(),
+  "row": zod.number().int(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "fields": zod.array(zod.object({
+  "field": zod.string(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+})),
+  "previewToken": zod.string().optional(),
+  "expiresAt": zod.coerce.date().optional()
+})
+
+
+export const applyMasterCatalogExcelQueryFilenameMax = 180;
+
+
+
+export const ApplyMasterCatalogExcelQueryParams = zod.object({
+  "filename": zod.coerce.string().max(applyMasterCatalogExcelQueryFilenameMax)
+})
+
+export const applyMasterCatalogExcelHeaderXCatalogPreviewMax = 4096;
+
+
+
+export const ApplyMasterCatalogExcelHeader = zod.object({
+  "X-Catalog-Preview": zod.string().max(applyMasterCatalogExcelHeaderXCatalogPreviewMax),
+  "X-Catalog-Confirm": zod.enum(['true'])
+})
+
+export const ApplyMasterCatalogExcelResponse = zod.object({
+  "applied": zod.boolean(),
+  "summary": zod.object({
+  "added": zod.number().int(),
+  "updated": zod.number().int(),
+  "archived": zod.number().int(),
+  "unchanged": zod.number().int()
+}),
+  "version": zod.number().int()
+})
+
+
+export const getMasterCatalogExcelHistoryQueryPageDefault = 1;
+export const getMasterCatalogExcelHistoryQueryPageMax = 10000;
+
+
+
+export const GetMasterCatalogExcelHistoryQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).max(getMasterCatalogExcelHistoryQueryPageMax).default(getMasterCatalogExcelHistoryQueryPageDefault)
+})
+
+export const GetMasterCatalogExcelHistoryResponse = zod.object({
+  "history": zod.array(zod.object({
+  "version": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "actorUserId": zod.string().uuid(),
+  "actorLabel": zod.string(),
+  "filename": zod.string(),
+  "added": zod.number().int(),
+  "updated": zod.number().int(),
+  "archived": zod.number().int(),
+  "unchanged": zod.number().int(),
+  "result": zod.enum(['APPLIED'])
+})),
+  "pagination": zod.object({
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int()
+}),
+  "catalog": zod.object({
+  "products": zod.number().int(),
+  "categories": zod.number().int(),
+  "lastUpdated": zod.string().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+})
+
+
 export const GetAdminManagementDashboardResponse = zod.object({
   "dashboard": zod.object({
   "totalCustomers": zod.number().int(),

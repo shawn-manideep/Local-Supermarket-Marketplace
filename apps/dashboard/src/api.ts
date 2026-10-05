@@ -236,21 +236,29 @@ export class ApiRequestError extends Error {
   }
 }
 
+export function apiUrl(path: string) {
+  const apiOrigin = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+  return `${apiOrigin}${path}`;
+}
+
+export function apiAuthorizationHeaders(token: string, extra?: HeadersInit) {
+  const headers = new Headers(extra);
+  if (token.trim()) headers.set("Authorization", `Bearer ${token.trim()}`);
+  return headers;
+}
+
 export async function apiRequest<T>(
   path: string,
   token: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const apiOrigin = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  if (token.trim()) {
-    headers.set("Authorization", `Bearer ${token.trim()}`);
-  }
+  apiAuthorizationHeaders(token, headers).forEach((value, key) => headers.set(key, value));
 
-  const response = await fetch(`${apiOrigin}${path}`, { ...init, headers });
+  const response = await fetch(apiUrl(path), { ...init, headers });
   const payload = response.status === 204
     ? undefined
     : await response.json().catch(() => undefined) as ApiErrorPayload | T | undefined;

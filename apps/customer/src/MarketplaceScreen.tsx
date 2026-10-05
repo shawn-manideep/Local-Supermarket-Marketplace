@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, Animated, TextInput } from "react-native";
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated } from "react-native";
+import { CustomerText as Text, CustomerTextInput as TextInput } from "./components/CustomerTypography";
 import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductPagination, type CustomerProductSearchResponse, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
-import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
+import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { PlaceholderImage } from "./components/PlaceholderImage";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { ShoppingProductCard } from "./components/ShoppingProductCard";
@@ -706,7 +707,7 @@ const styles = StyleSheet.create({
   storeInfo: { flex: 1, gap: 2 },
   statusBadge: { backgroundColor: colors.soft, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, alignSelf: "flex-start" },
   statusBadgeClosed: { backgroundColor: colors.highlight },
-  statusBadgeText: { fontSize: 10, fontWeight: "800", color: colors.ink },
+  statusBadgeText: { fontSize: 10, fontWeight: fontWeights.medium, color: colors.ink },
   statusBadgeTextClosed: { color: colors.danger },
   shopNowText: { ...typography.bodySemibold, color: colors.accent, marginTop: spacing.xs },
   skeleton: { backgroundColor: colors.line },
@@ -729,12 +730,12 @@ const styles = StyleSheet.create({
   productThumb: { width: "100%", aspectRatio: 1, borderRadius: radius.md, marginBottom: spacing.sm },
   productInfo: { gap: spacing.xs, marginBottom: spacing.xl },
   addMiniBtn: { position: "absolute", bottom: spacing.sm, left: spacing.sm, right: spacing.sm, height: 30, borderRadius: 7, backgroundColor: colors.accent, justifyContent: "center", alignItems: "center", zIndex: 2 },
-  addMiniBtnText: { color: colors.card, fontSize: 12, fontWeight: "700" },
+  addMiniBtnText: { color: colors.card, fontSize: 12, fontWeight: fontWeights.semibold },
   productHero: { position: "relative", marginBottom: spacing.lg },
   heroImage: { width: "100%", height: 300, borderRadius: radius.xl },
   badge: { position: "absolute", top: spacing.md, left: spacing.md, backgroundColor: colors.card, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, ...shadows.sm },
   closed: { backgroundColor: colors.highlight },
-  badgeText: { ...typography.caption, color: colors.ink, fontWeight: "800" },
+  badgeText: { ...typography.caption, color: colors.ink, fontWeight: fontWeights.medium },
   closedText: { color: colors.danger },
   qtyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.card, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, marginBottom: spacing.xl },
   variantSection: { marginTop: spacing.md, marginBottom: spacing.lg, backgroundColor: colors.card, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line },
@@ -745,35 +746,35 @@ const styles = StyleSheet.create({
   radioSelected: { borderColor: colors.accent },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
   stickyCart: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: 12, minHeight: 64, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.accent, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, ...shadows.md },
-  stickyCartTitle: { color: colors.card, fontSize: 16, fontWeight: "800" },
+  stickyCartTitle: { color: colors.card, fontSize: 16, fontWeight: fontWeights.semibold },
   stickyStoreName: { color: colors.card, fontSize: 11, opacity: 0.88 },
-  stickyCartCount: { color: colors.card, fontSize: 14, fontWeight: "700" },
+  stickyCartCount: { color: colors.card, fontSize: 14, fontWeight: fontWeights.semibold },
   cartError: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: 12, minHeight: 54, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.highlight, flexDirection: "row", alignItems: "center", justifyContent: "space-between", ...shadows.md },
   cartErrorText: { color: colors.danger, fontSize: 13, fontWeight: "600" },
-  cartErrorLink: { color: colors.ink, fontWeight: "800" },
+  cartErrorLink: { color: colors.ink, fontWeight: fontWeights.semibold },
   addedToast: { position: "absolute", bottom: 78, left: spacing.lg, right: spacing.lg, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.ink, alignItems: "center", ...shadows.sm },
-  addedToastText: { color: colors.card, fontWeight: "700", fontSize: 13 },
+  addedToastText: { color: colors.card, fontWeight: fontWeights.semibold, fontSize: 13 },
   disabled: { opacity: 0.5 },
   greeting: { fontSize: 13, color: colors.muted },
   promo: { backgroundColor: colors.accent, borderRadius: radius.lg, padding: 18, minHeight: 132, marginBottom: spacing.xl, justifyContent: "center", overflow: "hidden" },
-  promoTitle: { color: colors.card, fontSize: 19, fontWeight: "800", lineHeight: 24 },
-  promoText: { color: "#E4EDFF", fontSize: 11, marginTop: 6 },
+  promoTitle: { color: colors.card, fontSize: 19, fontWeight: fontWeights.semibold, lineHeight: 24 },
+  promoText: { color: "rgba(255,255,255,0.84)", fontSize: 11, marginTop: 6 },
   promoPill: { backgroundColor: colors.card, borderRadius: 20, alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 6, marginTop: 12 },
-  promoPillText: { color: colors.accent, fontSize: 11, fontWeight: "800" },
+  promoPillText: { color: colors.accent, fontSize: 11, fontWeight: fontWeights.semibold },
   storeHero: { height: 150, marginTop: -16, marginHorizontal: -spacing.lg, backgroundColor: colors.accent, position: "relative", justifyContent: "flex-end" },
   storeHeroImage: { width: "100%", height: "100%", position: "absolute" },
   heroBack: { position: "absolute", top: 10, left: 15, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
   heroBackText: { fontSize: 27, color: colors.ink, lineHeight: 31 },
-  heroName: { color: colors.card, fontWeight: "800", fontSize: 24, textAlign: "center", padding: 12, backgroundColor: "#10275688" },
+  heroName: { color: colors.card, fontWeight: fontWeights.bold, fontSize: 24, textAlign: "center", padding: 12, backgroundColor: colors.navyOverlay },
   storeHeading: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 18 },
   storeAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-  storeAvatarText: { color: colors.card, fontSize: 22, fontWeight: "800" },
+  storeAvatarText: { color: colors.card, fontSize: 22, fontWeight: fontWeights.semibold },
   openText: { color: colors.accent, fontSize: 12, marginTop: 3, fontWeight: "600" },
   categoryHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, backgroundColor: colors.accent, marginHorizontal: -spacing.lg },
   categoryHeaderText: { color: colors.card, fontSize: 27 },
-  categoryHeaderTitle: { color: colors.card, fontSize: 20, fontWeight: "800" },
+  categoryHeaderTitle: { color: colors.card, fontSize: 20, fontWeight: fontWeights.semibold },
   homeCategory: { width: 72, alignItems: "center", gap: 6 },
   homeCategoryIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
-  homeCategoryInitial: { color: colors.accent, fontSize: 22, fontWeight: "800" },
+  homeCategoryInitial: { color: colors.accent, fontSize: 22, fontWeight: fontWeights.semibold },
   homeCategoryText: { fontSize: 11, color: colors.ink, textAlign: "center" },
 });

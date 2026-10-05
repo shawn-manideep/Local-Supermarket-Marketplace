@@ -5,6 +5,95 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type CatalogWorkbook = Blob;
+
+export interface CatalogExcelSummary {
+  added: number;
+  updated: number;
+  archived: number;
+  unchanged: number;
+}
+
+export interface CatalogExcelError {
+  sheet: string;
+  row: number;
+  column: string;
+  message: string;
+}
+
+export interface CatalogExcelField {
+  field: string;
+  /** @nullable */
+  before: string | null;
+  /** @nullable */
+  after: string | null;
+}
+
+export interface CatalogExcelChange {
+  sheet: string;
+  row: number;
+  id: string;
+  name: string;
+  fields: CatalogExcelField[];
+}
+
+export interface CatalogExcelPreview {
+  valid: boolean;
+  errors: CatalogExcelError[];
+  warnings: string[];
+  summary: CatalogExcelSummary;
+  changes: CatalogExcelChange[];
+  previewToken?: string;
+  expiresAt?: string;
+}
+
+export interface CatalogExcelApplied {
+  applied: boolean;
+  summary: CatalogExcelSummary;
+  version: number;
+}
+
+export type CatalogExcelHistoryRowResult = typeof CatalogExcelHistoryRowResult[keyof typeof CatalogExcelHistoryRowResult];
+
+
+export const CatalogExcelHistoryRowResult = {
+  APPLIED: 'APPLIED',
+} as const;
+
+export interface CatalogExcelHistoryRow {
+  version: number;
+  createdAt: string;
+  actorUserId: string;
+  actorLabel: string;
+  filename: string;
+  added: number;
+  updated: number;
+  archived: number;
+  unchanged: number;
+  result: CatalogExcelHistoryRowResult;
+}
+
+export type CatalogExcelHistoryPagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+};
+
+export type CatalogExcelHistoryCatalog = {
+  products: number;
+  categories: number;
+  /** @nullable */
+  lastUpdated: string | null;
+  /** @nullable */
+  updatedBy: string | null;
+};
+
+export interface CatalogExcelHistory {
+  history: CatalogExcelHistoryRow[];
+  pagination: CatalogExcelHistoryPagination;
+  catalog: CatalogExcelHistoryCatalog;
+}
+
 export type AdminDashboardOutcomeDashboard = {
   totalCustomers: number;
   activeCustomers: number;
@@ -432,6 +521,28 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type PreviewMasterCatalogExcelParams = {
+/**
+ * @maxLength 180
+ */
+filename: string;
+};
+
+export type ApplyMasterCatalogExcelParams = {
+/**
+ * @maxLength 180
+ */
+filename: string;
+};
+
+export type GetMasterCatalogExcelHistoryParams = {
+/**
+ * @minimum 1
+ * @maximum 10000
+ */
+page?: number;
+};
 
 export type ListAdminVendorsParams = {
 /**

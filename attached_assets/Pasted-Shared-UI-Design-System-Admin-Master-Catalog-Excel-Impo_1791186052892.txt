@@ -1,0 +1,575 @@
+Shared UI Design System + Admin Master Catalog Excel Import/Export
+We are continuing development of the existing Local Supermarket Marketplace project.
+The current application already has four portals:
+1. Customer Portal
+2. Vendor Portal
+3. Delivery Partner Portal
+4. Admin Portal
+The existing Master Catalog architecture is already implemented and must be preserved.
+IMPORTANT — IMPLEMENTATION RULES
+Before changing anything:
+- Inspect the current repository and existing Master Catalog implementation.
+- Inspect the existing Admin Portal.
+- Inspect the existing shared/theme/design-token structure, if present.
+- Inspect how master_categories, master_products, vendor store listings, and product variants are currently represented.
+- Reuse existing architecture wherever possible.
+- Do not create duplicate catalog tables.
+- Do not replace the existing Master Catalog architecture.
+- Do not replace existing vendor product/listing tables.
+- Do not modify unrelated commerce functionality.
+- Do not modify authentication.
+- Do not modify orders, cart, checkout, stock deduction, delivery workflow, or historical order snapshots.
+- Do not change the meaning of existing product/listing IDs.
+- Do not perform a production deployment.
+- Do not ask me to perform automated browser testing.
+- I will manually test the application in the browser after implementation.
+- Keep the implementation focused only on the two requirements below.
+REQUIREMENT 1 — SHARED UI DESIGN SYSTEM
+Apply the following visual design system consistently across:
+- Customer Portal
+- Vendor Portal
+- Delivery Partner Portal
+- Admin Portal
+Do NOT independently redesign each portal.
+Create/reuse a shared theme/design-token system so that the colors and typography are centrally defined and reused.
+If the project already has shared theme tokens, extend them rather than creating a second theme system.
+Primary Colors
+Primary Blue
+#2563EB
+Use for:
+- Primary CTAs
+- Primary buttons
+- Important highlights
+- Interactive elements
+- Active navigation states
+- Important links
+Deep Navy
+#1E3A8A
+Use for:
+- Page headings
+- Section headings
+- Important text
+- Major titles
+Secondary Colors
+Light Blue
+#F6F4FF
+Use for:
+- Background accents
+- Section highlights
+- Subtle highlighted areas
+- Appropriate empty states
+White
+#FFFFFF
+Use for:
+- Main backgrounds
+- Cards
+- Panels
+- Modals
+- Primary content surfaces
+Text Colors
+Primary text:
+rgb(31, 41, 55)
+Secondary text:
+rgb(75, 85, 99)
+Light text:
+rgb(156, 163, 175)
+UI Colors
+Border:
+rgb(229, 231, 235)
+Success:
+#10B981
+Error:
+#EF4444
+Hover states:
+Use Primary Blue with appropriate opacity variations.
+Do not introduce unrelated new brand colors.
+TYPOGRAPHY
+Primary font:
+Inter
+Fallback:
+system-ui, -apple-system, sans-serif
+Weights:
+- 300 — Light
+- 400 — Regular
+- 500 — Medium
+- 600 — Semibold
+- 700 — Bold
+Use the weights consistently:
+- 700 for major page headings
+- 600 for section headings and important buttons
+- 500 for labels/navigation
+- 400 for normal content
+- 300 only where genuinely appropriate for secondary supporting text
+If Inter is already available in the project, reuse the existing setup.
+Do not introduce a second font framework.
+VISUAL STYLE
+Use:
+Rounded corners
+Default major cards/panels:
+border-radius: 16px
+Use the existing component system where available rather than manually duplicating styles.
+Shadows
+Use soft, natural shadows.
+Avoid:
+- heavy shadows
+- excessive glow
+- exaggerated gradients
+Gradients
+Use only subtle blue gradients where visually appropriate.
+Do not apply gradients to every component.
+Overlays
+Where overlays are required:
+rgba(255,255,255,0.8)
+Keep the interface clean and professional.
+UI COMPONENTS TO ALIGN
+Where these components already exist, update their visual styling through the shared design system:
+- Primary buttons
+- Secondary buttons
+- Inputs
+- Select/dropdown controls
+- Search fields
+- Cards
+- Tables
+- Navigation
+- Tabs
+- Status badges
+- Modals/dialogs
+- Section headers
+- Empty states
+- Error states
+- Success states
+- Loading states
+- Pagination
+- Form labels
+Do not change their business behavior.
+Do not move major navigation or change workflows just for visual reasons.
+The goal is visual consistency, not a complete UX redesign.
+REQUIREMENT 2 — ADMIN MASTER CATALOG EXCEL MANAGEMENT
+The current Master Catalog exists and is platform-controlled.
+The problem is that Admin currently does not have a convenient way to bulk-edit the Master Catalog.
+Implement an Admin-only Excel Import/Export workflow.
+The Admin Portal should provide a Master Catalog management section with:
+- Browse Current Catalog
+- Download Current Catalog Excel
+- Download Excel Template, if useful
+- Upload Updated Excel
+- Validate uploaded Excel
+- Preview changes
+- Admin confirmation
+- Apply changes
+- Import/version history
+The Excel file becomes a convenient bulk-management interface for the platform Master Catalog.
+It must NOT become the database itself.
+The database remains the authoritative source of truth.
+ADMIN MASTER CATALOG UI
+Add or extend the existing Admin Master Catalog area.
+Use the new shared visual design system.
+The section should provide something similar to:
+Master Catalog
+
+Search products...
+
+[ Download Current Catalog ]   [ Upload Excel ]
+
+Current Catalog
+1,250 Products
+120 Categories
+
+Last Updated:
+05-Oct-2026
+
+Updated By:
+Admin
+
+Do not unnecessarily redesign the existing Admin Portal.
+Reuse existing Admin navigation and layout.
+EXCEL EXPORT
+Implement:
+Download Current Catalog Excel
+The generated Excel must represent the CURRENT database Master Catalog.
+Do NOT create a static sample Excel file.
+Every time Admin clicks:
+Download Current Catalog
+generate/download the latest catalog data from the database.
+The exported file should contain the current canonical master information.
+EXCEL STRUCTURE
+Use a clear workbook structure.
+Prefer these sheets:
+Sheet 1 — MASTER_CATEGORIES
+Columns:
+Master Category ID
+Category Name
+Status
+
+Example:
+CAT001 | Rice & Grains | ACTIVE
+CAT002 | Pulses | ACTIVE
+CAT003 | Atta & Flours | ACTIVE
+
+Use the actual database identifiers and current values.
+Sheet 2 — MASTER_PRODUCTS
+Columns:
+Master Product ID
+Category ID
+Category Name
+Product Name
+Brand
+Description
+Image URL
+Status
+
+This is the main Admin editing sheet.
+Admin should be able to edit appropriate canonical fields such as:
+- Category
+- Product Name
+- Brand
+- Description
+- Image URL
+- Status
+Do not invent additional canonical fields unless they already exist in the Master Catalog schema.
+Sheet 3 — MASTER_VARIANTS
+Only include this sheet if the current Master Catalog implementation has master-level variant/template data.
+If master variants are not currently implemented, DO NOT create a new master variant architecture merely for Excel.
+If included, clearly keep master variant/template information separate from vendor-specific commercial data.
+CRITICAL DATA OWNERSHIP RULE
+The Excel Master Catalog must NEVER overwrite vendor-specific commercial information.
+Do NOT import/update these vendor-owned values through the Master Catalog Excel:
+- Vendor price
+- Vendor stock
+- Vendor availability
+- Vendor SKU
+- Vendor external code
+- Vendor-specific selling configuration
+- Vendor-specific promotions
+- Vendor-specific inventory
+- Vendor-specific variant commercial values
+These remain owned by the individual vendor/store.
+MASTER PRODUCT ID MUST BE IMMUTABLE
+Master Product ID is the stable identity of the Master Catalog product.
+Admin may edit the product's canonical information.
+Admin must NOT be allowed to change:
+MP001 → MP999
+
+The existing Master Product ID must remain unchanged.
+If an uploaded Excel file contains a modified/nonexistent/invalid Master Product ID, reject it rather than interpreting it as a rename.
+Do not merge products automatically.
+Do not silently remap products.
+CATEGORY ID RULE
+Master Category IDs must also remain stable.
+If an existing category ID is changed or an invalid category ID is referenced:
+- reject the affected row
+- show a clear validation error
+- do not silently create a different category
+Do not use category names alone as a dangerous identity replacement when an existing ID is available.
+NEW PRODUCTS / CATEGORIES
+If the current Master Catalog architecture supports creation of new canonical products/categories through Admin, the Excel workflow may support adding new records.
+However:
+- Existing IDs must remain immutable.
+- New IDs must be generated safely by the system/database.
+- Do not trust arbitrary IDs from Excel for newly created records if the current architecture uses UUID/generated IDs.
+- Do not create duplicate canonical products.
+- Do not automatically merge similar products based only on names.
+If the current implementation does not support Excel creation of new records safely, initially restrict Excel import to updating existing records and report this clearly.
+Do not invent a risky creation mechanism.
+EXCEL UPLOAD FLOW
+Uploading Excel must NOT immediately modify the database.
+The workflow must be:
+Upload Excel
+      ↓
+Parse workbook
+      ↓
+Validate structure
+      ↓
+Validate rows
+      ↓
+Generate change preview
+      ↓
+Admin confirms
+      ↓
+Transactional database update
+
+VALIDATION
+Validate at minimum:
+Workbook structure
+- Required sheets exist.
+- Required columns exist.
+- Unexpected critical structural problems are reported.
+- Empty workbook is rejected.
+Product validation
+- Master Product ID exists for existing records.
+- No duplicate Master Product IDs.
+- Required product fields are valid.
+- Category ID exists.
+- Status is valid.
+- No invalid references.
+Category validation
+- No duplicate Master Category IDs.
+- Existing category IDs cannot be changed.
+- Required fields are present.
+- Status is valid.
+Data integrity
+Reject malformed or ambiguous imports.
+Do not partially apply a bad workbook.
+VALIDATION ERROR EXPERIENCE
+If the Excel contains errors, show a useful error report.
+Example:
+Excel Import Failed
+
+3 errors found
+
+Row 27
+Category ID CAT999 does not exist.
+
+Row 43
+Master Product ID MP015 appears more than once.
+
+Row 51
+Product Name is required.
+
+No changes were applied.
+
+Please correct the Excel file and upload again.
+
+The database must remain unchanged when validation fails.
+IMPORT PREVIEW
+Before applying a valid workbook, show an Admin preview.
+Example:
+Master Catalog Import Preview
+
+Added
+12
+
+Updated
+37
+
+Archived
+5
+
+Unchanged
+66
+
+Warnings
+2
+
+Errors
+0
+
+[ Cancel ]       [ Apply Changes ]
+
+Show enough information for Admin to understand what will change.
+For updated records, preferably show:
+Product
+Basmati Rice
+
+Name
+Basmati Rice
+→
+Premium Basmati Rice
+
+Do not expose vendor-private commercial information in the Master Catalog import preview.
+APPLY IMPORT
+Only after Admin explicitly confirms:
+Apply Changes
+should the database be modified.
+Apply the import safely and transactionally.
+If the import fails, do not leave the Master Catalog partially updated.
+Do not change:
+- Orders
+- Order snapshots
+- Cart records
+- Delivery records
+- Vendor stock
+- Vendor price
+- Vendor-specific commercial configuration
+VENDOR PROPAGATION
+After a Master Catalog canonical field is updated:
+Example:
+Basmati Rice
+→
+Premium Basmati Rice
+
+all vendor listings that reference that Master Product must correctly reflect the updated canonical information according to the EXISTING Master Catalog propagation/display architecture.
+Do NOT create new vendor listings.
+Do NOT automatically add the product to vendors who have not selected it.
+Do NOT modify vendor price or stock.
+Example:
+Master Product MP001
+        ↓
+Vendor A selected MP001
+Vendor B selected MP001
+Vendor C did NOT select MP001
+
+After the Master Catalog name changes:
+Vendor A → updated canonical product information
+Vendor B → updated canonical product information
+Vendor C → still does not have the product
+
+This rule is mandatory.
+HISTORICAL ORDERS
+Historical orders and snapshots are immutable.
+If the Master Product name/image/description changes today:
+- historical order snapshots must NOT be rewritten
+- old orders must retain their existing snapshot information
+- do not perform historical data migrations as part of this feature
+IMPORT HISTORY
+Add a lightweight import history section if the existing architecture allows it safely.
+Display:
+Import History
+
+Version    Date          Updated By    Updated    Added    Archived
+12         05-Oct-2026   Admin          37         12       5
+11         29-Sep-2026   Admin          8          4        0
+
+At minimum record:
+- import timestamp
+- Admin/user who performed import
+- number of records added
+- number updated
+- number archived
+- import result
+If a complete version/rollback system is not already present, DO NOT implement a complex rollback system in this task.
+A lightweight audit/history record is sufficient.
+SECURITY
+This functionality is ADMIN ONLY.
+Enforce Admin authorization on the backend.
+Do NOT rely only on hiding buttons in the frontend.
+Vendor, Customer and Delivery Partner must not be able to:
+- upload Master Catalog Excel
+- apply Master Catalog imports
+- modify canonical Master Catalog records
+- access Admin import APIs
+Use the existing server-side Admin authorization architecture.
+Do not weaken authorization.
+FILE UPLOAD SECURITY
+Treat uploaded Excel as untrusted input.
+Validate:
+- file type
+- workbook structure
+- sheet names
+- column names
+- cell values
+- row limits if the existing application has limits
+Do not execute formulas/macros.
+Do not allow uploaded workbook content to execute code.
+Do not trust Excel-provided ownership fields.
+Do not allow an uploaded workbook to modify arbitrary database tables.
+IMPORTANT: DO NOT CREATE A SECOND CATALOG SYSTEM
+The existing Master Catalog remains authoritative.
+Do NOT create:
+excel_products
+excel_categories
+
+or another parallel catalog database.
+Excel is only an import/export interface.
+Use the existing Master Catalog tables and relationships.
+IMPORTANT: DO NOT CHANGE THESE FEATURES
+This task must NOT change the behavior of:
+Customer
+- Search
+- Store selection
+- Product details
+- Cart
+- Checkout
+- Reorder
+- Order history
+Vendor
+- Store ownership
+- Product selection
+- Vendor price
+- Vendor stock
+- Variants
+- Orders
+- Accept/Reject
+- Preparing/Ready
+Delivery Partner
+- Assignment
+- Accept/reject
+- Pickup
+- Start delivery
+- Delivered
+Admin
+- Vendor management
+- Customer management
+- Delivery partner management
+- Existing authentication/authorization
+Only add the Master Catalog Excel functionality and shared visual design system.
+RESPONSIVE DESIGN
+Apply the visual changes and new Master Catalog UI responsively.
+Check the existing responsive patterns and preserve them.
+Do not introduce the previously fixed Customer scrolling problem again.
+Admin Excel upload/preview must remain usable on desktop and smaller screens.
+DEPENDENCIES
+If an Excel parsing/writing library is already present, reuse it.
+If a new dependency is genuinely required, use a well-established .xlsx library and keep the dependency limited to this feature.
+Do not add unnecessary libraries.
+TESTING
+Run the existing relevant automated tests, typechecks and builds that are already part of the project.
+Add focused tests for:
+1. Excel export structure.
+2. Excel import validation.
+3. Duplicate IDs.
+4. Invalid category references.
+5. Invalid statuses.
+6. Invalid workbook structure.
+7. Failed validation causes zero database changes.
+8. Admin-only authorization.
+9. Vendor cannot call Admin import API.
+10. Successful import updates canonical master records.
+11. Vendor-specific price remains unchanged.
+12. Vendor-specific stock remains unchanged.
+13. Vendor-specific availability remains unchanged.
+14. Vendor who has not selected the master product does not automatically receive it.
+15. Historical order snapshots remain unchanged.
+Do NOT perform automated browser testing.
+I will manually test the UI in the browser after implementation.
+DOCUMENTATION
+Create/update a concise implementation report:
+docs/MASTER_CATALOG_EXCEL_AND_UI_IMPLEMENTATION_REPORT.md
+Include:
+1. Files changed.
+2. Shared theme/design-system changes.
+3. Excel export implementation.
+4. Excel import implementation.
+5. Workbook structure.
+6. Validation rules.
+7. Preview/apply flow.
+8. Admin authorization.
+9. Vendor propagation behavior.
+10. Data that is deliberately protected from Excel updates.
+11. Tests executed and results.
+12. Any limitations or follow-up items.
+FINAL IMPLEMENTATION SAFETY RULE
+Before finishing, review the diff and remove any unrelated changes.
+The implementation must preserve:
+Master Catalog
+      ↓
+Explicit Vendor Selection
+      ↓
+Vendor-Owned Listing
+      ↓
+Vendor-Owned Price/Stock/Availability
+      ↓
+Customer Store Catalog
+      ↓
+Cart
+      ↓
+Order
+      ↓
+Historical Snapshot
+
+Do not redesign this architecture.
+Do not replace existing IDs.
+Do not rewrite historical orders.
+Do not modify inventory logic.
+Do not modify delivery logic.
+Do not modify authentication.
+Do not deploy to production.
+At the end, provide a concise implementation report with:
+- What was implemented
+- Files changed
+- Database migrations, if any
+- Dependencies added, if any
+- Tests/typecheck/build results
+- Any known limitations
+- Exact manual browser test steps for me
+STOP after implementation and report. Do not proceed to another feature or deployment.

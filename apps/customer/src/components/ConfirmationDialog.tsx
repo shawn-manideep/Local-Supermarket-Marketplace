@@ -1,5 +1,6 @@
 import React from "react";
-import { Modal, View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { Modal, View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { CustomerText as Text } from "./CustomerTypography";
 import { colors, radius, typography, spacing, shadows } from "../theme";
 
 interface ConfirmationDialogProps {
@@ -38,7 +39,7 @@ export function ConfirmationDialog({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(15, 61, 36, 0.4)", justifyContent: "center", alignItems: "center", padding: spacing.xl },
+  overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center", alignItems: "center", padding: spacing.xl },
   dialog: { width: "100%", maxWidth: 320, backgroundColor: colors.card, borderRadius: radius.xl, padding: spacing.xl, gap: spacing.md, ...shadows.md },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.md, marginTop: spacing.sm },
   cancelBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.md, justifyContent: "center", alignItems: "center" },

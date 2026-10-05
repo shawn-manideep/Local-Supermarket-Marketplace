@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ApiRequestError } from "../api";
+import { AdminMasterCatalogPanel } from "../AdminMasterCatalogPanel";
 import {
   changeAdminStatus,
   createAdminPartner,
@@ -16,7 +17,7 @@ import {
 } from "../admin-api";
 import "./admin.css";
 
-type Section = "dashboard" | AdminKind | "profile";
+type Section = "dashboard" | AdminKind | "profile" | "master-catalog";
 type Props = { token: string; session: Session; userId: string; onLogout: () => void };
 type Message = { text: string; kind: "error" | "success" | "notice" };
 
@@ -26,6 +27,7 @@ const nav: Array<{ key: Section; label: string; number: string }> = [
   { key: "customers", label: "Customers", number: "03" },
   { key: "delivery-partners", label: "Delivery Partners", number: "04" },
   { key: "profile", label: "Profile", number: "05" },
+  { key: "master-catalog", label: "Master Catalog", number: "06" },
 ];
 const kindLabel: Record<AdminKind, string> = {
   vendors: "Vendors",
@@ -70,7 +72,7 @@ const statusOptions: Record<AdminKind, Array<{ value: string; label: string }>> 
 function sectionFromPath(): Section {
   const path = window.location.pathname.replace(/\/+$/, "");
   const last = path.split("/").pop() || "";
-  if (last === "vendors" || last === "customers" || last === "delivery-partners" || last === "profile") return last;
+  if (last === "vendors" || last === "customers" || last === "delivery-partners" || last === "profile" || last === "master-catalog") return last;
   return "dashboard";
 }
 function sectionPath(section: Section) {
@@ -80,6 +82,7 @@ function sectionPath(section: Section) {
 function headingFor(section: Section) {
   if (section === "dashboard") return ["Platform overview", "A clear view of the neighborhood marketplace."];
   if (section === "profile") return ["Admin profile", "Your verified platform identity. Profile details are read-only here."];
+  if (section === "master-catalog") return ["Master Catalog", "Manage canonical grocery identities without changing store-owned prices or inventory."];
   return [kindLabel[section], section === "vendors" ? "Review neighborhood shops and manage their storefront access." : section === "customers" ? "Look up customer accounts and safely manage access." : "Provision and maintain delivery partner portal access."];
 }
 
@@ -262,7 +265,8 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
               {section !== "profile" && <button className="lb-admin-button" type="button" onClick={reload} disabled={section === "dashboard" && dashboardLoading}>{section === "dashboard" && dashboardLoading ? "Refreshing…" : "Refresh data"}</button>}
             </header>
             {section === "dashboard" && <Dashboard data={dashboard} loading={dashboardLoading} error={dashboardError} retry={reload} go={navigate} />}
-            {section !== "dashboard" && section !== "profile" && <AccountDirectory key={section} kind={section} token={token} revision={revision} onOpen={openDetail} onProvisioned={(text) => { setMessage({ text, kind: "success" }); reload(); }} />}
+            {section === "master-catalog" && <AdminMasterCatalogPanel token={token} onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
+            {section !== "dashboard" && section !== "profile" && section !== "master-catalog" && <AccountDirectory key={section} kind={section} token={token} revision={revision} onOpen={openDetail} onProvisioned={(text) => { setMessage({ text, kind: "success" }); reload(); }} />}
             {section === "profile" && <ProfileCard email={email} userId={userId} />}
           </section>
         </main>
@@ -272,7 +276,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           <div className="lb-admin-detail-head"><div><p className="lb-admin-eyebrow">Account record</p><h2>{detail?.displayName || "Account details"}</h2></div><button className="lb-admin-close" type="button" onClick={closeDetail} aria-label="Close details">×</button></div>
           {detailLoading && <div className="lb-admin-loading" aria-label="Loading account details"><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div>}
           {detailError && <div className="lb-admin-message error" role="alert">{detailError}{detailTarget && <button className="lb-admin-row-action" type="button" onClick={() => openDetail(detailTarget.kind, detailTarget.id)}>Try again</button>}</div>}
-          {detail && section !== "dashboard" && section !== "profile" && <AccountDetail kind={section} account={detail} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} />}
+          {detail && section !== "dashboard" && section !== "profile" && section !== "master-catalog" && <AccountDetail kind={section} account={detail} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} />}
         </aside>
       </div>}
     </div>

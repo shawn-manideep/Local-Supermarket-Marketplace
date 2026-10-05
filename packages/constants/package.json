@@ -4,8 +4,15 @@
   "private": true,
   "type": "module",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./theme.css": "./src/theme.css"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/generate-theme-css.mjs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

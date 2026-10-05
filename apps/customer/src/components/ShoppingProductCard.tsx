@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { CustomerText as Text } from "./CustomerTypography";
 import type { CustomerProduct, CustomerProductVariant } from "../lib/api";
 import { activeVariants, canPurchaseVariant, productAvailabilityLabel, productPriceLabel } from "../lib/shopping";
 import { colors, radius, spacing, typography } from "../theme";

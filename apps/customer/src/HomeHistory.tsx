@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { CustomerText as Text } from "./components/CustomerTypography";
 import { formatPrice } from "@workspace/validation/variant-formatting";
 import { customerApi, type CustomerOrderSummary, type RepeatOrderPreview } from "./lib/api";
 import { reorderPreviewQuery } from "./lib/reorder";

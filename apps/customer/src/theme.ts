@@ -1,16 +1,22 @@
 import { StyleSheet, Platform } from "react-native";
+import { theme } from "@workspace/constants";
 import { webViewportFlex } from "./lib/viewport-layout";
 
 export const colors = {
-  bg: "#F6F8FD",
-  card: "#FFFFFF",
-  ink: "#102756",
-  muted: "#71809C",
-  accent: "#1251CE",
-  soft: "#E8F0FF",
-  line: "#E3E9F4",
-  danger: "#C7474A",
-  highlight: "#FFF0EF",
+  bg: theme.colors.lightBlue,
+  card: theme.colors.white,
+  ink: theme.colors.navy,
+  text: theme.colors.text,
+  muted: theme.colors.secondaryText,
+  accent: theme.colors.primary,
+  success: theme.colors.success,
+  shadow: theme.colors.shadow,
+  soft: theme.colors.softBlue,
+  line: theme.colors.border,
+  danger: theme.colors.error,
+  highlight: theme.colors.errorSoft,
+  overlay: theme.colors.whiteOverlay,
+  navyOverlay: theme.colors.navyOverlay,
 };
 
 export const spacing = {
@@ -23,23 +29,33 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  full: 9999,
+  sm: theme.radius.sm,
+  md: theme.radius.md,
+  lg: theme.radius.card,
+  xl: theme.radius.large,
+  full: theme.radius.full,
 };
 
-export const typography = StyleSheet.create({
-  hero: { fontSize: 25, fontWeight: "800", color: colors.ink, lineHeight: 32 },
-  title1: { fontSize: 21, fontWeight: "800", color: colors.ink, lineHeight: 27 },
-  title2: { fontSize: 18, fontWeight: "800", color: colors.ink, lineHeight: 24 },
-  title3: { fontSize: 17, fontWeight: "800", color: colors.ink, lineHeight: 22 },
-  body: { fontSize: 15, fontWeight: "400", color: colors.muted, lineHeight: 22 },
-  bodySemibold: { fontSize: 15, fontWeight: "600", color: colors.ink, lineHeight: 22 },
-  caption: { fontSize: 13, fontWeight: "500", color: colors.muted, lineHeight: 18 },
-  eyebrow: { fontSize: 11, fontWeight: "800", color: colors.accent, letterSpacing: 1.2, textTransform: "uppercase" },
+export const fontWeights = theme.typography.weights;
+const interFont = Platform.select({
+  web: theme.typography.fontFamily,
+  ios: "System",
+  android: "sans-serif",
+  default: "sans-serif",
 });
+
+export const typography = StyleSheet.create({
+  hero: { fontFamily: interFont, fontSize: 25, fontWeight: fontWeights.bold, color: colors.ink, lineHeight: 32 },
+  title1: { fontFamily: interFont, fontSize: 21, fontWeight: fontWeights.bold, color: colors.ink, lineHeight: 27 },
+  title2: { fontFamily: interFont, fontSize: 18, fontWeight: fontWeights.semibold, color: colors.ink, lineHeight: 24 },
+  title3: { fontFamily: interFont, fontSize: 17, fontWeight: fontWeights.semibold, color: colors.ink, lineHeight: 22 },
+  body: { fontFamily: interFont, fontSize: 15, fontWeight: fontWeights.regular, color: colors.text, lineHeight: 22 },
+  bodySemibold: { fontFamily: interFont, fontSize: 15, fontWeight: fontWeights.semibold, color: colors.text, lineHeight: 22 },
+  caption: { fontFamily: interFont, fontSize: 13, fontWeight: fontWeights.medium, color: colors.muted, lineHeight: 18 },
+  eyebrow: { fontFamily: interFont, fontSize: 11, fontWeight: fontWeights.medium, color: colors.accent, letterSpacing: 1.2, textTransform: "uppercase" },
+});
+
+export const fontFamily = theme.typography.fontFamily;
 
 export const shadows = {
   sm: {

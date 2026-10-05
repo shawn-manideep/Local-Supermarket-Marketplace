@@ -25,6 +25,11 @@ import type {
   AdminDetailOutcome,
   AdminManagementPage,
   AdminVendorStatusInput,
+  ApplyMasterCatalogExcelParams,
+  CatalogExcelApplied,
+  CatalogExcelHistory,
+  CatalogExcelPreview,
+  CatalogWorkbook,
   CustomerCheckoutOutcome,
   CustomerCheckoutSubmission,
   CustomerShoppingCategories,
@@ -33,6 +38,7 @@ import type {
   DeliveryDutyRequest,
   GetCustomerShoppingCategoriesParams,
   GetEligibleDeliveryPartners200,
+  GetMasterCatalogExcelHistoryParams,
   HealthStatus,
   ListAdminCustomersParams,
   ListAdminDeliveryPartnersParams,
@@ -46,6 +52,7 @@ import type {
   PartnerSessionOutcome,
   PartnerStatusInput,
   PreviewCustomerReorderParams,
+  PreviewMasterCatalogExcelParams,
   ReorderOutcome,
   ReorderPreview,
   ReorderSubmission,
@@ -78,6 +85,406 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getDownloadMasterCatalogExcelUrl = () => {
+
+
+
+
+  return `/api/admin/master-catalog/excel`
+}
+
+export const downloadMasterCatalogExcel = async ( options?: Parameters<typeof customFetch>[1]): Promise<CatalogWorkbook> => {
+
+  return customFetch<CatalogWorkbook>(getDownloadMasterCatalogExcelUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadMasterCatalogExcelQueryKey = () => {
+    return [
+    `/api/admin/master-catalog/excel`
+    ] as const;
+    }
+
+
+export const getDownloadMasterCatalogExcelQueryOptions = <TData = Awaited<ReturnType<typeof downloadMasterCatalogExcel>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadMasterCatalogExcel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadMasterCatalogExcelQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadMasterCatalogExcel>>> = ({ signal }) => downloadMasterCatalogExcel({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadMasterCatalogExcel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadMasterCatalogExcelQueryResult = NonNullable<Awaited<ReturnType<typeof downloadMasterCatalogExcel>>>
+export type DownloadMasterCatalogExcelQueryError = ErrorType<void>
+
+
+
+export function useDownloadMasterCatalogExcel<TData = Awaited<ReturnType<typeof downloadMasterCatalogExcel>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadMasterCatalogExcel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadMasterCatalogExcelQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadMasterCatalogTemplateUrl = () => {
+
+
+
+
+  return `/api/admin/master-catalog/excel/template`
+}
+
+export const downloadMasterCatalogTemplate = async ( options?: Parameters<typeof customFetch>[1]): Promise<CatalogWorkbook> => {
+
+  return customFetch<CatalogWorkbook>(getDownloadMasterCatalogTemplateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadMasterCatalogTemplateQueryKey = () => {
+    return [
+    `/api/admin/master-catalog/excel/template`
+    ] as const;
+    }
+
+
+export const getDownloadMasterCatalogTemplateQueryOptions = <TData = Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadMasterCatalogTemplateQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>> = ({ signal }) => downloadMasterCatalogTemplate({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadMasterCatalogTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>>
+export type DownloadMasterCatalogTemplateQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadMasterCatalogTemplate<TData = Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadMasterCatalogTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadMasterCatalogTemplateQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewMasterCatalogExcelUrl = (params: PreviewMasterCatalogExcelParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/master-catalog/excel/preview?${stringifiedParams}` : `/api/admin/master-catalog/excel/preview`
+}
+
+export const previewMasterCatalogExcel = async (catalogWorkbook: CatalogWorkbook,
+    params: PreviewMasterCatalogExcelParams, options?: Parameters<typeof customFetch>[1]): Promise<CatalogExcelPreview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CatalogExcelPreview>(getPreviewMasterCatalogExcelUrl(params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ...getHeaders(options?.headers) },
+    body: catalogWorkbook
+  }
+);}
+
+
+
+
+
+export const getPreviewMasterCatalogExcelMutationKey = () => ['previewMasterCatalogExcel'] as const;
+
+export const getPreviewMasterCatalogExcelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewMasterCatalogExcel>>, TError,PreviewMasterCatalogExcelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewMasterCatalogExcel>>, TError,PreviewMasterCatalogExcelMutationVariables, TContext> => {
+
+const mutationKey = getPreviewMasterCatalogExcelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewMasterCatalogExcel>>, PreviewMasterCatalogExcelMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  previewMasterCatalogExcel(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewMasterCatalogExcelMutationResult = NonNullable<Awaited<ReturnType<typeof previewMasterCatalogExcel>>>
+    export type PreviewMasterCatalogExcelMutationBody = BodyType<CatalogWorkbook>
+    export type PreviewMasterCatalogExcelMutationError = ErrorType<void>
+    export type PreviewMasterCatalogExcelMutationVariables = {data: BodyType<CatalogWorkbook>;params: PreviewMasterCatalogExcelParams}
+
+    export const usePreviewMasterCatalogExcel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewMasterCatalogExcel>>, TError,PreviewMasterCatalogExcelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewMasterCatalogExcel>>,
+        TError,
+        PreviewMasterCatalogExcelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewMasterCatalogExcelMutationOptions(options));
+    }
+
+export const getApplyMasterCatalogExcelUrl = (params: ApplyMasterCatalogExcelParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/master-catalog/excel/apply?${stringifiedParams}` : `/api/admin/master-catalog/excel/apply`
+}
+
+export const applyMasterCatalogExcel = async (catalogWorkbook: CatalogWorkbook,
+    params: ApplyMasterCatalogExcelParams, options?: Parameters<typeof customFetch>[1]): Promise<CatalogExcelApplied> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CatalogExcelApplied>(getApplyMasterCatalogExcelUrl(params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ...getHeaders(options?.headers) },
+    body: catalogWorkbook
+  }
+);}
+
+
+
+
+
+export const getApplyMasterCatalogExcelMutationKey = () => ['applyMasterCatalogExcel'] as const;
+
+export const getApplyMasterCatalogExcelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyMasterCatalogExcel>>, TError,ApplyMasterCatalogExcelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyMasterCatalogExcel>>, TError,ApplyMasterCatalogExcelMutationVariables, TContext> => {
+
+const mutationKey = getApplyMasterCatalogExcelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyMasterCatalogExcel>>, ApplyMasterCatalogExcelMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  applyMasterCatalogExcel(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyMasterCatalogExcelMutationResult = NonNullable<Awaited<ReturnType<typeof applyMasterCatalogExcel>>>
+    export type ApplyMasterCatalogExcelMutationBody = BodyType<CatalogWorkbook>
+    export type ApplyMasterCatalogExcelMutationError = ErrorType<void>
+    export type ApplyMasterCatalogExcelMutationVariables = {data: BodyType<CatalogWorkbook>;params: ApplyMasterCatalogExcelParams}
+
+    export const useApplyMasterCatalogExcel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyMasterCatalogExcel>>, TError,ApplyMasterCatalogExcelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyMasterCatalogExcel>>,
+        TError,
+        ApplyMasterCatalogExcelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyMasterCatalogExcelMutationOptions(options));
+    }
+
+export const getGetMasterCatalogExcelHistoryUrl = (params?: GetMasterCatalogExcelHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/master-catalog/excel/history?${stringifiedParams}` : `/api/admin/master-catalog/excel/history`
+}
+
+export const getMasterCatalogExcelHistory = async (params?: GetMasterCatalogExcelHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<CatalogExcelHistory> => {
+
+  return customFetch<CatalogExcelHistory>(getGetMasterCatalogExcelHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMasterCatalogExcelHistoryQueryKey = (params?: GetMasterCatalogExcelHistoryParams,) => {
+    return [
+    `/api/admin/master-catalog/excel/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMasterCatalogExcelHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>, TError = ErrorType<unknown>>(params?: GetMasterCatalogExcelHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMasterCatalogExcelHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>> = ({ signal }) => getMasterCatalogExcelHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMasterCatalogExcelHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>>
+export type GetMasterCatalogExcelHistoryQueryError = ErrorType<unknown>
+
+
+
+export function useGetMasterCatalogExcelHistory<TData = Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>, TError = ErrorType<unknown>>(
+ params?: GetMasterCatalogExcelHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMasterCatalogExcelHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMasterCatalogExcelHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetAdminManagementDashboardUrl = () => {
 

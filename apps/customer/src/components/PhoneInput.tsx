@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { CustomerText as Text, CustomerTextInput as TextInput } from "./CustomerTypography";
 import { colors, radius, typography, spacing } from "../theme";
 
 interface PhoneInputProps {
@@ -41,7 +42,7 @@ export function PhoneInput({ value, onChangeText, label, error: externalError }:
           maxLength={10}
           onBlur={() => setTouched(true)}
           placeholder="9999999999"
-          placeholderTextColor="#A0AFA6"
+          placeholderTextColor={colors.muted}
         />
       </View>
       {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -51,7 +52,7 @@ export function PhoneInput({ value, onChangeText, label, error: externalError }:
 
 const styles = StyleSheet.create({
   container: { gap: spacing.xs },
-  label: { ...typography.bodySemibold, fontSize: 13 },
+  label: { ...typography.bodySemibold, fontWeight: "500", fontSize: 13 },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AdminCatalogExcelPanel } from "./AdminCatalogExcelPanel";
 import { apiRequest, type MasterCategory, type MasterProduct, type Product } from "./api";
 
 interface Props {
@@ -48,7 +49,6 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
   const [mappingMasterId, setMappingMasterId] = useState("");
   const [mappingReason, setMappingReason] = useState("");
   const [mappingBusy, setMappingBusy] = useState(false);
-
   const loadCategories = useCallback(async () => {
     const response = await apiRequest<{ categories: MasterCategory[] }>("/api/admin/master-categories", token);
     setCategories(response.categories);
@@ -68,6 +68,10 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
       setLoading(false);
     }
   }, [page, search, token]);
+  const refreshAfterImport = useCallback(() => {
+    void loadCategories();
+    void loadProducts();
+  }, [loadCategories, loadProducts]);
 
   useEffect(() => {
     let alive = true;
@@ -220,6 +224,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
 
   return (
     <section className="management-section admin-master-catalog" aria-label="Master catalog administration">
+      <AdminCatalogExcelPanel token={token} onApplied={refreshAfterImport} />
       <div className="section-heading">
         <div>
           <p className="eyebrow">Platform catalog</p>

@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+export { catalogImportEvents } from "./catalog-imports.js";
+
 import {
   boolean,
   check,

@@ -11,6 +11,7 @@ import { ordersRouter } from "./orders/index.js";
 import { deliveryPartnerRouter } from "./delivery-partner/routes.js";
 import { createApiRateLimit } from "./security.js";
 import { adminManagementRouter } from "./admin-management/routes.js";
+import { catalogExcelRouter } from "./master-catalog/excel-routes.js";
 
 export type IntegrationErrorDiagnostic = {
   causeCode?: string;
@@ -78,7 +79,7 @@ function createCorsMiddleware() {
     }
 
     response.setHeader("Access-Control-Allow-Origin", origin);
-    response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Catalog-Preview, X-Catalog-Confirm");
     response.setHeader(
       "Access-Control-Allow-Methods",
       "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -106,6 +107,7 @@ export function createApp() {
   });
 
   app.use(authRouter);
+  app.use(catalogExcelRouter);
   app.use(adminManagementRouter);
   app.use(deliveryPartnerRouter);
   app.use(storeManagementRouter);

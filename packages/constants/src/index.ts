@@ -1,1 +1,37 @@
-export {};
+export const theme = {
+  colors: {
+    primary: "#2563EB",
+    navy: "#1E3A8A",
+    lightBlue: "#F6F4FF",
+    white: "#FFFFFF",
+    text: "#1F2937",
+    secondaryText: "#4B5563",
+    lightText: "#9CA3AF",
+    border: "#E5E7EB",
+    success: "#10B981",
+    error: "#EF4444",
+    softBlue: "#EFF6FF",
+    errorSoft: "#FEF2F2",
+    whiteOverlay: "rgba(255, 255, 255, 0.8)",
+    navyOverlay: "rgba(30, 58, 138, 0.8)",
+    shadow: "rgba(30, 58, 138, 0.12)",
+    hover: "rgba(37, 99, 235, 0.08)",
+  },
+  typography: {
+    fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    weights: {
+      light: "300",
+      regular: "400",
+      medium: "500",
+      semibold: "600",
+      bold: "700",
+    },
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    card: 16,
+    large: 24,
+    full: 9999,
+  },
+} as const;

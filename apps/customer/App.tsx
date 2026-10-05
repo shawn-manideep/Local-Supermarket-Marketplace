@@ -6,11 +6,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
   useWindowDimensions,
 } from "react-native";
+import { CustomerText as Text, CustomerTextInput as TextInput, CustomerTypographyProvider } from "./src/components/CustomerTypography";
 import {
   customerApi,
   type AddressInput,
@@ -32,6 +31,7 @@ import {
 } from "./src/theme";
 import { PhoneInput } from "./src/components/PhoneInput";
 import { ConfirmationDialog } from "./src/components/ConfirmationDialog";
+import { fontWeights } from "./src/theme";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses";
 
@@ -878,12 +878,18 @@ export default function App() {
 
   if (session === undefined)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} />
-        <Text style={typography.body}>Restoring session…</Text>
-      </View>
+      <CustomerTypographyProvider>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={typography.body}>Restoring session…</Text>
+        </View>
+      </CustomerTypographyProvider>
     );
-  return session ? <CustomerApp /> : <AuthScreen />;
+  return (
+    <CustomerTypographyProvider>
+      {session ? <CustomerApp /> : <AuthScreen />}
+    </CustomerTypographyProvider>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -894,7 +900,7 @@ const styles = StyleSheet.create({
     maxWidth: 430,
     alignSelf: "center",
     ...(Platform.OS === "web"
-      ? { boxShadow: "0 0 40px rgba(12, 49, 120, 0.12)" }
+      ? { boxShadow: `0 0 40px ${colors.shadow}` }
       : {}),
   },
   content: { flex: 1 },
@@ -1076,7 +1082,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   navText: { ...typography.caption, color: colors.muted, fontSize: 11 },
-  navActive: { color: colors.accent, fontWeight: "800" },
+  navActive: { color: colors.accent, fontWeight: fontWeights.medium },
   authBrand: { alignItems: "center", marginBottom: 36 },
   brandDrawing: {
     width: 62,
@@ -1137,12 +1143,12 @@ const styles = StyleSheet.create({
     height: 10,
     borderTopLeftRadius: 12,
     borderBottomRightRadius: 12,
-    backgroundColor: "#3DA96A",
+    backgroundColor: colors.success,
     transform: [{ rotate: "-22deg" }],
   },
   brandName: {
     fontSize: 19,
-    fontWeight: "900",
+    fontWeight: fontWeights.bold,
     color: colors.ink,
     letterSpacing: 1.5,
   },
@@ -1163,7 +1169,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderRadius: radius.md,
   },
-  authOutlineText: { color: colors.accent, fontWeight: "700" },
+  authOutlineText: { color: colors.accent, fontWeight: fontWeights.semibold },
   authIllustration: {
     height: 110,
     backgroundColor: colors.soft,
@@ -1180,7 +1186,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     color: colors.card,
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: fontWeights.bold,
     padding: 18,
     marginHorizontal: -spacing.lg,
     marginTop: -8,
@@ -1188,7 +1194,7 @@ const styles = StyleSheet.create({
   },
   backLink: {
     color: colors.accent,
-    fontWeight: "800",
+    fontWeight: fontWeights.medium,
     fontSize: 18,
     marginBottom: 24,
   },
@@ -1199,7 +1205,7 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 18,
   },
-  profileHeaderText: { color: colors.card, fontWeight: "800", fontSize: 20 },
+  profileHeaderText: { color: colors.card, fontWeight: fontWeights.semibold, fontSize: 20 },
   profileCard: { gap: 22, borderWidth: 0, backgroundColor: colors.card },
   avatar: {
     width: 88,
@@ -1219,7 +1225,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { fontSize: 26, color: colors.accent, fontWeight: "800" },
+  avatarText: { fontSize: 26, color: colors.accent, fontWeight: fontWeights.semibold },
   accountBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -1228,8 +1234,8 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: radius.lg,
   },
-  accountName: { color: colors.card, fontWeight: "800", fontSize: 17 },
-  accountEmail: { color: "#D6E5FF", fontSize: 12 },
+  accountName: { color: colors.card, fontWeight: fontWeights.semibold, fontSize: 17 },
+  accountEmail: { color: "rgba(255,255,255,0.84)", fontSize: 12 },
   accountMenu: { gap: 8 },
   menuIcon: {
     color: colors.accent,
@@ -1237,7 +1243,7 @@ const styles = StyleSheet.create({
     width: 32,
     textAlign: "center",
   },
-  menuLabel: { flex: 1, fontSize: 15, color: colors.ink, fontWeight: "600" },
+  menuLabel: { flex: 1, fontSize: 15, color: colors.text, fontWeight: fontWeights.medium },
   menuArrow: { color: colors.muted, fontSize: 22 },
   unsupported: { color: colors.muted, fontSize: 11 },
   signOut: {
@@ -1248,5 +1254,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  signOutText: { color: colors.danger, fontWeight: "700" },
+  signOutText: { color: colors.danger, fontWeight: fontWeights.semibold },
 });

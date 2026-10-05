@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { randomUUID } from "expo-crypto";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { CustomerText as Text } from "./components/CustomerTypography";
 import { customerApi, type CustomerAddress, type CustomerOrderDetail, type CustomerOrderSummary, type RepeatOrderPreview, type RepeatOrderResult } from "./lib/api";
-import { colors, radius, spacing, typography, commonStyles, shadows } from "./theme";
+import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { reorderInput, reorderItemLabel, reorderPreviewQuery, reorderSummary } from "./lib/reorder";
 
@@ -339,8 +340,8 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
           
           <View style={styles.confirmBox}>
             <View>
-              <Text style={{ fontSize: 11, fontWeight: "800", color: "#A7C0B1", letterSpacing: 1.2 }}>REFERENCE</Text>
-              <Text style={{ fontSize: 28, fontWeight: "800", color: colors.card }}>#{localOrder.id.slice(0, 8).toUpperCase()}</Text>
+              <Text style={{ fontSize: 11, fontWeight: fontWeights.medium, color: "rgba(255,255,255,0.8)", letterSpacing: 1.2 }}>REFERENCE</Text>
+              <Text style={{ fontSize: 28, fontWeight: fontWeights.bold, color: colors.card }}>#{localOrder.id.slice(0, 8).toUpperCase()}</Text>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
               <Text style={[styles.statusBadgeText, { color: colors.card }]}>{localOrder.status.replaceAll("_", " ")}</Text>
@@ -433,7 +434,7 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
 }
 
 const styles = StyleSheet.create({
-  listHeader: { backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: "800", marginHorizontal: -spacing.lg, marginTop: -16, padding: spacing.lg },
+  listHeader: { backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: fontWeights.bold, marginHorizontal: -spacing.lg, marginTop: -16, padding: spacing.lg },
   filters: { flexDirection: "row", justifyContent: "space-between", gap: 4, marginVertical: spacing.lg },
   filter: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20 },
   filterActive: { backgroundColor: colors.accent },
@@ -444,10 +445,10 @@ const styles = StyleSheet.create({
   orderCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm, ...shadows.sm },
   orderActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   viewOrderButton: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  viewOrderText: { color: colors.ink, fontWeight: "700", fontSize: 13 },
+  viewOrderText: { color: colors.ink, fontWeight: fontWeights.semibold, fontSize: 13 },
   repeatButton: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.accent },
-  repeatText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
-  modalShade: { flex: 1, backgroundColor: "rgba(16,39,86,0.42)", justifyContent: "center", padding: spacing.lg },
+  repeatText: { color: colors.accent, fontWeight: fontWeights.semibold, fontSize: 13 },
+  modalShade: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center", padding: spacing.lg },
   repeatModal: { width: "100%", maxWidth: 430, maxHeight: "88%", alignSelf: "center", backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.lg, ...shadows.md },
   addressChip: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card },
   addressChipActive: { backgroundColor: colors.soft, borderColor: colors.accent },
@@ -459,9 +460,9 @@ const styles = StyleSheet.create({
   availabilityMark: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   markAvailable: { backgroundColor: colors.soft },
   markUnavailable: { backgroundColor: colors.highlight },
-  availabilityMarkText: { color: colors.accent, fontSize: 13, fontWeight: "900" },
+  availabilityMarkText: { color: colors.accent, fontSize: 13, fontWeight: fontWeights.semibold },
   warningBox: { borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.highlight, marginBottom: spacing.sm },
-  warningText: { color: colors.danger, fontSize: 13, fontWeight: "700", lineHeight: 19 },
+  warningText: { color: colors.danger, fontSize: 13, fontWeight: fontWeights.semibold, lineHeight: 19 },
   switchConfirm: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.soft, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: colors.muted, alignItems: "center", justifyContent: "center" },
   checkboxActive: { borderColor: colors.accent, backgroundColor: colors.accent },
@@ -469,14 +470,14 @@ const styles = StyleSheet.create({
   noticeText: { color: colors.danger, fontSize: 13, marginVertical: spacing.sm },
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
   modalCancel: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  modalCancelText: { color: colors.ink, fontWeight: "700" },
+  modalCancelText: { color: colors.ink, fontWeight: fontWeights.semibold },
   modalAdd: { flex: 1.5, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.accent },
-  modalAddText: { color: colors.card, fontWeight: "800", fontSize: 13 },
+  modalAddText: { color: colors.card, fontWeight: fontWeights.semibold, fontSize: 13 },
   buttonDisabled: { opacity: 0.45 },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 2 },
   statusBadge: { alignSelf: "flex-start", backgroundColor: colors.soft, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, marginTop: spacing.xs },
   statusBadgeCancelled: { backgroundColor: colors.highlight },
-  statusBadgeText: { fontSize: 11, fontWeight: "800", color: colors.ink, textTransform: "uppercase" },
+  statusBadgeText: { fontSize: 11, fontWeight: fontWeights.medium, color: colors.ink, textTransform: "uppercase" },
   statusBadgeTextCancelled: { color: colors.danger },
   confirmBox: { backgroundColor: colors.ink, borderRadius: radius.xl, padding: spacing.xl, flexDirection: "row", justifyContent: "space-between", alignItems: "center", ...shadows.md },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.line, marginTop: 4 },

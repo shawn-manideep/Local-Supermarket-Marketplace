@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { CustomerText as Text } from "./CustomerTypography";
 import { colors, radius, typography } from "../theme";
 
 export function PlaceholderImage({ name, style }: { name: string; style?: any }) {
