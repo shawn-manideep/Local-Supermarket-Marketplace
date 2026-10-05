@@ -6,6 +6,7 @@
 - [Legacy workflow preview routing](legacy-workflow-preview-routing.md) — non-artifact webview workflows may stay local when artifact-managed domains own preview routing.
 - [Customer browser origin](customer-dev-browser-origin.md) — interactive Customer API checks require the development origin; localhost screenshots may hit CORS.
 - [Supabase migration history](supabase-migration-history.md) — an empty Drizzle journal does not mean an empty database; use the established remote migration history.
+- [Raw SQL timestamps](raw-sql-timestamps.md) — raw timestamps may be strings despite Date generics; normalize before Date-only comparison or serialization.
 - [Authorization denial invariants](authorization-denial-invariants.md) — rejected cross-store API calls must leave parent and child state unchanged, not merely return an error.
 - [Pending classification](pending-master-classification.md) — unknown taxonomy is a pending state, not a fake category; active canonical identities stay globally reusable.
 - [Master Catalog ownership](master-catalog-ownership.md) — Admin-only authoring; no auto-seeding; retire only confirmed demos and preserve vendor/history data.

@@ -84,3 +84,17 @@ mtime_ms = 1791205178208
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/150489c2-303c-49ab-bae5-384a46ac97f9/0eb561d5-0da8-4c9c-950f-0a8ddddb1a04"
 storage_version_token = "1791205210352280"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "gaYUeNQO4w67KvO78rs2J"
+uri = "file://docs/MASTER_CATALOG_ADMIN_500_DIAGNOSIS.md"
+type = "text"
+title = "Admin Master Catalog 500 — Diagnosis Report"
+description = "Exact failing endpoint, both proven exceptions, targeted fixes, focused validation and preservation evidence."
+logical_id = "c5fdb8cb-c49e-4f89-8a0c-ae339ccc13ed"
+content_hash = "sha256:ea0c772251e23b76b7c40081e015d0e38564b4320a5b79c083239cf0e84b402d"
+size = 7805
+mtime_ms = 1791210058772
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/c5fdb8cb-c49e-4f89-8a0c-ae339ccc13ed/ee4ff3a0-ae18-477f-b053-373cbaef9432"
+storage_version_token = "1791210098256375"
+content_type = "text/markdown"

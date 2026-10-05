@@ -9,6 +9,10 @@ type Database = ReturnType<typeof getDb>;
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Executor = Database | Transaction;
 
+export function normalizeCatalogHistoryTimestamp(value: Date | string | null | undefined): Date | null {
+  return value == null ? null : value instanceof Date ? value : new Date(value);
+}
+
 export async function readCatalogSnapshot(executor: Executor): Promise<CatalogSnapshot> {
   const categories = await executor.select().from(masterCategories).orderBy(asc(masterCategories.id)).limit(MAX_CATALOG_ROWS + 1);
   const products = await executor.select().from(masterProducts).orderBy(asc(masterProducts.id)).limit(MAX_CATALOG_ROWS + 1);
@@ -82,14 +86,15 @@ export async function catalogHistory(page: number) {
     database.select({ products: count() }).from(masterProducts),
     database.select({ categories: count() }).from(masterCategories),
     database.select().from(catalogImportEvents).orderBy(desc(catalogImportEvents.version)).limit(1),
-    database.execute<{ lastUpdated: Date | null }>(sql`
+    database.execute<{ lastUpdated: Date | string | null }>(sql`
       SELECT greatest((SELECT max(updated_at) FROM public.master_categories),
         (SELECT max(updated_at) FROM public.master_products)) AS "lastUpdated"
     `),
   ]);
   // Only attribute the current timestamp to an importer when it matches that
   // import; subsequent existing-form edits must not be misattributed.
-  const lastUpdated = timestamps.rows[0]?.lastUpdated ?? null;
+  // Raw SQL results do not use the schema column's Date mapper.
+  const lastUpdated = normalizeCatalogHistoryTimestamp(timestamps.rows[0]?.lastUpdated);
   const importerIsLatest = latest && lastUpdated && Math.abs(lastUpdated.getTime() - latest.createdAt.getTime()) < 1000;
   const latestLabel = importerIsLatest
     ? (await database.execute<{ label: string }>(sql`SELECT coalesce(email, 'Admin (account unavailable)') AS label FROM auth.users WHERE id=${latest.actorUserId}`)).rows[0]?.label ?? "Admin (account unavailable)"

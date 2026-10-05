@@ -17,3 +17,15 @@ target connection with read-only counts/fingerprints, apply only the new reviewe
 SQL through the established history, and verify preservation afterward. Do not
 rewrite old migrations or invent a retroactive Drizzle baseline without an
 explicitly reviewed reconciliation.
+
+Do not infer that every earlier feature migration applied merely because a later
+numbered migration is present. Check each required relation against actual remote
+history before blaming an unrelated newer migration.
+
+**Why:** An Excel audit-table dependency was missing while the newer store-profile
+schema was already applied; the later migration did not create or remove that
+catalog dependency.
+
+**How to apply:** Compare feature-required tables and columns with the established
+remote history. Apply only a proven missing, reviewed migration; do not replay the
+entire journal or modify unrelated migration sources.
