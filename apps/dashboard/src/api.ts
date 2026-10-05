@@ -103,14 +103,6 @@ export interface MasterProduct {
   exactIdentity?: boolean;
 }
 
-export interface VendorMasterProductCreateInput {
-  name: string;
-  description?: string;
-  image?: string;
-  brand?: string;
-  attributes: Record<string, string>;
-}
-
 export interface ProductVariant {
   id: string;
   productId: string;

@@ -70,3 +70,17 @@ mtime_ms = 1791108061750
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/6cf5386f-7050-4101-9b41-9a000f1fd4c8/8b70d15c-c13d-4b98-89ea-0b9abe205c34"
 storage_version_token = "1791108105029867"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "BBO5MrNwzlj_-YvokYCcZ"
+uri = "file://docs/MASTER_CATALOG_RESET_REPORT.md"
+type = "text"
+title = "Master Catalog Reset Report"
+description = "Completed reset, preserved records, before/after safety evidence, validation results and manual browser acceptance steps."
+logical_id = "150489c2-303c-49ab-bae5-384a46ac97f9"
+content_hash = "sha256:7abcf37448a8d83a5dec589269d7d343e52c0ab11928a8d8f79a13a9d16d2c5a"
+size = 44055
+mtime_ms = 1791205178208
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/150489c2-303c-49ab-bae5-384a46ac97f9/0eb561d5-0da8-4c9c-950f-0a8ddddb1a04"
+storage_version_token = "1791205210352280"
+content_type = "text/markdown"

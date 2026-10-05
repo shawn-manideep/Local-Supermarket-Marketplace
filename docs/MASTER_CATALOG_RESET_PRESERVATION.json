@@ -1,0 +1,168 @@
+{
+  "environment": "development",
+  "before": {
+    "carts": {
+      "md5": "c58e3347f6feb13fe333989cddac18b0",
+      "count": 58
+    },
+    "orders": {
+      "md5": "ee61f56f3740df65422a97982f83d11c",
+      "count": 26
+    },
+    "stores": {
+      "md5": "f472e174c5ad59a02469a451583daa7a",
+      "count": 3
+    },
+    "products": {
+      "md5": "b72056709eb625bef954ab52b2e09990",
+      "count": 41
+    },
+    "customers": {
+      "md5": "ac71e65cb1d76c0583c6896305a01364",
+      "count": 11
+    },
+    "cart_items": {
+      "md5": "4a14448dd7145653b609f1011914abf0",
+      "count": 74
+    },
+    "categories": {
+      "md5": "a3bd081e4a478deb4b236e654d7f4a30",
+      "count": 3
+    },
+    "order_items": {
+      "md5": "4181808c6d5d28803fc1d5b27c443a60",
+      "count": 43
+    },
+    "user_profiles": {
+      "md5": "2d028d642c20833f6ef56ebf62d8dba3",
+      "count": 16
+    },
+    "product_variants": {
+      "md5": "ded82a036be7bba35bcfb6c452105796",
+      "count": 89
+    },
+    "customer_addresses": {
+      "md5": "6aefe7b3a75cdbd47e49374e7de1e49f",
+      "count": 6
+    },
+    "identity_usernames": {
+      "md5": "79895221e2c7cacb3f155cecfd79d6d8",
+      "count": 2
+    },
+    "delivery_assignments": {
+      "md5": "66c548de32d4ab5ba8f58c36c9a07243",
+      "count": 4
+    },
+    "master_mapping_audit": {
+      "md5": "b8ff4c1986bf9551625a1e46081bb734",
+      "count": 10
+    },
+    "order_status_history": {
+      "md5": "48ec3ca236ca781f4030dc59f378a549",
+      "count": 84
+    },
+    "store_operating_hours": {
+      "md5": "05a92e58a722dcdb13df398205b3c65d",
+      "count": 21
+    },
+    "store_service_pincodes": {
+      "md5": "f18ca2f289f0f6560b70f905335e07e7",
+      "count": 5
+    },
+    "customer_repeat_requests": {
+      "md5": "2b3dd3a7a3785900e0aef712df8307ed",
+      "count": 6
+    },
+    "delivery_partner_profiles": {
+      "md5": "e01f7103b0bf5a98b0423c73663299f6",
+      "count": 1
+    },
+    "platform_management_events": {
+      "md5": "0214025fd04c0ae5bcbe991168ea62bd",
+      "count": 6
+    }
+  },
+  "after": {
+    "carts": {
+      "md5": "c58e3347f6feb13fe333989cddac18b0",
+      "count": 58
+    },
+    "orders": {
+      "md5": "ee61f56f3740df65422a97982f83d11c",
+      "count": 26
+    },
+    "stores": {
+      "md5": "f472e174c5ad59a02469a451583daa7a",
+      "count": 3
+    },
+    "products": {
+      "md5": "b72056709eb625bef954ab52b2e09990",
+      "count": 41
+    },
+    "customers": {
+      "md5": "ac71e65cb1d76c0583c6896305a01364",
+      "count": 11
+    },
+    "cart_items": {
+      "md5": "4a14448dd7145653b609f1011914abf0",
+      "count": 74
+    },
+    "categories": {
+      "md5": "a3bd081e4a478deb4b236e654d7f4a30",
+      "count": 3
+    },
+    "order_items": {
+      "md5": "4181808c6d5d28803fc1d5b27c443a60",
+      "count": 43
+    },
+    "user_profiles": {
+      "md5": "2d028d642c20833f6ef56ebf62d8dba3",
+      "count": 16
+    },
+    "product_variants": {
+      "md5": "ded82a036be7bba35bcfb6c452105796",
+      "count": 89
+    },
+    "customer_addresses": {
+      "md5": "6aefe7b3a75cdbd47e49374e7de1e49f",
+      "count": 6
+    },
+    "identity_usernames": {
+      "md5": "79895221e2c7cacb3f155cecfd79d6d8",
+      "count": 2
+    },
+    "delivery_assignments": {
+      "md5": "66c548de32d4ab5ba8f58c36c9a07243",
+      "count": 4
+    },
+    "master_mapping_audit": {
+      "md5": "b8ff4c1986bf9551625a1e46081bb734",
+      "count": 10
+    },
+    "order_status_history": {
+      "md5": "48ec3ca236ca781f4030dc59f378a549",
+      "count": 84
+    },
+    "store_operating_hours": {
+      "md5": "05a92e58a722dcdb13df398205b3c65d",
+      "count": 21
+    },
+    "store_service_pincodes": {
+      "md5": "f18ca2f289f0f6560b70f905335e07e7",
+      "count": 5
+    },
+    "customer_repeat_requests": {
+      "md5": "2b3dd3a7a3785900e0aef712df8307ed",
+      "count": 6
+    },
+    "delivery_partner_profiles": {
+      "md5": "e01f7103b0bf5a98b0423c73663299f6",
+      "count": 1
+    },
+    "platform_management_events": {
+      "md5": "0214025fd04c0ae5bcbe991168ea62bd",
+      "count": 6
+    }
+  },
+  "unchanged": true
+}

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  adminMasterCatalogQuerySchema,
   masterCatalogCanonicalProductSchema,
   masterCatalogQuerySchema,
   masterProductAdminUpdateSchema,
@@ -11,6 +12,15 @@ import {
 
 const categoryId = "11111111-1111-4111-8111-111111111111";
 const productId = "22222222-2222-4222-8222-222222222222";
+
+test("Admin lifecycle filters accept only active, archived and all, independently of vendor reads", () => {
+  for (const status of ["active", "archived", "all"]) {
+    assert.equal(adminMasterCatalogQuerySchema.safeParse({ status, categoryId }).success, true);
+  }
+  assert.equal(adminMasterCatalogQuerySchema.parse({}).status, "all");
+  assert.equal(adminMasterCatalogQuerySchema.safeParse({ status: "deleted" }).success, false);
+  assert.equal(masterCatalogQuerySchema.safeParse({ status: "archived" }).success, false);
+});
 
 test("canonical product validation normalizes optional fields and defaults attributes", () => {
   const result = masterCatalogCanonicalProductSchema.safeParse({

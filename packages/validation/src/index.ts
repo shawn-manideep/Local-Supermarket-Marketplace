@@ -414,6 +414,10 @@ export const masterCatalogQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 }).strict();
 
+export const adminMasterCatalogQuerySchema = masterCatalogQuerySchema.extend({
+  status: z.enum(["active", "archived", "all"]).default("all"),
+});
+
 export const masterCatalogCanonicalProductSchema = z.object({
   masterCategoryId: catalogUuidSchema,
   name: z.string().trim().min(1).max(200),

@@ -688,12 +688,17 @@ test("dev-only authenticated Master Catalog HTTP acceptance", {
       const reviewToken = duplicateCheck.json?.duplicateReviewToken;
       verify(typeof reviewToken === "string" && reviewToken.length >= 32, "duplicate check did not issue a canonical review token");
 
-      const reviewedCreate = await apiRequest(baseUrl, vendorA, "/api/vendor/master-products", {
+      const deniedCreate = await apiRequest(baseUrl, vendorA, "/api/vendor/master-products", {
         method: "POST",
         body: { ...canonicalInput, confirmedNoMatch: true, duplicateReviewToken: reviewToken },
       });
-      expectStatus(reviewedCreate, 201, "vendor creates canonical product after reviewed duplicate check");
-      const masterProduct = requirePayload<{ id: string; name: string }>(reviewedCreate, "product", "reviewed canonical creation");
+      expectStatus(deniedCreate, 403, "vendor cannot author a global master even after duplicate review");
+      const reviewedCreate = await apiRequest(baseUrl, admin, "/api/admin/master-products", {
+        method: "POST",
+        body: canonicalInput,
+      });
+      expectStatus(reviewedCreate, 201, "Admin authors the canonical product");
+      const masterProduct = requirePayload<{ id: string; name: string }>(reviewedCreate, "product", "Admin canonical creation");
       mainMasterProductId = masterProduct.id;
       createdMasterProductIds.add(masterProduct.id);
       verify(masterProduct.name === productName, "reviewed creation did not preserve canonical product identity");
@@ -727,7 +732,7 @@ test("dev-only authenticated Master Catalog HTTP acceptance", {
         method: "POST",
         body: { ...canonicalInput, confirmedNoMatch: true, duplicateReviewToken: exactReviewToken },
       });
-      expectStatus(vendorExactDuplicate, 409, "vendor canonical creation rejects an exact duplicate after review");
+      expectStatus(vendorExactDuplicate, 403, "vendor canonical creation remains forbidden for existing identities");
 
       const vendorSearch = await apiRequest(
         baseUrl,

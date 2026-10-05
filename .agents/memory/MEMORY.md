@@ -8,6 +8,7 @@
 - [Supabase migration history](supabase-migration-history.md) — an empty Drizzle journal does not mean an empty database; use the established remote migration history.
 - [Authorization denial invariants](authorization-denial-invariants.md) — rejected cross-store API calls must leave parent and child state unchanged, not merely return an error.
 - [Pending classification](pending-master-classification.md) — unknown taxonomy is a pending state, not a fake category; active canonical identities stay globally reusable.
+- [Master Catalog ownership](master-catalog-ownership.md) — Admin-only authoring; no auto-seeding; retire only confirmed demos and preserve vendor/history data.
 - [Catalog stock writes](catalog-stock-write-boundary.md) — catalog batches must protect against stale stock without changing checkout or order inventory locking.
 - [Catalog browser evidence](catalog-browser-evidence.md) — verify the specific changed row after navigation and read-back; an old success notice is not proof.
 - [Variant UX boundaries](variant-ux-boundaries.md) — identical-unit quantity sorting only; mixed units keep stable positions, with no conversion or data cleanup during UX corrections.

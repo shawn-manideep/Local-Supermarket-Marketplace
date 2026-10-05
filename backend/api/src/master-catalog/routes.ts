@@ -3,12 +3,12 @@ import { Router, type Request, type Response } from "express";
 import {
   addMasterProductToStoreSchema,
   adminMasterRecordIdParamSchema,
+  adminMasterCatalogQuerySchema,
   masterCatalogCanonicalProductSchema,
   masterCatalogQuerySchema,
   masterCategoryCreateSchema,
   masterCategoryUpdateSchema,
   masterProductAdminUpdateSchema,
-  masterProductCreateAfterReviewSchema,
   masterProductDuplicateCheckSchema,
   masterProductIdParamSchema,
   masterProductMappingUpdateSchema,
@@ -32,7 +32,6 @@ import {
   isNewMasterCategoryAssignment,
   normalizeIdentityText,
   reviewedCandidateProof,
-  verifyDuplicateReviewToken,
   withMasterCatalogWriteLock,
   type CanonicalProductInput,
 } from "./duplicate-review.js";
@@ -302,7 +301,10 @@ masterCatalogRouter.get(
       category: masterCategories,
       productCount: count(masterProducts.id),
     }).from(masterCategories)
-      .leftJoin(masterProducts, eq(masterProducts.masterCategoryId, masterCategories.id))
+      .leftJoin(masterProducts, and(
+        eq(masterProducts.masterCategoryId, masterCategories.id),
+        eq(masterProducts.isActive, true),
+      ))
       .where(eq(masterCategories.isActive, true))
       .groupBy(masterCategories.id)
       .orderBy(asc(masterCategories.name), asc(masterCategories.id));
@@ -381,53 +383,8 @@ masterCatalogRouter.post(
 masterCatalogRouter.post(
   "/api/vendor/master-products",
   requireRole("vendor"),
-  asyncHandler(async (request, response) => {
-    const parsed = masterProductCreateAfterReviewSchema.safeParse(request.body);
-    if (!parsed.success) {
-      sendValidationError(response, parsed.error);
-      return;
-    }
-    const {
-      confirmedNoMatch: _confirmedNoMatch,
-      duplicateReviewToken,
-      ...canonicalFields
-    } = parsed.data;
-    const canonicalProduct = toCanonicalInput(canonicalFields);
-    try {
-      const product = await getDb().transaction(async (transaction) =>
-        withMasterCatalogWriteLock(transaction, async () => {
-          if (canonicalProduct.masterCategoryId) {
-            await requireActiveMasterCategory(canonicalProduct.masterCategoryId, transaction);
-          }
-          const [exact] = await findExactIdentityMatches(canonicalProduct, transaction);
-          if (exact) {
-            throw new HttpError(409, "An identical master product already exists, including archived products");
-          }
-          const latestMatches = await findLikelyMatches(canonicalProduct, transaction);
-          const candidateProofs = latestMatches.map(({ product, categoryName, categoryIsActive }) => reviewedCandidateProof({
-            ...product,
-            categoryName,
-            categoryIsActive,
-          }));
-          if (!verifyDuplicateReviewToken(duplicateReviewToken, canonicalProduct, candidateProofs)) {
-            throw new HttpError(409, "The duplicate review expired or the catalog changed; review matches again");
-          }
-          const [created] = await transaction.insert(masterProducts).values({
-            masterCategoryId: canonicalProduct.masterCategoryId,
-            name: canonicalProduct.name,
-            description: canonicalProduct.description ?? null,
-            image: canonicalProduct.image ?? null,
-            brand: canonicalProduct.brand ?? null,
-            attributes: canonicalProduct.attributes ?? {},
-          }).returning();
-          return created;
-        }),
-      );
-      response.status(201).json({ product });
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new HttpError(409, "That master product already exists");
-      throw error;
-    }
+  asyncHandler(async () => {
+    throw new HttpError(403, "Only Admin can create master products. Select an active product from the Master Catalog.");
   }),
 );
 
@@ -513,12 +470,13 @@ masterCatalogRouter.get(
   "/api/admin/master-products",
   requireRole("admin"),
   asyncHandler(async (request, response) => {
-    const parsed = masterCatalogQuerySchema.safeParse(request.query);
+    const parsed = adminMasterCatalogQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       sendValidationError(response, parsed.error);
       return;
     }
     const conditions = [];
+    if (parsed.data.status !== "all") conditions.push(eq(masterProducts.isActive, parsed.data.status === "active"));
     if (parsed.data.categoryId) conditions.push(eq(masterProducts.masterCategoryId, parsed.data.categoryId));
     if (parsed.data.search) {
       const pattern = `%${parsed.data.search.trim()}%`;

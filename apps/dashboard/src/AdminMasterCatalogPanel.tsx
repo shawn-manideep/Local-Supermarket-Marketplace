@@ -34,6 +34,10 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
   const [categories, setCategories] = useState<MasterCategory[]>([]);
   const [productsPage, setProductsPage] = useState<ProductsPage | null>(null);
   const [search, setSearch] = useState("");
+  const [productStatus, setProductStatus] = useState("active");
+  const [productCategory, setProductCategory] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryStatus, setCategoryStatus] = useState("active");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -58,6 +62,8 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
     setLoading(true);
     setError("");
     const query = new URLSearchParams({ page: String(page), pageSize: "20" });
+    query.set("status", productStatus);
+    if (productCategory) query.set("categoryId", productCategory);
     if (search.trim()) query.set("search", search.trim());
     try {
       const response = await apiRequest<ProductsPage>(`/api/admin/master-products?${query.toString()}`, token);
@@ -67,7 +73,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [page, search, token]);
+  }, [page, search, productStatus, productCategory, token]);
   const refreshAfterImport = useCallback(() => {
     void loadCategories();
     void loadProducts();
@@ -106,13 +112,13 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
         const response = await apiRequest<{ category: MasterCategory }>(`/api/admin/master-categories/${editingCategory}`, token, {
           method: "PATCH", body: JSON.stringify({ name: categoryName.trim() }),
         });
-        setCategories((items) => items.map((item) => item.id === response.category.id ? response.category : item));
+        setCategories((items) => items.map((item) => item.id === response.category.id ? { ...item, ...response.category } : item));
         onMessage("Master category updated.", "success");
       } else {
         const response = await apiRequest<{ category: MasterCategory }>("/api/admin/master-categories", token, {
           method: "POST", body: JSON.stringify({ name: categoryName.trim() }),
         });
-        setCategories((items) => [...items, response.category].sort((a, b) => a.name.localeCompare(b.name)));
+        setCategories((items) => [...items, { ...response.category, productCount: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
         onMessage("Master category created.", "success");
       }
       setCategoryName("");
@@ -129,7 +135,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
     const action = category.isActive ? "archive" : "unarchive";
     try {
       const response = await apiRequest<{ category: MasterCategory }>(`/api/admin/master-categories/${category.id}/${action}`, token, { method: "POST" });
-      setCategories((items) => items.map((item) => item.id === category.id ? response.category : item));
+      setCategories((items) => items.map((item) => item.id === category.id ? { ...item, ...response.category } : item));
       onMessage(`Master category ${category.isActive ? "archived" : "restored"}. Existing relationships were retained.`, "success");
     } catch (reason) {
       onMessage(reason instanceof Error ? reason.message : "Unable to update category status.", "error");
@@ -193,6 +199,7 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
         products: current.products.map((item) => item.id === product.id ? response.product : item),
       } : current);
       onMessage(`Master product ${product.isActive ? "archived" : "restored"}. Existing store listings remain unchanged.`, "success");
+      void loadProducts();
     } catch (reason) {
       onMessage(reason instanceof Error ? reason.message : "Unable to update product status.", "error");
     } finally {
@@ -221,6 +228,9 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
   };
 
   const totalPages = Math.max(1, Math.ceil((productsPage?.pagination.total ?? 0) / (productsPage?.pagination.pageSize ?? 20)));
+  const visibleCategories = categories.filter((category) =>
+    category.name.toLocaleLowerCase().includes(categorySearch.trim().toLocaleLowerCase())
+    && (categoryStatus === "all" || category.isActive === (categoryStatus === "active")));
 
   return (
     <section className="management-section admin-master-catalog" aria-label="Master catalog administration">
@@ -236,14 +246,18 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
 
       <div className="catalog-grid">
         <section className="card" aria-labelledby="master-categories-heading">
-          <div className="card-heading"><div><h3 id="master-categories-heading">Platform Master Categories</h3><p className="muted">Shared platform taxonomy; separate from vendors’ legacy store categories.</p></div><span className="count-pill">{categories.length}</span></div>
+          <div className="card-heading"><div><h3 id="master-categories-heading">Platform Master Categories</h3><p className="muted">Admin-owned taxonomy. Archived categories remain available for review and restoration.</p></div><span className="count-pill">{visibleCategories.length}</span></div>
           <form className="inline-form" onSubmit={saveCategory}>
             <input aria-label="Master category name" required maxLength={100} placeholder="Category name" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} />
             <button className="primary-button" type="submit" disabled={categoryBusy}>{categoryBusy ? "Saving…" : editingCategory ? "Save" : "Add category"}</button>
             {editingCategory && <button className="text-button" type="button" onClick={() => { setEditingCategory(""); setCategoryName(""); }}>Cancel</button>}
           </form>
+          <div className="order-toolbar">
+            <label>Search categories<input type="search" placeholder="Category name" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} /></label>
+            <label>Category status<select value={categoryStatus} onChange={(event) => setCategoryStatus(event.target.value)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All statuses</option></select></label>
+          </div>
           <div className="category-list">
-            {categories.length === 0 ? <div className="empty-state compact"><strong>No master categories yet</strong><span>Create the shared taxonomy used by master products.</span></div> : categories.map((category) => (
+            {visibleCategories.length === 0 ? <div className="empty-state compact"><strong>No categories match</strong><span>Create your own category or change the search/status filter.</span></div> : visibleCategories.map((category) => (
               <div className="category-row" key={category.id}>
                 <div><strong>{category.name}</strong><span>{category.productCount} master products</span><span className={`lifecycle-dot ${category.isActive ? "is-active" : ""}`}>{category.isActive ? "Active" : "Archived"}</span></div>
                 <div className="row-actions">
@@ -276,6 +290,8 @@ export function AdminMasterCatalogPanel({ token, onMessage }: Props) {
         <div className="card-heading"><div><h3 id="master-products-heading">Platform Master Products</h3><p className="muted">Global searchable platform identities. Pending classification is a valid temporary state; pack size is configured as a store variant.</p></div><span className="count-pill">{productsPage?.pagination.total ?? 0}</span></div>
         <div className="order-toolbar">
           <label>Search catalog<input type="search" placeholder="Name, brand, or discovery detail" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></label>
+          <label>Product status<select value={productStatus} onChange={(event) => { setProductStatus(event.target.value); setPage(1); }}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All statuses</option></select></label>
+          <label>Product category<select value={productCategory} onChange={(event) => { setProductCategory(event.target.value); setPage(1); }}><option value="">All categories, including pending</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}{category.isActive ? "" : " (Archived)"}</option>)}</select></label>
         </div>
         {error ? <div className="empty-state compact" role="alert"><strong>Unable to load products</strong><span>{error}</span><button className="secondary-button" type="button" onClick={() => void loadProducts()}>Retry</button></div>
           : loading ? <div className="vendor-master-skeleton" aria-label="Loading master products"><i /><i /><i /></div>

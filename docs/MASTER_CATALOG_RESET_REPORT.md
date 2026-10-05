@@ -1,6 +1,18 @@
-# Master Catalog Reset — Pre-change Report
+# Master Catalog Reset — Implementation Report
 
-Status: **Read-only inspection complete; no catalog records or application code changed.**
+Status: **Completed in the development environment. Owner approved preserving newer/edited records. No production publish or unrelated feature work.**
+
+## Completed result
+
+- Archived 181 confirmed seeded master products and 24 unchanged seeded categories; no rows were deleted.
+- Preserved **Pulses**, **Atta & Flours**, **sabudana**, and **Cinnamon** as active, as explicitly approved. sabudana and Cinnamon retain their existing pending classification.
+- Preserved archived Alshanthalu and all 17 already-archived test products and six already-archived test categories.
+- Final totals: 201 master products (2 active, 199 archived), 32 master categories (2 active, 30 archived). All original IDs and references remain intact.
+- Future master authoring is Admin-only. Vendors retain search, browsing and explicit add-to-own-store.
+- Added category search/status filtering and product status/category filtering to the existing Admin panel. Admin views default to active; archived data remains reviewable and restorable.
+- No example grocery catalog, variants, sample accounts or sample listings were created.
+
+The following inventory and record tables were produced **before** modification and intentionally retain their original states/proposed treatment as the preflight evidence. Every row marked “Archive seeded category” or “Archive; retain identity/references” was subsequently archived; preservation rows were left untouched.
 
 ## Inventory and proposed scope
 
@@ -268,6 +280,136 @@ Separately enforce future Admin-only master authoring while retaining vendor bro
 
 ## Protection and remaining work
 
-No accounts, stores, selling data, variants, carts, orders, history or delivery state have been modified. No destructive deletion, migration, browser automation or deployment has been performed.
+No accounts, stores, selling data, variants, carts, orders, history or delivery state have been modified. No destructive deletion, schema migration, automated browser testing or deployment was performed.
 
-Implementation, focused tests/builds, before/after preservation fingerprints, and the requested manual browser test steps will be appended after the reset scope is confirmed.
+## Reset execution and database protection
+
+Applied `database/maintenance/master_catalog_demo_reset.sql` once to the established development Supabase project. This is a reviewed maintenance operation, **not** a startup seed, deployment hook or automatic production migration.
+
+The script:
+
+- Uses the explicit 181-product/24-category ID allowlists from the pre-change report rather than deleting by name or blindly retiring every category.
+- Acquires the existing canonical-write advisory lock and a master-table write lock, with repeatable-read transaction isolation.
+- Rejects missing allowlisted records or active seed records edited since inspection.
+- Updates only `is_active` and the existing master `updated_at` lifecycle field.
+- Skips already-archived rows, so rerunning the same approved operation does not rewrite their timestamps.
+- Compares all protected public-table fingerprints inside the transaction and aborts on an unexpected change.
+- Also checks that all canonical metadata/IDs, and every non-allowlisted master row including its timestamp/status, remain unchanged.
+- Does not alter foreign keys, RLS, triggers, permissions, schema, mappings, order snapshots or selling configuration.
+
+No schema migration was needed, and no existing migration was edited. Any future use of this maintenance script requires deliberate target/scope review; it must not be run automatically when publishing.
+
+An independent read-only comparison before and after execution confirmed identical full-row fingerprints for all 20 protected tables. Evidence: `docs/MASTER_CATALOG_RESET_PRESERVATION.json`.
+
+| Protected table | Rows before / after | Full-row fingerprint |
+|---|---:|---|
+| user_profiles | 16 / 16 | Unchanged |
+| identity_usernames | 2 / 2 | Unchanged |
+| customers | 11 / 11 | Unchanged |
+| customer_addresses | 6 / 6 | Unchanged |
+| stores | 3 / 3 | Unchanged |
+| store_operating_hours | 21 / 21 | Unchanged |
+| store_service_pincodes | 5 / 5 | Unchanged |
+| categories (store-owned) | 3 / 3 | Unchanged |
+| products (vendor listings) | 41 / 41 | Unchanged |
+| product_variants | 89 / 89 | Unchanged |
+| carts | 58 / 58 | Unchanged |
+| cart_items | 74 / 74 | Unchanged |
+| customer_repeat_requests | 6 / 6 | Unchanged |
+| orders | 26 / 26 | Unchanged |
+| order_items | 43 / 43 | Unchanged |
+| order_status_history | 84 / 84 | Unchanged |
+| delivery_partner_profiles | 1 / 1 | Unchanged |
+| delivery_assignments | 4 / 4 | Unchanged |
+| master_mapping_audit | 10 / 10 | Unchanged |
+| platform_management_events | 6 / 6 | Unchanged |
+
+Auth endpoints and authentication code were not changed; no Auth account operations were performed. Auth tables are not exported in the evidence above.
+
+## Admin category and product functionality
+
+Existing Admin role-checked create/edit/archive/unarchive APIs remain the authoring boundary. Existing database-generated IDs remain immutable; strict update schemas do not accept identity replacement fields. Category editing changes the name, not its ID.
+
+- Categories: create, view, name edit, archive/reactivate, case-insensitive search and active/archived/all filtering.
+- Products: create under an active category, search name/brand/description/discovery attributes, view/edit supported canonical fields, archive/reactivate, active/archived/all filtering and category filtering.
+- Supported canonical fields remain category, name, brand, description, image URL and existing discovery attributes. No arbitrary extra columns were added.
+- Archive/status changes refresh the visible product list. Category editing/status responses retain the product counts already loaded.
+- Existing duplicate detection includes archived identities. Admin must restore or deliberately edit an existing identity rather than create an identical replacement with a new ID.
+- Archive review remains available; this reset does not erase historical canonical records.
+
+## Vendor behavior
+
+- Removed the missing-product authoring form and creation action from the Vendor panel.
+- The legacy vendor master-product POST now returns HTTP 403 before validation, canonical queries or mutations. A duplicate-review token cannot enable vendor authoring.
+- Admin category creation remains Admin-role protected; vendor-owned local categories are not global master authoring.
+- Vendor master search/detail/add-to-store continue requiring active products and, when assigned, active categories. Pending active products remain selectable.
+- Vendor category counts now count only active master products.
+- The legacy duplicate-check endpoint remains read-only for compatibility; it cannot create/reactivate a master and no longer drives a Vendor authoring UI.
+- Missing-product guidance directs vendors to Admin. Search, category browsing, pagination and “Add to My Store” are retained.
+- Add-to-store resolves store ownership from the authenticated vendor and inserts only that store's listing. No broadcast insertion into another vendor's store was introduced.
+- Existing listing identity, price, stock, availability, SKU, external code and variants were not changed.
+- Adding a product still creates the existing unpublished, unconfigured store listing; vendors must configure their own selling options before publishing.
+
+## Customer behavior
+
+Customer shopping, carts, checkout, order inventory locking and reorder code were not changed. Customer reads remain store-listing based, not direct master-catalog browsing. The existing customer product queries do not exclude a still-active store listing merely because its referenced master has been archived.
+
+Consequently, an existing selected demo product may still be visible/sellable through an active vendor listing under the unchanged availability/variant rules. This is intentional protection of vendor commercial data, **not** exposure as a new active master choice. New master identities do not reach customers until selected/configured/published by a vendor. Historical references/snapshots remain valid.
+
+## Excel compatibility
+
+The existing canonical master tables remain the source of truth. No parallel Excel catalog/table or schema was introduced. Stable master/category IDs, lifecycle flags and protected relationships remain compatible with the existing Admin workbook tooling.
+
+The workbook implementation was not changed. Its two existing test failures are recorded below; this task does not claim that the broader Excel workflow is fully validated.
+
+## Files changed
+
+- `database/maintenance/master_catalog_demo_reset.sql` — explicit guarded, idempotent archival maintenance operation.
+- `packages/validation/src/index.ts` — separate Admin query schema with validated lifecycle filter; vendor query schema unchanged.
+- `backend/api/src/master-catalog/routes.ts` — forbid vendor master creation, active vendor category counts, Admin lifecycle filter.
+- `apps/dashboard/src/AdminMasterCatalogPanel.tsx` — category search/status and product status/category filters; active defaults and list freshness.
+- `apps/dashboard/src/VendorMasterCatalogPanel.tsx` — remove global authoring; retain store selection and explain Admin ownership.
+- `apps/dashboard/src/api.ts` — remove unused vendor authoring input type.
+- `backend/api/src/master-catalog/routes.test.ts` — explicit write-free creation denial and focused panel contract checks.
+- `backend/api/src/master-catalog/validation.test.ts` — Admin lifecycle query validation.
+- `backend/api/src/master-catalog/acceptance.integration.test.ts` — update the existing opt-in API acceptance scenario to expect vendor HTTP 403 and use Admin authoring. Not run against live data in this task.
+- `docs/MASTER_CATALOG_RESET_REPORT.md` and `docs/MASTER_CATALOG_RESET_PRESERVATION.json` — preflight, completion report and preservation evidence.
+
+No customer, cart, order, delivery, account/authentication or store-management implementation files were changed.
+
+## Verification results and limitations
+
+- Validation package build: passed.
+- Database package build: passed.
+- Focused master routes/validation/duplicate-review/seed-provenance and store catalog-management tests: **39 passed, 0 failed**. Dataset tests read the existing seed source only; they do not seed data.
+- API typecheck: passed.
+- Dashboard production build: passed.
+- Dashboard typecheck: still reports **97 existing errors**, with no errors in the changed Admin/Vendor catalog panels. This task did not fix unrelated dashboard test typing.
+- Initial broader catalog test run: 67 passed, 3 failed, 1 skipped. The newly added denial test initially checked the wrong error property; it was corrected and passed in the focused run. The other two failures occur in unchanged `excel-workbook.test.ts` / workbook code:
+  1. Header comparison distinguishes ExcelJS's sparse first array element from explicit `undefined`.
+  2. The empty-workbook fixture is accepted although its test expects rejection.
+- Opt-in live API acceptance was not run, to avoid creating additional test catalog or commercial records.
+- Guarded transaction and independent database read-back: all 20 protected-table fingerprints identical; zero active confirmed seed products, zero active unchanged seed categories; only the approved preserved entries remain active.
+- API and dashboard workflows restarted successfully; API `/api/health` returns HTTP 200.
+- A passive screenshot confirmed the unsigned-in dashboard renders. This does **not** claim validation of signed-in Admin/Vendor flows. No automated browser test, interaction, sign-in, checkout or data mutation was performed.
+- Development only: no production database reset or application publish was performed.
+
+## Manual browser acceptance steps
+
+Use your existing accounts and your own actual catalog names; these steps have not been executed automatically.
+
+1. Sign in as Admin and open **Master Catalog**. Active defaults should show only the preserved active records, not the 181 retired seed products.
+2. Switch product/category status to **Archived**. Search for a known seed product (for example Corn Flour) and verify its archived status. Confirm existing IDs remain visible in exports/API records and referenced listings remain present.
+3. Switch back to **Active**. Confirm Pulses and Atta & Flours remain active; confirm sabudana and Cinnamon remain active/pending. Alshanthalu must remain archived.
+4. Create one of your own real categories. Search for it, edit its name, then refresh/reopen the panel. Verify the same category ID is retained.
+5. Create one of your own real master products in that category, using the existing name/brand/description/image fields. Confirm it appears after refresh and category/search filtering.
+6. Edit that product and confirm its master ID remains unchanged. Archive it and confirm it leaves Active but appears in Archived. Reactivate it and verify it returns without a second identity.
+7. Sign in as Vendor A and open **Master Catalog**. Search for the product by name/brand and browse its category. Confirm retired seed products are not offered as choices and there is no global product-authoring form.
+8. Select **Add to My Store**. Verify exactly one Vendor A listing is created and reselecting it reuses the existing listing.
+9. Sign in as Vendor B. The master is searchable globally, but Vendor B's **My Store** must not automatically contain Vendor A's listing.
+10. Configure Vendor A's own variants, prices, stock and availability and publish through the existing workflow. If Vendor B also selects the product, configure different selling values; changes to one store must not change the other.
+11. As a customer using an existing serviceable address/pincode, select Vendor A's store. Confirm the published product is available through that store. Before Vendor B selects/publishes it, confirm it is absent from Vendor B's store.
+12. Review an existing order/history entry and an existing cart containing a retired seed listing. Confirm names/snapshots, totals, line items, status history and delivery assignment remain as before.
+13. Reopen Admin and Vendor pages or refresh them to verify results persist. Archived records should only return to active master choices after explicit Admin restoration (and an active category when assigned).
+
+**Stopped after this requested catalog reset and authoring change. No unrelated feature or automatic sample catalog was added.**

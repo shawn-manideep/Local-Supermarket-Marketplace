@@ -4,6 +4,31 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { createApp } from "../app.js";
 import { shouldApplyVendorMasterCategoryFilter } from "./routes.js";
+import { masterCatalogRouter } from "./routes.js";
+
+test("legacy vendor authoring handler rejects without querying or writing the database", async () => {
+  const layer = (masterCatalogRouter as any).stack.find((entry: any) =>
+    entry.route?.path === "/api/vendor/master-products" && entry.route?.methods.post);
+  assert.ok(layer);
+  const handler = layer.route.stack.at(-1).handle;
+  const error = await new Promise<any>((resolve) =>
+    handler({ body: { name: "Must not be authored by vendor" } }, {}, resolve));
+  assert.equal(error.statusCode, 403);
+  assert.match(error.message, /Only Admin can create master products/);
+});
+
+test("vendor UI offers store selection only; Admin defaults to active and exposes archive review filters", async () => {
+  const vendor = await readFile(new URL("../../../../apps/dashboard/src/VendorMasterCatalogPanel.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(vendor, /createMissingProduct|duplicateReviewToken|Can’t find your product|canonicalBody/);
+  assert.match(vendor, /add-to-store/);
+  assert.match(vendor, /contact Admin/i);
+  const admin = await readFile(new URL("../../../../apps/dashboard/src/AdminMasterCatalogPanel.tsx", import.meta.url), "utf8");
+  assert.match(admin, /\[productStatus, setProductStatus\] = useState\("active"\)/);
+  assert.match(admin, /Search categories/);
+  assert.match(admin, /Category status/);
+  assert.match(admin, /Product status/);
+  assert.match(admin, /Product category/);
+});
 
 async function withServer(run: (baseUrl: string) => Promise<void>) {
   const server = createApp().listen(0, "127.0.0.1");
