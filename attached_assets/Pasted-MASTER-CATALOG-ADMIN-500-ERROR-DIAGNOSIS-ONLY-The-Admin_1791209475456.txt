@@ -1,0 +1,76 @@
+MASTER CATALOG — ADMIN 500 ERROR DIAGNOSIS ONLY
+
+The Admin Portal → Master Catalog page is currently showing:
+
+"Catalog request could not be completed"
+"Internal server error"
+
+The page UI itself loads correctly, but the catalog data request is returning an HTTP 500.
+
+DO NOT implement a new feature.
+DO NOT redesign the Master Catalog.
+DO NOT modify vendor data.
+DO NOT modify products, prices, stock, variants, orders, or delivery logic.
+DO NOT change the Excel workflow unless the investigation proves that it is the direct cause.
+DO NOT deploy.
+DO NOT run automated browser tests.
+
+We need diagnosis first.
+
+Investigate the exact request made by the Admin Master Catalog page.
+
+1. Identify the frontend API/request responsible for loading the Master Catalog.
+
+2. Identify the exact backend route/controller/service handling that request.
+
+3. Check the Replit server/runtime logs for the actual exception causing HTTP 500.
+
+4. Check whether the failure is related to:
+   - database query
+   - missing/incorrect column
+   - migration 0017
+   - Master Catalog Excel implementation
+   - authentication/session
+   - ADMIN authorization
+   - response serialization
+   - incorrect API URL
+   - environment variable
+   - schema mismatch
+   - existing Master Catalog code exposed through the Admin Portal
+
+5. Compare the failing query/API with the actual current database schema.
+
+6. Check the recent changes made for:
+   - shared UI design system
+   - Admin Master Catalog Excel import/export
+   - vendor/store location migration 0017
+
+IMPORTANT:
+The vendor/store-location migration 0017 should not be allowed to affect Master Catalog queries unless there is a proven dependency.
+
+7. Reproduce the failing API request using the existing server-side test/request mechanism where appropriate.
+
+8. Report the exact root cause with:
+   - API endpoint
+   - HTTP status
+   - backend error/exception
+   - affected file/function
+   - database query/table/column if applicable
+   - whether the issue was introduced by the recent implementation
+
+9. If the cause is obvious and the fix is minimal and safe, you may make ONLY that targeted fix.
+
+10. After any fix, run only focused tests for the affected Master Catalog API and Admin authorization.
+
+Do not make unrelated changes.
+
+FINAL RESPONSE MUST INCLUDE:
+
+- Exact root cause
+- Whether this is frontend, backend, database, authentication, or configuration
+- Exact file(s) changed, if any
+- Exact fix made, if any
+- Focused test results
+- Confirmation that vendor price/stock/availability, variants, orders, historical data, and delivery data were not changed
+
+STOP after diagnosis/focused fix and report.
