@@ -1,0 +1,562 @@
+IMPLEMENTATION TASK — AUTHENTICATION + SEARCH + PORTAL UI IMPROVEMENTS
+
+Implement the following changes in the existing Local Supermarket Marketplace application.
+
+IMPORTANT:
+- Work only in the existing project architecture.
+- Inspect the current implementation before changing anything.
+- Reuse existing authentication, username, Supabase, shared UI, and API infrastructure.
+- Do NOT create duplicate authentication systems.
+- Do NOT create duplicate username tables.
+- Do NOT modify unrelated business logic.
+- Do NOT deploy.
+- Do NOT run automated browser tests.
+- Do NOT fix unrelated pre-existing TypeScript/build errors.
+- Preserve all existing Customer, Vendor, Delivery Partner, Admin, Master Catalog, product, stock, cart, order, and delivery backend functionality unless specifically mentioned below.
+
+==================================================
+1. CUSTOMER PORTAL
+==================================================
+
+### 1.1 Change Customer Login from Email to Username
+
+Current customer login uses email/password.
+
+Change the Customer login UI to:
+
+Username
+Password
+
+The Customer must authenticate using:
+
+Username + Password
+
+The Customer login screen must NOT ask for an email address.
+
+Reuse the existing shared username foundation and validation already present in the project.
+
+Do not create a second username system.
+
+Username rules must remain consistent with the existing implementation.
+
+Passwords must continue to use secure Supabase authentication.
+
+Do not store plaintext passwords.
+
+--------------------------------------------------
+1.2 Customer Show Password
+--------------------------------------------------
+
+Add an eye icon to the Customer password field.
+
+Behavior:
+
+Password hidden
+→ click eye
+→ password visible
+→ click eye
+→ password hidden
+
+Do not log or expose the password.
+
+--------------------------------------------------
+1.3 Customer Forgot Password
+--------------------------------------------------
+
+Add:
+
+"Forgot Password?"
+
+The Customer should be able to initiate password recovery using their Username.
+
+Do NOT ask the customer to enter their email address.
+
+Example:
+
+Forgot Password?
+
+Username
+[________________]
+
+[Send Reset Instructions]
+
+Use the existing secure Supabase password recovery mechanism wherever possible.
+
+The username should be resolved internally to the account's registered recovery mechanism.
+
+Do not expose the recovery email address to the customer.
+
+Do not reveal whether a username exists.
+
+Use a generic response such as:
+
+"If an account exists for this username, password reset instructions have been sent to the registered recovery contact."
+
+Never expose:
+- email address
+- Supabase user ID
+- internal account ID
+- password reset token
+- authentication secrets
+
+--------------------------------------------------
+1.4 Existing Customer Accounts
+--------------------------------------------------
+
+IMPORTANT:
+
+Before changing authentication, inspect how existing Customer accounts are currently stored and authenticated.
+
+Do NOT delete or recreate existing customers unnecessarily.
+
+If existing customers currently use email/password, implement a safe migration/compatibility approach so existing accounts are not broken.
+
+The final Customer login experience must use Username + Password.
+
+Do not create a separate authentication system.
+
+==================================================
+2. CUSTOMER GLOBAL SEARCH
+==================================================
+
+### Current Problem
+
+The Customer Portal currently has two search bars.
+
+Remove the duplicate search experience and provide ONE global search bar.
+
+Example:
+
+🔍 Search products or stores
+
+The single search bar should support the existing customer-searchable:
+
+- Products
+- Stores/Vendors
+
+Do not create a second search API if the existing search API can safely be reused or extended.
+
+The search must respect all existing customer visibility rules.
+
+Do NOT expose:
+
+- internal Master Product IDs
+- SKU/external codes
+- internal database IDs
+- vendor-private information
+- exact internal stock values
+
+The customer should be able to search globally without first selecting a category.
+
+Preserve existing category browsing.
+
+There should be only ONE primary global search entry point.
+
+==================================================
+3. VENDOR PORTAL
+==================================================
+
+### 3.1 Show Password
+
+Add the same password visibility eye icon to Vendor login.
+
+Password
+[••••••••] 👁
+
+Clicking the eye toggles password visibility.
+
+Do not expose or log passwords.
+
+--------------------------------------------------
+3.2 Vendor Forgot Password
+--------------------------------------------------
+
+Add:
+
+"Forgot Password?"
+
+Use the Vendor's existing authentication identity.
+
+If the current Vendor authentication is username-based, allow recovery using Username.
+
+If the current architecture uses another login identity, inspect and reuse the existing authentication mechanism rather than creating a new one.
+
+Use the existing secure Supabase recovery mechanism.
+
+Do not expose the recovery email.
+
+Do not reveal whether the account exists.
+
+Use a generic confirmation message.
+
+--------------------------------------------------
+3.3 Remove Delivery Page from Vendor Dashboard
+--------------------------------------------------
+
+Remove the Delivery page/navigation item from the Vendor Portal.
+
+The Vendor should no longer see a dedicated Delivery page in the Vendor Dashboard.
+
+IMPORTANT:
+
+This is a Vendor UI/navigation change only.
+
+DO NOT delete or modify the backend delivery workflow.
+
+DO NOT delete:
+- delivery partner APIs
+- delivery assignments
+- delivery statuses
+- delivery records
+- Delivery Partner Portal
+- delivery database tables
+- delivery workflow
+
+The existing flow must continue:
+
+Vendor
+→ Order becomes READY
+→ Delivery Partner assignment
+→ Delivery Partner handles delivery
+
+Vendor order management must continue working normally.
+
+If the Delivery route is accessed directly, handle it safely according to the existing routing architecture rather than exposing a broken page.
+
+==================================================
+4. DELIVERY PARTNER PORTAL
+==================================================
+
+### 4.1 Show Password
+
+Add password visibility toggle to Delivery Partner login.
+
+Password
+[••••••••] 👁
+
+--------------------------------------------------
+4.2 Delivery Partner Forgot Password
+--------------------------------------------------
+
+Add:
+
+"Forgot Password?"
+
+Use the Delivery Partner's existing login identity.
+
+If the existing Delivery Partner authentication uses Username, recovery should use Username.
+
+Use the existing secure Supabase password recovery mechanism.
+
+Do not expose the underlying recovery email.
+
+Do not reveal whether the account exists.
+
+Use a generic confirmation message.
+
+--------------------------------------------------
+4.3 Improve Delivery Partner Dashboard UI
+--------------------------------------------------
+
+Improve the visual design of the Delivery Partner Dashboard.
+
+IMPORTANT:
+
+Do NOT change delivery functionality, APIs, database logic, status transitions, assignment logic, or delivery actions.
+
+Only improve the UI/UX.
+
+Create a professional, clean, modern dashboard.
+
+Recommended structure:
+
+--------------------------------------------------
+Good morning, [Partner Name]
+Here's your delivery activity
+--------------------------------------------------
+
+[ New Deliveries ]
+       3
+
+[ Active Deliveries ]
+       2
+
+[ Completed Deliveries ]
+       18
+
+--------------------------------------------------
+Today's Deliveries
+--------------------------------------------------
+
+Order #1234
+Store Name → Customer Area
+Status: Ready for Pickup
+
+[View Delivery]
+
+--------------------------------------------------
+
+Use the existing shared design system.
+
+Use the project's existing design tokens:
+
+Primary Blue: #2563EB
+Deep Navy: #1E3A8A
+Light Blue: #F6F4FF
+White: #FFFFFF
+
+Primary Text: rgb(31,41,55)
+Secondary Text: rgb(75,85,99)
+Light Text: rgb(156,163,175)
+Border: rgb(229,231,235)
+
+Success: #10B981
+Error: #EF4444
+
+Use:
+- Inter / existing system fallback
+- 16px rounded cards
+- subtle shadows
+- clean spacing
+- consistent buttons
+- responsive layout
+- clear status badges
+- good empty states
+- loading states
+- error states
+
+Reuse existing shared components and design tokens.
+
+Do NOT create a separate design system.
+
+==================================================
+5. ADMIN PORTAL
+==================================================
+
+### 5.1 Show Password
+
+Add password visibility toggle to Admin login.
+
+Password
+[••••••••] 👁
+
+Do not expose or log passwords.
+
+--------------------------------------------------
+5.2 Admin Forgot Password
+--------------------------------------------------
+
+Add:
+
+"Forgot Password?"
+
+IMPORTANT:
+
+Inspect the current Admin authentication architecture first.
+
+If Admin currently uses Email + Password, KEEP that authentication identity.
+
+Do NOT change Admin login from email to username unless the existing Admin architecture already uses username.
+
+Use the existing secure Supabase password recovery mechanism.
+
+Do not expose:
+- recovery email
+- Supabase user ID
+- reset token
+- internal account information
+
+Do not reveal whether an Admin account exists.
+
+Use a generic recovery response.
+
+==================================================
+6. SHARED AUTHENTICATION UI
+==================================================
+
+Where the existing architecture allows it, create/reuse shared authentication components for:
+
+- Password visibility toggle
+- Forgot Password link
+- Forgot Password form
+- Loading state
+- Error state
+- Success state
+
+Do not duplicate the same code across Customer, Vendor, Delivery Partner, and Admin if a shared component can safely be used.
+
+Keep role-specific authentication rules intact.
+
+==================================================
+7. AUTHENTICATION SECURITY
+==================================================
+
+All password recovery flows must:
+
+- Use secure Supabase authentication/recovery.
+- Never store plaintext passwords.
+- Never expose recovery email addresses.
+- Never expose reset tokens.
+- Never expose Supabase user IDs unnecessarily.
+- Never reveal whether an account exists.
+- Use generic recovery responses.
+
+Server-side role authorization must remain intact.
+
+Do not allow credentials for one role to grant access to another role's portal.
+
+==================================================
+8. ROLE AUTHENTICATION RULES
+==================================================
+
+Customer:
+Username + Password
+
+Vendor:
+Use the existing Vendor login identity + Password.
+
+Delivery Partner:
+Use the existing Delivery Partner login identity + Password.
+
+Admin:
+Use the existing Admin login identity + Password.
+
+Do not introduce unnecessary authentication changes.
+
+==================================================
+9. DO NOT MODIFY BUSINESS LOGIC
+==================================================
+
+Do NOT change:
+
+- Master Catalog
+- Master Catalog Excel import/export
+- Vendor product ownership
+- Vendor price
+- Vendor stock
+- Vendor availability
+- Product variants
+- SKU/external codes
+- Customer cart
+- Checkout
+- Stock deduction
+- Order lifecycle
+- Reorder
+- Historical orders
+- Historical snapshots
+- Delivery assignment backend
+- Delivery Partner workflow
+- Delivery status transitions
+- Admin Vendor management
+- Admin Customer management
+- Admin Delivery Partner management
+
+The only Vendor delivery change is removing the Vendor-facing Delivery page/navigation.
+
+==================================================
+10. TESTING
+==================================================
+
+Add focused tests for the changes.
+
+CUSTOMER:
+- Username login works
+- Invalid username/password handled correctly
+- Show/hide password works
+- Forgot password works
+- Forgot password does not reveal account existence
+- Existing customer accounts are not broken
+- One global search bar exists
+- Product search works
+- Store search works
+- Category browsing still works
+
+VENDOR:
+- Login still works
+- Show/hide password works
+- Forgot password works
+- Delivery page is removed from Vendor navigation
+- Vendor order functionality still works
+
+DELIVERY PARTNER:
+- Login works
+- Show/hide password works
+- Forgot password works
+- Dashboard loads
+- Dashboard UI displays delivery information
+- Existing delivery actions still work
+
+ADMIN:
+- Login works
+- Show/hide password works
+- Forgot password works
+- Existing Admin authorization remains intact
+
+SECURITY:
+- Passwords are never logged
+- Recovery email is never exposed
+- Account existence is not revealed
+- Reset tokens are not exposed
+
+Do not run automated browser tests.
+
+==================================================
+11. MANUAL TEST CHECKLIST
+==================================================
+
+After implementation, provide a concise manual testing checklist covering:
+
+1. Customer username login
+2. Customer show password
+3. Customer forgot password
+4. Customer global search
+5. Vendor show password
+6. Vendor forgot password
+7. Vendor Delivery page removal
+8. Delivery Partner show password
+9. Delivery Partner forgot password
+10. Delivery Partner dashboard UI
+11. Admin show password
+12. Admin forgot password
+
+==================================================
+12. DOCUMENTATION
+==================================================
+
+Create/update:
+
+docs/AUTH_AND_PORTAL_UI_IMPLEMENTATION_REPORT.md
+
+Include:
+
+- Files changed
+- APIs changed
+- Authentication changes
+- Customer username implementation
+- Existing customer migration/compatibility approach
+- Forgot password implementation
+- Global search implementation
+- Vendor Delivery page removal
+- Delivery Partner UI changes
+- Admin authentication changes
+- Tests executed
+- Exact pass/fail counts
+- Confirmation that business/order/stock/delivery backend behavior was preserved
+
+==================================================
+FINAL STOP CONDITION
+==================================================
+
+Implement ONLY the changes described in this prompt.
+
+Do not fix unrelated pre-existing errors.
+
+Do not deploy.
+
+Do not start another feature.
+
+Do not modify unrelated database tables.
+
+After implementation and focused testing, STOP and provide the final implementation report.
+
+Include exact files changed, tests passed/failed, and any issues that require manual verification.
