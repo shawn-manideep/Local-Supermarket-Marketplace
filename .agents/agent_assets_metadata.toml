@@ -98,3 +98,17 @@ mtime_ms = 1791210058772
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/c5fdb8cb-c49e-4f89-8a0c-ae339ccc13ed/ee4ff3a0-ae18-477f-b053-373cbaef9432"
 storage_version_token = "1791210098256375"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "R-EoNNzrQoRj1rbefetzZ"
+uri = "file://docs/AUTH_AND_PORTAL_UI_IMPLEMENTATION_REPORT.md"
+type = "text"
+title = "Authentication and Portal UI Implementation Report"
+description = "Implemented changes, preservation evidence, focused test results, recovery limitations, and the 12-point manual acceptance checklist."
+logical_id = "7e60fb7e-9c52-4375-951e-fc7288c8b815"
+content_hash = "sha256:93ce4f110a53558740320a7f3535664c18a9a26e36ec43cd7dff8fddc6a38b3d"
+size = 18188
+mtime_ms = 1791265486121
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/7e60fb7e-9c52-4375-951e-fc7288c8b815/1cf1be08-78f2-4e45-a65e-441eb4ec1bea"
+storage_version_token = "1791265601367718"
+content_type = "text/markdown"

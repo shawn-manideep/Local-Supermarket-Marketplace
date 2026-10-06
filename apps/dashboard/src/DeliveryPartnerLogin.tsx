@@ -3,6 +3,7 @@ import { usernameSchema } from "@workspace/validation";
 import type { PartnerCredentials, PartnerSessionOutcome } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { ApiRequestError, apiRequest } from "./api";
 import "./partner.css";
+import { PasswordInput, ForgotPassword } from "./AuthControls";
 
 type Props = {
   onAuthenticated: (session: { access_token: string; refresh_token: string }) => Promise<void>;
@@ -68,11 +69,12 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
               </div>
               <div className="lbp-field">
                 <label htmlFor="lbp-password">Password</label>
-                <input id="lbp-password" data-testid="input-partner-password" autoComplete="current-password" type="password" maxLength={128} value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} required />
+                <PasswordInput id="lbp-password" data-testid="input-partner-password" autoComplete="current-password" maxLength={128} value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} required />
               </div>
               <button className="lbp-button lbp-button-primary" data-testid="button-partner-sign-in" disabled={busy} type="submit">{busy ? "Checking access…" : "Sign in"}</button>
               <div className="lbp-login-footer"><span>Partner accounts are provided by an administrator.</span><button className="lbp-button lbp-button-quiet" data-testid="button-partner-login-cancel" onClick={onCancel} type="button">Cancel</button></div>
             </form>
+            <ForgotPassword role="delivery_partner" initialIdentity={username} />
           </section>
         </div>
       </div>

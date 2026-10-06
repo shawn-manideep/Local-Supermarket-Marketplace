@@ -8,6 +8,42 @@
 import * as zod from 'zod';
 
 
+export const loginCustomerUsernameBodyUsernameMin = 3;
+export const loginCustomerUsernameBodyUsernameMax = 30;
+
+
+export const loginCustomerUsernameBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
+export const loginCustomerUsernameBodyPasswordMax = 128;
+
+
+
+export const LoginCustomerUsernameBody = zod.object({
+  "username": zod.string().min(loginCustomerUsernameBodyUsernameMin).max(loginCustomerUsernameBodyUsernameMax).regex(loginCustomerUsernameBodyUsernameRegExp),
+  "password": zod.string().min(1).max(loginCustomerUsernameBodyPasswordMax)
+})
+
+export const LoginCustomerUsernameResponse = zod.object({
+  "session": zod.object({
+  "access_token": zod.string(),
+  "refresh_token": zod.string()
+})
+})
+
+
+export const requestAccountRecoveryBodyIdentityMax = 254;
+
+
+
+export const RequestAccountRecoveryBody = zod.object({
+  "role": zod.enum(['customer', 'vendor', 'delivery_partner', 'admin']),
+  "identity": zod.string().min(1).max(requestAccountRecoveryBodyIdentityMax)
+})
+
+export const RequestAccountRecoveryResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const DownloadMasterCatalogExcelResponse = zod.unknown()
 
 

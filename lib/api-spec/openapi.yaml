@@ -11,6 +11,44 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /customer/login:
+    post:
+      operationId: loginCustomerUsername
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerCredentials'
+      responses:
+        '200':
+          description: Existing Customer Supabase session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerSessionOutcome'
+        '401':
+          description: Invalid username or password
+  /auth/recovery:
+    post:
+      operationId: requestAccountRecovery
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountRecoveryInput'
+      responses:
+        '202':
+          description: Generic confirmation, identical for known and unknown identities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountRecoveryOutcome'
+        '429':
+          description: Too many recovery requests
   /admin/master-catalog/excel:
     get:
       operationId: downloadMasterCatalogExcel
@@ -605,6 +643,24 @@ components:
       type: http
       scheme: bearer
   schemas:
+    AccountRecoveryInput:
+      type: object
+      additionalProperties: false
+      required: [role, identity]
+      properties:
+        role:
+          type: string
+          enum: [customer, vendor, delivery_partner, admin]
+        identity:
+          type: string
+          minLength: 1
+          maxLength: 254
+    AccountRecoveryOutcome:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
     CatalogWorkbook:
       type: string
       format: binary

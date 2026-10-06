@@ -102,6 +102,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.57.4
         version: 2.116.0
+      '@workspace/api-client-react':
+        specifier: workspace:*
+        version: link:../../lib/api-client-react
       '@workspace/constants':
         specifier: workspace:*
         version: link:../../packages/constants

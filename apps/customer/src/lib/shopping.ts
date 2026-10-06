@@ -1,3 +1,8 @@
+export function matchingCustomerStores<T extends { name: string }>(eligibleStores: readonly T[], search: string): T[] {
+  const query = search.trim().toLocaleLowerCase("en");
+  return query ? eligibleStores.filter(store => store.name.toLocaleLowerCase("en").includes(query)) : [];
+}
+
 import { formatPrice } from "@workspace/validation/variant-formatting";
 import type { CustomerProduct, CustomerProductVariant } from "./api";
 

@@ -21,6 +21,15 @@ function prettyStatus(status: string) {
   return status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function timeOfDay() {
+  const hour = Number(new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    hourCycle: "h23",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date()));
+  return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+}
+
 function dateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Time unavailable" : new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", day: "numeric", month: "short" }).format(date);
@@ -231,7 +240,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
           <button className="lbp-button" data-testid="button-partner-logout" type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
         </header>
         <section className="lbp-heading-row">
-          <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{screen === "dashboard" ? "Good day, " + (data.profile?.displayName || "partner") + "." : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{screen === "dashboard" ? "A clear view of today's delivery activity." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Local Basket administration."}</p></div>
+          <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{screen === "dashboard" ? `${timeOfDay()}, ${data.profile?.displayName || "partner"}` : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{screen === "dashboard" ? "Here’s your delivery activity for today." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Local Basket administration."}</p></div>
           <div className="lbp-top-actions"><span className={`lbp-status ${data.profile?.status === "INACTIVE" ? "lbp-status-inactive" : ""}`} data-testid="status-partner-account">{data.profile ? prettyStatus(data.profile.status) : "Account check"}</span></div>
         </section>
         <nav className="lbp-nav" aria-label="Partner navigation">
@@ -239,16 +248,26 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
         </nav>
         {error && <div className={`lbp-alert ${!denied ? "lbp-alert-info" : ""}`} role="alert" data-testid="status-partner-portal-error">{error}{denied ? <div style={{ marginTop: 10 }}><button className="lbp-button" type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button></div> : <div style={{ marginTop: 10 }}><button className="lbp-button" type="button" onClick={() => { const signal = activeController.current?.signal; if (signal && !signal.aborted) { setLoading(!data.profile); void reload(signal); } }} disabled={loading}>{loading ? "Retrying…" : "Try again"}</button></div>}</div>}
         {loading && !data.profile ? <div aria-label="Loading partner workspace" data-testid="loading-partner-workspace"><div className="lbp-skeleton" /><div className="lbp-skeleton" /></div> : denied ? <div className="lbp-empty"><strong>Partner access unavailable</strong><span>Your private partner information has been cleared.</span></div> : screen === "dashboard" ? (
-          <section className="lbp-overview" aria-label="Today's delivery summary">
-            <div className="lbp-panel lbp-count-panel">
-              <div className="lbp-count-head"><strong>Today's deliveries</strong><span className="lbp-date-note">Asia / Kolkata</span></div>
-              <div className="lbp-total" data-testid="text-partner-total">{data.summary?.total ?? "—"}<div className="lbp-total-label">recorded for today</div></div>
-              <div className="lbp-stats">
-                {([["pending", "Pending"], ["accepted", "Accepted"], ["pickedUp", "Picked up"], ["outForDelivery", "Out for delivery"], ["delivered", "Delivered"], ["assigned", "Assigned"], ["inProgress", "In progress"], ["completed", "Completed"], ["cancelled", "Cancelled"], ["rejected", "Rejected"]] as const).map(([key, label]) => <div className="lbp-stat" key={key} data-testid={`stat-partner-${key}`}><span className="lbp-stat-value">{data.summary?.[key] ?? "—"}</span><span className="lbp-stat-label">{label}</span></div>)}
-              </div>
-            </div>
-          <aside className="lbp-aside-card"><div><p className="lbp-kicker">At a glance</p><h2>Keep the day moving, one delivery at a time.</h2></div><p>Updates are checked automatically every 45 seconds. Open an assignment to review its route and take the next step.</p></aside>
-          </section>
+           <div className="lbp-dashboard-content">
+             <section className="lbp-overview" aria-label="Delivery activity summary">
+               <div className="lbp-panel lbp-count-panel">
+                 <div className="lbp-count-head"><div><p className="lbp-kicker">Activity overview</p><strong>Your deliveries</strong></div><span className="lbp-date-note">Updated automatically</span></div>
+                 <div className="lbp-total" data-testid="text-partner-total">{data.summary?.total ?? "—"}<div className="lbp-total-label">total assigned deliveries</div></div>
+                 <div className="lbp-summary-tiles">
+                   {([["pending", "New deliveries", "lbp-summary-new"], ["inProgress", "Active deliveries", "lbp-summary-active"], ["completed", "Completed deliveries", "lbp-summary-done"]] as const).map(([key, label, className]) => <div className={`lbp-summary-tile ${className}`} key={key} data-testid={`summary-partner-${key}`}><span>{label}</span><strong>{data.summary?.[key] ?? "—"}</strong></div>)}
+                 </div>
+                 <div className="lbp-breakdown-heading"><span>Status breakdown</span><span className="lbp-date-note">All assigned activity</span></div>
+                 <div className="lbp-stats">
+                   {([["pending", "Pending"], ["accepted", "Accepted"], ["pickedUp", "Picked up"], ["outForDelivery", "Out for delivery"], ["delivered", "Delivered"], ["assigned", "Assigned"], ["inProgress", "In progress"], ["completed", "Completed"], ["cancelled", "Cancelled"], ["rejected", "Rejected"]] as const).map(([key, label]) => <div className="lbp-stat" key={key} data-testid={`stat-partner-${key}`}><span className="lbp-stat-value">{data.summary?.[key] ?? "—"}</span><span className="lbp-stat-label">{label}</span></div>)}
+                 </div>
+               </div>
+               <aside className="lbp-aside-card"><div><p className="lbp-kicker">Partner note</p><h2>One clear next step at a time.</h2></div><p>Delivery updates refresh automatically every 45 seconds. Open an assignment to review its current status and available actions.</p></aside>
+             </section>
+             <section className="lbp-panel lbp-dashboard-activity" aria-label="Recent delivery activity">
+               <div className="lbp-section-head"><div><p className="lbp-kicker">On your route</p><h2>Delivery activity</h2></div><button className="lbp-button lbp-button-quiet" type="button" data-testid="button-partner-view-deliveries" onClick={() => setScreen("deliveries")}>View all deliveries</button></div>
+               {data.deliveries?.length ? <div className="lbp-dashboard-delivery-list">{data.deliveries.slice(0, 3).map((delivery) => <article className="lbp-dashboard-delivery" key={delivery.id}><div className="lbp-dashboard-delivery-copy"><span className="lbp-delivery-ref">{delivery.orderReference}</span><span className="lbp-delivery-time">{delivery.storeName} · Updated {dateTime(delivery.updatedAt)}</span></div><span className={`lbp-status lbp-status-${delivery.status.toLowerCase()}`}>{prettyStatus(delivery.status)}</span><button className="lbp-button lbp-button-quiet lbp-open-delivery" type="button" data-testid={`button-partner-open-delivery-${delivery.id}`} onClick={() => { setScreen("deliveries"); void openDelivery(delivery.id); }}>View delivery</button></article>)}</div> : <div className="lbp-empty lbp-dashboard-empty"><strong>No deliveries assigned yet</strong><span>New assignments will appear here when they are available.</span></div>}
+             </section>
+           </div>
         ) : screen === "deliveries" && selectedDelivery ? (
           <section className="lbp-panel lbp-content-panel">
             <div className="lbp-section-head lbp-delivery-detail-head">

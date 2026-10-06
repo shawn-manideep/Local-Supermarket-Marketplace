@@ -8,6 +8,7 @@ import { DeliveryPartnerLogin } from "./DeliveryPartnerLogin";
 import { AdminPortal } from "./admin/AdminPortal";
 import { matchesAdminPath } from "./admin/route-access";
 import { usernameSchema } from "@workspace/validation";
+import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
 
 type Role = "customer" | "vendor" | "admin" | "delivery_partner";
 type AuthProfile = { auth: { userId: string; role: Role; storeId: string | null } };
@@ -19,6 +20,7 @@ export default function App() {
   const [roleLoading, setRoleLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [recoveryMode, setRecoveryMode] = useState(() => new URLSearchParams(window.location.search).get("recovery") === "1");
   const [authError, setAuthError] = useState("");
   const [notice, setNotice] = useState<{ message: string; kind: "success" | "error" } | null>(null);
   const [partnerMode, setPartnerMode] = useState(() => window.location.pathname.replace(/\/$/, "").endsWith("/delivery-partner"));
@@ -58,8 +60,12 @@ export default function App() {
           setAuthLoading(false);
         }
       });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        window.history.replaceState(null, "", `${window.location.pathname}?recovery=1`);
+      } else if (event === "SIGNED_IN") setRecoveryMode(false);
       setSession(nextSession);
       setProfile(null);
       setNotice(null);
@@ -116,6 +122,14 @@ export default function App() {
       active = false;
     };
   }, [session?.access_token]);
+
+  useEffect(() => {
+    if (profile?.role !== "vendor") return;
+    const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+    const relative = window.location.pathname.slice(base.length);
+    if (/^\/(?:vendor\/)?delivery\/?$/.test(relative))
+      window.history.replaceState(null, "", base || "/");
+  }, [profile?.role]);
 
   const onMessage = (message: string, kind: "success" | "error" = "success") => {
     setNotice({ message, kind });
@@ -184,6 +198,14 @@ export default function App() {
     return <main className="page"><div className="dashboard-shell"><AuthFrame><div className="auth-loading" aria-label="Loading authentication"><span /><span /><span /></div></AuthFrame></div></main>;
   }
 
+  if (recoveryMode && session) {
+    return <main className="page"><div className="dashboard-shell"><AuthFrame><ResetPassword onComplete={success => {
+      setRecoveryMode(false); setSession(null); setProfile(null); setPassword("");
+      window.history.replaceState(null, "", window.location.pathname);
+      setAuthError(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
+    }} /></AuthFrame></div></main>;
+  }
+
   if (!session) {
     if (partnerMode && !adminMode) return <DeliveryPartnerLogin onCancel={() => selectPortal(false)} onAuthenticated={async tokens => {
       if (!supabase) throw new Error("Authentication is unavailable.");
@@ -199,10 +221,11 @@ export default function App() {
           <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : "Use your marketplace account to manage stores, catalog, and orders."}</p>
           {authError && <div className="auth-error" role="alert">{authError}</div>}
           <label>{adminMode ? "Email address" : "Email or vendor username"}<input data-testid="input-email" autoComplete={adminMode || email.includes("@") ? "email" : "username"} onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type={adminMode ? "email" : "text"} value={email} required /></label>
-          <label>Password<input data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} type="password" value={password} required /></label>
+          <label>Password<PasswordInput data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} value={password} required /></label>
           <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
           {!adminMode && <button className="text-button" onClick={() => selectPortal(true)} type="button">Delivery Partner sign in</button>}
         </form>
+        <ForgotPassword key={adminMode ? "admin" : "vendor"} role={adminMode ? "admin" : "vendor"} initialIdentity={email} />
       </AuthFrame></div></main>
     );
   }

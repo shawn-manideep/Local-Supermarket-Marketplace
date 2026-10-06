@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accountRecoveryInput';
+export * from './accountRecoveryInputRole';
+export * from './accountRecoveryOutcome';
 export * from './adminAccountStatusInput';
 export * from './adminAccountStatusInputStatus';
 export * from './adminDashboardOutcome';

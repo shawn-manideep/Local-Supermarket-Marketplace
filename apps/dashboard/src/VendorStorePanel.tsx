@@ -56,7 +56,7 @@ interface VendorStorePanelProps {
   onDismissNotice: () => void;
 }
 
-type Tab = "dashboard" | "store" | "catalog" | "orders" | "delivery" | "settings";
+type Tab = "dashboard" | "store" | "catalog" | "orders" | "settings";
 
 export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice, onDismissNotice }: VendorStorePanelProps) {
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
@@ -138,7 +138,6 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
         <nav className="vendor-nav">
           <button type="button" className={currentTab === "dashboard" ? "active" : ""} onClick={() => setCurrentTab("dashboard")}>Dashboard</button>
           <button type="button" className={currentTab === "orders" ? "active" : ""} onClick={() => setCurrentTab("orders")}>Orders</button>
-          <button type="button" className={currentTab === "delivery" ? "active" : ""} onClick={() => setCurrentTab("delivery")}>Delivery</button>
           <button type="button" className={currentTab === "catalog" ? "active" : ""} onClick={() => setCurrentTab("catalog")}>Catalog</button>
           <button type="button" className={currentTab === "store" ? "active" : ""} onClick={() => setCurrentTab("store")}>Store Profile</button>
         </nav>
@@ -171,7 +170,6 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
           )}
           {currentTab === "catalog" && <CatalogManagementPanel token={token} storeId={store.id} onMessage={onMessage} />}
           {currentTab === "orders" && <OrderOperations token={token} vendor vendorView="orders" storeId={store.id} onMessage={onMessage} />}
-          {currentTab === "delivery" && <OrderOperations token={token} vendor vendorView="delivery" storeId={store.id} onMessage={onMessage} />}
           {currentTab === "settings" && <VendorSettings profile={profile} onSignOut={onSignOut} />}
         </div>
       </main>
@@ -229,7 +227,7 @@ function VendorDashboardHome({ token, store, onNavigate, onMessage }: { token: s
             <strong>{data.counts.PREPARING || 0}</strong>
             <span>Currently Preparing</span>
          </button>
-         <button className="vendor-metric-card ready" onClick={() => onNavigate("delivery")} type="button">
+         <button className="vendor-metric-card ready" onClick={() => onNavigate("orders")} type="button">
             <h3>Ready & Delivery</h3>
             <strong>{(data.counts.READY || 0) + (data.counts.OUT_FOR_DELIVERY || 0)}</strong>
             <span>Waiting or In Transit</span>

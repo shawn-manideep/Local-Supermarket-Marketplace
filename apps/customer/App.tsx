@@ -1,5 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -32,6 +32,9 @@ import {
 import { PhoneInput } from "./src/components/PhoneInput";
 import { ConfirmationDialog } from "./src/components/ConfirmationDialog";
 import { fontWeights } from "./src/theme";
+import { usernameSchema } from "@workspace/validation";
+import { loginCustomerUsername } from "@workspace/api-client-react";
+import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/components/AuthControls";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses";
 
@@ -127,31 +130,36 @@ function BasketBrand() {
   );
 }
 
-function AuthScreen() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
+  const [mode, setMode] = useState<"signin" | "signup" | "recovery">("signin");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [message, setMessage] = useState(initialMessage);
 
   const submit = async () => {
     setBusy(true);
     setMessage("");
     try {
-      const result =
-        mode === "signin"
-          ? await supabase.auth.signInWithPassword({
-              email: email.trim(),
-              password,
-            })
-          : await supabase.auth.signUp({ email: email.trim(), password });
-      if (result.error) throw result.error;
-      if (mode === "signup" && !result.data.session)
-        setMessage("Check your email to confirm your account, then sign in.");
+      const parsed = usernameSchema.safeParse(username);
+      if (!parsed.success) { setMessage(parsed.error.issues[0]?.message ?? "Enter a valid username."); return; }
+      if (mode === "signin") {
+        const result = await loginCustomerUsername({ username: parsed.data, password });
+        const { error } = await supabase.auth.setSession(result.session);
+        if (error) throw new Error();
+      } else {
+        const result = await supabase.auth.signUp({
+          email: email.trim(), password,
+          options: { data: { customer_signup: true, username: parsed.data } },
+        });
+        if (result.error) throw new Error();
+        if (!result.data.session) setMessage("Check your registered email to confirm your account, then sign in with your chosen username.");
+      }
     } catch (error) {
       setMessage("Unable to authenticate. Check your details and try again.");
     } finally {
+      setPassword("");
       setBusy(false);
     }
   };
@@ -176,36 +184,37 @@ function AuthScreen() {
           <Text style={styles.brandSub}>Fresh Groceries · Local Stores</Text>
         </View>
         <Text style={typography.hero}>
-          {mode === "signin" ? "Welcome back!" : "Create an account"}
+          {mode === "signup" ? "Create an account" : mode === "recovery" ? "Recover your account" : "Welcome back!"}
         </Text>
         <Text style={[typography.body, { marginBottom: spacing.xl }]}>
           Shop fresh. Shop local.
         </Text>
         <View style={styles.authForm}>
+          {mode === "recovery" ? <CustomerRecoveryForm onBack={() => setMode("signin")} /> : <>
           <Field
-            label="Email address"
+            label="Username"
+            placeholder="Enter your username"
+            autoComplete="username"
+            autoCapitalize="none"
+            maxLength={30}
+            onChangeText={setUsername}
+            value={username}
+          />
+          {mode === "signup" && <Field
+            label="Recovery email address"
             placeholder="Enter your email"
             autoCapitalize="none"
             keyboardType="email-address"
             onChangeText={setEmail}
             value={email}
-          />
-          <Field
+          />}
+          <PasswordField
             label="Password"
             placeholder="Enter your password"
             onChangeText={setPassword}
-            secureTextEntry={!passwordVisible}
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
           />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setPasswordVisible((v) => !v)}
-            style={styles.passwordToggle}
-          >
-            <Text style={styles.linkText}>
-              {passwordVisible ? "Hide password" : "Show password"}
-            </Text>
-          </Pressable>
           {!!message && <Text style={styles.errorText}>{message}</Text>}
           <Pressable
             accessibilityRole="button"
@@ -221,11 +230,13 @@ function AuthScreen() {
               </Text>
             )}
           </Pressable>
+          {mode === "signin" && <Pressable accessibilityRole="button" onPress={() => { setPassword(""); setMessage(""); setMode("recovery"); }}><Text style={styles.linkText}>Forgot Password?</Text></Pressable>}
           <Text style={styles.authDivider}>OR</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => {
               setMode(mode === "signin" ? "signup" : "signin");
+              setPassword("");
               setMessage("");
             }}
             style={styles.authOutline}
@@ -234,6 +245,7 @@ function AuthScreen() {
               {mode === "signin" ? "Create an account" : "Back to sign in"}
             </Text>
           </Pressable>
+          </>}
         </View>
         <View style={styles.authIllustration}>
           <View style={styles.illustrationGlow}>
@@ -866,15 +878,41 @@ function CustomerApp() {
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [recoveryMode, setRecoveryMode] = useState(() => Platform.OS === "web" && new URLSearchParams(window.location.search).get("recovery") === "1");
+  const [authNotice, setAuthNotice] = useState("");
+  const [customerAccess, setCustomerAccess] = useState<"checking" | "allowed" | "denied">("checking");
+  const [accessError, setAccessError] = useState("");
+  const verifiedCustomer = useRef<string | null>(null);
   useEffect(() => {
     void supabase.auth
       .getSession()
       .then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, next) =>
-      setSession(next),
-    );
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        if (Platform.OS === "web") window.history.replaceState(null, "", `${window.location.pathname}?recovery=1`);
+      } else if (event === "SIGNED_IN") setRecoveryMode(false);
+      setSession(next);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session || recoveryMode) return;
+    const controller = new AbortController();
+    if (verifiedCustomer.current !== session.user.id) setCustomerAccess("checking");
+    setAccessError("");
+    void customerApi<{ auth: { role: string } }>("/api/auth/me", { signal: controller.signal })
+      .then(result => {
+        if (controller.signal.aborted) return;
+        if (result.auth.role === "customer") { verifiedCustomer.current = session.user.id; setCustomerAccess("allowed"); }
+        else { verifiedCustomer.current = null; setCustomerAccess("denied"); setAccessError("This portal is for Customer accounts. Sign out to use your Customer username."); }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) { verifiedCustomer.current = null; setCustomerAccess("denied"); setAccessError("Customer access is unavailable. Sign out and try again, or contact your administrator."); }
+      });
+    return () => controller.abort();
+  }, [session?.access_token, recoveryMode]);
 
   if (session === undefined)
     return (
@@ -887,7 +925,14 @@ export default function App() {
     );
   return (
     <CustomerTypographyProvider>
-      {session ? <CustomerApp /> : <AuthScreen />}
+      {session && recoveryMode ? <CustomerResetForm onComplete={success => {
+        setRecoveryMode(false); setSession(null);
+        setAuthNotice(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
+        if (Platform.OS === "web") window.history.replaceState(null, "", window.location.pathname);
+      }} /> : session ? customerAccess === "allowed" && verifiedCustomer.current === session.user.id ? <CustomerApp /> :
+        <View style={styles.center}>{customerAccess !== "denied" ? <><ActivityIndicator color={colors.accent} /><Text style={typography.body}>Checking Customer access…</Text></> :
+          <><Text accessibilityRole="alert" style={typography.body}>{accessError}</Text><Pressable accessibilityRole="button" onPress={() => { void supabase.auth.signOut(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Sign out</Text></Pressable></>}</View>
+        : <AuthScreen initialMessage={authNotice || (recoveryMode ? "Your reset link is invalid or expired. Request new instructions." : "")} />}
     </CustomerTypographyProvider>
   );
 }

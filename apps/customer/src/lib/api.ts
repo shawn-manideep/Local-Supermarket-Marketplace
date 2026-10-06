@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { setBaseUrl } from "@workspace/api-client-react";
 export type { CustomerShoppingCategory } from "../../../../lib/api-client-react/src/generated/api.schemas";
 export type { CustomerCheckoutSubmission } from "../../../../lib/api-client-react/src/generated/api.schemas";
 
@@ -215,6 +216,7 @@ const apiUrl = (
   process.env.EXPO_PUBLIC_API_URL ??
   (domain ? `https://${domain}` : "")
 ).replace(/\/+$/, "");
+setBaseUrl(apiUrl || null);
 
 export async function customerApi<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession();

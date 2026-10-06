@@ -5,6 +5,29 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AccountRecoveryInputRole = typeof AccountRecoveryInputRole[keyof typeof AccountRecoveryInputRole];
+
+
+export const AccountRecoveryInputRole = {
+  customer: 'customer',
+  vendor: 'vendor',
+  delivery_partner: 'delivery_partner',
+  admin: 'admin',
+} as const;
+
+export interface AccountRecoveryInput {
+  role: AccountRecoveryInputRole;
+  /**
+     * @minLength 1
+     * @maxLength 254
+     */
+  identity: string;
+}
+
+export interface AccountRecoveryOutcome {
+  message: string;
+}
+
 export type CatalogWorkbook = Blob;
 
 export interface CatalogExcelSummary {

@@ -20,3 +20,4 @@
 - [Partner identity boundaries](partner-identity-boundaries.md) — preserve accepted stock/email sessions; shared usernames use the explicit 3–30 rule over contradictory examples.
 - [Supabase query results](supabase-query-results.md) — multi-statement SELECT batches may expose only the final result set; verify counts separately.
 - [Admin management boundaries](admin-management-boundaries.md) — approved account/store management only; preserve original identities, operational workflows and outstanding deliveries.
+- [Auth username assignment](auth-username-assignment.md) — approved Customer email-prefix migration; explicit registration must not consume Admin-provisioned usernames.

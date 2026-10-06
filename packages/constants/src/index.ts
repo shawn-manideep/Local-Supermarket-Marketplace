@@ -1,3 +1,11 @@
+export function passwordVisibility(visible: boolean) {
+  return {
+    inputType: visible ? "text" as const : "password" as const,
+    secureTextEntry: !visible,
+    label: visible ? "Hide password" : "Show password",
+  };
+}
+
 export const theme = {
   colors: {
     primary: "#2563EB",

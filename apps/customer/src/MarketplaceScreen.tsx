@@ -9,7 +9,7 @@ import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { ShoppingProductCard } from "./components/ShoppingProductCard";
 import { ShoppingProductDetails } from "./components/ShoppingProductDetails";
 import type { CustomerShoppingCategory } from "./lib/api";
-import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId, shoppingError } from "./lib/shopping";
+import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId, shoppingError, matchingCustomerStores } from "./lib/shopping";
 import { HomeHistory } from "./HomeHistory";
 
 function Skeleton({ style }: { style?: any }) {
@@ -105,7 +105,6 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const [shoppingIntentNotice, setShoppingIntentNotice] = useState("");
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [storeSearchQuery, setStoreSearchQuery] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState("");
@@ -129,7 +128,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const defaultAddressId = useRef("");
   const selectedAddressIdRef = useRef("");
 
-  const filteredStores = useMemo(() => stores.filter(s => s.name.toLowerCase().includes(storeSearchQuery.toLowerCase())), [stores, storeSearchQuery]);
+  const matchingStores = useMemo(() => matchingCustomerStores(stores, searchQuery), [stores, searchQuery]);
+  const filteredStores = stores;
   const currentStoreId = store?.id;
 
   const clearCatalog = () => {
@@ -443,7 +443,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     <View style={[styles.searchBar, { marginTop: spacing.lg }]}>
       <SearchIcon />
       <TextInput
-        accessibilityLabel="Search products across nearby stores"
+        accessibilityLabel="Search products or stores"
         style={styles.searchInput}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
@@ -493,8 +493,19 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </View>
             <Pressable accessibilityRole="button" onPress={clearSearch}><Text style={styles.backText}>Back to shopping</Text></Pressable>
           </View>
-          {productSearchField("Search groceries across nearby stores...")}
+          {productSearchField("Search products or stores")}
           {categoryFilters()}
+          {!!searchQuery.trim() && <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
+            <Text style={typography.title3}>Matching stores</Text>
+            {loadingStores || storeDirectoryPincode !== pincode ? <ActivityIndicator accessibilityLabel="Loading stores" color={colors.accent} /> :
+              matchingStores.length === 0 ? <Text style={typography.caption}>No matching stores in your delivery area.</Text> :
+                matchingStores.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.name}`} style={styles.storeCard} onPress={() => { clearSearch(); selectStore(item); }}>
+                  <Text style={typography.title3}>{item.name}</Text>
+                  <Text style={typography.caption}>{customerStoreLocation(item) || "Serving your selected delivery area"}</Text>
+                  <Text style={[typography.caption, { color: colors.accent }]}>Browse store</Text>
+                </Pressable>)}
+          </View>}
+          <Text style={[typography.title3, { marginTop: spacing.lg }]}>Products</Text>
           {loadingCatalog && <Text accessibilityLiveRegion="polite" style={typography.caption}>Opening product…</Text>}
           {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => { setError(""); setSearchRetry(value => value + 1); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Try again</Text></Pressable></View> : loadingGlobalProducts ? <ActivityIndicator accessibilityLabel="Searching products" color={colors.accent} style={{ marginTop: spacing.xl }} /> : globalProducts.length === 0 ? (
             <View style={styles.emptyState}>
@@ -538,7 +549,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Closed"} · Serves {pincode}</Text></View>
           </View>
-          {productSearchField("Search products across all nearby stores...")}
+          {productSearchField("Search products or stores")}
 
           {!!categoryId && <View style={styles.categoryHeader}><Pressable onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? "Products"}</Text></View>}
 
@@ -591,13 +602,9 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </Pressable>
           </View>
 
-          {productSearchField("Search products across nearby stores...")}
+          {productSearchField("Search products or stores")}
           {!!shoppingIntentNotice && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{shoppingIntentNotice}</Text>}
           {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. Search still works. Tap to retry.</Text></Pressable>}
-          <View style={[styles.searchBar, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
-            <SearchIcon />
-            <TextInput style={styles.searchInput} placeholder="Search supermarkets..." placeholderTextColor={colors.muted} value={storeSearchQuery} onChangeText={setStoreSearchQuery} />
-          </View>
 
           <Text style={[typography.caption, { marginTop: spacing.md }]}>Browse eligible supermarkets and their current grocery options.</Text>
           {homeCategories.length > 0 && <View style={{ marginBottom: spacing.xl }}>
@@ -636,8 +643,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           ) : filteredStores.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={typography.title2}>No supermarkets found</Text>
-              <Text style={typography.body}>{storeSearchQuery ? "Try a different supermarket name." : "We don't serve this area yet. Try another address."}</Text>
-              {!storeSearchQuery && <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Change Location</Text></Pressable>}
+              <Text style={typography.body}>We don't serve this area yet. Try another address.</Text>
+              <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Change Location</Text></Pressable>
             </View>
           ) : (
             <View style={{ gap: spacing.lg }}>
