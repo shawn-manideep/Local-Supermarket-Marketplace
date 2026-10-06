@@ -26,6 +26,7 @@ import {
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, isUniqueViolation, validationDetails } from "../http.js";
+import { requireCatalogDocuments } from "../vendor-documents/service.js";
 import {
   canonicalIdentity,
   createDuplicateReviewToken,
@@ -112,7 +113,7 @@ function normalizedSearchTerms(product: CanonicalInput) {
   ].flatMap((value) => normalizeIdentityText(value).split(/\s+/)).filter((value) => value.length > 1))].slice(0, 24);
 }
 
-async function findLikelyMatches(product: CanonicalInput, database: SelectExecutor = getDb()) {
+export async function findLikelyMatches(product: CanonicalInput, database: SelectExecutor = getDb()) {
   const terms = normalizedSearchTerms(product);
   const conditions = terms.map((term) => {
     const pattern = `%${term}%`;
@@ -156,7 +157,7 @@ async function findExactIdentityMatches(product: CanonicalInput, database: Selec
   }) === canonicalIdentity(product));
 }
 
-function candidateMatches(rows: CatalogMatchRow[], product: CanonicalInput) {
+export function candidateMatches(rows: CatalogMatchRow[], product: CanonicalInput) {
   return rows.map(({ product: match, categoryName, categoryIsActive }) => ({
     id: match.id,
     masterCategoryId: match.masterCategoryId,
@@ -391,6 +392,7 @@ masterCatalogRouter.post(
 masterCatalogRouter.post(
   "/api/vendor/master-products/:masterProductId/add-to-store",
   requireRole("vendor"),
+  requireCatalogDocuments,
   asyncHandler(async (request, response) => {
     const params = masterProductIdParamSchema.safeParse(request.params);
     if (!params.success) throw new HttpError(400, "Invalid master product ID", validationDetails(params.error));

@@ -8,6 +8,178 @@
 import * as zod from 'zod';
 
 
+export const getVendorDocumentsResponseMandatoryCountMin = 0;
+export const getVendorDocumentsResponseMandatoryCountMax = 4;
+
+export const getVendorDocumentsResponseOptionalCountMin = 0;
+export const getVendorDocumentsResponseOptionalCountMax = 3;
+
+export const getVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const GetVendorDocumentsResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "mandatoryCount": zod.number().int().min(getVendorDocumentsResponseMandatoryCountMin).max(getVendorDocumentsResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(getVendorDocumentsResponseOptionalCountMin).max(getVendorDocumentsResponseOptionalCountMax),
+  "message": zod.string(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(getVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "version": zod.number().int().min(1)
+}),zod.null()])
+}))
+})
+
+
+export const UploadVendorDocumentParams = zod.object({
+  "documentType": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license'])
+})
+
+export const uploadVendorDocumentQueryFileNameMax = 200;
+
+
+
+export const UploadVendorDocumentQueryParams = zod.object({
+  "fileName": zod.coerce.string().max(uploadVendorDocumentQueryFileNameMax)
+})
+
+export const uploadVendorDocumentResponseMandatoryCountMin = 0;
+export const uploadVendorDocumentResponseMandatoryCountMax = 4;
+
+export const uploadVendorDocumentResponseOptionalCountMin = 0;
+export const uploadVendorDocumentResponseOptionalCountMax = 3;
+
+export const uploadVendorDocumentResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const UploadVendorDocumentResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "mandatoryCount": zod.number().int().min(uploadVendorDocumentResponseMandatoryCountMin).max(uploadVendorDocumentResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(uploadVendorDocumentResponseOptionalCountMin).max(uploadVendorDocumentResponseOptionalCountMax),
+  "message": zod.string(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(uploadVendorDocumentResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "version": zod.number().int().min(1)
+}),zod.null()])
+}))
+})
+
+
+export const ViewVendorDocumentParams = zod.object({
+  "documentId": zod.coerce.string().uuid()
+})
+
+export const ViewVendorDocumentResponse = zod.unknown()
+
+
+export const getVendorProductMatchesQueryNameMax = 200;
+
+export const getVendorProductMatchesQueryBrandMax = 200;
+
+
+
+export const GetVendorProductMatchesQueryParams = zod.object({
+  "name": zod.coerce.string().min(1).max(getVendorProductMatchesQueryNameMax),
+  "brand": zod.coerce.string().max(getVendorProductMatchesQueryBrandMax).optional(),
+  "categoryId": zod.coerce.string().uuid().optional()
+})
+
+export const GetVendorProductMatchesResponse = zod.object({
+  "matches": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "brand": zod.string().nullish(),
+  "categoryName": zod.string().nullish(),
+  "image": zod.string().nullish(),
+  "exactIdentity": zod.boolean(),
+  "canAddToStore": zod.boolean()
+}))
+})
+
+
+export const createVendorLocalProductBodyNameMax = 200;
+
+export const createVendorLocalProductBodyBrandMax = 200;
+
+export const createVendorLocalProductBodyRequestedCategoryNameMax = 120;
+
+export const createVendorLocalProductBodyPriceMin = 0;
+
+export const createVendorLocalProductBodyStockQuantityMin = 0;
+
+export const createVendorLocalProductBodyVariantsItemQuantityValueExclusiveMin = 0;
+
+export const createVendorLocalProductBodyVariantsItemPriceMin = 0;
+
+export const createVendorLocalProductBodyVariantsItemStockQuantityMin = 0;
+
+export const createVendorLocalProductBodyVariantsMax = 50;
+
+
+
+export const CreateVendorLocalProductBody = zod.object({
+  "name": zod.string().min(1).max(createVendorLocalProductBodyNameMax),
+  "brand": zod.string().max(createVendorLocalProductBodyBrandMax).nullish(),
+  "description": zod.string().nullish(),
+  "imageUrl": zod.string().url().nullish(),
+  "categoryId": zod.string().uuid().nullish(),
+  "requestedCategoryName": zod.string().min(1).max(createVendorLocalProductBodyRequestedCategoryNameMax).optional(),
+  "sku": zod.string().nullish(),
+  "externalCode": zod.string().nullish(),
+  "price": zod.number().min(createVendorLocalProductBodyPriceMin),
+  "stockQuantity": zod.number().int().min(createVendorLocalProductBodyStockQuantityMin).optional(),
+  "availability": zod.boolean().optional(),
+  "isActive": zod.boolean().optional(),
+  "confirmSimilar": zod.boolean().optional(),
+  "variants": zod.array(zod.object({
+  "quantityValue": zod.number().gt(createVendorLocalProductBodyVariantsItemQuantityValueExclusiveMin),
+  "quantityUnit": zod.enum(['g', 'kg', 'ml', 'l', 'piece', 'pack', 'dozen', 'bottle', 'box']),
+  "price": zod.number().min(createVendorLocalProductBodyVariantsItemPriceMin),
+  "stockQuantity": zod.number().int().min(createVendorLocalProductBodyVariantsItemStockQuantityMin).optional(),
+  "availability": zod.boolean().optional(),
+  "isActive": zod.boolean().optional(),
+  "sku": zod.string().nullish(),
+  "externalCode": zod.string().nullish()
+})).min(1).max(createVendorLocalProductBodyVariantsMax)
+})
+
+export const CreateVendorLocalProductResponse = zod.object({
+  "product": zod.object({
+  "id": zod.string().uuid(),
+  "storeId": zod.string().uuid(),
+  "masterProductId": zod.null().optional(),
+  "name": zod.string(),
+  "brand": zod.string().nullish(),
+  "price": zod.string(),
+  "stockQuantity": zod.number().int(),
+  "availability": zod.boolean(),
+  "isActive": zod.boolean(),
+  "variants": zod.array(zod.record(zod.string(), zod.unknown()))
+})
+})
+
+
 export const loginCustomerUsernameBodyUsernameMin = 3;
 export const loginCustomerUsernameBodyUsernameMax = 30;
 

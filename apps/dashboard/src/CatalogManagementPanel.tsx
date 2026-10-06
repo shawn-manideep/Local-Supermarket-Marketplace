@@ -3,6 +3,7 @@ import { formatPrice } from "@workspace/validation/variant-formatting";
 import { apiRequest, type Category, type Product } from "./api";
 import { SellingVariantEditor } from "./SellingVariantEditor";
 import { VendorMasterCatalogPanel } from "./VendorMasterCatalogPanel";
+import { VendorNewProductPanel } from "./VendorNewProductPanel";
 
 interface CatalogManagementPanelProps {
   token: string;
@@ -71,6 +72,7 @@ export function CatalogManagementPanel({
   const [editingProductId, setEditingProductId] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [expandedVariantProductId, setExpandedVariantProductId] = useState("");
+  const [addProductMode, setAddProductMode] = useState<"choose" | "master" | "new">("choose");
   const productSaveBusyRef = useRef(false);
 
   useEffect(() => {
@@ -379,7 +381,43 @@ export function CatalogManagementPanel({
         </div>
       </div>
 
-      <VendorMasterCatalogPanel token={token} onAdded={handleMasterProductAdded} onMessage={onMessage} />
+      <section className="vendor-card vendor-add-product-chooser" aria-labelledby="add-product-title">
+        <div className="vendor-card-heading">
+          <div>
+            <h3 className="vendor-subtitle" id="add-product-title">+ Add Product</h3>
+            <p className="vendor-text-muted">Choose a shared catalog item or create a store-only product.</p>
+          </div>
+          {addProductMode !== "choose" && (
+            <button type="button" className="vendor-text-button" onClick={() => setAddProductMode("choose")}>Back to options</button>
+          )}
+        </div>
+        <div className="vendor-add-product-options">
+          <button type="button" className={`vendor-add-product-option ${addProductMode === "master" ? "selected" : ""}`} aria-pressed={addProductMode === "master"} onClick={() => setAddProductMode("master")}>
+            <strong>Select from Master Catalog</strong>
+            <span>Choose an approved shared product and configure its store listing.</span>
+          </button>
+          <button type="button" className={`vendor-add-product-option ${addProductMode === "new" ? "selected" : ""}`} aria-pressed={addProductMode === "new"} onClick={() => setAddProductMode("new")}>
+            <strong>Add New Product</strong>
+            <span>Create a product visible only in your store.</span>
+          </button>
+        </div>
+      </section>
+      {addProductMode === "master" && (
+        <VendorMasterCatalogPanel token={token} onAdded={handleMasterProductAdded} onMessage={onMessage} />
+      )}
+      {addProductMode === "new" && (
+        <VendorNewProductPanel
+          token={token}
+          categories={categories}
+          onAdded={(product) => {
+            upsertProduct(product);
+            setAddProductMode("choose");
+            setCategoryFilter("all");
+            setExpandedVariantProductId(product.id);
+          }}
+          onMessage={onMessage}
+        />
+      )}
 
       <div className="vendor-card vendor-category-panel">
         <div className="vendor-card-heading">

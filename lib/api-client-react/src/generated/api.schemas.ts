@@ -5,6 +5,175 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type VendorDocumentType = typeof VendorDocumentType[keyof typeof VendorDocumentType];
+
+
+export const VendorDocumentType = {
+  fssai: 'fssai',
+  aadhaar: 'aadhaar',
+  pan: 'pan',
+  photo: 'photo',
+  gst: 'gst',
+  trade_license: 'trade_license',
+  labour_license: 'labour_license',
+} as const;
+
+export type VendorCurrentDocumentMimeType = typeof VendorCurrentDocumentMimeType[keyof typeof VendorCurrentDocumentMimeType];
+
+
+export const VendorCurrentDocumentMimeType = {
+  'application/pdf': 'application/pdf',
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+} as const;
+
+export interface VendorCurrentDocument {
+  id: string;
+  fileName: string;
+  mimeType: VendorCurrentDocumentMimeType;
+  /**
+     * @minimum 1
+     * @maximum 5242880
+     */
+  sizeBytes: number;
+  uploadedAt: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+export interface VendorDocumentSummary {
+  type: VendorDocumentType;
+  label: string;
+  mandatory: boolean;
+  current: VendorCurrentDocument | null;
+}
+
+export interface VendorDocumentStatus {
+  required: boolean;
+  canManageCatalog: boolean;
+  /**
+     * @minimum 0
+     * @maximum 4
+     */
+  mandatoryCount: number;
+  /**
+     * @minimum 0
+     * @maximum 3
+     */
+  optionalCount: number;
+  message: string;
+  documents: VendorDocumentSummary[];
+}
+
+export interface VendorProductMatch {
+  id: string;
+  name: string;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  categoryName?: string | null;
+  /** @nullable */
+  image?: string | null;
+  exactIdentity: boolean;
+  canAddToStore: boolean;
+}
+
+export interface VendorProductMatchesResponse {
+  matches: VendorProductMatch[];
+}
+
+export type VendorLocalVariantInputQuantityUnit = typeof VendorLocalVariantInputQuantityUnit[keyof typeof VendorLocalVariantInputQuantityUnit];
+
+
+export const VendorLocalVariantInputQuantityUnit = {
+  g: 'g',
+  kg: 'kg',
+  ml: 'ml',
+  l: 'l',
+  piece: 'piece',
+  pack: 'pack',
+  dozen: 'dozen',
+  bottle: 'bottle',
+  box: 'box',
+} as const;
+
+export interface VendorLocalVariantInput {
+  /** @exclusiveMinimum 0 */
+  quantityValue: number;
+  quantityUnit: VendorLocalVariantInputQuantityUnit;
+  /** @minimum 0 */
+  price: number;
+  /** @minimum 0 */
+  stockQuantity?: number;
+  availability?: boolean;
+  isActive?: boolean;
+  /** @nullable */
+  sku?: string | null;
+  /** @nullable */
+  externalCode?: string | null;
+}
+
+export interface VendorLocalProductCreate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  brand?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @nullable */
+  categoryId?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  requestedCategoryName?: string;
+  /** @nullable */
+  sku?: string | null;
+  /** @nullable */
+  externalCode?: string | null;
+  /** @minimum 0 */
+  price: number;
+  /** @minimum 0 */
+  stockQuantity?: number;
+  availability?: boolean;
+  isActive?: boolean;
+  confirmSimilar?: boolean;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  variants: VendorLocalVariantInput[];
+}
+
+export type VendorLocalProductResponseProductVariantsItem = { [key: string]: unknown };
+
+export type VendorLocalProductResponseProduct = {
+  id: string;
+  storeId: string;
+  /** @nullable */
+  masterProductId?: null;
+  name: string;
+  /** @nullable */
+  brand?: string | null;
+  price: string;
+  stockQuantity: number;
+  availability: boolean;
+  isActive: boolean;
+  variants: VendorLocalProductResponseProductVariantsItem[];
+};
+
+export interface VendorLocalProductResponse {
+  product: VendorLocalProductResponseProduct;
+}
+
 export type AccountRecoveryInputRole = typeof AccountRecoveryInputRole[keyof typeof AccountRecoveryInputRole];
 
 
@@ -843,6 +1012,26 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type UploadVendorDocumentParams = {
+/**
+ * @maxLength 200
+ */
+fileName: string;
+};
+
+export type GetVendorProductMatchesParams = {
+/**
+ * @minLength 1
+ * @maxLength 200
+ */
+name: string;
+/**
+ * @maxLength 200
+ */
+brand?: string;
+categoryId?: string;
+};
 
 export type PreviewMasterCatalogExcelParams = {
 /**

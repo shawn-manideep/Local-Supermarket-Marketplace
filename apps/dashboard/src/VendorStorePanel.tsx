@@ -10,6 +10,7 @@ import {
 import { CatalogManagementPanel } from "./CatalogManagementPanel";
 import { OrderOperations } from "./OrderOperations";
 import { StoreProfileFields } from "./StoreProfileFields";
+import { VendorDocumentsPanel, type VendorDocumentStatus } from "./VendorDocumentsPanel";
 
 const dayNames = [
   "Sunday",
@@ -56,7 +57,7 @@ interface VendorStorePanelProps {
   onDismissNotice: () => void;
 }
 
-type Tab = "dashboard" | "store" | "catalog" | "orders" | "settings";
+type Tab = "dashboard" | "store" | "catalog" | "orders" | "settings" | "documents";
 
 export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice, onDismissNotice }: VendorStorePanelProps) {
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
@@ -65,21 +66,25 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
   const [hours, setHours] = useState<Record<number, HourDraft>>(defaultHours);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [documentStatus, setDocumentStatus] = useState<VendorDocumentStatus | null>(null);
 
   const loadStore = async () => {
     setLoading(true);
     setLoadError("");
     try {
-      const [storeResponse, pincodeResponse, hoursResponse] = await Promise.all([
+      const [storeResponse, pincodeResponse, hoursResponse, documentResponse] = await Promise.all([
         apiRequest<{ store: Store }>("/api/vendor/store", token),
         apiRequest<{ pincodes: ServicePincode[] }>("/api/vendor/store/pincodes", token),
         apiRequest<{ hours: OperatingHour[] }>("/api/vendor/store/hours", token),
+        apiRequest<VendorDocumentStatus>("/api/vendor/documents", token),
       ]);
       const loadedHours = defaultHours();
       for (const hour of hoursResponse.hours) {
         loadedHours[hour.dayOfWeek] = toHourDraft(hour);
       }
       setStore(storeResponse.store);
+      setDocumentStatus(documentResponse);
+      if (!documentResponse.canManageCatalog) setCurrentTab("documents");
       setPincodes(pincodeResponse.pincodes);
       setHours(loadedHours);
     } catch (error) {
@@ -138,7 +143,8 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
         <nav className="vendor-nav">
           <button type="button" className={currentTab === "dashboard" ? "active" : ""} onClick={() => setCurrentTab("dashboard")}>Dashboard</button>
           <button type="button" className={currentTab === "orders" ? "active" : ""} onClick={() => setCurrentTab("orders")}>Orders</button>
-          <button type="button" className={currentTab === "catalog" ? "active" : ""} onClick={() => setCurrentTab("catalog")}>Catalog</button>
+          <button type="button" className={currentTab === "catalog" ? "active" : ""} onClick={() => setCurrentTab(documentStatus?.canManageCatalog ? "catalog" : "documents")}>Catalog</button>
+          <button type="button" className={currentTab === "documents" ? "active" : ""} onClick={() => setCurrentTab("documents")}>Documents</button>
           <button type="button" className={currentTab === "store" ? "active" : ""} onClick={() => setCurrentTab("store")}>Store Profile</button>
         </nav>
         <div className="vendor-sidebar-bottom">
@@ -168,7 +174,9 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
               onMessage={onMessage} 
             />
           )}
-          {currentTab === "catalog" && <CatalogManagementPanel token={token} storeId={store.id} onMessage={onMessage} />}
+          {currentTab === "catalog" && documentStatus?.canManageCatalog && <CatalogManagementPanel token={token} storeId={store.id} onMessage={onMessage} />}
+          {currentTab === "catalog" && !documentStatus?.canManageCatalog && <p role="alert">Complete your document verification before managing your catalog.</p>}
+          {currentTab === "documents" && <VendorDocumentsPanel token={token} onMessage={onMessage} onChanged={setDocumentStatus} />}
           {currentTab === "orders" && <OrderOperations token={token} vendor vendorView="orders" storeId={store.id} onMessage={onMessage} />}
           {currentTab === "settings" && <VendorSettings profile={profile} onSignOut={onSignOut} />}
         </div>

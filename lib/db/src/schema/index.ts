@@ -143,6 +143,7 @@ export const stores = pgTable(
     logoImageUrl: text("logo_image_url"),
     phone: text("phone"),
     ownerName: text("owner_name"),
+    documentsRequired: boolean("documents_required").notNull().default(true),
     email: text("email"),
     addressLine1: text("address_line_1"),
     addressLine2: text("address_line_2"),
@@ -279,6 +280,8 @@ export const products = pgTable(
     masterProductId: uuid("master_product_id")
       .references(() => masterProducts.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
+    brand: text("brand"),
+    requestedCategoryName: text("requested_category_name"),
     description: text("description"),
     sku: text("sku"),
     externalCode: text("external_code"),

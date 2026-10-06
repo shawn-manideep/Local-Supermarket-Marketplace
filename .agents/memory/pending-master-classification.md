@@ -15,7 +15,8 @@ increase repeated missing-product requests.
 
 **How to apply:** Preserve existing active pending identities in vendor browse/add
 and show pending classification clearly to Admin. Only Admin may author canonical
-products or assign platform categories; the earlier vendor-creation permission
-has been superseded. Preserve archive restrictions for products assigned to
+products or assign platform categories. Approved Vendor-owned local products
+may be created without creating canonical identities or categories.
+Preserve archive restrictions for products assigned to
 archived categories. Do not introduce a separate pending-product model or change
 identity when classification is assigned.

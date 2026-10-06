@@ -11,6 +11,107 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /vendor/documents:
+    get:
+      operationId: getVendorDocuments
+      tags: [VendorDocuments]
+      responses:
+        '200':
+          description: Own-store document metadata and onboarding status, never private storage references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocumentStatus'
+  /vendor/documents/{documentType}:
+    put:
+      operationId: uploadVendorDocument
+      tags: [VendorDocuments]
+      parameters:
+        - name: documentType
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/VendorDocumentType'
+        - name: fileName
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema: {type: string, format: binary}
+          image/jpeg:
+            schema: {type: string, format: binary}
+          image/png:
+            schema: {type: string, format: binary}
+      responses:
+        '201':
+          description: Upload or replacement committed after successful private upload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocumentStatus'
+  /vendor/documents/{documentId}/content:
+    get:
+      operationId: viewVendorDocument
+      tags: [VendorDocuments]
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Authorized own-store current document bytes, private no-store
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+  /vendor/product-matches:
+    get:
+      operationId: getVendorProductMatches
+      tags: [VendorCatalog]
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 200}
+        - name: brand
+          in: query
+          schema: {type: string, maxLength: 200}
+        - name: categoryId
+          in: query
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Existing Master Catalog duplicate candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorProductMatchesResponse'
+  /vendor/products:
+    post:
+      operationId: createVendorLocalProduct
+      tags: [VendorCatalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorLocalProductCreate'
+      responses:
+        '201':
+          description: Store-local product with selling variants; no Master Catalog write
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorLocalProductResponse'
+        '403':
+          description: New Vendor mandatory documents incomplete
+        '409':
+          description: Exact duplicate or unconfirmed similar candidates
   /customer/login:
     post:
       operationId: loginCustomerUsername
@@ -643,6 +744,118 @@ components:
       type: http
       scheme: bearer
   schemas:
+    VendorDocumentType:
+      type: string
+      enum: [fssai, aadhaar, pan, photo, gst, trade_license, labour_license]
+    VendorCurrentDocument:
+      type: object
+      required: [id, fileName, mimeType, sizeBytes, uploadedAt, version]
+      properties:
+        id: {type: string, format: uuid}
+        fileName: {type: string}
+        mimeType: {type: string, enum: [application/pdf, image/jpeg, image/png]}
+        sizeBytes: {type: integer, minimum: 1, maximum: 5242880}
+        uploadedAt: {type: string, format: date-time}
+        version: {type: integer, minimum: 1}
+    VendorDocumentSummary:
+      type: object
+      required: [type, label, mandatory, current]
+      properties:
+        type:
+          $ref: '#/components/schemas/VendorDocumentType'
+        label: {type: string}
+        mandatory: {type: boolean}
+        current:
+          anyOf:
+            - $ref: '#/components/schemas/VendorCurrentDocument'
+            - type: 'null'
+    VendorDocumentStatus:
+      type: object
+      required: [required, canManageCatalog, mandatoryCount, optionalCount, message, documents]
+      properties:
+        required: {type: boolean}
+        canManageCatalog: {type: boolean}
+        mandatoryCount: {type: integer, minimum: 0, maximum: 4}
+        optionalCount: {type: integer, minimum: 0, maximum: 3}
+        message: {type: string}
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorDocumentSummary'
+    VendorProductMatch:
+      type: object
+      required: [id, name, exactIdentity, canAddToStore]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        brand: {type: [string, 'null']}
+        categoryName: {type: [string, 'null']}
+        image: {type: [string, 'null']}
+        exactIdentity: {type: boolean}
+        canAddToStore: {type: boolean}
+    VendorProductMatchesResponse:
+      type: object
+      required: [matches]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorProductMatch'
+    VendorLocalVariantInput:
+      type: object
+      required: [quantityValue, quantityUnit, price]
+      properties:
+        quantityValue: {type: number, exclusiveMinimum: 0}
+        quantityUnit: {type: string, enum: [g, kg, ml, l, piece, pack, dozen, bottle, box]}
+        price: {type: number, minimum: 0}
+        stockQuantity: {type: integer, minimum: 0}
+        availability: {type: boolean}
+        isActive: {type: boolean}
+        sku: {type: [string, 'null']}
+        externalCode: {type: [string, 'null']}
+    VendorLocalProductCreate:
+      type: object
+      required: [name, price, variants]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        brand: {type: [string, 'null'], maxLength: 200}
+        description: {type: [string, 'null']}
+        imageUrl: {type: [string, 'null'], format: uri}
+        categoryId: {type: [string, 'null'], format: uuid}
+        requestedCategoryName: {type: string, minLength: 1, maxLength: 120}
+        sku: {type: [string, 'null']}
+        externalCode: {type: [string, 'null']}
+        price: {type: number, minimum: 0}
+        stockQuantity: {type: integer, minimum: 0}
+        availability: {type: boolean}
+        isActive: {type: boolean}
+        confirmSimilar: {type: boolean}
+        variants:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/VendorLocalVariantInput'
+    VendorLocalProductResponse:
+      type: object
+      required: [product]
+      properties:
+        product:
+          type: object
+          required: [id, storeId, name, price, stockQuantity, availability, isActive, variants]
+          properties:
+            id: {type: string, format: uuid}
+            storeId: {type: string, format: uuid}
+            masterProductId: {type: 'null'}
+            name: {type: string}
+            brand: {type: [string, 'null']}
+            price: {type: string}
+            stockQuantity: {type: integer}
+            availability: {type: boolean}
+            isActive: {type: boolean}
+            variants:
+              type: array
+              items: {type: object, additionalProperties: true}
     AccountRecoveryInput:
       type: object
       additionalProperties: false

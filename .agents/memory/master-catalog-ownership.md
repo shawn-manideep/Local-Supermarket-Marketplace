@@ -7,11 +7,12 @@ Admin owns global master category/product authoring. Vendors browse, select and
 add to their own stores, then independently configure selling data; they must not
 create global identities. Do not automatically populate sample grocery records.
 
-**Why:** The user wants their own platform catalog and explicitly superseded the
-previous vendor missing-product creation workflow.
+**Why:** The user wants their own platform catalog. They subsequently approved
+Vendor creation of store-local products, not global canonical identities.
 
 **How to apply:** Retain the existing canonical tables and stable IDs, including
-future Excel authoring. Do not restore vendor creation as a convenience feature.
+future Excel authoring. Vendors may create genuinely new store-local products
+after duplicate review; this must not create global Master Products or categories.
 
 Catalog cleanup must establish demo provenance rather than classify by grocery
 names. Keep vendor commercial data and historical references when retiring

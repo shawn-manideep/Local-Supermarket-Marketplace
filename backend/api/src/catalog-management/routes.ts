@@ -24,8 +24,27 @@ import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, isUniqueViolation, validationDetails } from "../http.js";
 import { withMasterCatalogWriteLock } from "../master-catalog/duplicate-review.js";
 import { categoryOwnershipPredicate, productOwnershipPredicate } from "./ownership.js";
+import { requireCatalogDocuments } from "../vendor-documents/service.js";
 
 export const catalogManagementRouter = Router();
+catalogManagementRouter.use(["/api/vendor/products", "/api/vendor/categories"], (request, response, next) => {
+  // There are deliberately no hard-delete endpoints. Preserve their 404
+  // behavior, and gate every supported catalog mutation including child routes.
+  if (!["POST", "PATCH", "PUT"].includes(request.method)) { next(); return; }
+  requireRole("vendor")(request, response, error => {
+    if (error) { next(error); return; }
+    requireCatalogDocuments(request, response, next);
+  });
+});
+catalogManagementRouter.get("/api/vendor/product-matches", requireRole("vendor"), asyncHandler(async (request, response) => {
+  const { localProductMatches } = await import("./local-products.js");
+  const name = typeof request.query.name === "string" ? request.query.name.trim() : "";
+  const brand = typeof request.query.brand === "string" ? request.query.brand.trim() : null;
+  const categoryId = typeof request.query.categoryId === "string" && request.query.categoryId ? request.query.categoryId : null;
+  if (!name || name.length > 200 || (brand?.length ?? 0) > 200 ||
+      (categoryId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId))) throw new HttpError(400, "Invalid product identity");
+  response.json({ matches: await localProductMatches(vendorStoreId(request), name, brand, categoryId) });
+}));
 
 function vendorStoreId(request: Request) {
   const storeId = (request as AuthenticatedRequest).auth?.storeId;
@@ -132,7 +151,7 @@ function productWithMasterFallback(
   product: typeof products.$inferSelect,
   master: typeof masterProducts.$inferSelect | undefined,
 ) {
-  if (!master) return { ...product, brand: null };
+  if (!master) return { ...product, brand: product.brand };
   return {
     ...product,
     name: master.name,
@@ -347,8 +366,10 @@ catalogManagementRouter.get(
 catalogManagementRouter.post(
   "/api/vendor/products",
   requireRole("vendor"),
-  asyncHandler(async (_request, _response) => {
-    throw new HttpError(409, "New store products must be selected from the Master Catalog");
+  asyncHandler(async (request, response) => {
+    const { createLocalProduct } = await import("./local-products.js");
+    const product = await createLocalProduct(vendorStoreId(request), request.body);
+    response.status(201).json({ product: await productWithVariants(product) });
   }),
 );
 
