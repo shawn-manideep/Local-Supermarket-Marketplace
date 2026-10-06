@@ -1,0 +1,909 @@
+IMPLEMENTATION TASK — VENDOR SEARCH UI + VENDOR DOCUMENT ONBOARDING + NEW PRODUCT CREATION
+
+Implement the following changes in the existing Local Supermarket Marketplace project.
+
+IMPORTANT:
+- Inspect the existing architecture before making changes.
+- Reuse existing Vendor Portal, Master Catalog, product, authentication, storage, database, and shared UI infrastructure.
+- Do NOT create duplicate product/catalog tables.
+- Do NOT replace the existing Master Catalog architecture.
+- Do NOT modify Customer shopping, cart, checkout, stock deduction, order lifecycle, Delivery Partner workflow, or historical orders except where explicitly required below.
+- Do NOT deploy.
+- Do NOT run automated browser tests.
+- Do NOT fix unrelated pre-existing TypeScript/build errors.
+- Make the minimum safe changes required.
+- Use the existing shared design system.
+
+==================================================
+1. VENDOR SEARCH UI — EQUAL WIDTH
+==================================================
+
+The Vendor Portal currently has two controls in the catalog/search area:
+
+1. Search Products
+2. Browse by Category
+
+They currently have different widths.
+
+Make both controls equal width.
+
+Example:
+
+--------------------------------------------------
+Search Products
+[ Try rice, milk, a brand, or product detail ]
+
+Browse by Category
+[ All categories                         ▼ ]
+--------------------------------------------------
+
+The two controls should have the same visual width and align cleanly.
+
+Requirements:
+
+- Same width
+- Same height
+- Same border radius
+- Same border treatment
+- Same vertical alignment
+- Responsive on smaller screens
+- Preserve existing search behavior
+- Preserve existing category filtering behavior
+
+Do NOT change the search API or product filtering logic unless required for the layout.
+
+Reuse existing shared UI components/styles.
+
+==================================================
+2. VENDOR DOCUMENTS PAGE
+==================================================
+
+Create a dedicated:
+
+Vendor Portal → Documents
+
+page.
+
+The page is for storing the vendor's required business/KYC documents.
+
+Documents must belong to the Vendor/Store account.
+
+Do not associate these documents with products.
+
+==================================================
+3. DOCUMENT TYPES
+==================================================
+
+Create the following document categories.
+
+### MANDATORY DOCUMENTS
+
+The vendor MUST upload all of these:
+
+1. FSSAI License
+2. Aadhaar Card
+3. PAN Card
+4. Photo
+
+IMPORTANT:
+The numbering in the request skips 4/uses 5 for Photo, but the actual required document list contains FOUR mandatory documents. Treat these four as mandatory.
+
+### OPTIONAL DOCUMENTS
+
+1. GST
+2. Trade License
+3. Labour License
+
+Use clear labels in the UI.
+
+Example:
+
+MANDATORY DOCUMENTS
+
+✓/⚠ FSSAI License
+✓/⚠ Aadhaar Card
+✓/⚠ PAN Card
+✓/⚠ Photo
+
+OPTIONAL DOCUMENTS
+
+GST
+Trade License
+Labour License
+
+Do not make optional documents block catalog access.
+
+==================================================
+4. VENDOR FIRST-LOGIN ONBOARDING
+==================================================
+
+When a NEW Vendor successfully logs into the Vendor Portal for the first time:
+
+The first required action after login must be completing the mandatory document upload.
+
+If mandatory documents are incomplete:
+
+Vendor should be taken to:
+
+Vendor Portal → Documents
+
+Show a clear message:
+
+"Complete your document verification before managing your catalog."
+
+The Vendor must NOT be allowed to:
+
+- Add products
+- Add products from Master Catalog
+- Create vendor products
+- Edit catalog
+- Manage store products
+
+until all four mandatory documents have been uploaded.
+
+==================================================
+5. DOCUMENT ONBOARDING GATE
+==================================================
+
+Implement the document requirement as a server-side authorization/business rule.
+
+Do NOT rely only on frontend hiding/redirecting.
+
+The backend must prevent catalog-management operations when mandatory documents are incomplete.
+
+This must cover both:
+
+- Existing Master Catalog product selection/addition
+- New Vendor Product creation
+
+A Vendor should not be able to bypass the restriction by directly calling an API.
+
+Recommended state:
+
+DOCUMENTS_INCOMPLETE
+        ↓
+Vendor logs in
+        ↓
+Documents page
+        ↓
+Upload all mandatory documents
+        ↓
+DOCUMENTS_COMPLETE
+        ↓
+Vendor can manage catalog
+
+Do not introduce a complicated approval workflow unless the existing architecture already requires one.
+
+The user's requirement is that mandatory documents must be uploaded before catalog management is allowed.
+
+==================================================
+6. DOCUMENT COMPLETION STATUS
+==================================================
+
+The Vendor Portal should clearly show document completion status.
+
+Example:
+
+Documents
+
+Mandatory Documents
+4 / 4 completed
+
+FSSAI License       ✓ Uploaded
+Aadhaar Card        ✓ Uploaded
+PAN Card            ✓ Uploaded
+Photo               ✓ Uploaded
+
+Optional Documents
+1 / 3 uploaded
+
+GST                 + Upload
+Trade License       + Upload
+Labour License      + Upload
+
+When all mandatory documents are uploaded:
+
+Show:
+
+"Your mandatory documents are complete. You can now manage your catalog."
+
+==================================================
+7. DOCUMENT UPLOAD
+==================================================
+
+Use the existing project's storage infrastructure if available.
+
+Do NOT store uploaded documents directly as publicly accessible files.
+
+Documents may contain sensitive personal/business information.
+
+Use private storage and secure access.
+
+The database should store document metadata/reference, not unnecessary duplicate file contents.
+
+Recommended metadata:
+
+- vendor/store ID
+- document type
+- storage path/reference
+- original filename
+- MIME type
+- file size
+- upload timestamp
+- updated timestamp
+- active/current version
+
+Do not expose storage paths publicly.
+
+Use secure authorization when retrieving documents.
+
+==================================================
+8. DOCUMENT FILE TYPES
+==================================================
+
+Inspect the existing project/storage conventions first.
+
+Support practical document formats such as:
+
+- PDF
+- JPG/JPEG
+- PNG
+
+Validate:
+
+- MIME type
+- file extension
+- reasonable file size
+- upload success
+- corrupted/invalid files where practical
+
+Do not allow arbitrary executable files.
+
+Show useful validation errors.
+
+==================================================
+9. DOCUMENT PREVIEW / VIEW
+==================================================
+
+After upload, Vendor should be able to see that the document exists.
+
+Example:
+
+FSSAI License
+Status: Uploaded
+Uploaded: 06 Oct 2026
+
+[View] [Replace]
+
+For private files, use secure/signed access rather than making the files public.
+
+==================================================
+10. UPDATE / REPLACE EXISTING DOCUMENT
+==================================================
+
+The Vendor specifically needs the ability to update an existing document in the future.
+
+Example:
+
+FSSAI License
+[View]
+[Replace Document]
+
+When replacing:
+
+- Keep the document type the same.
+- Upload the new file.
+- Validate the new file.
+- Make the new file the current active document.
+- Do not break the Vendor's account.
+- Do not expose the previous private file publicly.
+
+Prefer preserving a lightweight document history/version record if the existing architecture supports it.
+
+Do NOT silently delete historical metadata if auditability can be maintained safely.
+
+The latest valid document must be treated as the current document.
+
+==================================================
+11. DOCUMENT DELETION
+==================================================
+
+For mandatory documents:
+
+Do NOT provide a normal "Delete" action that would leave the Vendor incomplete.
+
+If a Vendor wants to remove a mandatory document, require them to replace it with a new valid document instead.
+
+For optional documents:
+
+Allow removal only if safe under the existing storage architecture.
+
+Removing an optional document must not affect catalog access.
+
+==================================================
+12. NEW PRODUCT NOT AVAILABLE IN MASTER CATALOG
+==================================================
+
+CURRENT PROBLEM:
+
+Vendor can currently only add products that already exist in the Master Catalog.
+
+The Vendor must have an option to add a product that is NOT available in the Master Catalog.
+
+Add a clear action in the Vendor catalog area:
+
+"+ Add Product"
+
+When clicked, provide:
+
+1. Select from Master Catalog
+2. Add New Product
+
+Example:
+
+Add Product
+
+[ Select from Master Catalog ]
+[ Add New Product ]
+
+==================================================
+13. ADD NEW PRODUCT FLOW
+==================================================
+
+When Vendor chooses:
+
+"Add New Product"
+
+show a form using the existing product/canonical product structure.
+
+At minimum inspect and reuse existing fields for:
+
+- Product Name
+- Brand
+- Description
+- Category
+- Image
+- Selling unit / variant configuration
+- Vendor price
+- Stock
+- Availability
+
+IMPORTANT:
+
+Do not duplicate existing product/variant models.
+
+Use the current Vendor Product / Product Variant architecture.
+
+==================================================
+14. CATEGORY FOR NEW PRODUCT
+==================================================
+
+For a new product, Vendor should first select an existing appropriate category where possible.
+
+Do NOT allow vendors to create arbitrary duplicate platform categories without review.
+
+If the required category does not exist, provide a controlled option such as:
+
+"Category not available? Request a new category"
+
+Do not silently create a global Master Category.
+
+==================================================
+15. DUPLICATE PRODUCT CHECK
+==================================================
+
+Before creating a new Vendor product, perform a duplicate check against the Master Catalog.
+
+The check should consider appropriate canonical identity fields such as:
+
+- Product name
+- Brand
+- Category
+- Existing product identity
+
+Use the existing Master Catalog duplicate/review logic if available.
+
+Example:
+
+Vendor enters:
+
+"Basmati Rice 5kg"
+
+System finds:
+
+"India Gate Basmati Rice 5kg"
+
+Show:
+
+"Similar product found in Master Catalog."
+
+[Use Existing Product]
+
+[Continue with New Product]
+
+The Vendor should not accidentally create duplicate products when the Master Catalog already contains the same product.
+
+==================================================
+16. VENDOR-OWNED NEW PRODUCT
+==================================================
+
+If the product genuinely does not exist in the Master Catalog:
+
+Allow the Vendor to create the product for THEIR STORE.
+
+IMPORTANT:
+
+This must NOT automatically create a global Master Catalog product.
+
+The ownership model must remain:
+
+Master Catalog
+    ↓
+Canonical platform products
+
+Vendor Store
+    ↓
+Vendor-selected Master Products
+    +
+Vendor-created store-specific products
+
+A Vendor-created product must only appear for that Vendor unless an Admin later promotes/reuses it through the existing Master Catalog governance process.
+
+Vendor A creating a new product must NOT make it automatically available to Vendor B.
+
+==================================================
+17. NEW PRODUCT ADMIN REVIEW
+==================================================
+
+If the existing architecture supports product review/mapping, integrate the new Vendor-created product into that existing review mechanism.
+
+Do NOT build a large new Mapping Desk or complex reconciliation system.
+
+Keep this simple.
+
+Recommended state:
+
+VENDOR_PRODUCT
+    ↓
+Created by Vendor
+    ↓
+Duplicate check
+    ↓
+Available in Vendor's catalog
+
+Optional Admin review/reference:
+
+"Vendor-created product"
+
+Admin can later decide whether it should become/reuse a canonical Master Catalog product.
+
+Do not block the Vendor unnecessarily if the product has passed the duplicate check and is valid for their store.
+
+==================================================
+18. VENDOR PRODUCT OWNERSHIP
+==================================================
+
+Vendor-created products must follow the existing Vendor ownership model.
+
+Vendor owns:
+
+- Price
+- Stock
+- Availability
+- Selling unit
+- Pack/quantity configuration
+- Vendor-specific variants
+- Vendor-specific SKU/external code
+
+Master Catalog owns only canonical platform products.
+
+Do not overwrite Master Catalog products with Vendor commercial information.
+
+==================================================
+19. CUSTOMER VISIBILITY OF VENDOR-CREATED PRODUCTS
+==================================================
+
+Once a Vendor-created product is active and available for sale, it should be visible to customers according to the existing customer catalog/store visibility rules.
+
+It must:
+
+- Appear only under that Vendor's store
+- Respect stock
+- Respect availability
+- Respect existing product/order rules
+- Be purchasable using the existing cart/checkout flow
+
+It must NOT automatically appear in another Vendor's store.
+
+==================================================
+20. DOCUMENTS + CATALOG ACCESS
+==================================================
+
+The catalog access gate must apply to both types of products:
+
+A. Master Catalog products
+B. Vendor-created products
+
+If mandatory documents are incomplete:
+
+Vendor cannot add either type.
+
+After mandatory documents are complete:
+
+Vendor can manage both.
+
+==================================================
+21. VENDOR DASHBOARD NAVIGATION
+==================================================
+
+Add:
+
+Documents
+
+to the Vendor Portal navigation.
+
+Recommended location:
+
+Dashboard
+Orders
+Products / My Store
+Documents
+Profile
+
+Use the existing Vendor navigation style.
+
+If documents are incomplete, visually indicate it:
+
+Documents ⚠
+
+or
+
+Documents
+Complete setup
+
+Do not overuse notifications.
+
+==================================================
+22. LOGIN REDIRECT
+==================================================
+
+For a Vendor with incomplete mandatory documents:
+
+Login
+    ↓
+Vendor Dashboard/authentication
+    ↓
+Check document completion
+    ↓
+If incomplete → Documents page
+
+For a Vendor with complete documents:
+
+Login
+    ↓
+Normal Vendor Dashboard
+
+IMPORTANT:
+
+Do not create an infinite redirect loop.
+
+Vendor must always be able to access the Documents page even when the catalog is locked.
+
+Vendor should also be able to access essential account/profile/logout functionality.
+
+==================================================
+23. SERVER-SIDE CATALOG GATE
+==================================================
+
+Implement a reusable server-side check such as:
+
+requireVendorDocumentsComplete()
+
+or an equivalent service/helper using the project's existing architecture.
+
+Apply it to all relevant Vendor catalog mutation endpoints.
+
+At minimum:
+
+- Add Master Catalog product to store
+- Create Vendor Product
+- Edit Vendor Product if appropriate
+- Add Vendor Product Variant if appropriate
+
+Think carefully about whether editing existing products should be blocked.
+
+Recommended behavior:
+
+If mandatory documents become incomplete because a document is replaced/invalidated, prevent NEW catalog additions but do not unnecessarily delete existing store products.
+
+Do not remove existing products automatically.
+
+==================================================
+24. UI DESIGN
+==================================================
+
+Use the project's existing shared UI design system.
+
+Primary Blue:
+#2563EB
+
+Deep Navy:
+#1E3A8A
+
+Light Blue:
+#F6F4FF
+
+White:
+#FFFFFF
+
+Primary text:
+rgb(31,41,55)
+
+Secondary:
+rgb(75,85,99)
+
+Light:
+rgb(156,163,175)
+
+Border:
+rgb(229,231,235)
+
+Success:
+#10B981
+
+Error:
+#EF4444
+
+Use:
+
+- Inter / existing system fallback
+- 16px rounded corners
+- subtle shadows
+- clean cards
+- consistent buttons
+- responsive layout
+- consistent upload controls
+- clear success/error states
+
+Do not create a separate Vendor design system.
+
+==================================================
+25. SECURITY / PRIVACY
+==================================================
+
+Documents such as Aadhaar and PAN are sensitive personal information.
+
+Treat uploaded documents as private.
+
+Do NOT:
+
+- make documents publicly accessible
+- expose storage URLs unnecessarily
+- return documents to other vendors
+- allow customers to access them
+- expose document storage paths
+- include document contents in normal Vendor product APIs
+
+Vendor can access only their own documents.
+
+Admin access should follow the existing Admin authorization architecture if document review/access is implemented.
+
+Do not expose one Vendor's documents to another Vendor.
+
+==================================================
+26. DATABASE
+==================================================
+
+Before creating tables:
+
+Inspect the existing schema and storage architecture.
+
+Reuse existing tables/components if an appropriate document system already exists.
+
+If no suitable document model exists, create a focused migration for Vendor documents.
+
+Do not create duplicate Vendor or Product tables.
+
+A reasonable document model may contain:
+
+vendor/store ID
+document type
+storage reference
+original filename
+MIME type
+size
+status
+uploaded timestamp
+updated timestamp
+version/current flag
+
+Use the project's naming conventions.
+
+Apply migration only to development.
+
+==================================================
+27. TESTING
+==================================================
+
+Add focused tests.
+
+### Vendor search UI
+
+- Search and category controls have equal width
+- Existing search behavior remains intact
+
+### Documents
+
+- Vendor can access Documents page
+- Mandatory document list is correct
+- Optional document list is correct
+- Vendor can upload valid documents
+- Invalid file types rejected
+- Mandatory completion calculated correctly
+- Incomplete vendor cannot add products
+- Complete vendor can add products
+- Vendor can replace existing documents
+- Optional document does not block catalog access
+- Vendor cannot access another Vendor's documents
+
+### Catalog gate
+
+Test:
+
+Vendor with 0 mandatory documents
+→ cannot add product
+
+Vendor with 3 mandatory documents
+→ cannot add product
+
+Vendor with 4 mandatory documents
+→ can add product
+
+### New Product
+
+- Vendor can choose Add New Product
+- Existing Master Catalog duplicate check works
+- Vendor-created product is stored correctly
+- Vendor-created product belongs only to that Vendor
+- Vendor B cannot see Vendor A's private catalog product
+- Vendor-created product can appear to customers through the existing store catalog
+- Price/stock/availability remain Vendor-owned
+- No global Master Catalog product is silently created
+
+### Existing Master Catalog
+
+Verify existing Master Catalog selection still works after documents are complete.
+
+### Regression
+
+Verify existing:
+
+- Orders
+- Stock
+- Cart
+- Checkout
+- Delivery workflow
+- Customer catalog
+
+remain unchanged.
+
+Do not run automated browser tests.
+
+==================================================
+28. MANUAL TEST CHECKLIST
+==================================================
+
+After implementation, provide a manual test checklist.
+
+TEST 1:
+Create/login as a new Vendor with no documents.
+
+Expected:
+Vendor is directed to Documents.
+
+TEST 2:
+Try opening Products/catalog.
+
+Expected:
+Catalog management is blocked until mandatory documents are complete.
+
+TEST 3:
+Upload:
+
+- FSSAI License
+- Aadhaar Card
+- PAN Card
+- Photo
+
+Expected:
+4/4 mandatory documents complete.
+
+TEST 4:
+Open Products.
+
+Expected:
+Vendor can now manage catalog.
+
+TEST 5:
+Select an existing Master Catalog product.
+
+Expected:
+Works normally.
+
+TEST 6:
+Choose Add Product → Add New Product.
+
+Expected:
+Vendor can create a product not currently in Master Catalog.
+
+TEST 7:
+Create a product.
+
+Expected:
+It belongs only to that Vendor.
+
+TEST 8:
+Login as another Vendor.
+
+Expected:
+The new Vendor A product does not automatically appear for Vendor B.
+
+TEST 9:
+Replace an existing FSSAI/PAN/etc. document.
+
+Expected:
+New document becomes current.
+
+TEST 10:
+Customer opens Vendor A store.
+
+Expected:
+Vendor-created active product appears according to existing customer visibility rules.
+
+==================================================
+29. DOCUMENTATION
+==================================================
+
+Create/update:
+
+docs/VENDOR_DOCUMENTS_AND_NEW_PRODUCT_IMPLEMENTATION_REPORT.md
+
+Include:
+
+- Files changed
+- Database migration
+- Storage changes
+- APIs added/changed
+- Document types
+- Mandatory/optional rules
+- Catalog access gate
+- New product workflow
+- Duplicate detection
+- Vendor ownership behavior
+- Security/privacy controls
+- Tests and exact pass/fail counts
+- Manual test checklist
+
+==================================================
+FINAL STOP CONDITION
+==================================================
+
+Implement ONLY this task.
+
+Do not modify unrelated features.
+
+Do not redesign the entire Vendor Portal.
+
+Do not create a new Master Catalog architecture.
+
+Do not create a new authentication architecture.
+
+Do not create a complex mapping/reconciliation system.
+
+Do not deploy.
+
+Do not run automated browser tests.
+
+Do not fix unrelated pre-existing errors.
+
+After implementation and focused testing, STOP and provide the complete implementation report.
