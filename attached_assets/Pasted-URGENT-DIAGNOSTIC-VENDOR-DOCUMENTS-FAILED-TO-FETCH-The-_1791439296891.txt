@@ -1,0 +1,223 @@
+URGENT DIAGNOSTIC — VENDOR DOCUMENTS "FAILED TO FETCH"
+
+The Vendor Portal Documents page is currently displaying:
+
+"Documents could not load"
+"Failed to fetch"
+
+The Documents page UI itself loads correctly, but the frontend cannot retrieve the Vendor Documents data.
+
+This is happening after the recent Vendor Documents and New Product implementation.
+
+DO NOT implement a new feature yet.
+
+DO NOT redesign the Documents page.
+
+DO NOT change the database schema unless the diagnosis proves a migration/schema problem.
+
+DO NOT modify Master Catalog, vendor products, prices, stock, orders, cart, checkout, delivery, or customer functionality.
+
+DO NOT deploy.
+
+DO NOT run automated browser tests.
+
+We need to diagnose the exact cause first.
+
+==================================================
+1. IDENTIFY THE FAILING REQUEST
+==================================================
+
+Inspect the Vendor Documents page code.
+
+Identify the exact API/request called when the page loads the documents.
+
+Report:
+
+- HTTP method
+- exact API route
+- frontend file/function
+- backend route/controller/service
+- expected response
+
+==================================================
+2. CHECK BACKEND LOGS
+==================================================
+
+Reproduce the Documents page request using the existing development environment.
+
+Inspect the backend/server logs for the actual error.
+
+Find the exact exception/status.
+
+Do not stop at "Failed to fetch".
+
+We need the underlying server error.
+
+==================================================
+3. CHECK AUTHENTICATION
+==================================================
+
+Verify that a logged-in Vendor's authentication/session is correctly sent with the Documents request.
+
+Confirm:
+
+- Vendor is authenticated
+- Supabase session exists
+- access token/session is passed correctly
+- backend recognizes the user
+- backend resolves the correct Vendor/Store ID
+- Vendor role authorization succeeds
+
+Do NOT weaken authentication or authorization to make the request work.
+
+==================================================
+4. CHECK DATABASE
+==================================================
+
+Inspect the database schema created for Vendor Documents.
+
+Verify:
+
+- migration was applied
+- document table exists
+- expected columns exist
+- Vendor/Store foreign key is correct
+- RLS/policies are correct if applicable
+- query uses the correct Vendor/Store identifier
+
+Do not create a duplicate table.
+
+Do not modify existing vendor/store records.
+
+==================================================
+5. CHECK STORAGE
+==================================================
+
+Inspect the document storage configuration.
+
+The Documents page should be able to load document metadata even if no files have been uploaded yet.
+
+IMPORTANT:
+
+A Vendor who has uploaded ZERO documents should still get a successful response such as:
+
+{
+  documents: []
+}
+
+or the equivalent existing API response.
+
+An empty document list must NOT produce "Failed to fetch".
+
+Check whether the API incorrectly attempts to access a storage bucket/file before any document exists.
+
+Verify the required Supabase storage configuration/bucket exists if it is required by the implementation.
+
+Do not make sensitive documents public.
+
+==================================================
+6. CHECK API RESPONSE
+==================================================
+
+The Documents GET endpoint should return a valid response for:
+
+A. New Vendor with no documents
+
+Expected:
+HTTP 200
+Empty document list
+Completion status showing 0/4 mandatory documents
+
+B. Vendor with some documents
+
+Expected:
+HTTP 200
+Uploaded document metadata
+
+C. Vendor with all mandatory documents
+
+Expected:
+HTTP 200
+4/4 mandatory documents complete
+
+==================================================
+7. CHECK ERROR HANDLING
+==================================================
+
+If the database contains no documents for the Vendor, this is NOT an error.
+
+Do not return HTTP 500 for an empty document collection.
+
+If the API fails, return an appropriate structured error rather than causing a generic frontend "Failed to fetch" message.
+
+==================================================
+8. CHECK FRONTEND API URL
+==================================================
+
+Verify that the Vendor Documents page is calling the same backend/API configuration used by the other working Vendor Portal pages.
+
+Compare it with existing working Vendor APIs such as:
+
+- Vendor profile
+- Vendor orders
+- Vendor catalog
+
+If those work but Documents does not, identify the exact configuration difference.
+
+Do not create a second API base URL.
+
+==================================================
+9. CHECK RECENT CHANGES
+==================================================
+
+Review only the recent Vendor Documents implementation and identify whether the problem was introduced by:
+
+- Documents API
+- database migration
+- Supabase Storage
+- RLS
+- authentication
+- Vendor ID resolution
+- frontend API client
+- environment configuration
+
+==================================================
+10. SAFE FIX ONLY
+==================================================
+
+After identifying the exact root cause:
+
+If the fix is small, safe, and directly related to this issue, implement ONLY that targeted fix.
+
+Do not make unrelated changes.
+
+Then run focused tests for:
+
+- Vendor authentication
+- GET Documents for Vendor with zero documents
+- GET Documents for Vendor with documents
+- Vendor isolation
+- Document authorization
+- Document completion calculation
+
+Do NOT run automated browser tests.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. Exact root cause
+2. Failing API endpoint
+3. HTTP status/error
+4. Backend exception if any
+5. Affected file/function
+6. Database/storage issue if applicable
+7. Exact fix made
+8. Focused test results
+9. Confirmation that no vendor products, prices, stock, orders, customers, or delivery data were changed
+
+STOP after diagnosis and targeted fix.
+
+Do not start another feature.
