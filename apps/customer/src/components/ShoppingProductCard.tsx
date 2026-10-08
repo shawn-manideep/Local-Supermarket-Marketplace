@@ -7,12 +7,13 @@ import { PlaceholderImage } from "./PlaceholderImage";
 import { FavoriteControl } from "./FavoriteControl";
 import { customerImageUri } from "../lib/api";
 
-export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode }: {
+export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, singleColumn = false }: {
   product: CustomerProduct;
   onOpen: () => void;
   onAdd: (variant: CustomerProductVariant) => void;
   busy: boolean;
   pincode?: string;
+  singleColumn?: boolean;
 }) {
   const variants = activeVariants(product);
   const single = variants.length === 1 ? variants[0] : undefined;
@@ -21,13 +22,13 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode }: {
   const actionLabel = busy ? "Adding…" : quickAdd ? "Add to Cart"
     : hasPurchasableVariant && variants.length > 1 ? "Choose an option"
     : hasPurchasableVariant ? "View details" : "Unavailable";
-  return <View style={styles.card}>
+  return <View style={[styles.card, singleColumn && styles.singleColumn]}>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}${product.storeName ? ` at ${product.storeName}` : ""}`} onPress={onOpen}>
       {customerImageUri(product.imageUrl)
         ? <Image source={{ uri: customerImageUri(product.imageUrl) }} style={styles.image} />
         : <PlaceholderImage name={product.name} style={styles.image} />}
       <View style={styles.info}>
-        <Text style={typography.bodySemibold} numberOfLines={2}>{product.name}</Text>
+        <Text style={typography.bodySemibold}>{product.name}</Text>
         {!!product.brand && <Text style={typography.caption} numberOfLines={1}>{product.brand}</Text>}
         {!!product.storeName && <Text style={typography.caption} numberOfLines={2}>{product.storeName}</Text>}
         <Text style={[typography.title3, styles.price]} numberOfLines={2}>{productPriceLabel(product)}</Text>
@@ -47,11 +48,12 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode }: {
 
 const styles = StyleSheet.create({
   card: { width: "48%", minWidth: 0, backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.sm, marginBottom: spacing.md, justifyContent: "space-between" },
-  image: { width: "100%", height: 104, borderRadius: radius.md, marginBottom: spacing.sm },
+  singleColumn: { width: "100%" },
+  image: { width: "100%", aspectRatio: 1.7, borderRadius: radius.md, marginBottom: spacing.sm },
   info: { gap: spacing.xs, marginBottom: spacing.sm, minWidth: 0 },
   price: { flexShrink: 1, marginTop: spacing.xs },
   unavailable: { color: colors.danger },
-  action: { backgroundColor: colors.accent, borderRadius: radius.sm, minHeight: 40, padding: spacing.xs, alignItems: "center", justifyContent: "center" },
+  action: { backgroundColor: colors.accent, borderRadius: radius.sm, minHeight: 44, padding: spacing.xs, alignItems: "center", justifyContent: "center" },
   actionText: { ...typography.bodySemibold, color: colors.card, textAlign: "center", fontSize: 12 },
   busy: { opacity: 0.6 },
 });

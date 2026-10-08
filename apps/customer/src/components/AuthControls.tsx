@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { requestAccountRecovery } from "@workspace/api-client-react";
 import { RECOVERY_CONFIRMATION, resetPasswordSchema, usernameSchema } from "@workspace/validation";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./CustomerTypography";
@@ -69,7 +69,7 @@ export function CustomerResetForm({ onComplete }: { onComplete: (success: boolea
     } catch { setError("Your reset link may have expired. Request new instructions and try again."); }
     finally { setBusy(false); }
   };
-  return <View style={styles.resetPage}><View style={[commonStyles.card, styles.form]}>
+  return <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.resetPage}><View style={[commonStyles.card, styles.form]}>
     <Text style={typography.title1}>Choose a new password</Text>
     <Text style={typography.body}>Use at least 8 characters.</Text>
     <PasswordField label="New password" autoComplete="new-password" value={password} onChangeText={setPassword} />
@@ -77,21 +77,21 @@ export function CustomerResetForm({ onComplete }: { onComplete: (success: boolea
     {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{error}</Text>}
     <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{busy ? "Updating…" : "Update password"}</Text></Pressable>
     <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void finish(false); }}><Text style={styles.link}>Cancel reset</Text></Pressable>
-  </View></View>;
+  </View></ScrollView>;
 }
 
 const styles = StyleSheet.create({
   field: { gap: spacing.sm },
   form: { gap: spacing.md },
-  passwordRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.card },
-  passwordInput: { flex: 1, minHeight: 50, paddingHorizontal: spacing.md, ...typography.body, color: colors.ink },
-  eyeButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  passwordRow: { flexDirection: "row", minWidth: 0, alignItems: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.card },
+  passwordInput: { flex: 1, minWidth: 0, minHeight: 50, paddingHorizontal: spacing.md, ...typography.body, color: colors.ink },
+  eyeButton: { width: 48, height: 48, flexShrink: 0, alignItems: "center", justifyContent: "center" },
   eye: { width: 22, height: 14, borderWidth: 2, borderColor: colors.muted, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   pupil: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.muted },
   slash: { position: "absolute", width: 27, height: 2, backgroundColor: colors.muted, transform: [{ rotate: "40deg" }] },
   input: { minHeight: 50, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, ...typography.body, color: colors.ink, backgroundColor: colors.card },
   link: { ...typography.bodySemibold, color: colors.accent, textAlign: "center", paddingVertical: spacing.sm },
-  resetPage: { flex: 1, justifyContent: "center", padding: spacing.xl, backgroundColor: colors.bg },
+  resetPage: { flexGrow: 1, justifyContent: "center", padding: spacing.md, paddingTop: Platform.OS === "web" ? 67 : spacing.xl, paddingBottom: Platform.OS === "web" ? 34 : spacing.xl, backgroundColor: colors.bg },
   primaryButton: { minHeight: 48, padding: spacing.md, backgroundColor: colors.accent, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   primaryButtonText: { ...typography.bodySemibold, color: colors.card },
 });

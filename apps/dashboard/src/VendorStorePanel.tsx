@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   apiRequest,
   timeInputValue,
@@ -61,12 +61,59 @@ type Tab = "dashboard" | "store" | "catalog" | "orders" | "settings" | "document
 
 export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice, onDismissNotice }: VendorStorePanelProps) {
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuButton = useRef<HTMLButtonElement>(null);
+  const mobileSidebar = useRef<HTMLElement>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [pincodes, setPincodes] = useState<ServicePincode[]>([]);
   const [hours, setHours] = useState<Record<number, HourDraft>>(defaultHours);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [documentStatus, setDocumentStatus] = useState<VendorDocumentStatus | null>(null);
+  const navigateVendor = (tab: Tab) => {
+    setCurrentTab(tab);
+    setMobileMenuOpen(false);
+    if (window.matchMedia("(max-width: 900px)").matches)
+      window.requestAnimationFrame(() => mobileMenuButton.current?.focus());
+  };
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const mobileViewport = window.matchMedia("(max-width: 900px)");
+    if (!mobileViewport.matches) {
+      setMobileMenuOpen(false);
+      return;
+    }
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) setMobileMenuOpen(false);
+    };
+    mobileViewport.addEventListener("change", closeOnDesktop);
+    const firstControl = mobileSidebar.current?.querySelector<HTMLElement>("button");
+    firstControl?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+        mobileMenuButton.current?.focus();
+      }
+      if (event.key === "Tab" && mobileSidebar.current) {
+        const controls = Array.from(mobileSidebar.current.querySelectorAll<HTMLElement>("button:not(:disabled)"));
+        if (!controls.length) return;
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      mobileViewport.removeEventListener("change", closeOnDesktop);
+    };
+  }, [mobileMenuOpen]);
 
   const loadStore = async () => {
     setLoading(true);
@@ -132,7 +179,16 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
 
   return (
     <div className="vendor-layout is-vendor">
-      <aside className="vendor-sidebar">
+      <button
+        ref={mobileMenuButton}
+        className="vendor-mobile-menu-button"
+        type="button"
+        aria-expanded={mobileMenuOpen}
+        aria-controls="vendor-primary-navigation"
+        onClick={() => setMobileMenuOpen(true)}
+      >Menu</button>
+      {mobileMenuOpen && <button className="vendor-mobile-backdrop" type="button" aria-label="Close vendor navigation" onClick={() => { setMobileMenuOpen(false); window.requestAnimationFrame(() => mobileMenuButton.current?.focus()); }} />}
+      <aside className={`vendor-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`} id="vendor-primary-navigation" ref={mobileSidebar} aria-label="Vendor navigation">
         <div className="vendor-brand">
           <div className="vendor-brand-logo">{store.name.slice(0,1).toUpperCase()}</div>
           <div>
@@ -141,14 +197,14 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
           </div>
         </div>
         <nav className="vendor-nav">
-          <button type="button" className={currentTab === "dashboard" ? "active" : ""} onClick={() => setCurrentTab("dashboard")}>Dashboard</button>
-          <button type="button" className={currentTab === "orders" ? "active" : ""} onClick={() => setCurrentTab("orders")}>Orders</button>
-          <button type="button" className={currentTab === "catalog" ? "active" : ""} onClick={() => setCurrentTab(documentStatus?.canManageCatalog ? "catalog" : "documents")}>Catalog</button>
-          <button type="button" className={currentTab === "documents" ? "active" : ""} onClick={() => setCurrentTab("documents")}>Documents</button>
-          <button type="button" className={currentTab === "store" ? "active" : ""} onClick={() => setCurrentTab("store")}>Store Profile</button>
+          <button type="button" aria-current={currentTab === "dashboard" ? "page" : undefined} className={currentTab === "dashboard" ? "active" : ""} onClick={() => navigateVendor("dashboard")}>Dashboard</button>
+          <button type="button" aria-current={currentTab === "orders" ? "page" : undefined} className={currentTab === "orders" ? "active" : ""} onClick={() => navigateVendor("orders")}>Orders</button>
+          <button type="button" aria-current={currentTab === "catalog" ? "page" : undefined} className={currentTab === "catalog" ? "active" : ""} onClick={() => navigateVendor(documentStatus?.canManageCatalog ? "catalog" : "documents")}>Catalog</button>
+          <button type="button" aria-current={currentTab === "documents" ? "page" : undefined} className={currentTab === "documents" ? "active" : ""} onClick={() => navigateVendor("documents")}>Documents</button>
+          <button type="button" aria-current={currentTab === "store" ? "page" : undefined} className={currentTab === "store" ? "active" : ""} onClick={() => navigateVendor("store")}>Store Profile</button>
         </nav>
         <div className="vendor-sidebar-bottom">
-          <button type="button" className={currentTab === "settings" ? "active" : ""} onClick={() => setCurrentTab("settings")}>Account & Settings</button>
+          <button type="button" aria-current={currentTab === "settings" ? "page" : undefined} className={currentTab === "settings" ? "active" : ""} onClick={() => navigateVendor("settings")}>Account & Settings</button>
         </div>
       </aside>
       

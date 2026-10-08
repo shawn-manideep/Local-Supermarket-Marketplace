@@ -39,8 +39,8 @@ export function FavoriteControl({ product, pincode, compact = false }: {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
-  button: { minHeight: 38, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
-  compact: { minHeight: 34, paddingHorizontal: spacing.sm, alignSelf: "flex-start" },
+  button: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
+  compact: { minHeight: 44, paddingHorizontal: spacing.sm, alignSelf: "flex-start" },
   saved: { borderColor: colors.accent, backgroundColor: colors.soft },
   busy: { opacity: 0.55 },
   label: { ...typography.caption, color: colors.ink, fontWeight: "600" },

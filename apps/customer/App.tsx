@@ -179,7 +179,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
     );
 
   return (
-    <ScrollView contentContainerStyle={styles.authPage}>
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.authPage}>
       <View style={styles.authContainer}>
         <View style={styles.authBrand}>
           <BasketBrand />
@@ -315,7 +315,7 @@ function AccountScreen({
   };
 
   return (
-    <ScrollView contentContainerStyle={commonStyles.page}>
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={commonStyles.page}>
       <View style={commonStyles.container}>
         {editProfile ? (
           <Pressable
@@ -395,7 +395,7 @@ function AccountScreen({
                       {(name || email || "C").charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <View>
+                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.accountName}>
                       {name || "Your account"}
                     </Text>
@@ -552,7 +552,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   return (
     <>
-      <ScrollView contentContainerStyle={commonStyles.page}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <Pressable
             onPress={() => navigate("account")}
@@ -595,7 +595,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 onChangeText={(v) => setDraft({ ...draft, line2: v || null })}
                 value={draft.line2 ?? ""}
               />
-              <View style={{ flexDirection: "row", gap: spacing.md }}>
+              <View style={{ gap: spacing.md }}>
                 <View style={{ flex: 1 }}>
                   <Field
                     label="City"
@@ -654,7 +654,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 </Text>
               )}
 
-              <View style={{ flexDirection: "row", gap: spacing.md }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.md }}>
                 {editId && (
                   <Pressable
                     style={[styles.secondaryBtn, { flex: 1 }]}
@@ -1034,12 +1034,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    minHeight: 48,
     paddingVertical: spacing.sm,
   },
   checkRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    minHeight: 44,
     paddingVertical: spacing.sm,
   },
   checkbox: {

@@ -140,3 +140,17 @@ mtime_ms = 1791445705052
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/14cd9337-d8fb-44ee-8e1a-f36ab3bdbcc2/71a40212-e6e4-411d-b096-d73c36a7f9e8"
 storage_version_token = "1791445851474397"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "0RlRJ4LWI6vpYbJ4o4qiv"
+uri = "file://docs/MOBILE_RESPONSIVE_UI_IMPLEMENTATION_REPORT.md"
+type = "text"
+title = "Mobile Responsive UI Implementation Report"
+description = "Portal changes, table inventory, verification results, limitations and the five-width manual acceptance checklist."
+logical_id = "3b9f7ccf-2322-4ef3-aa44-abefa58df1e4"
+content_hash = "sha256:7bd1d3f78f44add50f40215b6cb0e4796d1d59d42931b3c63f1780be1e66d424"
+size = 18532
+mtime_ms = 1791450315551
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/3b9f7ccf-2322-4ef3-aa44-abefa58df1e4/709e4fcb-e01f-48b2-aa84-d15fbf3dcde2"
+storage_version_token = "1791450392974761"
+content_type = "text/markdown"

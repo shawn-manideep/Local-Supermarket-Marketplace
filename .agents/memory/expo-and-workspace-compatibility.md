@@ -14,3 +14,9 @@ Shared frontend-only token packages use TypeScript source entry points for both 
 **Why:** Metro and Vite can compile that source directly; a declaration-only build does not produce JavaScript, and separating source imports from stale generated types can make runtime and type checks disagree.
 
 **How to apply:** Keep native, web, and type consumers on the same source entry point for frontend-only token packages. Do not extend this convention to packages executed directly by Node.
+
+Development export startup must account for the managed preview's port deadline. A slow cold Metro export can fail that deadline before the HTTP server starts, without any application exception.
+
+**Why:** Unconditionally clearing the bundler cache during a routine UI restart caused a preview startup timeout; a bounded-worker export with normal cache reuse restored startup.
+
+**How to apply:** When export logs show progress but no server yet, diagnose bundling/resource pressure before changing routing or application logic. Prefer normal source-aware cache invalidation for routine UI work; reserve a cold rebuild for suspected stale bundler state.

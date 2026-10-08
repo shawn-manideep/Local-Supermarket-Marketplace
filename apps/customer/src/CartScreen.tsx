@@ -123,7 +123,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
   if (loading) return <View style={[commonStyles.page, styles.center]}><ActivityIndicator color={colors.accent}/></View>;
   
   if (!cart) return (
-    <ScrollView contentContainerStyle={commonStyles.page}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={commonStyles.page}>
       <View style={[commonStyles.container, { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }]}>
         <Text style={styles.emptyHeader}>My Cart</Text>
         {!loadFailed && <View style={styles.emptyBasket}><BasketIcon /></View>}
@@ -138,7 +138,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
 
   return (
     <>
-      <ScrollView contentContainerStyle={commonStyles.page}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <Pressable accessibilityRole="button" onPress={() => continueShopping(cart.storeId)} style={{ marginBottom: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.accent }]}>← Continue shopping</Text></Pressable>
           <View style={styles.cartHeader}><Text style={styles.cartHeaderText}>My Cart</Text><Pressable accessibilityRole="button" onPress={clear}><Text style={styles.clearText}>Clear</Text></Pressable></View>
@@ -234,8 +234,8 @@ const styles = StyleSheet.create({
   emptyHeader: { position: "absolute", top: 0, left: 0, right: 0, backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: fontWeights.bold, padding: spacing.lg },
   center: { alignItems: "center", justifyContent: "center" },
   emptyBasket: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
-  cartItem: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
-  cartImage: { width: 64, height: 64, borderRadius: radius.md },
+  cartItem: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
+  cartImage: { width: 60, height: 60, borderRadius: radius.md },
   cartHeader: { backgroundColor: colors.accent, marginHorizontal: -spacing.lg, marginTop: -16, paddingHorizontal: spacing.lg, height: 60, marginBottom: spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cartHeaderText: { color: colors.card, fontSize: 20, fontWeight: fontWeights.semibold },
   clearText: { color: colors.card, fontWeight: fontWeights.semibold },

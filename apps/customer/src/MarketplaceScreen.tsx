@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated } from "react-native";
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated, useWindowDimensions } from "react-native";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./components/CustomerTypography";
 import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductPagination, type CustomerProductSearchResponse, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
@@ -78,6 +78,8 @@ function customerStoreLocation(store: CustomerStore) {
 }
 
 export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder, onPincodeChange, requestedSavedItem, onSavedItemRequestHandled }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void; onPincodeChange?: (pincode: string) => void; requestedSavedItem?: { productId: string; storeId: string }; onSavedItemRequestHandled?: () => void }) {
+  const { width: viewportWidth } = useWindowDimensions();
+  const compactWidth = viewportWidth < 360;
   const savedItems = useSavedItems();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
@@ -492,7 +494,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         maxLength={120}
         onChangeText={(value) => { setSearchQuery(value); setGlobalPage(1); setError(""); }}
       />
-      {!!searchQuery && <Pressable accessibilityRole="button" accessibilityLabel="Clear product search" onPress={() => { setSearchQuery(""); setGlobalPage(1); setError(""); }}><Text style={styles.backText}>Clear</Text></Pressable>}
+      {!!searchQuery && <Pressable accessibilityRole="button" accessibilityLabel="Clear product search" onPress={() => { setSearchQuery(""); setGlobalPage(1); setError(""); }} style={styles.clearSearch}><Text style={styles.backText}>Clear</Text></Pressable>}
     </View>
   );
 
@@ -508,14 +510,14 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   };
   const categoryFilters = () => (
     <View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.md }}>
+      <View style={styles.categoryChoices}>
         <Pressable accessibilityRole="button" accessibilityState={{ selected: !globalCategoryId }} style={[styles.chip, !globalCategoryId && styles.chipActive]} onPress={() => { setGlobalCategoryId(""); setGlobalPage(1); setError(""); }}>
           <Text style={!globalCategoryId ? styles.chipActiveText : styles.chipText}>All categories</Text>
         </Pressable>
         {homeCategories.map(category => <Pressable accessibilityRole="button" accessibilityState={{ selected: globalCategoryId === category.id }} key={category.id} style={[styles.chip, globalCategoryId === category.id && styles.chipActive]} onPress={() => { setGlobalCategoryId(category.id); setGlobalPage(1); setError(""); }}>
           <Text style={globalCategoryId === category.id ? styles.chipActiveText : styles.chipText}>{category.name}</Text>
         </Pressable>)}
-      </ScrollView>
+      </View>
       {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. You can still search. Tap to retry.</Text></Pressable>}
     </View>
   );
@@ -541,7 +543,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             {loadingStores || storeDirectoryPincode !== pincode ? <ActivityIndicator accessibilityLabel="Loading stores" color={colors.accent} /> :
               matchingStores.length === 0 ? <Text style={typography.caption}>No matching stores in your delivery area.</Text> :
                 matchingStores.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.name}`} style={styles.storeCard} onPress={() => { clearSearch(); selectStore(item); }}>
-                  <Text style={typography.title3}>{item.name}</Text>
+                      <Text style={typography.title3}>{item.name}</Text>
                   <Text style={typography.caption}>{customerStoreLocation(item) || "Serving your selected delivery area"}</Text>
                   <Text style={[typography.caption, { color: colors.accent }]}>Browse store</Text>
                 </Pressable>)}
@@ -556,8 +558,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           ) : (
             <>
               <Text style={[typography.title3, { marginVertical: spacing.md }]}>{globalPagination?.total ?? globalProducts.length} matching store offers</Text>
-              <View style={styles.productGrid}>
-                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} pincode={pincode} busy={adding || switchDialogLoading} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+              <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
+                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
               </View>
               <PaginationControls pagination={globalPagination} onPageChange={setGlobalPage} />
             </>
@@ -596,7 +598,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           {!!categoryId && <View style={styles.categoryHeader}><Pressable onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? "Products"}</Text></View>}
 
           {(
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: spacing.md, marginHorizontal: -spacing.lg }} contentContainerStyle={{ paddingHorizontal: spacing.lg }}>
+            <View style={[styles.categoryChoices, { marginVertical: spacing.md }]}>
               <Pressable accessibilityRole="button" onPress={() => void filterProducts("")} style={[styles.chip, !categoryId && styles.chipActive]}>
                 <Text style={!categoryId ? styles.chipActiveText : styles.chipText}>All</Text>
               </Pressable>
@@ -605,7 +607,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                   <Text style={categoryId === category.id ? styles.chipActiveText : styles.chipText}>{category.name}</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
           )}
           <Text style={[typography.title3, { marginBottom: spacing.md }]}>{categoryId ? "Products" : "Popular Products"}</Text>
 
@@ -615,8 +617,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
               <Text style={typography.body}>Try adjusting your search or category.</Text>
             </View>
           ) : (
-            <View style={styles.productGrid}>
-              {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+            <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
+              {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
             </View>
           )}
           <PaginationControls pagination={storePagination} onPageChange={setStorePage} />
@@ -651,12 +653,12 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           <Text style={[typography.caption, { marginTop: spacing.md }]}>Browse eligible supermarkets and their current grocery options.</Text>
           {homeCategories.length > 0 && <View style={{ marginBottom: spacing.xl }}>
             <Text style={[typography.title3, { marginBottom: spacing.md }]}>Shop by Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.md }}>
+            <View style={styles.homeCategories}>
               {homeCategories.map(category => <Pressable accessibilityRole="button" key={category.id} onPress={() => { setGlobalCategoryId(category.id); setGlobalPage(1); setError(""); }} style={styles.homeCategory}>
                 <View style={styles.homeCategoryIcon}><Text style={styles.homeCategoryInitial}>{category.name.charAt(0).toUpperCase()}</Text></View>
-                <Text style={styles.homeCategoryText} numberOfLines={1}>{category.name}</Text>
+                <Text style={styles.homeCategoryText}>{category.name}</Text>
               </Pressable>)}
-            </ScrollView>
+            </View>
           </View>}
           <HomeHistory key={`home-history-${!active || loadingAddresses ? "inactive" : `${activeAddress?.id ?? "none"}-${pincode}`}`}
             active={active && !loadingAddresses} addressId={activeAddress?.id ?? ""} stores={stores}
@@ -695,7 +697,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                   <View style={styles.storeCardInner}>
                     {item.logoImageUrl ? <Image source={{ uri: item.logoImageUrl }} style={styles.storeLogo} /> : <PlaceholderImage name={item.name} style={styles.storeLogo} />}
                     <View style={styles.storeInfo}>
-                      <Text style={typography.title3} numberOfLines={1}>{item.name}</Text>
+                  <Text style={typography.title3}>{item.name}</Text>
                        <Text style={typography.caption}>Delivery ₹{item.deliveryFee} · Min ₹{item.minimumOrderValue}</Text>
                        {!!customerStoreLocation(item) && <Text style={typography.caption} numberOfLines={2}>{customerStoreLocation(item)}</Text>}
                        <Text style={typography.caption}>Serves {pincode}</Text>
@@ -749,15 +751,15 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
   locationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
-  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingHorizontal: spacing.md, height: 52, ...shadows.sm },
-  pagination: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginVertical: spacing.lg },
-  pageButton: { backgroundColor: colors.soft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingHorizontal: spacing.md, minHeight: 52, ...shadows.sm },
+  pagination: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginVertical: spacing.lg },
+  pageButton: { backgroundColor: colors.soft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44, justifyContent: "center" },
   pageButtonText: { ...typography.caption, color: colors.accent, fontWeight: "700" },
   searchInput: { flex: 1, height: "100%", marginLeft: spacing.xs, ...typography.bodySemibold, color: colors.ink },
   storeCard: { backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
-  storeCardInner: { flexDirection: "row", gap: spacing.md, alignItems: "center" },
+  storeCardInner: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, alignItems: "center" },
   storeLogo: { width: 72, height: 72, borderRadius: radius.lg },
-  storeInfo: { flex: 1, gap: 2 },
+  storeInfo: { flex: 1, minWidth: 0, gap: 2 },
   statusBadge: { backgroundColor: colors.soft, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, alignSelf: "flex-start" },
   statusBadgeClosed: { backgroundColor: colors.highlight },
   statusBadgeText: { fontSize: 10, fontWeight: fontWeights.medium, color: colors.ink },
@@ -774,11 +776,14 @@ const styles = StyleSheet.create({
   secondaryBtnText: { ...typography.bodySemibold, color: colors.ink },
   backBtn: { paddingVertical: spacing.sm, marginBottom: spacing.sm, alignSelf: "flex-start" },
   backText: { ...typography.bodySemibold, color: colors.accent },
-  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.full, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, marginRight: spacing.sm },
+  clearSearch: { minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" },
+  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44, justifyContent: "center", borderRadius: radius.full, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, marginRight: spacing.xs, marginBottom: spacing.xs },
+  categoryChoices: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, paddingVertical: spacing.md },
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { ...typography.bodySemibold, color: colors.ink },
   chipActiveText: { ...typography.bodySemibold, color: colors.card },
   productGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginHorizontal: -spacing.xs },
+  productGridCompact: { flexDirection: "column", marginHorizontal: 0 },
   productCard: { width: "48%", backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.sm, marginBottom: spacing.md, ...shadows.sm },
   productThumb: { width: "100%", aspectRatio: 1, borderRadius: radius.md, marginBottom: spacing.sm },
   productInfo: { gap: spacing.xs, marginBottom: spacing.xl },
@@ -816,7 +821,7 @@ const styles = StyleSheet.create({
   promoPillText: { color: colors.accent, fontSize: 11, fontWeight: fontWeights.semibold },
   storeHero: { height: 150, marginTop: -16, marginHorizontal: -spacing.lg, backgroundColor: colors.accent, position: "relative", justifyContent: "flex-end" },
   storeHeroImage: { width: "100%", height: "100%", position: "absolute" },
-  heroBack: { position: "absolute", top: 10, left: 15, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
+  heroBack: { position: "absolute", top: 10, left: 15, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
   heroBackText: { fontSize: 27, color: colors.ink, lineHeight: 31 },
   heroName: { color: colors.card, fontWeight: fontWeights.bold, fontSize: 24, textAlign: "center", padding: 12, backgroundColor: colors.navyOverlay },
   storeHeading: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 18 },
@@ -826,6 +831,7 @@ const styles = StyleSheet.create({
   categoryHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, backgroundColor: colors.accent, marginHorizontal: -spacing.lg },
   categoryHeaderText: { color: colors.card, fontSize: 27 },
   categoryHeaderTitle: { color: colors.card, fontSize: 20, fontWeight: fontWeights.semibold },
+  homeCategories: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   homeCategory: { width: 72, alignItems: "center", gap: 6 },
   homeCategoryIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
   homeCategoryInitial: { color: colors.accent, fontSize: 22, fontWeight: fontWeights.semibold },

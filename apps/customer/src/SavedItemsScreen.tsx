@@ -48,7 +48,7 @@ export function SavedItemsScreen({ pincode, onBack, onOpenItem }: {
             return <View key={`${item.storeId}:${item.productId}`} style={styles.item}>
               {image ? <Image source={{ uri: image }} style={styles.image} resizeMode="cover" /> : <PlaceholderImage name={item.product.name} style={styles.image} />}
               <View style={styles.copy}>
-                <Text style={typography.bodySemibold} numberOfLines={2}>{item.product.name}</Text>
+                <Text style={typography.bodySemibold}>{item.product.name}</Text>
                 {!!item.product.brand && <Text style={typography.caption}>{item.product.brand}</Text>}
                 <Text style={typography.caption}>{item.storeName}</Text>
                 <Text style={styles.price}>{productPriceLabel(item.product)}</Text>
@@ -82,14 +82,14 @@ const styles = StyleSheet.create({
   primaryText: { ...typography.bodySemibold, color: colors.card },
   list: { gap: spacing.md },
   item: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.md },
-  image: { width: 92, height: 92, borderRadius: radius.md, backgroundColor: colors.soft },
-  copy: { flex: 1, minWidth: 150, gap: 3 },
+  image: { width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.soft },
+  copy: { flex: 1, minWidth: 0, gap: 3 },
   price: { ...typography.bodySemibold, color: colors.accent, marginTop: spacing.xs },
   unavailable: { color: colors.danger },
   actions: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
-  remove: { minHeight: 40, justifyContent: "center", paddingHorizontal: spacing.sm },
+  remove: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.sm },
   removeText: { ...typography.caption, color: colors.danger, fontWeight: "600" },
-  shop: { backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 40, paddingHorizontal: spacing.lg, alignItems: "center", justifyContent: "center" },
+  shop: { backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 44, paddingHorizontal: spacing.lg, alignItems: "center", justifyContent: "center" },
   shopText: { ...typography.caption, color: colors.card, fontWeight: "600" },
   disabled: { opacity: 0.5 },
   errorBox: { backgroundColor: colors.highlight, padding: spacing.md, borderRadius: radius.md, gap: spacing.sm, marginBottom: spacing.md },

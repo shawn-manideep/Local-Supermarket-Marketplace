@@ -39,12 +39,12 @@ export function ConfirmationDialog({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center", alignItems: "center", padding: spacing.xl },
+  overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center", alignItems: "center", padding: spacing.md },
   dialog: { width: "100%", maxWidth: 320, backgroundColor: colors.card, borderRadius: radius.xl, padding: spacing.xl, gap: spacing.md, ...shadows.md },
-  actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.md, marginTop: spacing.sm },
-  cancelBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.md, justifyContent: "center", alignItems: "center" },
+  actions: { flexDirection: "column-reverse", justifyContent: "flex-end", gap: spacing.xs, marginTop: spacing.sm },
+  cancelBtn: { minHeight: 44, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.md, justifyContent: "center", alignItems: "center" },
   cancelText: { ...typography.bodySemibold, color: colors.muted },
-  confirmBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.ink, justifyContent: "center", alignItems: "center", minWidth: 100 },
+  confirmBtn: { minHeight: 48, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.ink, justifyContent: "center", alignItems: "center", minWidth: 100 },
   destructiveBtn: { backgroundColor: colors.danger },
   confirmText: { ...typography.bodySemibold, color: colors.card },
 });

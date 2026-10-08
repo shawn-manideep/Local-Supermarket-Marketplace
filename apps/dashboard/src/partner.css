@@ -286,3 +286,18 @@
 @media (prefers-reduced-motion: reduce) {
   .lbp *, .lbp *::before, .lbp *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+@media (max-width: 760px) {
+  .lbp-table-wrap { overflow: visible; }
+  .lbp-table { display: block; min-width: 0; }
+  .lbp-table thead { display: none; }
+  .lbp-table tbody { display: grid; gap: 10px; }
+  .lbp-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; border: 1px solid var(--lbp-line); border-radius: 11px; background: var(--lbp-panel); }
+  .lbp-table td { border: 0; min-width: 0; overflow-wrap: anywhere; padding: 0; }
+  .lbp-table td::before { color: var(--lbp-muted); content: attr(data-label); display: block; font-size: 10px; font-weight: 750; margin-bottom: 5px; text-transform: uppercase; }
+  .lbp-admin-status { min-height: 44px; max-width: 100%; }
+  .lbp-login-shell { min-height: auto; grid-template-columns: minmax(0, 1fr); overflow: visible; }
+}
+@media (max-width: 420px) {
+  .lbp-table tbody tr { grid-template-columns: minmax(0, 1fr); }
+}

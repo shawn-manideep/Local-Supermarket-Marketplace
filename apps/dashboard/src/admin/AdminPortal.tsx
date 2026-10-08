@@ -103,6 +103,9 @@ function headingFor(section: Section) {
 
 export function AdminPortal({ token, session, userId, onLogout }: Props) {
   const [section, setSection] = useState<Section>(sectionFromPath);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuButton = useRef<HTMLButtonElement>(null);
+  const mobileSidebar = useRef<HTMLElement>(null);
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
@@ -117,6 +120,44 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
   const detailController = useRef<AbortController | null>(null);
   const heading = headingFor(section);
   const email = session.user.email || "Email unavailable";
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const mobileViewport = window.matchMedia("(max-width: 680px)");
+    if (!mobileViewport.matches) {
+      setMobileMenuOpen(false);
+      return;
+    }
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) setMobileMenuOpen(false);
+    };
+    mobileViewport.addEventListener("change", closeOnDesktop);
+    mobileSidebar.current?.querySelector<HTMLElement>("button")?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+        mobileMenuButton.current?.focus();
+      }
+      if (event.key === "Tab" && mobileSidebar.current) {
+        const controls = Array.from(mobileSidebar.current.querySelectorAll<HTMLElement>("button:not(:disabled)"));
+        if (!controls.length) return;
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      mobileViewport.removeEventListener("change", closeOnDesktop);
+    };
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     const sync = () => setSection(sectionFromPath());
@@ -167,6 +208,8 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
   const navigate = (target: Section) => {
     window.history.pushState(null, "", sectionPath(target));
     setSection(target);
+    if (mobileMenuOpen) window.requestAnimationFrame(() => mobileMenuButton.current?.focus());
+    setMobileMenuOpen(false);
     setMessage(null);
     detailController.current?.abort();
     setDetail(null);
@@ -257,7 +300,8 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
   return (
     <div className="lb-admin">
       <div className="lb-admin-layout">
-        <aside className="lb-admin-sidebar">
+        {mobileMenuOpen && <button className="lb-admin-backdrop" type="button" aria-label="Close admin navigation" onClick={() => { setMobileMenuOpen(false); window.requestAnimationFrame(() => mobileMenuButton.current?.focus()); }} />}
+        <aside className={`lb-admin-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`} ref={mobileSidebar} id="admin-primary-navigation" aria-label="Admin navigation">
           <div className="lb-admin-brand"><div className="lb-admin-mark">LB</div><div><strong>Local Basket</strong><span>Platform office</span></div></div>
           <div className="lb-admin-nav-label">OPERATIONS</div>
           <nav className="lb-admin-nav" aria-label="Admin navigation">
@@ -269,10 +313,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           </div>
         </aside>
         <main className="lb-admin-main">
-          <div className="lb-admin-mobile-head"><strong>Local Basket · Admin</strong><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
-          <nav className="lb-admin-mobile-nav" aria-label="Admin sections">
-            {nav.map((item) => <button key={item.key} type="button" aria-current={section === item.key ? "page" : undefined} onClick={() => navigate(item.key)}>{item.label}</button>)}
-          </nav>
+          <div className="lb-admin-mobile-head"><button ref={mobileMenuButton} className="lb-admin-menu-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="admin-primary-navigation" onClick={() => setMobileMenuOpen(true)}>Admin menu</button><strong>Local Basket · Admin</strong><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
           <div className="lb-admin-top"><div className="lb-admin-breadcrumb">LOCAL BASKET <span aria-hidden="true">/</span> ADMIN / {heading[0].toUpperCase()}</div><div className="lb-admin-top-status"><i className="lb-admin-live-dot" /> Admin access verified</div></div>
           {message && <div className={`lb-admin-message ${message.kind}`} role={message.kind === "error" ? "alert" : "status"}>{message.text}</div>}
           <section className="lb-admin-content" key={section}>
@@ -391,13 +432,13 @@ function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onO
   const storeStatus = kind === "vendors" ? row.status : null;
   const accountStatus = kind === "vendors" ? (row.storeId ? row.status : null) : row.status;
   return <tr>
-    <td><span className="lb-admin-person">{kind === "vendors" ? row.storeName || "Not linked" : display}</span><span className="lb-admin-secondary">{kind === "vendors" ? [row.locality, row.city, row.pincode].filter(Boolean).join(" · ") || "Location not provided" : row.username ? `@${row.username}` : "Account"}</span></td>
-    {kind === "vendors" && <><td>{row.ownerName || "—"}</td><td>{[row.locality, row.city, row.pincode].filter(Boolean).join(", ") || "—"}</td></>}
-    {kind === "vendors" && <td><StatusPill value={storeStatus} fallback={row.storeId ? "Unknown" : "Not linked"} /></td>}
-    <td>{kind === "delivery-partners" || kind === "vendors" ? row.username || "—" : row.email || row.username || "—"}{kind !== "delivery-partners" && kind !== "vendors" && row.email && row.username && <span className="lb-admin-secondary">@{row.username}</span>}</td>
-    <td>{formatDate(row.createdAt)}</td>
-    <td><StatusPill value={accountStatus} fallback={row.storeId || kind !== "vendors" ? "Unknown" : "Not linked"} /></td>
-    <td><button className="lb-admin-row-action" type="button" onClick={onOpen}>View details</button></td>
+    <td data-label={kind === "vendors" ? "Shop / vendor" : "Account"}><span className="lb-admin-person">{kind === "vendors" ? row.storeName || "Not linked" : display}</span><span className="lb-admin-secondary">{kind === "vendors" ? [row.locality, row.city, row.pincode].filter(Boolean).join(" · ") || "Location not provided" : row.username ? `@${row.username}` : "Account"}</span></td>
+    {kind === "vendors" && <><td data-label="Owner">{row.ownerName || "—"}</td><td data-label="Location">{[row.locality, row.city, row.pincode].filter(Boolean).join(", ") || "—"}</td></>}
+    {kind === "vendors" && <td data-label="Store status"><StatusPill value={storeStatus} fallback={row.storeId ? "Unknown" : "Not linked"} /></td>}
+    <td data-label={kind === "customers" ? "Email / username" : "Username"}>{kind === "delivery-partners" || kind === "vendors" ? row.username || "—" : row.email || row.username || "—"}{kind !== "delivery-partners" && kind !== "vendors" && row.email && row.username && <span className="lb-admin-secondary">@{row.username}</span>}</td>
+    <td data-label="Created">{formatDate(row.createdAt)}</td>
+    <td data-label="Status"><StatusPill value={accountStatus} fallback={row.storeId || kind !== "vendors" ? "Unknown" : "Not linked"} /></td>
+    <td data-label="Actions"><button className="lb-admin-row-action" type="button" onClick={onOpen}>View details</button></td>
   </tr>;
 }
 function StatusPill({ value, fallback }: { value: string | null; fallback: string }) {

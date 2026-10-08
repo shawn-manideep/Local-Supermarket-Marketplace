@@ -207,6 +207,82 @@
   .lb-admin *, .lb-admin *:before, .lb-admin *:after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
+/* Responsive navigation and account directory cards. */
+.lb-admin-backdrop { display: none; }
+.lb-admin-menu-toggle { display: none; }
+@media (max-width: 680px) {
+  .lb-admin-layout { padding-bottom: 24px; }
+  .lb-admin-sidebar {
+    display: flex;
+    position: fixed;
+    z-index: 32;
+    inset: 0 auto 0 0;
+    width: min(310px, calc(100vw - 48px));
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow-y: auto;
+    padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 180ms ease, visibility 180ms ease;
+  }
+  .lb-admin-sidebar.is-mobile-open { transform: translateX(0); visibility: visible; }
+  .lb-admin-backdrop {
+    display: block;
+    position: fixed;
+    z-index: 31;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgb(16 35 31 / 48%);
+  }
+  .lb-admin-mobile-head { gap: 9px; min-height: 58px; }
+  .lb-admin-mobile-head strong { flex: 1; text-align: center; }
+  .lb-admin-mobile-head button { min-height: 44px; }
+  .lb-admin-mobile-head .lb-admin-menu-toggle { display: inline-flex; align-items: center; }
+  .lb-admin-mobile-nav { display: none; }
+  .lb-admin-toolbar { align-items: stretch; }
+  .lb-admin-toolbar .lb-admin-button { min-height: 44px; }
+  .lb-admin-table-wrap { overflow: visible; }
+  .lb-admin-table { min-width: 0; display: block; }
+  .lb-admin-table thead { display: none; }
+  .lb-admin-table tbody { display: grid; gap: 10px; }
+  .lb-admin-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface);
+  }
+  .lb-admin-table td {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+  .lb-admin-table td::before {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--ink-soft);
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .lb-admin-table td:last-child { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 5px; }
+  .lb-admin-secondary { max-width: 100%; overflow-wrap: anywhere; white-space: normal; }
+}
+@media (max-width: 380px) {
+  .lb-admin-main { padding-inline: 12px; }
+  .lb-admin-mobile-head { margin-inline: -12px; padding-inline: 12px; }
+  .lb-admin-table tbody tr { grid-template-columns: minmax(0, 1fr); }
+  .lb-admin-table td:last-child { grid-column: auto; }
+}
+
 .lb-catalog-excel { display: grid; gap: 17px; margin-bottom: 30px; }
 .lb-catalog-excel-heading, .lb-catalog-history-heading, .lb-catalog-preview-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .lb-catalog-excel-heading h2, .lb-catalog-history-heading h3, .lb-catalog-preview-title h3, .lb-catalog-upload h3 { margin: 0; color: var(--pine-deep); letter-spacing: -.035em; }

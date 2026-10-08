@@ -1,4 +1,5 @@
 - [Expo and workspace compatibility](expo-and-workspace-compatibility.md) — keep Expo SDK and shared React type packages aligned before full workspace checks.
+- [Mobile responsive boundaries](mobile-responsive-boundaries.md) — all four portals target 320–414px without redesigning flows; signed-out captures are not authenticated acceptance.
 - [Supabase Phase 2 foundation](supabase-phase2-foundation.md) — keep DB access lazy and keep Auth/RLS enforcement in reviewable migrations.
 - [Cart write boundary](cart-write-boundary.md) — cart mutations are API-only and serialized per customer; public Supabase access remains read-only.
 - [Order lifecycle boundary](order-lifecycle-boundary.md) — order creation and status changes are API-only, transactionally locked, and snapshot current authoritative values.

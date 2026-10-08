@@ -146,13 +146,13 @@ export function HomeHistory({ active, addressId, stores, storesReady = true, onO
 
 const styles = StyleSheet.create({
   section: { marginTop: spacing.xl },
-  orderPanel: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.soft, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg },
-  storePanel: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md },
+  orderPanel: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.md, backgroundColor: colors.soft, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg },
+  storePanel: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md },
   arrow: { color: colors.accent, fontSize: 24, fontWeight: "700" },
   items: { gap: spacing.sm },
-  item: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md },
+  item: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md },
   buyButton: { backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, alignItems: "center", justifyContent: "center" },
-  smallButton: { backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 40, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: "center" },
+  smallButton: { backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: "center" },
   buttonText: { color: colors.card, fontSize: 12, fontWeight: "700" },
   disabled: { opacity: 0.45 },
   unavailable: { color: colors.danger },

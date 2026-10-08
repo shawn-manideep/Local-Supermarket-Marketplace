@@ -1,0 +1,773 @@
+IMPLEMENTATION TASK — MOBILE-FIRST RESPONSIVE UI FOR ALL PORTALS
+
+Make the existing Local Supermarket Marketplace application fully responsive and comfortable to use on mobile phone screens.
+
+The current application is primarily designed around desktop/tablet layouts. We need the screens to properly fit common mobile widths without horizontal scrolling, overlapping elements, clipped text, or unusable navigation.
+
+IMPORTANT:
+- This is a RESPONSIVE UI task.
+- Do not create a separate mobile application.
+- Reuse the existing React Native / React Native Web / shared UI architecture.
+- Preserve all existing functionality and business logic.
+- Do not change database/business rules unless absolutely required for responsive UI.
+- Do not modify authentication, Master Catalog, products, stock, cart, checkout, orders, or delivery logic.
+- Do not deploy.
+- Do not run automated browser tests.
+- Do not fix unrelated pre-existing TypeScript errors.
+- Use the existing shared design system.
+- Make the minimum safe changes required.
+
+==================================================
+1. TARGET MOBILE EXPERIENCE
+==================================================
+
+The application must work comfortably on common mobile widths, including approximately:
+
+- 320px
+- 360px
+- 375px
+- 390px
+- 414px
+
+The UI must not depend on a specific phone width.
+
+At mobile widths:
+
+- No unintended horizontal scrolling.
+- No content clipped off-screen.
+- No overlapping buttons.
+- No text cut off unnecessarily.
+- Forms fit within the viewport.
+- Cards fit within the viewport.
+- Buttons remain tappable.
+- Inputs remain usable.
+- Navigation remains accessible.
+- Tables become mobile-friendly layouts.
+- Modals fit within the screen.
+- Long content can scroll vertically.
+- Keyboard input must remain usable.
+
+==================================================
+2. CUSTOMER PORTAL — MOBILE
+==================================================
+
+Make the Customer Portal mobile-first.
+
+### Header
+
+On mobile:
+
+- Use a compact header.
+- Logo/store branding should fit.
+- Search should remain accessible.
+- Avoid excessive header height.
+- Do not allow header items to overflow horizontally.
+
+### Global Search
+
+The existing single global search must fit the mobile width.
+
+Example:
+
+[ 🔍 Search products or stores ]
+
+The search field should use nearly the available width with appropriate side padding.
+
+Do not place unnecessary controls beside it on very small screens.
+
+### Category browsing
+
+Category controls should stack vertically when necessary.
+
+For example:
+
+Search
+[ Search products or stores ]
+
+Browse by category
+[ All categories ▼ ]
+
+No horizontal overflow.
+
+### Product Cards
+
+Product cards must fit within the mobile viewport.
+
+Ensure:
+
+- Product image does not overlap text.
+- Product name wraps correctly.
+- Price remains visible.
+- Quantity controls remain usable.
+- Add button remains visible.
+- Long product names do not push buttons outside the card.
+- Cards have consistent spacing.
+
+Do not create excessively large cards.
+
+### Product Details
+
+Product detail page should stack sections vertically:
+
+Image
+↓
+Product information
+↓
+Variant selection
+↓
+Price
+↓
+Quantity
+↓
+Add to Cart
+
+Buttons should use appropriate mobile width.
+
+### Cart
+
+Cart should fit the mobile viewport.
+
+No desktop-style wide cart layout on small screens.
+
+Items should stack vertically where necessary.
+
+Checkout/action buttons should remain visible and easy to tap.
+
+### Saved Items
+
+Saved Items must be mobile-friendly.
+
+Each saved item should fit within the screen and allow:
+
+- View product
+- Remove saved item
+- See price
+- See availability
+
+### Settings
+
+Settings should become a simple vertical mobile list/form.
+
+Do not use wide desktop cards.
+
+==================================================
+3. CUSTOMER BOTTOM NAVIGATION
+==================================================
+
+If the existing Customer Portal uses bottom navigation or contextual navigation:
+
+Make it mobile-friendly.
+
+Recommended mobile navigation:
+
+Home
+Search
+Orders
+Saved
+Account
+
+Only use items already supported by the existing application.
+
+Do not create duplicate navigation.
+
+Ensure the bottom navigation does not cover content.
+
+Add appropriate bottom padding to scrollable screens.
+
+==================================================
+4. VENDOR PORTAL — MOBILE
+==================================================
+
+The Vendor Portal must also be fully responsive.
+
+### Vendor navigation
+
+Desktop sidebar should transform into an appropriate mobile navigation pattern.
+
+For example:
+
+☰ Menu
+
+When opened:
+
+Dashboard
+Orders
+Catalog
+Documents
+Store Profile
+Account / Settings
+Logout
+
+Do not keep a full-width desktop sidebar permanently visible on a 360px screen.
+
+### Vendor Dashboard
+
+Cards should stack vertically.
+
+Example:
+
+Today's Orders
+[ 12 ]
+
+Pending Orders
+[ 4 ]
+
+Ready Orders
+[ 3 ]
+
+Do not force three or four cards into one horizontal row on mobile.
+
+### Vendor Search
+
+The existing:
+
+Search Products
+Browse by Category
+
+controls must fit correctly on mobile.
+
+Stack them vertically when required.
+
+Both controls should retain the equal sizing that was recently implemented.
+
+### Vendor Catalog
+
+Product listing cards should stack vertically or use a suitable mobile grid.
+
+Ensure:
+
+- Product name wraps.
+- Price is visible.
+- Stock information is visible.
+- Edit button is accessible.
+- Add Product button is accessible.
+
+### Add Product
+
+The Vendor Add Product form must be mobile-friendly.
+
+Fields should be arranged vertically.
+
+Example:
+
+Product Name
+[________________]
+
+Category
+[________________]
+
+Brand
+[________________]
+
+Description
+[________________]
+
+Price
+[________________]
+
+Stock
+[________________]
+
+Image
+[ Image URL ]
+OR
+[ Upload Image ]
+
+[ Save Product ]
+
+Do not place multiple narrow inputs beside each other on small screens.
+
+### Vendor Documents
+
+The Documents page must be mobile-friendly.
+
+Each document should use a compact card:
+
+FSSAI License
+Required
+Not uploaded
+
+[ Upload ]
+
+After upload:
+
+FSSAI License
+Uploaded
+
+[ View ] [ Replace ]
+
+The four mandatory documents and optional documents must fit without horizontal scrolling.
+
+==================================================
+5. DELIVERY PARTNER PORTAL — MOBILE
+==================================================
+
+Make the Delivery Partner Portal fully responsive.
+
+### Dashboard
+
+Cards should stack vertically.
+
+Example:
+
+New Deliveries
+3
+
+Active Deliveries
+2
+
+Completed
+18
+
+### Delivery cards
+
+Each delivery should be displayed as a mobile card.
+
+Example:
+
+Order #1234
+
+Store:
+Sri Lakshmi Supermarket
+
+Customer:
+Pragathi Nagar
+
+Status:
+READY FOR PICKUP
+
+[ View Delivery ]
+
+Do not use a wide desktop table on mobile.
+
+### Delivery actions
+
+Buttons such as:
+
+Accept
+Reject
+Start Delivery
+Mark Picked Up
+Mark Delivered
+
+must fit the screen.
+
+If two buttons cannot comfortably fit:
+
+Stack them vertically.
+
+Do not make buttons too small.
+
+==================================================
+6. ADMIN PORTAL — MOBILE
+==================================================
+
+The Admin Portal must also work on mobile.
+
+### Navigation
+
+Convert the desktop sidebar into a mobile menu.
+
+Example:
+
+☰ Admin Menu
+
+Dashboard
+Vendors
+Customers
+Delivery Partners
+Master Catalog
+Profile
+Logout
+
+### Dashboard
+
+Dashboard statistic cards should stack vertically or use a compact two-column layout only when there is sufficient width.
+
+### Vendor/Customer/Delivery Partner lists
+
+Do NOT force large desktop tables onto a mobile screen.
+
+Convert rows into responsive cards.
+
+Example:
+
+Vendor:
+
+Sri Lakshmi Supermarket
+Owner: Ramesh
+City: Hyderabad
+Status: Active
+
+[View]
+
+[Edit]
+
+### Master Catalog
+
+Master Catalog management must be usable on mobile.
+
+Search/filter controls should stack.
+
+Large tables should become mobile cards or horizontally scroll only when absolutely necessary.
+
+Do not make the entire page horizontally scroll just because of one table.
+
+### Excel controls
+
+Buttons such as:
+
+Download Current Catalog
+Download Update Template
+Upload Workbook
+Validate & Preview
+
+should stack vertically on small screens.
+
+==================================================
+7. FORMS — GLOBAL MOBILE RULES
+==================================================
+
+Apply consistent mobile form behavior across all portals.
+
+Inputs:
+
+- width: 100%
+- minimum comfortable height
+- readable text
+- adequate padding
+- clear labels
+- clear error messages
+
+Avoid:
+
+- two-column forms on very narrow screens
+- tiny input fields
+- labels beside inputs when they cause width problems
+
+At mobile width, forms should generally become:
+
+Label
+Input
+Label
+Input
+Label
+Input
+
+==================================================
+8. BUTTONS — MOBILE
+==================================================
+
+Buttons must remain comfortably tappable.
+
+Use a reasonable minimum touch target.
+
+Do not make buttons tiny simply to fit more content.
+
+For action groups:
+
+Desktop:
+[Save] [Cancel]
+
+Mobile:
+[Save]
+[Cancel]
+
+when side-by-side buttons would be cramped.
+
+==================================================
+9. MODALS / DIALOGS
+==================================================
+
+All modals must fit inside the mobile viewport.
+
+On mobile:
+
+- Modal width should be nearly full width with side margins.
+- Content should scroll vertically if long.
+- Buttons should remain accessible.
+- Close button should remain visible.
+- Do not create a modal wider than the viewport.
+
+This applies to:
+
+- Product details
+- Confirmation dialogs
+- Delete/archive confirmations
+- Document upload
+- Password reset
+- Admin actions
+- Vendor actions
+
+==================================================
+10. TABLES
+==================================================
+
+Inspect every existing table.
+
+At mobile widths, choose the most appropriate approach:
+
+Preferred:
+Convert table rows to cards.
+
+Acceptable when the table genuinely needs many columns:
+Allow horizontal scrolling ONLY inside the table container.
+
+Do NOT allow the entire application page to become horizontally scrollable.
+
+==================================================
+11. IMAGES
+==================================================
+
+All images must be responsive.
+
+Use:
+
+max-width: 100%
+
+and appropriate aspect-ratio/object-fit behavior.
+
+Prevent:
+
+- stretched images
+- overflowing images
+- images covering buttons/text
+- fixed desktop dimensions
+
+Product images should maintain consistent aspect ratios.
+
+==================================================
+12. RESPONSIVE BREAKPOINTS
+==================================================
+
+Inspect the existing styling system before adding breakpoints.
+
+Reuse existing responsive utilities/tokens if available.
+
+Use sensible breakpoints for:
+
+- Mobile
+- Tablet
+- Desktop
+
+Do not create dozens of arbitrary breakpoints.
+
+The goal is responsive behavior, not breakpoint-specific hacks.
+
+==================================================
+13. DESKTOP MUST REMAIN WORKING
+==================================================
+
+IMPORTANT:
+
+Do not solve mobile problems by breaking desktop.
+
+Verify that existing desktop layouts continue to work.
+
+Responsive behavior should be:
+
+Mobile
+↓
+Tablet
+↓
+Desktop
+
+with appropriate layout changes.
+
+==================================================
+14. SCROLLING
+==================================================
+
+The project previously had Customer Portal desktop scrolling issues that were corrected.
+
+Do not reintroduce those problems.
+
+Ensure:
+
+- Main content can scroll vertically.
+- Nested ScrollViews behave correctly.
+- Header/navigation does not prevent scrolling.
+- Bottom navigation does not cover content.
+- Vendor/Admin sidebars do not create unnecessary horizontal scrolling.
+- Mobile browser body scrolling remains functional.
+
+Avoid fixed heights that cause content clipping.
+
+==================================================
+15. SAFE AREA / MOBILE VIEWPORT
+==================================================
+
+Where React Native / React Native Web supports it, account for:
+
+- mobile browser viewport
+- safe-area padding
+- bottom navigation
+- device status/navigation areas
+
+Do not rely on hardcoded device-specific dimensions.
+
+==================================================
+16. ACCESSIBILITY
+==================================================
+
+Ensure mobile controls have:
+
+- readable labels
+- sufficient touch targets
+- visible focus/pressed states where applicable
+- meaningful accessibility labels for icons
+- sufficient contrast
+
+Do not rely only on icons for important actions.
+
+For example:
+
+Do not show only:
+
+👁
+
+when the control needs an accessibility label such as:
+
+"Show password"
+
+==================================================
+17. DO NOT CHANGE FUNCTIONALITY
+==================================================
+
+This task is UI/responsiveness only.
+
+Do NOT change:
+
+- authentication rules
+- password reset behavior
+- Master Catalog ownership
+- Vendor product ownership
+- vendor pricing
+- stock
+- availability
+- cart
+- checkout
+- orders
+- reorder
+- delivery assignment
+- delivery statuses
+- Vendor Documents business rules
+- Admin permissions
+
+Only change layout, responsive behavior, navigation presentation, sizing, spacing, and mobile interaction where necessary.
+
+==================================================
+18. TESTING
+==================================================
+
+Add/run focused non-browser tests where appropriate.
+
+Do NOT run automated browser tests.
+
+Perform code-level/type/build verification for responsive changes.
+
+Do not attempt to fix unrelated pre-existing errors.
+
+==================================================
+19. MANUAL TEST CHECKLIST
+==================================================
+
+After implementation, provide a manual checklist for me to test in the browser.
+
+Test at approximately:
+
+320px
+360px
+375px
+390px
+414px
+
+For each portal:
+
+CUSTOMER:
+- Login
+- Home
+- Search
+- Categories
+- Product details
+- Cart
+- Orders
+- Saved Items
+- Settings
+
+VENDOR:
+- Dashboard
+- Orders
+- Catalog
+- Add Product
+- Product image upload
+- Documents
+- Store Profile
+
+DELIVERY PARTNER:
+- Dashboard
+- Deliveries
+- Delivery details
+- Delivery actions
+- Profile
+
+ADMIN:
+- Dashboard
+- Vendors
+- Customers
+- Delivery Partners
+- Master Catalog
+- Excel controls
+- Profile
+
+Check:
+
+- no horizontal page scrolling
+- no overlapping elements
+- no clipped content
+- no inaccessible buttons
+- forms fit screen
+- navigation works
+- scrolling works
+
+==================================================
+20. IMPLEMENTATION REPORT
+==================================================
+
+Create/update:
+
+docs/MOBILE_RESPONSIVE_UI_IMPLEMENTATION_REPORT.md
+
+Include:
+
+- Files changed
+- Components updated
+- Responsive breakpoints/strategy
+- Customer changes
+- Vendor changes
+- Delivery Partner changes
+- Admin changes
+- Navigation changes
+- Form changes
+- Table/card changes
+- Tests/typecheck/build results
+- Known limitations, if any
+- Manual testing checklist
+
+==================================================
+FINAL STOP CONDITION
+==================================================
+
+Implement ONLY the responsive/mobile UI changes described above.
+
+Do not redesign the entire application.
+
+Do not change business logic.
+
+Do not deploy.
+
+Do not run automated browser tests.
+
+Do not fix unrelated pre-existing errors.
+
+After implementation and verification, STOP and provide the implementation report.

@@ -201,7 +201,7 @@ export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onCl
 
   return <><Modal transparent animationType="fade" visible={!!orderId && !confirmSwitch} onRequestClose={() => !submissionInFlight.current && onClose()}>
     <View style={styles.modalShade}>
-      <View style={styles.repeatModal}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={styles.repeatModal} contentContainerStyle={styles.repeatModalContent}>
         <Text style={typography.eyebrow}>REVIEW BEFORE ADDING</Text>
         <Text style={[typography.title1, { marginTop: spacing.xs }]}>{orderItemId ? "Buy Again" : "Reorder"}</Text>
         {result ? <>
@@ -265,7 +265,7 @@ export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onCl
             </Pressable>}
         </View>
         </>}
-      </View>
+      </ScrollView>
     </View>
   </Modal>
     <ConfirmationDialog visible={!!orderId && confirmSwitch} title="Replace your current cart?"
@@ -435,8 +435,8 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
 
 const styles = StyleSheet.create({
   listHeader: { backgroundColor: colors.accent, color: colors.card, fontSize: 20, fontWeight: fontWeights.bold, marginHorizontal: -spacing.lg, marginTop: -16, padding: spacing.lg },
-  filters: { flexDirection: "row", justifyContent: "space-between", gap: 4, marginVertical: spacing.lg },
-  filter: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20 },
+  filters: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: 4, marginVertical: spacing.lg },
+  filter: { minHeight: 44, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20 },
   filterActive: { backgroundColor: colors.accent },
   filterText: { color: colors.muted, fontSize: 11, fontWeight: "600" },
   filterTextActive: { color: colors.card },
@@ -444,13 +444,14 @@ const styles = StyleSheet.create({
   errorBox: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.highlight, gap: spacing.xs, marginBottom: spacing.lg },
   orderCard: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm, ...shadows.sm },
   orderActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-  viewOrderButton: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  viewOrderButton: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   viewOrderText: { color: colors.ink, fontWeight: fontWeights.semibold, fontSize: 13 },
-  repeatButton: { flex: 1, minHeight: 42, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.accent },
+  repeatButton: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.accent },
   repeatText: { color: colors.accent, fontWeight: fontWeights.semibold, fontSize: 13 },
   modalShade: { flex: 1, backgroundColor: colors.overlay, justifyContent: "center", padding: spacing.lg },
   repeatModal: { width: "100%", maxWidth: 430, maxHeight: "88%", alignSelf: "center", backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.lg, ...shadows.md },
-  addressChip: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card },
+  repeatModalContent: { flexGrow: 1, gap: spacing.xs },
+  addressChip: { minHeight: 44, justifyContent: "center", borderWidth: 1, borderColor: colors.line, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card },
   addressChipActive: { backgroundColor: colors.soft, borderColor: colors.accent },
   addressChipText: { fontSize: 12, fontWeight: "600", color: colors.ink },
   addressChipTextActive: { color: colors.accent },
@@ -468,13 +469,13 @@ const styles = StyleSheet.create({
   checkboxActive: { borderColor: colors.accent, backgroundColor: colors.accent },
   checkboxDot: { width: 8, height: 8, borderRadius: 2, backgroundColor: colors.card },
   noticeText: { color: colors.danger, fontSize: 13, marginVertical: spacing.sm },
-  modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
-  modalCancel: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  modalActions: { flexDirection: "column-reverse", gap: spacing.sm, marginTop: spacing.lg },
+  modalCancel: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   modalCancelText: { color: colors.ink, fontWeight: fontWeights.semibold },
-  modalAdd: { flex: 1.5, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.accent },
+  modalAdd: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.accent },
   modalAddText: { color: colors.card, fontWeight: fontWeights.semibold, fontSize: 13 },
   buttonDisabled: { opacity: 0.45 },
-  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 2 },
+  between: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: spacing.xs, marginVertical: 2 },
   statusBadge: { alignSelf: "flex-start", backgroundColor: colors.soft, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, marginTop: spacing.xs },
   statusBadgeCancelled: { backgroundColor: colors.highlight },
   statusBadgeText: { fontSize: 11, fontWeight: fontWeights.medium, color: colors.ink, textTransform: "uppercase" },

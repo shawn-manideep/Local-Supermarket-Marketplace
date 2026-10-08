@@ -75,7 +75,7 @@ export function CustomerSettingsScreen({ onBack }: { onBack: () => void }) {
     }
   };
 
-  return <ScrollView style={commonStyles.viewport} contentContainerStyle={commonStyles.page} keyboardShouldPersistTaps="handled">
+  return <ScrollView style={commonStyles.viewport} contentContainerStyle={commonStyles.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
     <View style={commonStyles.container}>
       <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ My Account</Text></Pressable>
       <Text style={typography.eyebrow}>PREFERENCES & SECURITY</Text>
