@@ -18,6 +18,119 @@ body {
   min-width: 320px;
 }
 
+.vendor-product-image-input {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgb(var(--lb-border));
+  border-radius: 16px;
+  background: rgb(var(--lb-light-blue));
+}
+
+.vendor-product-image-heading,
+.vendor-product-image-heading > div,
+.vendor-image-preview-row,
+.vendor-image-preview-row > div {
+  display: flex;
+}
+
+.vendor-product-image-heading,
+.vendor-image-preview-row {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vendor-product-image-heading > div,
+.vendor-image-preview-row > div {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vendor-product-image-heading strong,
+.vendor-image-preview-row strong {
+  color: rgb(var(--lb-text));
+  font-size: 14px;
+}
+
+.vendor-product-image-heading span,
+.vendor-image-preview-row span {
+  font-size: 12px;
+}
+
+.vendor-image-source-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  width: fit-content;
+  border-radius: 12px;
+  background: rgb(var(--lb-border) / 45%);
+}
+
+.vendor-image-source-tabs button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  color: rgb(var(--lb-secondary-text));
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vendor-image-source-tabs button.selected {
+  color: rgb(var(--lb-primary));
+  background: rgb(var(--lb-white));
+  box-shadow: 0 1px 4px rgb(31 41 55 / 10%);
+}
+
+.vendor-image-source-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.vendor-image-upload-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.vendor-image-upload-control input {
+  max-width: 100%;
+  color: rgb(var(--lb-text));
+  font: inherit;
+  font-size: 13px;
+}
+
+.vendor-image-preview-row {
+  justify-content: flex-start;
+  padding: 10px;
+  border: 1px solid rgb(var(--lb-border));
+  border-radius: 12px;
+  background: rgb(var(--lb-white));
+}
+
+.vendor-image-preview-row img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: rgb(var(--lb-light-blue));
+}
+
+.vendor-image-preview-row > div {
+  flex: 1;
+}
+
+.vendor-image-error {
+  margin: 0;
+  color: rgb(var(--lb-error));
+  font-size: 13px;
+}
+
 .page {
   display: flex;
   min-height: 100dvh;

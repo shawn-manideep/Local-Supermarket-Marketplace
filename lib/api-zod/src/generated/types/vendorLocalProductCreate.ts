@@ -20,7 +20,11 @@ export interface VendorLocalProductCreate {
   brand?: string | null;
   /** @nullable */
   description?: string | null;
-  /** @nullable */
+  /**
+     * HTTP(S) URL or a store-owned /api/product-images/{storeId}/{imageId} reference. Validated by the Vendor product image schema.
+     * @maxLength 2048
+     * @nullable
+     */
   imageUrl?: string | null;
   /** @nullable */
   categoryId?: string | null;

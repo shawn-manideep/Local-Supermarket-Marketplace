@@ -1,0 +1,650 @@
+IMPLEMENTATION TASK — CUSTOMER SAVED ITEMS/SETTINGS + VENDOR PRODUCT IMAGE UPLOAD
+
+Implement the following focused improvements in the existing Local Supermarket Marketplace project.
+
+IMPORTANT:
+- Inspect the existing implementation before making changes.
+- Reuse existing authentication, database, storage, product, customer, vendor, and shared UI architecture.
+- Do not create duplicate tables or duplicate storage systems.
+- Do not modify unrelated Master Catalog, order, stock, cart, checkout, delivery, or authentication logic.
+- Do not deploy.
+- Do not run automated browser tests.
+- Do not fix unrelated pre-existing TypeScript/build errors.
+- Use the existing shared design system.
+- Make the minimum safe changes required.
+
+==================================================
+1. CUSTOMER PORTAL — SAVED ITEMS
+==================================================
+
+CURRENT UI:
+
+The Customer Portal currently shows:
+
+Saved Items
+Coming soon
+
+This should no longer display "Coming soon".
+
+Implement a proper Saved Items page/functionality.
+
+--------------------------------------------------
+1.1 Saved Items behavior
+--------------------------------------------------
+
+Customer should be able to save/favorite a product from the existing product/catalog experience.
+
+Add a clear Save/Favorite control to product cards/details where appropriate.
+
+Example:
+
+♡ Save
+
+After saving:
+
+♥ Saved
+
+The customer can access:
+
+Customer Portal
+→ Saved Items
+
+and see their saved products.
+
+--------------------------------------------------
+1.2 Saved Items data
+--------------------------------------------------
+
+Saved items must belong to the authenticated Customer.
+
+One Customer must never see another Customer's saved items.
+
+Use server-side authorization.
+
+Do not rely only on frontend filtering.
+
+--------------------------------------------------
+1.3 Saved Item information
+--------------------------------------------------
+
+Display useful existing product information such as:
+
+- Product name
+- Brand, if available
+- Product image
+- Current price
+- Selling unit/variant
+- Store/vendor
+- Current availability
+
+Use the current product/catalog data model.
+
+Do not expose internal IDs or private vendor information.
+
+--------------------------------------------------
+1.4 Saved item availability
+--------------------------------------------------
+
+Saved Items must NOT reserve stock.
+
+Saving an item does not add it to the cart.
+
+If a previously saved product becomes unavailable:
+
+Show it appropriately as unavailable.
+
+Do not automatically order or add it to cart.
+
+If the existing product is available, allow the customer to use the existing shopping flow.
+
+--------------------------------------------------
+1.5 Remove Saved Item
+--------------------------------------------------
+
+Allow the customer to remove an item from Saved Items.
+
+Example:
+
+♥ Saved
+→ click
+→ ♡ Save
+
+The removal must only affect that customer's saved item record.
+
+--------------------------------------------------
+1.6 Cross-store behavior
+--------------------------------------------------
+
+Respect the existing store/product identity model.
+
+If the same product exists in multiple stores, do not incorrectly merge different store-specific listings.
+
+Preserve the exact existing product/store identity where appropriate.
+
+==================================================
+2. CUSTOMER PORTAL — SETTINGS
+==================================================
+
+CURRENT UI:
+
+Settings
+Coming soon
+
+Remove "Coming soon".
+
+Create a proper Customer Settings page using functionality already supported by the application.
+
+Do not add unnecessary settings.
+
+--------------------------------------------------
+2.1 Recommended Customer Settings
+--------------------------------------------------
+
+At minimum, provide:
+
+### Account
+
+- Username
+- Registered email/recovery contact, displayed safely if appropriate
+- Password
+- Change Password
+
+### Profile
+
+Use existing customer profile fields if they already exist.
+
+Allow editing only fields already supported by the current architecture.
+
+Do not create duplicate customer profile structures.
+
+--------------------------------------------------
+2.2 Change Password
+--------------------------------------------------
+
+Provide:
+
+Change Password
+
+Current Password
+New Password
+Confirm New Password
+
+Use the existing secure Supabase authentication mechanism.
+
+Do not store plaintext passwords.
+
+Validate the new password using the existing password policy.
+
+Show clear success/error messages.
+
+--------------------------------------------------
+2.3 Do not expose sensitive information
+--------------------------------------------------
+
+Do not expose:
+
+- Password
+- Password hash
+- Supabase user ID
+- Access token
+- Refresh token
+- Internal database identifiers
+
+==================================================
+3. CUSTOMER NAVIGATION
+==================================================
+
+Update the existing Customer Portal navigation/account menu.
+
+Replace:
+
+Saved Items
+Coming soon
+
+with:
+
+Saved Items
+
+Replace:
+
+Settings
+Coming soon
+
+with:
+
+Settings
+
+Make both clickable.
+
+Use the existing Customer Portal design.
+
+Do not change unrelated navigation.
+
+==================================================
+4. VENDOR — PRODUCT IMAGE INPUT
+==================================================
+
+CURRENT PROBLEM:
+
+When a Vendor creates a product that is not available in the Master Catalog, the product creation form currently requires an Image URL.
+
+The Vendor should have two options:
+
+1. Image URL
+2. Upload Image
+
+The Vendor should be able to use either option.
+
+--------------------------------------------------
+4.1 Image input UI
+--------------------------------------------------
+
+In the Vendor Add Product form, replace the current image URL-only experience with something like:
+
+Product Image
+
+[ Image URL ] [ Upload Image ]
+
+OR provide a clear two-option layout:
+
+Image URL
+[____________________________]
+
+OR
+
+Upload Image
+[ Choose Image ]
+
+The exact UI should match the existing design system.
+
+--------------------------------------------------
+4.2 Image URL
+--------------------------------------------------
+
+If Vendor chooses Image URL:
+
+- Allow a valid image URL.
+- Validate the URL.
+- Show an image preview when possible.
+- Do not download/store the image unnecessarily if the existing architecture already supports external image URLs safely.
+
+Use the existing product image field/model.
+
+--------------------------------------------------
+4.3 Image Upload
+--------------------------------------------------
+
+If Vendor chooses Upload Image:
+
+Allow the Vendor to select an image from their device.
+
+Use the project's existing storage infrastructure if available.
+
+Do NOT create a second storage system if one already exists.
+
+If the current project already has Supabase Storage or another application storage mechanism, reuse it.
+
+--------------------------------------------------
+4.4 Supported image types
+--------------------------------------------------
+
+At minimum support:
+
+- JPG/JPEG
+- PNG
+- WebP
+
+Validate:
+
+- MIME type
+- file extension
+- reasonable file size
+
+Reject unsupported or unsafe file types.
+
+Do not allow executable files.
+
+--------------------------------------------------
+4.5 Image preview
+--------------------------------------------------
+
+After selecting/uploading an image:
+
+Show a preview before saving the product.
+
+Example:
+
+Product Image
+
+[ IMAGE PREVIEW ]
+
+[ Replace Image ]
+
+The Vendor should be able to replace the selected image before submitting the product.
+
+--------------------------------------------------
+4.6 URL OR Upload — exactly one source
+--------------------------------------------------
+
+A product should use one image source at a time.
+
+Rules:
+
+If Image URL is selected:
+→ save URL
+
+If Image Upload is selected:
+→ upload file and save resulting storage reference
+
+If both are provided:
+→ require the Vendor to choose which one to use OR clearly make one source active.
+
+Do NOT silently store two conflicting primary images.
+
+--------------------------------------------------
+4.7 Editing an existing Vendor product
+--------------------------------------------------
+
+If the existing Vendor product edit screen supports product images, provide the same:
+
+- Image URL
+- Upload Image
+- Preview
+- Replace
+
+behavior there as well.
+
+Do not change unrelated product fields.
+
+==================================================
+5. IMAGE STORAGE SECURITY
+==================================================
+
+Inspect the current storage architecture first.
+
+If uploaded product images are intended to be customer-visible product images, use the appropriate existing public/product-image storage mechanism.
+
+Do NOT use the private Vendor Documents storage mechanism for product images.
+
+Important distinction:
+
+Vendor Documents:
+PRIVATE
+
+Product Images:
+CUSTOMER-VISIBLE according to existing product visibility rules
+
+Do not mix these storage policies.
+
+==================================================
+6. PRODUCT IMAGE OWNERSHIP
+==================================================
+
+For Vendor-created products:
+
+The image belongs to the Vendor's product/listing according to the existing ownership architecture.
+
+Vendor A uploading an image must not affect Vendor B's product.
+
+Do not modify Master Catalog images when a Vendor uploads an image.
+
+If the Vendor product later becomes mapped to a Master Catalog product, follow the existing Master Catalog governance instead of silently overwriting canonical Master data.
+
+==================================================
+7. CUSTOMER DISPLAY
+==================================================
+
+After a Vendor-created product has an uploaded image:
+
+The existing Customer catalog/product details should display that image using the existing product image field.
+
+Do not create a second customer-specific image mechanism.
+
+Verify:
+
+Vendor uploads image
+→ Product saved
+→ Customer sees product image
+
+while respecting existing vendor/store visibility rules.
+
+==================================================
+8. UI DESIGN
+==================================================
+
+Use the existing shared design system.
+
+Primary Blue:
+#2563EB
+
+Deep Navy:
+#1E3A8A
+
+Light Blue:
+#F6F4FF
+
+White:
+#FFFFFF
+
+Primary text:
+rgb(31,41,55)
+
+Secondary:
+rgb(75,85,99)
+
+Light:
+rgb(156,163,175)
+
+Border:
+rgb(229,231,235)
+
+Success:
+#10B981
+
+Error:
+#EF4444
+
+Use:
+
+- Inter / existing fallback
+- 16px rounded corners
+- subtle shadows
+- clean spacing
+- consistent buttons
+- responsive layout
+- consistent empty states
+- loading states
+- error states
+
+Do not create a new visual language.
+
+==================================================
+9. DATABASE
+==================================================
+
+Before creating any migration:
+
+Inspect the current schema.
+
+Reuse existing:
+
+- Customer tables
+- Saved/favorite functionality, if present
+- Product image fields
+- Vendor product fields
+- Storage references
+
+If Saved Items does not currently have a database model, create a focused migration using the project's naming conventions.
+
+Do not duplicate an existing saved/favorite table.
+
+If product images already have an appropriate field, reuse it.
+
+Only add a new field if genuinely required.
+
+==================================================
+10. API
+==================================================
+
+Reuse existing API patterns.
+
+For Saved Items, if functionality does not already exist, implement the minimum required endpoints using the project's existing API conventions.
+
+Potential operations:
+
+GET saved items
+POST save item
+DELETE saved item
+
+Do not blindly create duplicate routes if equivalent functionality already exists.
+
+For product image upload, reuse the existing Vendor product creation/update API architecture.
+
+Do not create a separate product creation system.
+
+==================================================
+11. SECURITY
+==================================================
+
+Saved Items:
+
+- Customer can access only their own saved items.
+- Server-side authorization required.
+
+Product Images:
+
+- Vendor can upload/manage only images belonging to their own Vendor product.
+- Customers can only access images through normal product visibility.
+- Do not expose private Vendor Documents.
+
+==================================================
+12. TESTING
+==================================================
+
+Add focused tests.
+
+### Saved Items
+
+- Customer can save a product.
+- Saved item appears in Saved Items.
+- Customer can remove saved item.
+- Saved items persist after refresh.
+- Customer A cannot see Customer B's saved items.
+- Saved item does not reserve stock.
+- Unavailable product is handled correctly.
+
+### Settings
+
+- Settings page loads.
+- Customer account information displays correctly.
+- Change password works using existing authentication.
+- Invalid current password handled correctly.
+- Password confirmation validation works.
+- Sensitive authentication data is not exposed.
+
+### Product Image URL
+
+- Valid image URL accepted.
+- Invalid URL rejected.
+- Preview works where applicable.
+- Product saves correctly.
+
+### Product Image Upload
+
+- JPG/JPEG accepted.
+- PNG accepted.
+- WebP accepted.
+- Unsupported file rejected.
+- Oversized/invalid file rejected according to project limits.
+- Preview works.
+- Upload succeeds.
+- Product stores the correct image reference.
+- Customer can see the product image.
+
+### Ownership
+
+- Vendor A cannot modify Vendor B's image.
+- Vendor image does not modify Master Catalog canonical image.
+- Vendor-created product remains vendor-specific.
+
+Do not run automated browser tests.
+
+==================================================
+13. MANUAL TEST CHECKLIST
+==================================================
+
+After implementation, provide a concise manual checklist.
+
+CUSTOMER:
+
+1. Open account/settings menu.
+2. Confirm Saved Items no longer says "Coming soon".
+3. Open Saved Items.
+4. Save a product.
+5. Confirm it appears in Saved Items.
+6. Remove it.
+7. Open Settings.
+8. Confirm settings page loads.
+9. Test Change Password.
+
+VENDOR:
+
+1. Open Add Product.
+2. Confirm image input has:
+   - Image URL
+   - Upload Image
+3. Test Image URL.
+4. Test Image Upload.
+5. Confirm image preview.
+6. Save product.
+7. Open/edit product and confirm image remains.
+8. Open Customer Portal and verify the product image is displayed.
+
+==================================================
+14. DOCUMENTATION
+==================================================
+
+Create/update:
+
+docs/CUSTOMER_SAVED_SETTINGS_AND_VENDOR_IMAGE_IMPLEMENTATION_REPORT.md
+
+Include:
+
+- Files changed
+- Database changes
+- APIs changed
+- Saved Items implementation
+- Settings implementation
+- Image URL implementation
+- Image upload implementation
+- Storage used
+- Security/ownership rules
+- Tests and exact pass/fail counts
+- Manual test checklist
+
+==================================================
+FINAL STOP CONDITION
+==================================================
+
+Implement ONLY the functionality described in this prompt.
+
+Do not redesign the entire Customer or Vendor Portal.
+
+Do not modify unrelated:
+
+- Master Catalog
+- Orders
+- Stock
+- Cart
+- Checkout
+- Delivery
+- Authentication architecture
+- Vendor Documents
+
+Do not deploy.
+
+Do not run automated browser tests.
+
+Do not fix unrelated pre-existing errors.
+
+After implementation and focused testing, STOP and provide the complete implementation report.

@@ -4,6 +4,9 @@ import { catalogManagementRouter } from "./catalog-management/index.js";
 import { masterCatalogRouter } from "./master-catalog/index.js";
 import { customerManagementRouter } from "./customer-management/index.js";
 import { customerMarketplaceRouter } from "./customer-marketplace/index.js";
+import { customerSavedRouter } from "./customer-saved/routes.js";
+import { customerSettingsRouter } from "./customer-settings/routes.js";
+import { productImagesRouter } from "./product-images/routes.js";
 import { customerCartRouter } from "./customer-cart/index.js";
 import { HttpError } from "./http.js";
 import { storeManagementRouter } from "./store-management/index.js";
@@ -117,6 +120,9 @@ export function createApp() {
   app.use(masterCatalogRouter);
   app.use(customerManagementRouter);
   app.use(customerMarketplaceRouter);
+  app.use(customerSavedRouter);
+  app.use(customerSettingsRouter);
+  app.use(productImagesRouter);
   app.use(customerCartRouter);
   app.use(ordersRouter);
 

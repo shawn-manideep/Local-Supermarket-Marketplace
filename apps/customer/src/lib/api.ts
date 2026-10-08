@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { setBaseUrl } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 export type { CustomerShoppingCategory } from "../../../../lib/api-client-react/src/generated/api.schemas";
 export type { CustomerCheckoutSubmission } from "../../../../lib/api-client-react/src/generated/api.schemas";
 
@@ -217,6 +217,17 @@ const apiUrl = (
   (domain ? `https://${domain}` : "")
 ).replace(/\/+$/, "");
 setBaseUrl(apiUrl || null);
+setAuthTokenGetter(async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+});
+
+/** Resolve managed, root-relative product images against the configured API origin. */
+export function customerImageUri(imageUrl: string | null | undefined): string | undefined {
+  if (!imageUrl) return undefined;
+  if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+  return `${apiUrl}${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
+}
 
 export async function customerApi<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession();

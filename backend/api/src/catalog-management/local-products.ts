@@ -3,6 +3,7 @@ import { z } from "zod";
 import { categories, getDb, masterCategories, products, productVariants } from "@workspace/db";
 import { productCreateSchema, productVariantCreateSchema, formatVariantName, sortVariantsForDisplay } from "@workspace/validation";
 import { HttpError, isUniqueViolation } from "../http.js";
+import { assertOwnProductImage } from "../product-images/validation.js";
 import { candidateMatches, findLikelyMatches } from "../master-catalog/routes.js";
 import { normalizeIdentityText, withMasterCatalogWriteLock } from "../master-catalog/duplicate-review.js";
 
@@ -50,6 +51,7 @@ export async function createLocalProduct(storeId: string, body: unknown) {
   const parsed = localProductCreateSchema.safeParse(body);
   if (!parsed.success) throw new HttpError(400, "Validation failed", parsed.error.issues);
   const input = parsed.data;
+  assertOwnProductImage(input.imageUrl, storeId);
   if (input.categoryId && input.requestedCategoryName) throw new HttpError(400, "Choose an existing category or request a missing category");
   if (input.variants.some(variant => variant.isActive && variant.price <= 0)) {
     throw new HttpError(400, "Active selling variants need a price greater than zero");

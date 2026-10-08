@@ -195,6 +195,12 @@ export const categoryUpdateSchema = z.object({
   name: catalogNameSchema,
 }).strict();
 
+export const vendorProductImageSchema = z.string().trim().max(2_048).refine(value => {
+  if (/^\/api\/product-images\/[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\/[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value)) return true;
+  return /^https?:\/\//i.test(value) && !/^https?:\/\/[^/?#]*@/i.test(value) &&
+    z.string().url().safeParse(value).success;
+}, "Use an HTTP(S) image URL or an uploaded product image.");
+
 const productFieldsSchema = {
   name: catalogNameSchema,
   description: catalogTextSchema,
@@ -203,7 +209,7 @@ const productFieldsSchema = {
   price: catalogPriceSchema,
   availability: z.boolean(),
   stockQuantity: stockQuantitySchema,
-  imageUrl: z.string().trim().url().max(2_048).nullable().optional(),
+  imageUrl: vendorProductImageSchema.nullable().optional(),
   categoryId: catalogUuidSchema.nullable().optional(),
 } as const;
 

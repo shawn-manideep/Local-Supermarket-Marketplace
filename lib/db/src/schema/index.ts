@@ -11,6 +11,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
@@ -309,6 +310,15 @@ export const products = pgTable(
     index("products_master_product_idx").on(table.masterProductId),
   ],
 );
+
+export const customerSavedItems = pgTable("customer_saved_items", {
+  customerId: uuid("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "restrict" }),
+  createdAt: createdAt(),
+}, table => [
+  primaryKey({ columns: [table.customerId, table.productId] }),
+  index("customer_saved_items_customer_created_idx").on(table.customerId, table.createdAt),
+]);
 
 export const masterMappingAudit = pgTable(
   "master_mapping_audit",

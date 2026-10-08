@@ -8,6 +8,125 @@
 import * as zod from 'zod';
 
 
+export const getCustomerSavedItemsQueryPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+
+
+export const GetCustomerSavedItemsQueryParams = zod.object({
+  "pincode": zod.coerce.string().regex(getCustomerSavedItemsQueryPincodeRegExp).optional()
+})
+
+export const GetCustomerSavedItemsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "productId": zod.string().uuid(),
+  "storeId": zod.string().uuid(),
+  "storeName": zod.string(),
+  "savedAt": zod.string(),
+  "available": zod.boolean(),
+  "unavailableReason": zod.string().nullable(),
+  "product": zod.object({
+  "id": zod.string().uuid(),
+  "storeId": zod.string().uuid(),
+  "storeName": zod.string().optional(),
+  "categoryId": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "price": zod.string(),
+  "availability": zod.boolean(),
+  "imageUrl": zod.string().nullable(),
+  "brand": zod.string().nullable(),
+  "categoryName": zod.string().nullable(),
+  "purchasable": zod.boolean(),
+  "variants": zod.array(zod.object({
+  "id": zod.string(),
+  "productId": zod.string(),
+  "name": zod.string(),
+  "quantityValue": zod.string(),
+  "quantityUnit": zod.enum(['g', 'kg', 'ml', 'l', 'piece', 'pack', 'dozen', 'bottle', 'box']),
+  "price": zod.string(),
+  "availability": zod.boolean(),
+  "isActive": zod.boolean(),
+  "sortOrder": zod.number().int(),
+  "purchasable": zod.boolean()
+}))
+})
+}))
+})
+
+
+export const saveCustomerItemBodyPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+
+
+export const SaveCustomerItemBody = zod.object({
+  "productId": zod.string().uuid(),
+  "pincode": zod.string().regex(saveCustomerItemBodyPincodeRegExp)
+})
+
+export const SaveCustomerItemResponse = zod.object({
+  "saved": zod.boolean(),
+  "productId": zod.string().uuid()
+})
+
+
+export const RemoveCustomerSavedItemParams = zod.object({
+  "productId": zod.coerce.string().uuid()
+})
+
+export const RemoveCustomerSavedItemResponse = zod.void()
+
+
+export const GetCustomerAccountSettingsResponse = zod.object({
+  "account": zod.object({
+  "username": zod.string().nullable(),
+  "registeredEmail": zod.string().nullable(),
+  "fullName": zod.string().nullable(),
+  "phone": zod.string().nullable()
+})
+})
+
+
+export const changeCustomerPasswordBodyCurrentPasswordMax = 128;
+
+export const changeCustomerPasswordBodyNewPasswordMin = 8;
+export const changeCustomerPasswordBodyNewPasswordMax = 128;
+
+export const changeCustomerPasswordBodyConfirmPasswordMin = 8;
+export const changeCustomerPasswordBodyConfirmPasswordMax = 128;
+
+
+
+export const ChangeCustomerPasswordBody = zod.object({
+  "currentPassword": zod.string().min(1).max(changeCustomerPasswordBodyCurrentPasswordMax),
+  "newPassword": zod.string().min(changeCustomerPasswordBodyNewPasswordMin).max(changeCustomerPasswordBodyNewPasswordMax),
+  "confirmPassword": zod.string().min(changeCustomerPasswordBodyConfirmPasswordMin).max(changeCustomerPasswordBodyConfirmPasswordMax)
+})
+
+export const ChangeCustomerPasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const uploadVendorProductImageQueryFileNameMax = 200;
+
+
+
+export const UploadVendorProductImageQueryParams = zod.object({
+  "fileName": zod.coerce.string().min(1).max(uploadVendorProductImageQueryFileNameMax),
+  "productId": zod.coerce.string().uuid().optional()
+})
+
+export const UploadVendorProductImageResponse = zod.object({
+  "imageUrl": zod.string()
+})
+
+
+export const GetPublishedProductImageParams = zod.object({
+  "storeId": zod.coerce.string().uuid(),
+  "imageId": zod.coerce.string().uuid()
+})
+
+export const GetPublishedProductImageResponse = zod.unknown()
+
+
 export const getVendorDocumentsResponseMandatoryCountMin = 0;
 export const getVendorDocumentsResponseMandatoryCountMax = 4;
 
@@ -122,6 +241,8 @@ export const createVendorLocalProductBodyNameMax = 200;
 
 export const createVendorLocalProductBodyBrandMax = 200;
 
+export const createVendorLocalProductBodyImageUrlMax = 2048;
+
 export const createVendorLocalProductBodyRequestedCategoryNameMax = 120;
 
 export const createVendorLocalProductBodyPriceMin = 0;
@@ -142,7 +263,7 @@ export const CreateVendorLocalProductBody = zod.object({
   "name": zod.string().min(1).max(createVendorLocalProductBodyNameMax),
   "brand": zod.string().max(createVendorLocalProductBodyBrandMax).nullish(),
   "description": zod.string().nullish(),
-  "imageUrl": zod.string().url().nullish(),
+  "imageUrl": zod.string().max(createVendorLocalProductBodyImageUrlMax).nullish().describe('HTTP(S) URL or a store-owned /api/product-images/{storeId}/{imageId} reference. Validated by the Vendor product image schema.'),
   "categoryId": zod.string().uuid().nullish(),
   "requestedCategoryName": zod.string().min(1).max(createVendorLocalProductBodyRequestedCategoryNameMax).optional(),
   "sku": zod.string().nullish(),

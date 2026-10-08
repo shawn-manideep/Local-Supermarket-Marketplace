@@ -4,12 +4,15 @@ import type { CustomerProduct, CustomerProductVariant } from "../lib/api";
 import { activeVariants, canPurchaseVariant, productAvailabilityLabel, productPriceLabel } from "../lib/shopping";
 import { colors, radius, spacing, typography } from "../theme";
 import { PlaceholderImage } from "./PlaceholderImage";
+import { FavoriteControl } from "./FavoriteControl";
+import { customerImageUri } from "../lib/api";
 
-export function ShoppingProductCard({ product, onOpen, onAdd, busy }: {
+export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode }: {
   product: CustomerProduct;
   onOpen: () => void;
   onAdd: (variant: CustomerProductVariant) => void;
   busy: boolean;
+  pincode?: string;
 }) {
   const variants = activeVariants(product);
   const single = variants.length === 1 ? variants[0] : undefined;
@@ -20,8 +23,8 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy }: {
     : hasPurchasableVariant ? "View details" : "Unavailable";
   return <View style={styles.card}>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}${product.storeName ? ` at ${product.storeName}` : ""}`} onPress={onOpen}>
-      {product.imageUrl
-        ? <Image source={{ uri: product.imageUrl }} style={styles.image} />
+      {customerImageUri(product.imageUrl)
+        ? <Image source={{ uri: customerImageUri(product.imageUrl) }} style={styles.image} />
         : <PlaceholderImage name={product.name} style={styles.image} />}
       <View style={styles.info}>
         <Text style={typography.bodySemibold} numberOfLines={2}>{product.name}</Text>
@@ -31,6 +34,7 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy }: {
         <Text style={[typography.caption, !product.purchasable && styles.unavailable]}>{productAvailabilityLabel(product)}</Text>
       </View>
     </Pressable>
+    <FavoriteControl product={product} pincode={pincode} compact />
     <Pressable accessibilityRole="button" accessibilityLabel={`${actionLabel} ${product.name}`}
       accessibilityState={{ disabled: busy || !hasPurchasableVariant, busy }}
       disabled={busy || !hasPurchasableVariant}

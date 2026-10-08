@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Router, type Request, type Response } from "express";
+import { assertOwnProductImage } from "../product-images/validation.js";
 import {
   categoryCreateSchema,
   categoryIdParamSchema,
@@ -385,6 +386,7 @@ catalogManagementRouter.patch(
     const storeId = vendorStoreId(request);
     const id = productId(request);
     const { price, ...otherUpdates } = parsed.data;
+    assertOwnProductImage(parsed.data.imageUrl, storeId);
     const updates = {
       ...otherUpdates,
       ...(price === undefined ? {} : { price: price.toFixed(2) }),

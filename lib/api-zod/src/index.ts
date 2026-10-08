@@ -7,3 +7,5 @@ export type { PreviewCustomerReorderParams as ReorderPreviewQueryInput } from ".
 // Separate Orval's document path validator from the filename query-input type.
 export { UploadVendorDocumentParams } from "./generated/api";
 export type { UploadVendorDocumentParams as VendorDocumentUploadQueryInput } from "./generated/types";
+export { SaveCustomerItemBody, ChangeCustomerPasswordBody } from "./generated/api";
+export type { SaveCustomerItemBody as SaveCustomerItemInput, ChangeCustomerPasswordBody as ChangeCustomerPasswordInput } from "./generated/types";

@@ -11,6 +11,8 @@ import { ShoppingProductDetails } from "./components/ShoppingProductDetails";
 import type { CustomerShoppingCategory } from "./lib/api";
 import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId, shoppingError, matchingCustomerStores } from "./lib/shopping";
 import { HomeHistory } from "./HomeHistory";
+import { FavoriteControl } from "./components/FavoriteControl";
+import { useSavedItems } from "./SavedItemsContext";
 
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
@@ -75,7 +77,8 @@ function customerStoreLocation(store: CustomerStore) {
   return [store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ");
 }
 
-export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void }) {
+export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder, onPincodeChange, requestedSavedItem, onSavedItemRequestHandled }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void; onPincodeChange?: (pincode: string) => void; requestedSavedItem?: { productId: string; storeId: string }; onSavedItemRequestHandled?: () => void }) {
+  const savedItems = useSavedItems();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [pincode, setPincode] = useState("");
@@ -171,13 +174,17 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         selectedAddressIdRef.current = selected?.id ?? "";
         setSelectedAddressId(selected?.id ?? "");
         setPincode(selected?.pincode ?? "");
+        onPincodeChange?.(selected?.pincode ?? "");
       })
       .catch((reason) => { if (!controller.signal.aborted) setError(shoppingError(reason, "Unable to load delivery addresses. Please try again.")); })
       .finally(() => { if (!controller.signal.aborted) setLoadingAddresses(false); });
     return () => controller.abort();
-  }, []);
+  }, [onPincodeChange]);
 
   useEffect(() => active ? loadAddresses() : undefined, [loadAddresses, active]);
+  useEffect(() => {
+    if (active) void savedItems.load(pincode || undefined);
+  }, [active, pincode]);
   const refreshCart = useCallback(async () => {
     try {
       const result = await customerApi<{ cart: { storeName: string; items: Array<{ quantity: number }> } | null }>("/api/customer/cart");
@@ -219,6 +226,40 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     }
     onStoreRequestHandled?.();
   }, [active, requestedStoreId, pincode, loadingAddresses, loadingStores, storeDirectoryPincode, stores]);
+  useEffect(() => {
+    if (!active || !requestedSavedItem || !pincode || loadingAddresses || loadingStores || storeDirectoryPincode !== pincode) return;
+    const target = requestedSavedItem;
+    const targetStore = stores.find(candidate => candidate.id === target.storeId);
+    if (!targetStore) {
+      setShoppingIntentNotice("This saved product’s store is not available for your selected delivery location.");
+      onSavedItemRequestHandled?.();
+      return;
+    }
+    const generation = ++catalogGeneration.current;
+    setLoadingCatalog(true);
+    setError("");
+    void Promise.all([
+      customerApi<{ categories: CustomerCategory[] }>(`/api/customer/stores/${target.storeId}/categories?pincode=${pincode}`),
+      customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${target.storeId}/products/${target.productId}?pincode=${pincode}`),
+    ]).then(([categoryResult, productResult]) => {
+      if (generation !== catalogGeneration.current) return;
+      setStore(targetStore);
+      setCategories(categoryResult.categories);
+      setCategoryId(productResult.product.categoryId ?? "");
+      setStorePage(1);
+      setProducts([]);
+      setStorePagination(null);
+      setProduct(productResult.product);
+      setSelectedVariantId(initialVariantId(productResult.product));
+      setQuantity(1);
+      setShoppingIntentNotice("");
+    }).catch(reason => {
+      if (generation === catalogGeneration.current) setError(shoppingError(reason, "Unable to open this saved product. Please try again."));
+    }).finally(() => {
+      if (generation === catalogGeneration.current) setLoadingCatalog(false);
+      onSavedItemRequestHandled?.();
+    });
+  }, [active, requestedSavedItem, pincode, loadingAddresses, loadingStores, storeDirectoryPincode, stores]);
   useEffect(() => {
     if (!pincode) { setHomeCategories([]); return; }
     let active = true;
@@ -516,7 +557,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <>
               <Text style={[typography.title3, { marginVertical: spacing.md }]}>{globalPagination?.total ?? globalProducts.length} matching store offers</Text>
               <View style={styles.productGrid}>
-                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} busy={adding || switchDialogLoading} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} pincode={pincode} busy={adding || switchDialogLoading} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
               </View>
               <PaginationControls pagination={globalPagination} onPageChange={setGlobalPage} />
             </>
@@ -526,6 +567,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     );
   } else if (product && store) {
     content = <ShoppingProductDetails key="product-detail" product={product} store={store} pincode={pincode}
+      favoriteControl={<FavoriteControl product={product} pincode={pincode} />}
       selectedVariantId={selectedVariantId} quantity={quantity} busy={adding || switchDialogLoading}
       hasCart={cartUnits > 0} error={error}
       backLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}
@@ -574,7 +616,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </View>
           ) : (
             <View style={styles.productGrid}>
-              {products.map(item => <ShoppingProductCard key={item.id} product={item} busy={adding || switchDialogLoading} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+              {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
             </View>
           )}
           <PaginationControls pagination={storePagination} onPageChange={setStorePage} />

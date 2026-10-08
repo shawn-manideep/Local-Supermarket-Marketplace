@@ -4,6 +4,7 @@ import { apiRequest, type Category, type Product } from "./api";
 import { SellingVariantEditor } from "./SellingVariantEditor";
 import { VendorMasterCatalogPanel } from "./VendorMasterCatalogPanel";
 import { VendorNewProductPanel } from "./VendorNewProductPanel";
+import { isAllowedProductImageReference, VendorProductImageInput } from "./VendorProductImageInput";
 
 interface CatalogManagementPanelProps {
   token: string;
@@ -155,6 +156,7 @@ export function CatalogManagementPanel({
   const [categoryEditBusy, setCategoryEditBusy] = useState(false);
   const [categoryToggleBusyId, setCategoryToggleBusyId] = useState("");
   const [productSaveBusy, setProductSaveBusy] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [productToggleBusyId, setProductToggleBusyId] = useState("");
   const [availabilityBusyId, setAvailabilityBusyId] = useState("");
 
@@ -229,7 +231,11 @@ export function CatalogManagementPanel({
 
   const saveProduct = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (productSaveBusyRef.current) return;
+    if (productSaveBusyRef.current || imageUploading) return;
+    if (!isAllowedProductImageReference(productDraft.imageUrl)) {
+      onMessage("Product image URLs must use HTTP or HTTPS.", "error");
+      return;
+    }
     const editedProduct = products.find((product) => product.id === editingProductId);
     const hasMultipleVariants = (editedProduct?.variants?.length ?? 0) > 1;
     const body: Record<string, unknown> = editedProduct?.masterProductId
@@ -689,16 +695,15 @@ export function CatalogManagementPanel({
               />
             </label>
           </div>
-          <label className="vendor-label">
-            {editingMappedProduct ? "Store image override (blank inherits catalog image)" : "Image URL"} <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
-            <input
-              className="vendor-input"
-              disabled={productSaveBusy}
-              onChange={(event) => setProductDraft((draft) => ({ ...draft, imageUrl: event.target.value }))}
-              type="url"
-              value={productDraft.imageUrl}
-            />
-          </label>
+          <VendorProductImageInput
+            key={editingProductId}
+            token={token}
+            productId={editingProductId}
+            imageUrl={productDraft.imageUrl}
+            onChange={(imageUrl) => setProductDraft((draft) => ({ ...draft, imageUrl }))}
+            onUploadingChange={setImageUploading}
+            disabled={productSaveBusy}
+          />
           <label className="vendor-label">
             {editingMappedProduct ? "Store description override (blank inherits catalog description)" : "Description"} <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
             <textarea
@@ -711,8 +716,8 @@ export function CatalogManagementPanel({
           </label>
           
           <div className="vendor-form-actions" style={{ marginTop: '8px' }}>
-              <button className="vendor-primary-button" type="submit" disabled={productSaveBusy}>
-                {productSaveBusy ? "Saving..." : "Save Store Listing"}
+              <button className="vendor-primary-button" type="submit" disabled={productSaveBusy || imageUploading}>
+                {imageUploading ? "Uploading image…" : productSaveBusy ? "Saving..." : "Save Store Listing"}
              </button>
           </div>
         </form>

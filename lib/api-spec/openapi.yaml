@@ -11,6 +11,157 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /customer/saved-items:
+    get:
+      operationId: getCustomerSavedItems
+      parameters:
+        - in: query
+          name: pincode
+          schema: { type: string, pattern: '^[1-9][0-9]{5}$' }
+      responses:
+        '200':
+          description: Own favorites with current listing availability
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerSavedItem'
+    post:
+      operationId: saveCustomerItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, pincode]
+              additionalProperties: false
+              properties:
+                productId: { type: string, format: uuid }
+                pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
+      responses:
+        '201':
+          description: Saved; repeats return 200 without duplication
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saved, productId]
+                properties:
+                  saved: { type: boolean }
+                  productId: { type: string, format: uuid }
+  /customer/saved-items/{productId}:
+    delete:
+      operationId: removeCustomerSavedItem
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: 'Own favorite removed, idempotently' }
+  /customer/account-settings:
+    get:
+      operationId: getCustomerAccountSettings
+      responses:
+        '200':
+          description: Safe account information
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [account]
+                properties:
+                  account:
+                    type: object
+                    required: [username, registeredEmail, fullName, phone]
+                    properties:
+                      username: { type: [string, 'null'] }
+                      registeredEmail: { type: [string, 'null'] }
+                      fullName: { type: [string, 'null'] }
+                      phone: { type: [string, 'null'] }
+  /customer/account-settings/password:
+    post:
+      operationId: changeCustomerPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword, confirmPassword]
+              additionalProperties: false
+              properties:
+                currentPassword: { type: string, minLength: 1, maxLength: 128, format: password }
+                newPassword: { type: string, minLength: 8, maxLength: 128, format: password }
+                confirmPassword: { type: string, minLength: 8, maxLength: 128, format: password }
+      responses:
+        '200':
+          description: Supabase password updated after current-password verification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message: { type: string }
+  /vendor/product-images:
+    post:
+      operationId: uploadVendorProductImage
+      parameters:
+        - in: query
+          name: fileName
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - in: query
+          name: productId
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+          image/webp:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Store-owned managed image reference, not a bucket path
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageUrl]
+                properties:
+                  imageUrl: { type: string }
+  /product-images/{storeId}/{imageId}:
+    get:
+      operationId: getPublishedProductImage
+      parameters:
+        - in: path
+          name: storeId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: imageId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Linked active product image, or authenticated owning Vendor preview
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/webp:
+              schema: { type: string, format: binary }
   /vendor/documents:
     get:
       operationId: getVendorDocuments
@@ -744,6 +895,50 @@ components:
       type: http
       scheme: bearer
   schemas:
+    CustomerSavedItem:
+      type: object
+      required: [productId, storeId, storeName, savedAt, available, unavailableReason, product]
+      properties:
+        productId: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        storeName: { type: string }
+        savedAt: { type: string }
+        available: { type: boolean }
+        unavailableReason: { type: [string, 'null'] }
+        product:
+          $ref: '#/components/schemas/SavedListingProduct'
+    SavedListingProduct:
+      type: object
+      required: [id, storeId, categoryId, name, description, price, availability, imageUrl, brand, categoryName, purchasable, variants]
+      properties:
+        id: { type: string, format: uuid }
+        storeId: { type: string, format: uuid }
+        storeName: { type: string }
+        categoryId: { type: [string, 'null'] }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        price: { type: string }
+        availability: { type: boolean }
+        imageUrl: { type: [string, 'null'] }
+        brand: { type: [string, 'null'] }
+        categoryName: { type: [string, 'null'] }
+        purchasable: { type: boolean }
+        variants:
+          type: array
+          items:
+            type: object
+            required: [id, productId, name, quantityValue, quantityUnit, price, availability, isActive, sortOrder, purchasable]
+            properties:
+              id: { type: string }
+              productId: { type: string }
+              name: { type: string }
+              quantityValue: { type: string }
+              quantityUnit: { type: string, enum: [g, kg, ml, l, piece, pack, dozen, bottle, box] }
+              price: { type: string }
+              availability: { type: boolean }
+              isActive: { type: boolean }
+              sortOrder: { type: integer }
+              purchasable: { type: boolean }
     VendorDocumentType:
       type: string
       enum: [fssai, aadhaar, pan, photo, gst, trade_license, labour_license]
@@ -820,7 +1015,10 @@ components:
         name: {type: string, minLength: 1, maxLength: 200}
         brand: {type: [string, 'null'], maxLength: 200}
         description: {type: [string, 'null']}
-        imageUrl: {type: [string, 'null'], format: uri}
+        imageUrl:
+          type: [string, 'null']
+          maxLength: 2048
+          description: 'HTTP(S) URL or a store-owned /api/product-images/{storeId}/{imageId} reference. Validated by the Vendor product image schema.'
         categoryId: {type: [string, 'null'], format: uuid}
         requestedCategoryName: {type: string, minLength: 1, maxLength: 120}
         sku: {type: [string, 'null']}

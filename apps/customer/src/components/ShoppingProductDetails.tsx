@@ -6,6 +6,8 @@ import { activeVariants, canPurchaseVariant, productAvailabilityLabel, productPr
 import { colors, commonStyles, radius, spacing, typography } from "../theme";
 import { PlaceholderImage } from "./PlaceholderImage";
 import { QuantitySelector } from "./QuantitySelector";
+import { customerImageUri } from "../lib/api";
+import { FavoriteControl } from "./FavoriteControl";
 
 interface Props {
   product: CustomerProduct;
@@ -21,11 +23,12 @@ interface Props {
   onSelect: (variant: CustomerProductVariant) => void;
   onQuantityChange: (quantity: number) => void;
   onAdd: (variant: CustomerProductVariant) => void;
+  favoriteControl?: React.ReactNode;
 }
 
 export function ShoppingProductDetails({
   product, store, pincode, selectedVariantId, quantity, busy, hasCart, error, backLabel,
-  onBack, onSelect, onQuantityChange, onAdd,
+  onBack, onSelect, onQuantityChange, onAdd, favoriteControl,
 }: Props) {
   const variants = activeVariants(product);
   const selected = variants.find(variant => variant.id === selectedVariantId);
@@ -41,12 +44,13 @@ export function ShoppingProductDetails({
           <Text style={styles.link}>← {backLabel}</Text>
         </Pressable>
         <View style={styles.hero}>
-          {product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.image} resizeMode="contain" />
+          {customerImageUri(product.imageUrl) ? <Image source={{ uri: customerImageUri(product.imageUrl) }} style={styles.image} resizeMode="contain" />
             : <PlaceholderImage name={product.name} style={styles.image} />}
         </View>
         <Text style={typography.hero}>{product.name}</Text>
         {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
         <Text style={[typography.bodySemibold, styles.store]}>Sold by {store.name}</Text>
+        {favoriteControl ?? <FavoriteControl product={product} pincode={pincode} />}
         {!![store.locality, store.city, store.state, store.pincode].filter(Boolean).length && <Text style={typography.caption}>{[store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ")}</Text>}
         <Text style={typography.caption}>Delivers to {pincode}</Text>
         <Text style={[typography.title1, styles.price]}>{productPriceLabel(product, selected)}</Text>

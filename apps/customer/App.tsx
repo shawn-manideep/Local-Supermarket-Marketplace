@@ -35,8 +35,11 @@ import { fontWeights } from "./src/theme";
 import { usernameSchema } from "@workspace/validation";
 import { loginCustomerUsername } from "@workspace/api-client-react";
 import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/components/AuthControls";
+import { SavedItemsProvider } from "./src/SavedItemsContext";
+import { SavedItemsScreen } from "./src/SavedItemsScreen";
+import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
 
-type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses";
+type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings";
 
 function NavIcon({
   item,
@@ -424,16 +427,16 @@ function AccountScreen({
                     <Text style={styles.menuLabel}>My Orders</Text>
                     <Text style={styles.menuArrow}>›</Text>
                   </Pressable>
-                  <View style={styles.menuRow}>
+                  <Pressable accessibilityRole="button" style={styles.menuRow} onPress={() => navigate("saved")}>
                     <Text style={styles.menuIcon}>♡</Text>
                     <Text style={styles.menuLabel}>Saved Items</Text>
-                    <Text style={styles.unsupported}>Coming soon</Text>
-                  </View>
-                  <View style={styles.menuRow}>
+                    <Text style={styles.menuArrow}>›</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" style={styles.menuRow} onPress={() => navigate("settings")}>
                     <Text style={styles.menuIcon}>⚙</Text>
                     <Text style={styles.menuLabel}>Settings</Text>
-                    <Text style={styles.unsupported}>Coming soon</Text>
-                  </View>
+                    <Text style={styles.menuArrow}>›</Text>
+                  </Pressable>
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -776,8 +779,10 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 function CustomerApp() {
   const { height: viewportHeight } = useWindowDimensions();
   const [screen, setScreen] = useState<Screen>("home");
+  const [activePincode, setActivePincode] = useState("");
   const [orderId, setOrderId] = useState<string | undefined>();
   const [requestedStoreId, setRequestedStoreId] = useState<string | undefined>();
+  const [requestedSavedItem, setRequestedSavedItem] = useState<{ productId: string; storeId: string } | undefined>();
   const [homeResetToken, setHomeResetToken] = useState(0);
   const [cartUnits, setCartUnits] = useState(0);
   const navItems: Array<"home" | "orders" | "account"> = [
@@ -797,6 +802,9 @@ function CustomerApp() {
             onCartUnitsChange={setCartUnits}
             requestedStoreId={requestedStoreId}
             onStoreRequestHandled={() => setRequestedStoreId(undefined)}
+            onPincodeChange={setActivePincode}
+            requestedSavedItem={requestedSavedItem}
+            onSavedItemRequestHandled={() => setRequestedSavedItem(undefined)}
             onOpenOrder={(id) => { setOrderId(id); setScreen("orders"); }}
           />
         </View>
@@ -824,6 +832,17 @@ function CustomerApp() {
           <AccountScreen navigate={setScreen} />
         ) : screen === "profile" ? (
           <AccountScreen navigate={setScreen} editProfile />
+        ) : screen === "saved" ? (
+          <SavedItemsScreen
+            pincode={activePincode || undefined}
+            onBack={() => setScreen("account")}
+            onOpenItem={(productId, storeId) => {
+              setRequestedSavedItem({ productId, storeId });
+              setScreen("home");
+            }}
+          />
+        ) : screen === "settings" ? (
+          <CustomerSettingsScreen onBack={() => setScreen("account")} />
         ) : (
           <AddressesScreen navigate={setScreen} />
         )}
@@ -837,7 +856,7 @@ function CustomerApp() {
               selected:
                 screen === item ||
                 (item === "account" &&
-                  (screen === "profile" || screen === "addresses")),
+                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings")),
             }}
             key={item}
             onPress={() => {
@@ -855,7 +874,7 @@ function CustomerApp() {
               active={
                 screen === item ||
                 (item === "account" &&
-                  (screen === "profile" || screen === "addresses"))
+                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings"))
               }
             />
             <Text
@@ -863,7 +882,7 @@ function CustomerApp() {
                 styles.navText,
                 (screen === item ||
                   (item === "account" &&
-                    (screen === "profile" || screen === "addresses"))) &&
+                    (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings"))) &&
                   styles.navActive,
               ]}
             >
@@ -929,7 +948,7 @@ export default function App() {
         setRecoveryMode(false); setSession(null);
         setAuthNotice(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
         if (Platform.OS === "web") window.history.replaceState(null, "", window.location.pathname);
-      }} /> : session ? customerAccess === "allowed" && verifiedCustomer.current === session.user.id ? <CustomerApp /> :
+        }} /> : session ? customerAccess === "allowed" && verifiedCustomer.current === session.user.id ? <SavedItemsProvider key={session.user.id}><CustomerApp /></SavedItemsProvider> :
         <View style={styles.center}>{customerAccess !== "denied" ? <><ActivityIndicator color={colors.accent} /><Text style={typography.body}>Checking Customer access…</Text></> :
           <><Text accessibilityRole="alert" style={typography.body}>{accessError}</Text><Pressable accessibilityRole="button" onPress={() => { void supabase.auth.signOut(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Sign out</Text></Pressable></>}</View>
         : <AuthScreen initialMessage={authNotice || (recoveryMode ? "Your reset link is invalid or expired. Request new instructions." : "")} />}

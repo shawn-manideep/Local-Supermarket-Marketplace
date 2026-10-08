@@ -99,7 +99,7 @@ function searchPattern(search: string | undefined) {
   return `%${search.replace(/[\\%_]/g, "\\$&")}%`;
 }
 
-async function customerVariantsFor(productIds: string[]) {
+export async function customerVariantsFor(productIds: string[]) {
   if (!productIds.length) return [] as PublicVariant[];
   const variants = await getDb().select(customerVariantFields).from(productVariants)
     .where(and(inArray(productVariants.productId, productIds), eq(productVariants.isActive, true)))

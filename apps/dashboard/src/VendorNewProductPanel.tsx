@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatPrice, formatQuantity } from "@workspace/validation/variant-formatting";
 import { ApiRequestError, apiRequest, type Category, type Product, type VariantQuantityUnit } from "./api";
+import { isAllowedProductImageReference, VendorProductImageInput } from "./VendorProductImageInput";
 
 interface Props {
   token: string;
@@ -68,6 +69,7 @@ export function VendorNewProductPanel({ token, categories, onAdded, onMessage }:
   const [checkedIdentity, setCheckedIdentity] = useState("");
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [busyMatchId, setBusyMatchId] = useState("");
   const [confirmSimilar, setConfirmSimilar] = useState(false);
   const [error, setError] = useState("");
@@ -136,7 +138,11 @@ export function VendorNewProductPanel({ token, categories, onAdded, onMessage }:
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (saving) return;
+    if (saving || imageUploading) return;
+    if (!isAllowedProductImageReference(imageUrl)) {
+      setError("Product image URLs must use HTTP or HTTPS.");
+      return;
+    }
     const validVariants = variants.filter((variant) => {
       const quantity = Number(variant.quantityValue);
       const price = Number(variant.price);
@@ -258,10 +264,7 @@ export function VendorNewProductPanel({ token, categories, onAdded, onMessage }:
           Description <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
           <textarea className="vendor-textarea" rows={3} value={description} onChange={(event) => setDescription(event.target.value)} disabled={saving} />
         </label>
-        <label className="vendor-label">
-          Image URL <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
-          <input className="vendor-input" type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} disabled={saving} />
-        </label>
+        <VendorProductImageInput token={token} imageUrl={imageUrl} onChange={setImageUrl} onUploadingChange={setImageUploading} disabled={saving} />
         <div className="vendor-two-column">
           <label className="vendor-label">
             Store SKU <span className="vendor-text-muted vendor-font-normal">(Optional)</span>
@@ -353,8 +356,8 @@ export function VendorNewProductPanel({ token, categories, onAdded, onMessage }:
         )}
         {error && <div className="vendor-variant-save-error" role="alert">{error}</div>}
         <div className="vendor-form-actions">
-          <button type="submit" className="vendor-primary-button" disabled={saving || checking || Boolean(exactMatch && currentCheckIsValid) || Boolean(similarMatches.length && currentCheckIsValid && !confirmSimilar)}>
-            {saving ? "Adding product…" : "Add to My Store"}
+          <button type="submit" className="vendor-primary-button" disabled={saving || imageUploading || checking || Boolean(exactMatch && currentCheckIsValid) || Boolean(similarMatches.length && currentCheckIsValid && !confirmSimilar)}>
+            {imageUploading ? "Uploading image…" : saving ? "Adding product…" : "Add to My Store"}
           </button>
         </div>
       </form>

@@ -5,6 +5,66 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type SavedListingProductVariantsItemQuantityUnit = typeof SavedListingProductVariantsItemQuantityUnit[keyof typeof SavedListingProductVariantsItemQuantityUnit];
+
+
+export const SavedListingProductVariantsItemQuantityUnit = {
+  g: 'g',
+  kg: 'kg',
+  ml: 'ml',
+  l: 'l',
+  piece: 'piece',
+  pack: 'pack',
+  dozen: 'dozen',
+  bottle: 'bottle',
+  box: 'box',
+} as const;
+
+export type SavedListingProductVariantsItem = {
+  id: string;
+  productId: string;
+  name: string;
+  quantityValue: string;
+  quantityUnit: SavedListingProductVariantsItemQuantityUnit;
+  price: string;
+  availability: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  purchasable: boolean;
+};
+
+export interface SavedListingProduct {
+  id: string;
+  storeId: string;
+  storeName?: string;
+  /** @nullable */
+  categoryId: string | null;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  price: string;
+  availability: boolean;
+  /** @nullable */
+  imageUrl: string | null;
+  /** @nullable */
+  brand: string | null;
+  /** @nullable */
+  categoryName: string | null;
+  purchasable: boolean;
+  variants: SavedListingProductVariantsItem[];
+}
+
+export interface CustomerSavedItem {
+  productId: string;
+  storeId: string;
+  storeName: string;
+  savedAt: string;
+  available: boolean;
+  /** @nullable */
+  unavailableReason: string | null;
+  product: SavedListingProduct;
+}
+
 export type VendorDocumentType = typeof VendorDocumentType[keyof typeof VendorDocumentType];
 
 
@@ -126,7 +186,11 @@ export interface VendorLocalProductCreate {
   brand?: string | null;
   /** @nullable */
   description?: string | null;
-  /** @nullable */
+  /**
+     * HTTP(S) URL or a store-owned /api/product-images/{storeId}/{imageId} reference. Validated by the Vendor product image schema.
+     * @maxLength 2048
+     * @nullable
+     */
   imageUrl?: string | null;
   /** @nullable */
   categoryId?: string | null;
@@ -1012,6 +1076,78 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type GetCustomerSavedItemsParams = {
+/**
+ * @pattern ^[1-9][0-9]{5}$
+ */
+pincode?: string;
+};
+
+export type GetCustomerSavedItems200 = {
+  items: CustomerSavedItem[];
+};
+
+export type SaveCustomerItemBody = {
+  productId: string;
+  /** @pattern ^[1-9][0-9]{5}$ */
+  pincode: string;
+};
+
+export type SaveCustomerItem201 = {
+  saved: boolean;
+  productId: string;
+};
+
+export type GetCustomerAccountSettings200Account = {
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  registeredEmail: string | null;
+  /** @nullable */
+  fullName: string | null;
+  /** @nullable */
+  phone: string | null;
+};
+
+export type GetCustomerAccountSettings200 = {
+  account: GetCustomerAccountSettings200Account;
+};
+
+export type ChangeCustomerPasswordBody = {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  currentPassword: string;
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  newPassword: string;
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  confirmPassword: string;
+};
+
+export type ChangeCustomerPassword200 = {
+  message: string;
+};
+
+export type UploadVendorProductImageParams = {
+/**
+ * @minLength 1
+ * @maxLength 200
+ */
+fileName: string;
+productId?: string;
+};
+
+export type UploadVendorProductImage201 = {
+  imageUrl: string;
+};
 
 export type UploadVendorDocumentParams = {
 /**
