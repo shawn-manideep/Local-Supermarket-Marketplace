@@ -33,6 +33,15 @@ test("Documents use bearer-authenticated bytes, safe blob view, replacement and 
   assert.match(panel, /Replace/);
   assert.doesNotMatch(panel, /method: "DELETE"|object_ref|storage.googleapis.com/);
 });
+test("Documents preserve the working Vendor API client's same-origin preview credentials", async () => {
+  const panel = await source("VendorDocumentsPanel.tsx");
+  const api = await source("api.ts");
+  assert.match(panel, /apiRequest<VendorDocumentStatus>\("\/api\/vendor\/documents", token\)/);
+  assert.doesNotMatch(panel, /credentials: "omit"/);
+  assert.equal((panel.match(/credentials: "same-origin"/g) ?? []).length, 2);
+  assert.match(api, /fetch\(apiUrl\(path\), \{ \.\.\.init, headers \}\)/);
+  assert.match(api, /apiAuthorizationHeaders\(token, headers\)/);
+});
 test("Search and category controls share equal tracks/dimensions with responsive overrides", async () => {
   const css = await source("index.css");
   const scoped = css.slice(css.indexOf("/* Vendor catalog search controls"));

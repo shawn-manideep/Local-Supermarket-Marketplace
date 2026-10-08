@@ -23,3 +23,4 @@
 - [Auth username assignment](auth-username-assignment.md) — approved Customer email-prefix migration; explicit registration must not consume Admin-provisioned usernames.
 - [Vendor document onboarding](vendor-document-onboarding.md) — document gating is new-Vendor-only; existing accounts keep catalog access.
 - [Router mount boundaries](router-mount-boundaries.md) — authorization mounts must cover nested mutations; collection-route success alone is insufficient.
+- [Development preview credentials](development-preview-credentials.md) — preserve same-origin preview cookies independently of Supabase bearer authentication.

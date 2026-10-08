@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiAuthorizationHeaders, apiUrl } from "./api";
+import { apiAuthorizationHeaders, apiRequest, apiUrl } from "./api";
 
 export type VendorDocumentStatus = {
   required: boolean;
@@ -51,13 +51,7 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
     setLoading(true);
     setLoadError("");
     try {
-      const response = await fetch(apiUrl("/api/vendor/documents"), {
-        credentials: "omit",
-        headers: apiAuthorizationHeaders(token),
-      });
-      const payload = await response.json().catch(() => undefined) as VendorDocumentStatus | { error?: string } | undefined;
-      if (!response.ok) throw new Error((payload as { error?: string } | undefined)?.error ?? `Unable to load documents (${response.status}).`);
-      const nextStatus = payload as VendorDocumentStatus;
+      const nextStatus = await apiRequest<VendorDocumentStatus>("/api/vendor/documents", token);
       setStatus(nextStatus);
       onChangedRef.current(nextStatus);
     } catch (error) {
@@ -87,7 +81,7 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
       const query = new URLSearchParams({ fileName: file.name });
       const response = await fetch(apiUrl(`/api/vendor/documents/${type}?${query.toString()}`), {
         method: "PUT",
-        credentials: "omit",
+        credentials: "same-origin",
         headers: apiAuthorizationHeaders(token, { "Content-Type": file.type || inferredType }),
         body: file,
       });
@@ -113,7 +107,7 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
     setViewingId(id);
     try {
       const response = await fetch(apiUrl(`/api/vendor/documents/${encodeURIComponent(id)}/content`), {
-        credentials: "omit",
+        credentials: "same-origin",
         headers: apiAuthorizationHeaders(token),
       });
       if (!response.ok) {
