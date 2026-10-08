@@ -1,0 +1,163 @@
+DIAGNOSTIC — CUSTOMER ADDRESS SAVE "ORIGIN IS NOT ALLOWED"
+
+When creating a NEW Customer account, the Customer can enter the address, but when saving the address the application shows:
+
+"Origin is not allowed"
+
+Investigate this as a possible CORS/origin configuration issue.
+
+IMPORTANT:
+- Diagnose the exact cause first.
+- Do NOT make a speculative CORS change.
+- Do NOT allow all origins (*).
+- Do NOT disable authentication/security.
+- Do NOT modify Customer address schema unless the diagnosis proves a database problem.
+- Do NOT modify orders, cart, products, stock, Vendor, Delivery, Admin, or Master Catalog.
+- Do NOT deploy.
+- Do NOT run automated browser tests.
+
+==================================================
+1. IDENTIFY THE FAILING REQUEST
+==================================================
+
+Find the exact API request made when the Customer clicks:
+
+Save Address
+
+Report:
+
+- HTTP method
+- exact endpoint
+- Request URL
+- frontend file/function
+- backend route/controller
+
+==================================================
+2. CHECK BROWSER/NETWORK ERROR
+==================================================
+
+Inspect the request and determine:
+
+- HTTP status
+- Request Origin header
+- Access-Control-Allow-Origin response header
+- whether the request is blocked by CORS
+- whether the request is redirected
+- actual backend response/error
+
+Do not rely only on the frontend message "Origin is not allowed".
+
+==================================================
+3. CHECK BACKEND CORS CONFIGURATION
+==================================================
+
+Inspect the existing backend CORS configuration.
+
+Determine how allowed origins are currently configured.
+
+Compare the current Customer Portal origin with the configured allowed origins.
+
+The current development Replit preview origin must be handled correctly.
+
+Do NOT use:
+
+Access-Control-Allow-Origin: *
+
+because the application uses authenticated requests.
+
+Preserve credentials/security behavior.
+
+==================================================
+4. COMPARE WITH OTHER WORKING CUSTOMER APIs
+==================================================
+
+Find a Customer API request that currently works from the same browser session.
+
+Compare:
+
+- Origin
+- API URL
+- credentials
+- cookies/session
+- CORS headers
+- backend host
+
+Determine why address saving is failing while other Customer requests work.
+
+==================================================
+5. CHECK ENVIRONMENT CONFIGURATION
+==================================================
+
+Inspect existing environment/API configuration.
+
+Determine whether:
+
+- Customer frontend is using one API origin
+- Backend expects another origin
+- Replit preview URL changed
+- allowed-origin configuration is stale
+- development origin is missing
+
+Reuse the existing environment/configuration architecture.
+
+Do not create duplicate environment variables unless genuinely required.
+
+==================================================
+6. CHECK SUPABASE ONLY IF NECESSARY
+==================================================
+
+If the failing request is actually going directly to Supabase or another external service, identify that exact service and explain the origin restriction.
+
+Do not change Supabase configuration blindly.
+
+==================================================
+7. SAFE FIX
+==================================================
+
+If the problem is confirmed to be the application's CORS configuration:
+
+Make the smallest targeted fix so the legitimate current development Customer Portal origin is allowed.
+
+Preserve:
+
+- authentication
+- credentials
+- server-side authorization
+- production security
+
+Do NOT allow arbitrary origins.
+
+If the issue is caused by Replit's development proxy rather than application code, report that instead of changing application code unnecessarily.
+
+==================================================
+8. TEST
+==================================================
+
+After a confirmed fix, run focused tests for:
+
+- Customer address save
+- authenticated Customer request
+- CORS/origin validation
+- unauthorized origin rejection
+- existing Customer APIs
+
+Do not run automated browser tests.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. Exact failing endpoint
+2. HTTP status
+3. Actual browser/backend error
+4. Request Origin
+5. Configured allowed origin
+6. Exact root cause
+7. Whether issue is frontend, backend CORS, Replit proxy, or external service
+8. Exact file/config changed, if any
+9. Focused test results
+10. Confirmation that no customer/order/product/vendor data was changed
+
+STOP after diagnosis and targeted fix.
