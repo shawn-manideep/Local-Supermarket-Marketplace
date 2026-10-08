@@ -1,0 +1,1030 @@
+IMPLEMENTATION TASK — STORE ORDERABILITY + VENDOR PRODUCT SEARCH + DELIVERY SCHEDULING + ADMIN DOCUMENT VERIFICATION
+
+Implement the following four business changes in the existing Local Supermarket Marketplace application.
+
+IMPORTANT:
+- Inspect the existing architecture before making changes.
+- Reuse existing authentication, Vendor Documents, Admin Vendor management, Customer store/catalog, Order, Delivery Partner, and shared UI architecture.
+- Do NOT create duplicate systems where equivalent functionality already exists.
+- Do NOT redesign the entire application.
+- Do NOT deploy.
+- Do NOT run automated browser tests.
+- Do NOT fix unrelated pre-existing TypeScript/build errors.
+- Make focused changes only.
+- Preserve all existing working order, stock, cart, checkout, delivery partner, and Admin functionality unless specifically changed below.
+
+==================================================
+1. CUSTOMER PORTAL — CLOSED STORES MUST NOT ACCEPT ORDERS
+==================================================
+
+CURRENT REQUIREMENT:
+
+If a Vendor/Store is closed, Customers must not be able to place an order from that store.
+
+This must be enforced BOTH in the UI and server-side.
+
+--------------------------------------------------
+1.1 Customer UI
+--------------------------------------------------
+
+When a store is CLOSED:
+
+Clearly show:
+
+Store Closed
+
+or:
+
+Currently Closed
+
+The customer may still be allowed to:
+
+- View the store
+- Browse products
+- View product details
+- View saved items/history
+
+according to the existing application behavior.
+
+However, the customer must NOT be able to successfully place a new order.
+
+Disable or hide order-entry actions where appropriate, such as:
+
+- Add to Cart
+- Checkout
+- Place Order
+
+Use the existing product/store availability design.
+
+Do not incorrectly mark individual products as out of stock merely because the store is closed.
+
+--------------------------------------------------
+1.2 Server-side enforcement
+--------------------------------------------------
+
+This is critical.
+
+Do NOT rely only on disabling buttons.
+
+When the customer attempts to create an order:
+
+Backend must verify that the selected Vendor/Store is currently open/accepting orders.
+
+If closed:
+
+Reject the order with a clear structured error.
+
+Example:
+
+STORE_CLOSED
+
+" This store is currently closed and cannot accept orders."
+
+The existing order transaction must not:
+
+- deduct stock
+- create an order
+- modify cart state
+- create delivery records
+
+when the store is closed.
+
+--------------------------------------------------
+1.3 Race-condition protection
+--------------------------------------------------
+
+The store-open check must happen as part of the existing order creation/checkout transaction or in a way that prevents:
+
+Store is open
+→ Customer starts checkout
+→ Store closes
+→ Order is still accepted
+
+The final server-side order acceptance must verify current store orderability.
+
+Reuse the existing transactional order architecture.
+
+--------------------------------------------------
+1.4 Vendor/Admin store status
+--------------------------------------------------
+
+Inspect the existing Vendor store status/open-close implementation.
+
+Do not create a second store status system.
+
+If the project already has:
+
+- ACTIVE
+- SUSPENDED
+- PENDING_APPROVAL
+- REJECTED
+
+do not confuse those administrative statuses with daily operating hours/open/closed state.
+
+Use the existing store-hours/open-close mechanism if already present.
+
+If there is no proper orderability state, introduce the minimum required concept.
+
+==================================================
+2. VENDOR PORTAL — PRODUCT SEARCH
+==================================================
+
+CURRENT PROBLEM:
+
+Vendor Portal does not currently provide a clear search option for products.
+
+Add a product search field to the Vendor Catalog/Product Management page.
+
+Example:
+
+🔍 Search products
+
+Placeholder:
+
+"Search products by name or brand"
+
+--------------------------------------------------
+2.1 Search behavior
+--------------------------------------------------
+
+Vendor search should search products available to that Vendor.
+
+It should support the existing Vendor catalog/product data.
+
+At minimum search:
+
+- Product name
+- Brand, if available
+
+Do NOT expose products belonging to other Vendors.
+
+Vendor A must only search:
+
+- Vendor A's selected Master Catalog products
+- Vendor A's Vendor-created products
+
+Do not return Vendor B's private products.
+
+--------------------------------------------------
+2.2 Search + category
+--------------------------------------------------
+
+The existing Vendor page already has:
+
+Search Products
+Browse by Category
+
+Keep the category filter.
+
+Make the experience:
+
+Search Products
+[ Search products by name or brand ]
+
+Browse by Category
+[ All Categories ▼ ]
+
+Both controls should remain visually consistent/equal width as already implemented.
+
+Search and category filtering should work together.
+
+Example:
+
+Search = "Rice"
+Category = "Grains"
+
+Return only matching Vendor products.
+
+--------------------------------------------------
+2.3 Search behavior
+--------------------------------------------------
+
+Search should:
+
+- be case-insensitive
+- support partial matches
+- handle empty search gracefully
+- preserve existing product ordering
+- work on desktop and mobile
+- not expose internal product IDs unnecessarily
+
+Do not create a completely separate search architecture if the existing API can be extended safely.
+
+==================================================
+3. DELIVERY — INSTANT OR SCHEDULED DELIVERY
+==================================================
+
+We are introducing scheduled delivery.
+
+At checkout, Customer should choose one of:
+
+1. Instant Delivery
+2. Scheduled Delivery
+
+Example:
+
+Delivery Option
+
+○ Instant Delivery
+  Deliver as soon as possible
+
+○ Scheduled Delivery
+  Choose a delivery time
+
+--------------------------------------------------
+3.1 Instant Delivery
+--------------------------------------------------
+
+When Customer selects:
+
+Instant Delivery
+
+Use the existing delivery workflow.
+
+The order should proceed through:
+
+PLACED
+→ Vendor accepts
+→ PREPARING
+→ READY
+→ Delivery Partner assignment
+→ Pickup
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+Do not change the existing workflow unnecessarily.
+
+--------------------------------------------------
+3.2 Scheduled Delivery
+--------------------------------------------------
+
+When Customer selects:
+
+Scheduled Delivery
+
+Display available date/time options.
+
+Example:
+
+Delivery Date
+
+[ Today ▼ ]
+
+Delivery Time
+
+[ 7:00 PM – 8:00 PM ▼ ]
+
+The exact available slots must be based on the application's existing capabilities and Vendor/store operating hours.
+
+Do NOT hard-code arbitrary slots without checking store availability.
+
+--------------------------------------------------
+3.3 Delivery slot design
+--------------------------------------------------
+
+Use a clear slot model.
+
+For example:
+
+Today
+- 6:00 PM – 7:00 PM
+- 7:00 PM – 8:00 PM
+- 8:00 PM – 9:00 PM
+
+Tomorrow
+- 10:00 AM – 11:00 AM
+- 11:00 AM – 12:00 PM
+- 12:00 PM – 1:00 PM
+
+The actual slot generation should respect:
+
+- Store operating hours
+- Store closed state
+- Current time
+- Existing delivery capabilities
+- Existing delivery workflow
+
+Do not offer slots that are already in the past.
+
+--------------------------------------------------
+3.4 Order snapshot
+--------------------------------------------------
+
+When the order is placed, save the selected delivery mode and scheduled slot as part of the order.
+
+For example:
+
+delivery_mode:
+INSTANT
+
+OR:
+
+delivery_mode:
+SCHEDULED
+
+For scheduled orders also save:
+
+scheduled_date
+scheduled_start_time
+scheduled_end_time
+
+The selected values must become an order snapshot.
+
+Changing store hours later must NOT silently change an already placed order's scheduled slot.
+
+--------------------------------------------------
+3.5 Vendor view
+--------------------------------------------------
+
+Vendor should clearly see the delivery mode on the order.
+
+Example:
+
+Delivery:
+
+INSTANT
+
+or:
+
+SCHEDULED
+08 Oct 2026
+7:00 PM – 8:00 PM
+
+Do not allow Vendor to accidentally change the customer's requested slot unless a future business rule explicitly supports rescheduling.
+
+--------------------------------------------------
+3.6 Delivery Partner view
+--------------------------------------------------
+
+Delivery Partner should also see:
+
+Instant Delivery
+
+or:
+
+Scheduled Delivery
+7:00 PM – 8:00 PM
+
+The delivery assignment/workflow must continue to use the existing delivery architecture.
+
+Do not create a second delivery system.
+
+--------------------------------------------------
+3.7 Scheduled delivery and order lifecycle
+--------------------------------------------------
+
+Do not automatically mark a scheduled order as OUT_FOR_DELIVERY before its scheduled time.
+
+Respect the existing:
+
+READY
+→ PICKUP
+→ OUT_FOR_DELIVERY
+→ DELIVERED
+
+workflow.
+
+Define the minimum safe behavior based on the existing architecture.
+
+If the existing Vendor/Delivery Partner workflow cannot yet enforce scheduled dispatch timing, report that clearly rather than inventing a complex scheduler.
+
+==================================================
+4. VENDOR DOCUMENTS — ADMIN VERIFICATION
+==================================================
+
+CURRENT REQUIREMENT:
+
+Vendor uploads required documents.
+
+But uploading documents alone must NOT unlock the Vendor catalog.
+
+Admin must verify and approve the documents first.
+
+New onboarding flow:
+
+Vendor logs in
+↓
+Documents required
+↓
+Vendor uploads mandatory documents
+↓
+Vendor submits documents for verification
+↓
+Admin reviews documents
+↓
+Admin approves
+↓
+Vendor catalog becomes accessible
+
+--------------------------------------------------
+4.1 Document states
+--------------------------------------------------
+
+Introduce a simple verification lifecycle.
+
+Recommended states:
+
+NOT_UPLOADED
+UPLOADED / DRAFT
+SUBMITTED
+APPROVED
+REJECTED
+
+Use the existing Vendor Documents model where possible.
+
+Do NOT create a duplicate document system.
+
+--------------------------------------------------
+4.2 Vendor document page
+--------------------------------------------------
+
+After uploading mandatory documents, show:
+
+Mandatory Documents
+4 / 4 uploaded
+
+[ Submit for Verification ]
+
+The Vendor must explicitly submit the documents for Admin review.
+
+Before submission:
+
+"Documents uploaded. Submit them for Admin verification."
+
+After submission:
+
+"Documents submitted for verification."
+
+The Vendor should no longer be able to edit the submitted document without using an appropriate replacement/re-submission flow.
+
+--------------------------------------------------
+4.3 Catalog access rule
+--------------------------------------------------
+
+This is critical.
+
+Vendor catalog access should depend on:
+
+ALL mandatory documents
++
+Admin approval
+
+NOT simply upload completion.
+
+Required logic:
+
+Documents incomplete
+→ Catalog LOCKED
+
+Documents uploaded but not submitted
+→ Catalog LOCKED
+
+Documents submitted / under review
+→ Catalog LOCKED
+
+Documents rejected
+→ Catalog LOCKED
+
+Documents approved
+→ Catalog UNLOCKED
+
+Existing Vendors who already have access must NOT be unexpectedly locked out.
+
+Treat existing approved/active Vendors as grandfathered unless the current architecture already has an explicit verification state for them.
+
+--------------------------------------------------
+4.4 Vendor UI
+--------------------------------------------------
+
+Show clear onboarding status.
+
+Example:
+
+Vendor Verification
+
+Status:
+⏳ Documents Under Review
+
+Your documents have been submitted and are awaiting Admin verification.
+
+Catalog access will be enabled after approval.
+
+If rejected:
+
+Status:
+❌ Documents Rejected
+
+Reason:
+PAN Card image is unclear.
+
+[Replace Document]
+[Resubmit for Verification]
+
+If approved:
+
+Status:
+✓ Documents Approved
+
+Your account is verified.
+
+[Go to Catalog]
+
+--------------------------------------------------
+5. ADMIN DOCUMENT VERIFICATION
+==================================================
+
+Admin Portal:
+
+Admin
+→ Vendors
+→ Vendor Details
+→ Vendor Documents
+
+The existing Vendor Documents section must now support verification.
+
+Admin should see:
+
+Vendor Documents
+
+Mandatory:
+4 / 4
+
+FSSAI License
+Uploaded
+[View]
+
+Aadhaar Card
+Uploaded
+[View]
+
+PAN Card
+Uploaded
+[View]
+
+Photo
+Uploaded
+[View]
+
+Verification Status:
+Pending Review
+
+[Approve Documents]
+[Reject Documents]
+
+--------------------------------------------------
+5.1 Admin approval
+--------------------------------------------------
+
+Admin can approve the mandatory document submission.
+
+When approved:
+
+- Vendor verification status becomes APPROVED.
+- Vendor catalog access becomes available.
+- Vendor can add Master Catalog products.
+- Vendor can create Vendor-specific products.
+
+Do not automatically approve optional documents just because mandatory documents are approved.
+
+Optional documents can remain informational unless the existing architecture requires separate verification.
+
+--------------------------------------------------
+5.2 Admin rejection
+--------------------------------------------------
+
+Admin must provide a rejection reason.
+
+Example:
+
+"PAN Card image is unclear."
+
+The Vendor should be able to see the reason.
+
+Vendor can replace the rejected document(s).
+
+Vendor then submits again for verification.
+
+Catalog remains locked until the new submission is approved.
+
+--------------------------------------------------
+5.3 Partial document rejection
+--------------------------------------------------
+
+Do not approve the Vendor if any mandatory document is rejected/missing.
+
+Example:
+
+FSSAI ✓
+Aadhaar ✓
+PAN ❌
+Photo ✓
+
+Overall status:
+
+REJECTED / INCOMPLETE
+
+Catalog remains locked.
+
+The Vendor must correct the rejected/missing mandatory document and resubmit.
+
+--------------------------------------------------
+6. EXISTING VENDORS
+==================================================
+
+IMPORTANT:
+
+Do not accidentally lock existing Vendors who already have active catalog access.
+
+Before implementing the new verification gate, inspect existing Vendor records.
+
+Existing approved/active Vendors should retain their current catalog access unless they are already part of the new verification lifecycle.
+
+New Vendors created after this change must follow the document verification process.
+
+If a safe migration/default verification state is required, use a controlled migration.
+
+Do not modify existing Vendor product, price, stock, order, or delivery data.
+
+==================================================
+7. ADMIN VENDOR DIRECTORY
+==================================================
+
+Add a simple verification indicator where useful.
+
+Example:
+
+Vendor:
+Sri Lakshmi Supermarket
+
+Status:
+ACTIVE
+
+Documents:
+✓ Verified
+
+or:
+
+Documents:
+⏳ Pending Review
+
+or:
+
+Documents:
+❌ Rejected
+
+Do not redesign the Admin Vendor Directory.
+
+==================================================
+8. SECURITY
+==================================================
+
+Document verification must be server-side.
+
+Do NOT unlock the catalog based only on frontend state.
+
+Vendor catalog mutation endpoints must verify the Vendor's verification status.
+
+At minimum protect:
+
+- Add Master Catalog product
+- Create Vendor product
+- Add Vendor product variant
+- Other catalog-management mutations
+
+A Vendor must not bypass verification by directly calling APIs.
+
+Admin approval must require server-side ADMIN authorization.
+
+Vendor A must not be able to approve their own documents.
+
+Vendor A must not access Vendor B's documents.
+
+Customer and Delivery Partner must not access Vendor documents.
+
+==================================================
+9. DATABASE / MIGRATIONS
+==================================================
+
+Before creating migrations:
+
+Inspect the current Vendor Documents schema.
+
+Reuse existing fields where possible.
+
+If verification state/rejection reason/submission metadata is missing, add only the required fields.
+
+Potential fields:
+
+verification_status
+submitted_at
+reviewed_at
+reviewed_by
+rejection_reason
+
+Use the project's existing naming conventions.
+
+Do not duplicate Vendor Documents tables.
+
+Apply development migration only.
+
+==================================================
+10. API
+==================================================
+
+Reuse existing Vendor Documents APIs where possible.
+
+Add only the minimum APIs required.
+
+Potential operations:
+
+Vendor:
+POST submit documents for verification
+
+Admin:
+GET vendor documents
+POST approve documents
+POST reject documents
+
+Do not blindly create routes if equivalent routes already exist.
+
+All APIs must have server-side authorization.
+
+==================================================
+11. CUSTOMER STORE ORDERABILITY
+==================================================
+
+When implementing closed-store behavior, make sure scheduled delivery does not accidentally bypass it.
+
+For BOTH:
+
+Instant Delivery
+Scheduled Delivery
+
+the order creation must verify that the Vendor/Store is currently allowed to accept orders.
+
+A closed/suspended/rejected store must not accept an order.
+
+Do not treat a future scheduled slot as permission to order from a store that is administratively inactive.
+
+==================================================
+12. MOBILE RESPONSIVENESS
+==================================================
+
+All new UI must follow the recently implemented responsive design.
+
+Verify:
+
+Customer delivery options fit mobile.
+Vendor product search fits mobile.
+Vendor verification status fits mobile.
+Admin document verification fits mobile.
+
+No horizontal overflow.
+
+==================================================
+13. TESTING
+==================================================
+
+Add focused tests.
+
+### Closed Store
+
+- Customer can view closed store if existing behavior allows.
+- Customer cannot add/order when store is closed.
+- Direct API order attempt is rejected.
+- No stock is deducted.
+- No order is created.
+- Closed store cannot be bypassed through checkout.
+
+### Vendor Search
+
+- Vendor can search own products.
+- Search by product name.
+- Search by brand.
+- Search + category works.
+- Vendor A cannot search Vendor B's private products.
+
+### Instant Delivery
+
+- Customer can select Instant.
+- Order stores INSTANT.
+- Existing delivery flow works.
+
+### Scheduled Delivery
+
+- Customer can select Scheduled.
+- Available slots are generated correctly.
+- Past slots are not offered.
+- Closed periods are not offered.
+- Selected slot is stored on the order.
+- Vendor sees scheduled delivery information.
+- Delivery Partner sees scheduled delivery information.
+
+### Document Verification
+
+- New Vendor cannot access catalog.
+- Uploading documents does not unlock catalog.
+- Submitting documents does not unlock catalog.
+- Admin can see submitted documents.
+- Admin can approve.
+- Approval unlocks catalog.
+- Admin can reject.
+- Rejection reason is stored/displayed.
+- Rejected Vendor remains locked.
+- Vendor can replace/re-upload rejected documents.
+- Resubmission returns to pending review.
+- Vendor cannot approve own documents.
+- Vendor A cannot access Vendor B's documents.
+- Existing approved Vendors are not accidentally locked.
+
+### Regression
+
+Verify:
+
+- Customer cart
+- Checkout
+- Stock deduction
+- Vendor orders
+- Delivery Partner assignment
+- Existing Vendor catalog
+- Admin Vendor management
+
+remain functional.
+
+Do not run automated browser tests.
+
+==================================================
+14. MANUAL TEST CHECKLIST
+==================================================
+
+After implementation, provide a concise manual checklist.
+
+TEST 1 — Closed Store
+
+Set a Vendor/store to closed.
+
+Customer attempts to order.
+
+Expected:
+Order cannot be placed.
+
+TEST 2 — Vendor Search
+
+Login as Vendor.
+
+Search:
+
+"Rice"
+
+Expected:
+Matching Vendor products appear.
+
+TEST 3 — Instant Delivery
+
+Customer checkout.
+
+Select:
+
+Instant Delivery.
+
+Place order.
+
+Expected:
+Order stores Instant Delivery.
+
+TEST 4 — Scheduled Delivery
+
+Customer checkout.
+
+Select:
+
+Scheduled Delivery.
+
+Choose date/time.
+
+Place order.
+
+Expected:
+Selected delivery date/time is shown on order.
+
+TEST 5 — New Vendor Documents
+
+Create a new Vendor.
+
+Login.
+
+Expected:
+Documents/onboarding page appears.
+
+Upload all mandatory documents.
+
+Expected:
+Documents show Uploaded.
+
+Catalog remains LOCKED.
+
+TEST 6 — Submit
+
+Click:
+
+Submit for Verification.
+
+Expected:
+Status becomes:
+
+Pending Review.
+
+Catalog remains locked.
+
+TEST 7 — Admin
+
+Login as Admin.
+
+Open:
+
+Vendors
+→ Vendor
+→ Vendor Documents
+
+Expected:
+Documents are visible.
+
+Click View.
+
+Expected:
+Document opens securely.
+
+TEST 8 — Admin Approve
+
+Approve mandatory documents.
+
+Expected:
+Vendor verification status becomes Approved.
+
+TEST 9 — Vendor
+
+Login as Vendor again.
+
+Expected:
+Catalog is now unlocked.
+
+Vendor can:
+
+- Add Master Catalog product
+- Add Vendor-created product
+
+TEST 10 — Admin Reject
+
+Create/re-submit a test document and reject it.
+
+Expected:
+Vendor sees rejection reason.
+
+Catalog remains locked.
+
+Vendor can replace/re-submit.
+
+==================================================
+15. DOCUMENTATION
+==================================================
+
+Create/update:
+
+docs/STORE_ORDERABILITY_DELIVERY_SCHEDULING_DOCUMENT_VERIFICATION_REPORT.md
+
+Include:
+
+- Closed store behavior
+- Vendor search implementation
+- Instant delivery
+- Scheduled delivery
+- Delivery slot logic
+- Order snapshot fields
+- Vendor document verification lifecycle
+- Admin approval/rejection
+- Catalog gating
+- Existing Vendor migration/compatibility
+- APIs changed
+- Database migrations
+- Tests and exact pass/fail counts
+- Manual test checklist
+
+==================================================
+FINAL STOP CONDITION
+==================================================
+
+Implement ONLY the four requested changes.
+
+Do not redesign unrelated screens.
+
+Do not modify unrelated business logic.
+
+Do not create duplicate authentication, catalog, document, or delivery systems.
+
+Do not deploy.
+
+Do not run automated browser tests.
+
+Do not fix unrelated pre-existing errors.
+
+After implementation and focused testing, STOP and provide the complete implementation report.
