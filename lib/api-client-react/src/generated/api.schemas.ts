@@ -97,6 +97,7 @@ export interface VendorCurrentDocument {
      */
   sizeBytes: number;
   uploadedAt: string;
+  updatedAt?: string;
   /** @minimum 1 */
   version: number;
 }

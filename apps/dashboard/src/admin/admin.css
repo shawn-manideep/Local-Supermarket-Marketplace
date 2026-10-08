@@ -373,3 +373,52 @@
   .lb-catalog-file-controls { align-items: stretch; flex-direction: column; }
   .lb-catalog-file-controls .lb-admin-button { width: 100%; }
 }
+
+/* Admin-only, read-only vendor document status and secure preview controls. */
+.lb-admin-vendor-documents { margin-top: 17px; overflow: hidden; }
+.lb-admin-doc-panel-head { align-items: center; }
+.lb-admin-doc-panel-head > div { min-width: 0; }
+.lb-admin-doc-panel-head h3 { margin: 0; color: var(--pine-deep); font-size: 15px; letter-spacing: -.025em; }
+.lb-admin-doc-panel-head .lb-admin-secondary { max-width: 360px; white-space: normal; line-height: 1.5; }
+.lb-admin-doc-panel-head .lb-admin-eyebrow { margin-bottom: 5px; }
+.lb-admin-doc-groups { display: grid; gap: 11px; padding: 13px; }
+.lb-admin-doc-group { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: #fcfdf9; }
+.lb-admin-doc-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--line); }
+.lb-admin-doc-group-head .lb-admin-eyebrow { margin: 0 0 3px; font-size: 9px; }
+.lb-admin-doc-group-head h4 { margin: 0; color: var(--pine-deep); font-size: 13px; }
+.lb-admin-doc-completion, .lb-admin-doc-optional-count { flex: 0 0 auto; border-radius: 999px; padding: 6px 9px; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.lb-admin-doc-completion.is-complete { color: #315e3b; background: #e8f3e9; }
+.lb-admin-doc-completion.is-incomplete { color: #8a5628; background: #fbf0df; }
+.lb-admin-doc-optional-count { color: var(--ink-soft); background: var(--warm); }
+.lb-admin-doc-list { display: grid; }
+.lb-admin-doc-row { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #e9eee5; }
+.lb-admin-doc-row:last-child { border-bottom: 0; }
+.lb-admin-doc-copy { display: grid; min-width: 0; gap: 4px; }
+.lb-admin-doc-title { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.lb-admin-doc-title strong { color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+.lb-admin-doc-kind { border-radius: 999px; padding: 3px 6px; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.lb-admin-doc-kind.is-mandatory { color: var(--pine-deep); background: #e8efff; }
+.lb-admin-doc-kind.is-optional { color: #6b6178; background: #f0edf4; }
+.lb-admin-doc-state { font-size: 10px; font-weight: 750; }
+.lb-admin-doc-state.is-uploaded { color: #376544; }
+.lb-admin-doc-state.is-missing { color: #89714a; }
+.lb-admin-doc-filename { max-width: 100%; color: var(--ink-soft); font-size: 10px; overflow-wrap: anywhere; }
+.lb-admin-doc-meta { color: #748176; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.lb-admin-doc-view { flex: 0 0 auto; min-width: 67px; padding: 8px 11px; }
+.lb-admin-doc-view:disabled { cursor: wait; }
+.lb-admin-doc-error { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin: 12px 13px 0; border: 1px solid #efd0c9; border-radius: 8px; background: #fff0ed; padding: 10px 12px; color: #8e342d; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.lb-admin-doc-error .lb-admin-row-action { flex: 0 0 auto; }
+.lb-admin-doc-message, .lb-admin-doc-refreshing { margin: 12px 14px 0; color: var(--ink-soft); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.lb-admin-doc-refreshing { color: var(--pine); }
+.lb-admin-doc-empty { margin: 0; padding: 14px; color: var(--ink-soft); font-size: 11px; }
+.lb-admin-doc-skeleton { display: grid; gap: 10px; padding: 16px; }
+.lb-admin-doc-skeleton i { display: block; height: 40px; border-radius: 7px; background: linear-gradient(90deg, #edf2e8 20%, #f6f7ee 45%, #edf2e8 70%); background-size: 200% 100%; animation: admin-shimmer 1.4s ease infinite; }
+@media (max-width: 420px) {
+  .lb-admin-doc-panel-head { align-items: flex-start; }
+  .lb-admin-doc-panel-head .lb-admin-button { flex: 0 0 auto; padding: 9px 10px; }
+  .lb-admin-doc-groups { padding: 9px; }
+  .lb-admin-doc-group-head, .lb-admin-doc-row { padding: 11px; }
+  .lb-admin-doc-row { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .lb-admin-doc-view { width: 100%; min-height: 44px; }
+  .lb-admin-doc-completion, .lb-admin-doc-optional-count { font-size: 9px; padding: 6px 7px; }
+}

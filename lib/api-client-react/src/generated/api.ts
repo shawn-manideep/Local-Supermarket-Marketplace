@@ -889,6 +889,159 @@ export function useViewVendorDocument<TData = Awaited<ReturnType<typeof viewVend
 
 
 
+export const getGetAdminVendorDocumentsUrl = (vendorId: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${vendorId}/documents`
+}
+
+/**
+ * Admin-only current document metadata for the requested Vendor account. Upload completion is informational, not approval.
+ */
+export const getAdminVendorDocuments = async (vendorId: string, options?: Parameters<typeof customFetch>[1]): Promise<VendorDocumentStatus> => {
+
+  return customFetch<VendorDocumentStatus>(getGetAdminVendorDocumentsUrl(vendorId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminVendorDocumentsQueryKey = (vendorId: string,) => {
+    return [
+    `/api/admin/vendors/${vendorId}/documents`
+    ] as const;
+    }
+
+
+export const getGetAdminVendorDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminVendorDocuments>>, TError = ErrorType<void>>(vendorId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminVendorDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminVendorDocumentsQueryKey(vendorId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminVendorDocuments>>> = ({ signal }) => getAdminVendorDocuments(vendorId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: vendorId !== null && vendorId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminVendorDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminVendorDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminVendorDocuments>>>
+export type GetAdminVendorDocumentsQueryError = ErrorType<void>
+
+
+
+export function useGetAdminVendorDocuments<TData = Awaited<ReturnType<typeof getAdminVendorDocuments>>, TError = ErrorType<void>>(
+ vendorId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminVendorDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminVendorDocumentsQueryOptions(vendorId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getViewAdminVendorDocumentUrl = (vendorId: string,
+    documentId: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${vendorId}/documents/${documentId}/content`
+}
+
+/**
+ * Admin-only current private document bytes scoped to the requested Vendor account.
+ */
+export const viewAdminVendorDocument = async (vendorId: string,
+    documentId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getViewAdminVendorDocumentUrl(vendorId,documentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getViewAdminVendorDocumentQueryKey = (vendorId: string,
+    documentId: string,) => {
+    return [
+    `/api/admin/vendors/${vendorId}/documents/${documentId}/content`
+    ] as const;
+    }
+
+
+export const getViewAdminVendorDocumentQueryOptions = <TData = Awaited<ReturnType<typeof viewAdminVendorDocument>>, TError = ErrorType<void>>(vendorId: string,
+    documentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof viewAdminVendorDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getViewAdminVendorDocumentQueryKey(vendorId,documentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof viewAdminVendorDocument>>> = ({ signal }) => viewAdminVendorDocument(vendorId,documentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: vendorId !== null && vendorId !== undefined && documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof viewAdminVendorDocument>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ViewAdminVendorDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof viewAdminVendorDocument>>>
+export type ViewAdminVendorDocumentQueryError = ErrorType<void>
+
+
+
+export function useViewAdminVendorDocument<TData = Awaited<ReturnType<typeof viewAdminVendorDocument>>, TError = ErrorType<void>>(
+ vendorId: string,
+    documentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof viewAdminVendorDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getViewAdminVendorDocumentQueryOptions(vendorId,documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetVendorProductMatchesUrl = (params: GetVendorProductMatchesParams,) => {
   const normalizedParams = new URLSearchParams();
 

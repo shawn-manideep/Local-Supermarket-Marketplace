@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ApiRequestError } from "../api";
 import { AdminMasterCatalogPanel } from "../AdminMasterCatalogPanel";
+import { AdminVendorDocuments } from "./AdminVendorDocuments";
 import {
   changeAdminStatus,
   createAdminVendor,
@@ -496,6 +497,7 @@ function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind
     </div>
     {kind === "delivery-partners" && account.activeAssignments > 0 && <div className="lb-admin-message notice" style={{ marginTop: 17 }}>This partner has {account.activeAssignments} active assignment{account.activeAssignments === 1 ? "" : "s"}. Deactivation preserves existing duties and blocks partner operations; this portal will not cancel or reassign work.</div>}
     {kind === "vendors" && account.store && <VendorDetailGroups account={account} />}
+    {kind === "vendors" && <AdminVendorDocuments key={account.id} vendorId={account.id} token={token} />}
     {kind === "vendors" && account.hours && account.hours.length > 0 && <section className="lb-admin-panel lb-admin-detail-hours"><div className="lb-admin-panel-head"><h3>Operations · operating hours</h3></div><div>{account.hours.slice().sort((a,b) => a.dayOfWeek-b.dayOfWeek).map((hour) => <div className="lb-admin-hour-line" key={hour.dayOfWeek}><strong>{["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][hour.dayOfWeek]}</strong><span>{hour.isClosed ? "Closed" : `${hour.opensAt?.slice(0,5) ?? "—"}–${hour.closesAt?.slice(0,5) ?? "—"}`}</span></div>)}</div></section>}
     {noVendorStore && <div className="lb-admin-message notice" style={{ marginTop: 17 }}>No store is linked to this vendor. Store status changes are unavailable until a store is associated.</div>}
     {!noVendorStore && account.allowedStatuses.length > 0 && <div className="lb-admin-detail-actions">{account.allowedStatuses.filter((status) => status !== account.status).map((status) => <button key={status} className={`lb-admin-button ${isDestructive(status) ? "danger" : "primary"}`} type="button" disabled={busy} onClick={() => onStatus(status)}>{busy ? "Updating…" : actionLabel(kind, account.status, status)}</button>)}</div>}

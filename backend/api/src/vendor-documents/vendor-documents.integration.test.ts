@@ -14,6 +14,7 @@ import { documentStorage } from "./storage.js";
 const exec = promisify(execFile);
 const postgres = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
 const legacy = randomUUID(), vendorA = randomUUID(), vendorB = randomUUID(), customer = randomUUID();
+const admin = randomUUID(), delivery = randomUUID();
 const legacyStore = randomUUID(), storeA = randomUUID(), storeB = randomUUID(), masterId = randomUUID();
 const protectedProduct = randomUUID(), protectedVariant = randomUUID();
 const pdf = Buffer.from("%PDF-1.4\n1 0 obj <<>> endobj\n%%EOF");
@@ -43,10 +44,10 @@ before(async () => {
   for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !file.startsWith("0019")).sort()) {
     await pool.query(await readFile(new URL(file, migrations), "utf8"));
   }
-  for (const id of [legacy, vendorA, vendorB, customer]) {
+  for (const id of [legacy, vendorA, vendorB, customer, admin, delivery]) {
     await pool.query("INSERT INTO auth.users(id,email) VALUES($1,$2)", [id, `${id}@qa.invalid`]);
     if (id !== customer) {
-      await pool.query("UPDATE user_profiles SET role='vendor' WHERE id=$1", [id]);
+      await pool.query("UPDATE user_profiles SET role=$2 WHERE id=$1", [id, id === admin ? "admin" : id === delivery ? "delivery_partner" : "vendor"]);
       await pool.query("DELETE FROM customers WHERE id=$1", [id]);
     }
   }
@@ -71,7 +72,7 @@ before(async () => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url !== `${process.env.SUPABASE_URL}/auth/v1/user`) return originalFetch(input, init);
     const id = new Headers(init?.headers).get("authorization")?.replace("Bearer ", "");
-    return [legacy, vendorA, vendorB, customer].some(actor => actor === id)
+    return [legacy, vendorA, vendorB, customer, admin, delivery].some(actor => actor === id)
       ? Response.json({ id, email: `${id}@qa.invalid` }) : Response.json({ message: "Invalid identity" }, { status: 401 });
   };
   // External provider bytes only are simulated; HTTP/authz/transactions/RLS/DB are real.
@@ -295,4 +296,112 @@ test("document signature rules accept PNG/JPEG and reject mismatched signatures"
   const jpeg = Buffer.alloc(20); jpeg[0]=255; jpeg[1]=216; jpeg[2]=255; jpeg[18]=255; jpeg[19]=217;
   validateDocument("photo.jpeg", "image/jpeg", jpeg);
   assert.throws(() => validateDocument("photo.png", "image/png", jpeg), /corrupt/);
+});
+
+let adminCurrentId = "";
+const adminPath = (vendor: string = legacy) => `/api/admin/vendors/${vendor}/documents`;
+test("Admin retrieves existing document metadata without private references", async () => {
+  const uploaded = await upload(legacy, "fssai");
+  assert.equal(uploaded.status, 201);
+  adminCurrentId = (await uploaded.json()).documents.find((item: any) => item.type === "fssai").current.id;
+  const response = await request(admin, adminPath());
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  const body = await response.json();
+  assert.equal(body.documents.length, 7);
+  assert.equal(body.mandatoryCount, 1);
+  assert.equal(body.required, false);
+  assert.equal(body.canManageCatalog, true); // Legacy exemption is not document completion.
+  assert.equal(body.documents.find((item: any) => item.type === "fssai").current.id, adminCurrentId);
+  assert.doesNotMatch(JSON.stringify(body), /object_ref|objectRef|qa-private-bucket/);
+});
+test("Admin securely reads current PDF bytes with private inline headers", async () => {
+  const response = await request(admin, `${adminPath()}/${adminCurrentId}/content`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/pdf");
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("content-security-policy"), "sandbox");
+  assert.match(response.headers.get("content-disposition")!, /inline; filename\*/);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), pdf);
+});
+test("Unauthenticated metadata and nested binary reads are denied", async () => {
+  for (const path of [adminPath(), `${adminPath()}/${adminCurrentId}/content`])
+    assert.equal((await request(null, path)).status, 401);
+});
+for (const [label, actor] of [["Vendor A", vendorA], ["Vendor B", vendorB], ["Customer", customer], ["Delivery Partner", delivery]] as const) {
+  test(`${label} cannot use Admin metadata or nested content endpoints`, async () => {
+    for (const path of [adminPath(), `${adminPath()}/${adminCurrentId}/content`])
+      assert.equal((await request(actor, path)).status, 403);
+  });
+}
+test("Admin Vendor selection returns only that Vendor; mismatched current document is denied", async () => {
+  const status = await (await request(admin, adminPath(vendorB))).json();
+  assert.ok(status.documents.every((item: any) => !item.current || item.current.id !== adminCurrentId));
+  assert.equal((await request(admin, `${adminPath(vendorB)}/${adminCurrentId}/content`)).status, 404);
+  assert.equal((await request(vendorA, `/api/vendor/documents/${adminCurrentId}/content`)).status, 404);
+  assert.equal((await request(vendorA, adminPath(vendorB))).status, 403);
+});
+test("Unknown Vendor, non-Vendor account and store UUID selectors return safe 404", async () => {
+  for (const selector of [randomUUID(), customer, storeA, "invalid-id"]) {
+    assert.equal((await request(admin, adminPath(selector))).status, 404);
+    assert.equal((await request(admin, `${adminPath(selector)}/${adminCurrentId}/content`)).status, 404);
+  }
+});
+test("Optional uploads do not inflate mandatory completion; all four mandatory documents complete it", async () => {
+  assert.equal((await upload(legacy, "gst")).status, 201);
+  let status = await (await request(admin, adminPath())).json();
+  assert.equal(status.mandatoryCount, 1);
+  assert.equal(status.optionalCount, 1);
+  for (const type of ["aadhaar", "pan", "photo"]) assert.equal((await upload(legacy, type)).status, 201);
+  status = await (await request(admin, adminPath())).json();
+  assert.equal(status.mandatoryCount, 4);
+  assert.equal(status.optionalCount, 1);
+});
+test("Replacement preserves history; Admin sees only new current version and rejects obsolete bytes", async () => {
+  const previous = adminCurrentId;
+  const replacement = Buffer.from("%PDF-1.4\n% Replacement test bytes\n%%EOF");
+  assert.equal((await upload(legacy, "fssai", replacement, "replacement.pdf")).status, 201);
+  const status = await (await request(admin, adminPath())).json();
+  const current = status.documents.find((item: any) => item.type === "fssai").current;
+  adminCurrentId = current.id;
+  assert.notEqual(current.id, previous);
+  assert.equal(current.version, 2);
+  assert.equal(current.fileName, "replacement.pdf");
+  assert.ok(current.uploadedAt && current.updatedAt);
+  assert.equal((await request(admin, `${adminPath()}/${previous}/content`)).status, 404);
+  assert.equal((await request(legacy, `/api/vendor/documents/${previous}/content`)).status, 404);
+  for (const path of [`${adminPath()}/${current.id}/content`, `/api/vendor/documents/${current.id}/content`])
+    assert.deepEqual(Buffer.from(await (await request(path.startsWith("/api/admin") ? admin : legacy, path)).arrayBuffer()), replacement);
+  const history = (await pool.query("SELECT is_current,version FROM vendor_documents WHERE store_id=$1 AND document_type='fssai' ORDER BY version", [legacyStore])).rows;
+  assert.deepEqual(history, [{ is_current: false, version: 1 }, { is_current: true, version: 2 }]);
+});
+test("Admin image viewing uses existing upload validation and MIME type", async () => {
+  const png = Buffer.alloc(45);
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png);
+  png.write("IHDR", 12); png.writeUInt32BE(1, 16); png.writeUInt32BE(1, 20); png.write("IEND", 37);
+  assert.equal((await upload(legacy, "photo", png, "photo.png", "image/png")).status, 201);
+  const status = await (await request(admin, adminPath())).json();
+  const id = status.documents.find((item: any) => item.type === "photo").current.id;
+  const response = await request(admin, `${adminPath()}/${id}/content`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/png");
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), png);
+});
+test("Admin reads and denials leave all existing public-table data unchanged", async () => {
+  async function snapshot() {
+    const result: Record<string, string> = {};
+    const tables = (await pool.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")).rows;
+    for (const { tablename } of tables) {
+      const name = String(tablename).replaceAll('"', '""');
+      result[name] = (await pool.query(`SELECT md5(coalesce(string_agg(row::text,',' ORDER BY row::text),'')) AS digest FROM (SELECT to_jsonb(t) AS row FROM "${name}" t) s`)).rows[0].digest;
+    }
+    return result;
+  }
+  const before = await snapshot();
+  assert.equal((await request(admin, adminPath())).status, 200);
+  assert.equal((await request(admin, `${adminPath()}/${adminCurrentId}/content`)).status, 200);
+  assert.equal((await request(customer, adminPath())).status, 403);
+  assert.equal((await request(admin, `${adminPath(vendorB)}/${adminCurrentId}/content`)).status, 404);
+  assert.deepEqual(await snapshot(), before);
 });

@@ -17,6 +17,7 @@ export interface VendorCurrentDocument {
      */
   sizeBytes: number;
   uploadedAt: Date;
+  updatedAt?: Date;
   /** @minimum 1 */
   version: number;
 }

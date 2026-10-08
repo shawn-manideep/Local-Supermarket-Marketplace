@@ -1,5 +1,6 @@
 import { apiRequest } from "./api";
 import type { OperatingHour, Store } from "./api";
+import type { VendorDocumentStatus } from "../../../lib/api-client-react/src/generated/api.schemas";
 
 export type AdminKind = "vendors" | "customers" | "delivery-partners";
 export type AccountStatus = "ACTIVE" | "INACTIVE";
@@ -31,6 +32,8 @@ export function listAdminAccounts(kind: AdminKind, token: string, filters: Admin
 }
 export const getAdminAccount = (kind: AdminKind, id: string, token: string, signal?: AbortSignal) =>
   apiRequest<{ account: AdminDetail }>(`/api/admin/${kind}/${encodeURIComponent(id)}`, token, { signal });
+export const getAdminVendorDocuments = (vendorId: string, token: string, signal?: AbortSignal) =>
+  apiRequest<VendorDocumentStatus>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/documents`, token, { signal });
 export const changeAdminStatus = (
   kind: AdminKind, id: string, status: string, token: string, confirmActiveAssignments = false,
 ) => apiRequest<unknown>(`/api/admin/${kind}/${encodeURIComponent(id)}/status`, token, {

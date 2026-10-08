@@ -154,6 +154,7 @@ export const GetVendorDocumentsResponse = zod.object({
   "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
   "sizeBytes": zod.number().int().min(1).max(getVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
   "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1)
 }),zod.null()])
 }))
@@ -199,6 +200,7 @@ export const UploadVendorDocumentResponse = zod.object({
   "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
   "sizeBytes": zod.number().int().min(1).max(uploadVendorDocumentResponseDocumentsItemCurrentOneSizeBytesMax),
   "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1)
 }),zod.null()])
 }))
@@ -210,6 +212,58 @@ export const ViewVendorDocumentParams = zod.object({
 })
 
 export const ViewVendorDocumentResponse = zod.unknown()
+
+
+/**
+ * Admin-only current document metadata for the requested Vendor account. Upload completion is informational, not approval.
+ */
+export const GetAdminVendorDocumentsParams = zod.object({
+  "vendorId": zod.coerce.string().uuid()
+})
+
+export const getAdminVendorDocumentsResponseMandatoryCountMin = 0;
+export const getAdminVendorDocumentsResponseMandatoryCountMax = 4;
+
+export const getAdminVendorDocumentsResponseOptionalCountMin = 0;
+export const getAdminVendorDocumentsResponseOptionalCountMax = 3;
+
+export const getAdminVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const GetAdminVendorDocumentsResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "mandatoryCount": zod.number().int().min(getAdminVendorDocumentsResponseMandatoryCountMin).max(getAdminVendorDocumentsResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(getAdminVendorDocumentsResponseOptionalCountMin).max(getAdminVendorDocumentsResponseOptionalCountMax),
+  "message": zod.string(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(getAdminVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
+  "version": zod.number().int().min(1)
+}),zod.null()])
+}))
+})
+
+
+/**
+ * Admin-only current private document bytes scoped to the requested Vendor account.
+ */
+export const ViewAdminVendorDocumentParams = zod.object({
+  "vendorId": zod.coerce.string().uuid(),
+  "documentId": zod.coerce.string().uuid()
+})
+
+export const ViewAdminVendorDocumentResponse = zod.unknown()
 
 
 export const getVendorProductMatchesQueryNameMax = 200;

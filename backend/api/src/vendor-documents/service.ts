@@ -15,7 +15,7 @@ export async function documentStatus(storeId: string) {
   if (!store) throw new HttpError(404, "Vendor store not found");
   const result = await getDb().execute(sql`
     SELECT id,document_type AS type,file_name AS "fileName",mime_type AS "mimeType",
-      size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",version
+      size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",updated_at AS "updatedAt",version
     FROM vendor_documents WHERE store_id=${storeId} AND is_current ORDER BY document_type`);
   const documents = DOCUMENT_TYPES.map(type => ({
     ...type, current: result.rows.find(row => row.type === type.type) ?? null,
@@ -28,6 +28,16 @@ export async function documentStatus(storeId: string) {
       ? "Your mandatory documents are complete. You can now manage your catalog."
       : "Complete your document verification before managing your catalog.",
     documents };
+}
+/** Admin selectors use the Vendor account ID, never a caller-supplied store ID. */
+export async function adminDocumentStore(vendorId: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(vendorId))
+    throw new HttpError(404, "Vendor store not found");
+  const result = await getDb().execute(sql`SELECT s.id FROM stores s
+    JOIN user_profiles p ON p.id=s.owner_user_id
+    WHERE p.id=${vendorId} AND p.role='vendor'`);
+  if (!result.rows[0]) throw new HttpError(404, "Vendor store not found");
+  return String(result.rows[0].id);
 }
 export async function assertCatalogDocuments(storeId: string) {
   const status = await documentStatus(storeId);

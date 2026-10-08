@@ -154,3 +154,17 @@ mtime_ms = 1791450315551
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/3b9f7ccf-2322-4ef3-aa44-abefa58df1e4/709e4fcb-e01f-48b2-aa84-d15fbf3dcde2"
 storage_version_token = "1791450392974761"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "s-hz8fsBkimaqBA8pdFGV"
+uri = "file://docs/ADMIN_VENDOR_DOCUMENT_VIEWING_IMPLEMENTATION_REPORT.md"
+type = "text"
+title = "Admin Vendor Document Viewing — Implementation Report"
+description = "Private architecture reuse, Admin-only endpoints, current-version handling, exact test results and the six-step manual checklist."
+logical_id = "2fe6297a-43b1-433c-be7d-6313a9df6224"
+content_hash = "sha256:18d0fb39d456cf3a16406c6d4fe50d43ef8c51cba70f928146dc8af427041779"
+size = 14385
+mtime_ms = 1791467799504
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/2fe6297a-43b1-433c-be7d-6313a9df6224/ffdc8302-6651-4577-99a9-dd282d0e965f"
+storage_version_token = "1791467872193559"
+content_type = "text/markdown"

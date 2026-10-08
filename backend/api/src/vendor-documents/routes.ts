@@ -6,7 +6,8 @@ import { requireRole } from "../auth/index.js";
 import { asyncHandler, HttpError } from "../http.js";
 import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, validateDocument } from "./files.js";
 import { documentStorage } from "./storage.js";
-import { documentStatus, ownedDocumentStore } from "./service.js";
+import { adminDocumentStore, documentStatus, ownedDocumentStore } from "./service.js";
+import { sendDocumentContent } from "./content.js";
 
 export const vendorDocumentsRouter = Router();
 vendorDocumentsRouter.get("/api/vendor/documents", requireRole("vendor"), asyncHandler(async (request, response) => {
@@ -50,17 +51,14 @@ vendorDocumentsRouter.put("/api/vendor/documents/:type", requireRole("vendor"),
     response.status(201).json(await documentStatus(storeId));
   }));
 vendorDocumentsRouter.get("/api/vendor/documents/:id/content", requireRole("vendor"), asyncHandler(async (request, response) => {
-  const id = String(request.params.id);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new HttpError(404, "Document not found");
-  const result = await getDb().execute(sql`SELECT object_ref,mime_type,file_name FROM vendor_documents
-    WHERE id=${id} AND store_id=${ownedDocumentStore(request)} AND is_current`);
-  const document = result.rows[0];
-  if (!document) throw new HttpError(404, "Document not found");
-  const bytes = await documentStorage.get(String(document.object_ref));
-  response.setHeader("Content-Type", String(document.mime_type));
+  await sendDocumentContent(ownedDocumentStore(request), String(request.params.id), response);
+}));
+vendorDocumentsRouter.get("/api/admin/vendors/:vendorId/documents", requireRole("admin"), asyncHandler(async (request, response) => {
+  const storeId = await adminDocumentStore(String(request.params.vendorId));
   response.setHeader("Cache-Control", "private, no-store");
-  response.setHeader("X-Content-Type-Options", "nosniff");
-  response.setHeader("Content-Security-Policy", "sandbox");
-  response.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(String(document.file_name))}`);
-  response.send(bytes);
+  response.json(await documentStatus(storeId));
+}));
+vendorDocumentsRouter.get("/api/admin/vendors/:vendorId/documents/:id/content", requireRole("admin"), asyncHandler(async (request, response) => {
+  const storeId = await adminDocumentStore(String(request.params.vendorId));
+  await sendDocumentContent(storeId, String(request.params.id), response);
 }));

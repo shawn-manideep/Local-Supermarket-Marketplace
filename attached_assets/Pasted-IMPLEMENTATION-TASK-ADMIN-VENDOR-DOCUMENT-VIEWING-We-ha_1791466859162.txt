@@ -1,0 +1,483 @@
+IMPLEMENTATION TASK — ADMIN VENDOR DOCUMENT VIEWING
+
+We have identified an important missing integration:
+
+A Vendor can successfully upload their required/optional documents from:
+
+Vendor Portal → Documents
+
+However, those uploaded documents are currently NOT visible from:
+
+Admin Portal → Vendors → Vendor Details/Profile
+
+The Admin Vendor management area must be extended so authorized Admin users can view the documents submitted by that Vendor.
+
+IMPORTANT:
+- Inspect the existing Vendor Documents implementation first.
+- Reuse the existing Vendor Documents database model, metadata, storage, and APIs.
+- Do NOT create a second document table.
+- Do NOT create a second document storage system.
+- Do NOT change the Vendor upload workflow unless required.
+- Do NOT change Customer, Product, Master Catalog, Stock, Cart, Order, or Delivery logic.
+- Do NOT deploy.
+- Do NOT run automated browser tests.
+- Do NOT fix unrelated pre-existing TypeScript errors.
+- Keep the change focused only on Admin visibility of Vendor documents.
+
+==================================================
+1. ADMIN VENDOR DETAILS — DOCUMENTS SECTION
+==================================================
+
+In:
+
+Admin Portal
+→ Vendors
+→ Select Vendor
+→ Vendor Details
+
+Add a new section:
+
+"Vendor Documents"
+
+The Admin should be able to see the document completion status.
+
+Example:
+
+Vendor Documents
+
+Mandatory Documents
+4 / 4 Complete
+
+FSSAI License
+Uploaded
+[View]
+
+Aadhaar Card
+Uploaded
+[View]
+
+PAN Card
+Uploaded
+[View]
+
+Photo
+Uploaded
+[View]
+
+Optional Documents
+
+GST
+Not uploaded
+
+Trade License
+Uploaded
+[View]
+
+Labour License
+Not uploaded
+
+==================================================
+2. DOCUMENT STATUS
+==================================================
+
+Show the current status of each document.
+
+Possible states:
+
+- Not Uploaded
+- Uploaded
+
+If the existing Vendor Documents implementation already has additional statuses, reuse those statuses rather than creating a duplicate status model.
+
+Clearly distinguish:
+
+MANDATORY
+OPTIONAL
+
+Show:
+
+Mandatory Documents: X / 4
+
+Do not count optional documents toward mandatory completion.
+
+==================================================
+3. ADMIN VIEW DOCUMENT
+==================================================
+
+Admin should have a:
+
+[View]
+
+action for uploaded documents.
+
+When Admin clicks View:
+
+Open the document securely.
+
+For images:
+
+- JPG/JPEG
+- PNG
+- WebP
+
+show an appropriate preview.
+
+For PDFs:
+
+open/display the PDF using the existing application/browser-supported approach.
+
+Do NOT expose the underlying private storage path directly if the existing storage architecture supports secure/signed access.
+
+==================================================
+4. ADMIN AUTHORIZATION
+==================================================
+
+Only authorized Admin users may view Vendor documents.
+
+Do NOT allow:
+
+- Customer to view Vendor documents
+- Vendor A to view Vendor B's documents
+- Delivery Partner to view Vendor documents
+
+Admin authorization must be enforced server-side.
+
+Do not rely only on hiding the UI.
+
+==================================================
+5. REUSE EXISTING DOCUMENT API/MODEL
+==================================================
+
+Inspect the existing endpoint:
+
+GET /api/vendor/documents
+
+and the existing Vendor Documents service/model.
+
+Do NOT duplicate this logic unnecessarily.
+
+Create an Admin-authorized document retrieval endpoint/service only if the existing endpoint cannot safely support Admin access.
+
+For example, if appropriate to the current architecture:
+
+GET /api/admin/vendors/:vendorId/documents
+
+The endpoint must:
+
+1. Verify Admin authentication.
+2. Verify ADMIN role/server-side.
+3. Resolve the requested Vendor/Store.
+4. Retrieve that Vendor's document metadata.
+5. Return only the requested Vendor's documents.
+6. Provide secure viewing access when requested.
+
+Do not return documents belonging to any other Vendor.
+
+==================================================
+6. STORAGE SECURITY
+==================================================
+
+Vendor documents are sensitive.
+
+Especially:
+
+- Aadhaar
+- PAN
+- FSSAI
+
+Do NOT make Vendor documents public.
+
+Do NOT change the existing private storage policy.
+
+Admin document viewing should use secure access consistent with the existing Vendor Documents storage architecture.
+
+Do not expose permanent public URLs.
+
+If signed URLs are already used, reuse the existing secure mechanism.
+
+==================================================
+7. DOCUMENT METADATA
+==================================================
+
+Display useful metadata already stored by the Vendor Documents implementation, such as:
+
+- Document type
+- Upload status
+- Original filename, if appropriate
+- Uploaded date
+- Last updated date
+- Current version
+
+Do not expose unnecessary storage internals.
+
+Do not display storage paths.
+
+Do not expose internal IDs unnecessarily.
+
+==================================================
+8. REPLACED DOCUMENTS
+==================================================
+
+If the Vendor replaces a document:
+
+Admin should see the CURRENT active document.
+
+Example:
+
+FSSAI License
+Current document
+Uploaded: 08 Oct 2026
+[View]
+
+Do not accidentally show an obsolete version as the current document.
+
+If the existing implementation maintains document history, preserve it.
+
+Do not delete or modify document history just to implement Admin viewing.
+
+==================================================
+9. ADMIN VENDOR LIST
+==================================================
+
+If practical within the existing Vendor directory, add a simple indicator such as:
+
+Documents
+4/4 Complete
+
+or:
+
+Documents
+Incomplete
+
+Do NOT redesign the Vendor directory.
+
+This is optional only if it can be implemented cleanly using existing data.
+
+The primary requirement is that documents are visible in Vendor Details.
+
+==================================================
+10. DOCUMENT COMPLETION STATUS
+==================================================
+
+Admin should be able to immediately understand whether the Vendor has completed onboarding.
+
+Example:
+
+Document Verification
+
+✓ Mandatory documents complete
+
+or:
+
+⚠ Mandatory documents incomplete
+
+2 / 4 complete
+
+This is informational.
+
+Do NOT automatically approve or reject the Vendor based solely on document upload unless the existing business rules already define such behavior.
+
+Uploading documents does NOT automatically mean the Vendor is approved.
+
+==================================================
+11. DO NOT ADD DOCUMENT APPROVAL WORKFLOW
+==================================================
+
+IMPORTANT:
+
+For this task, Admin needs to:
+
+- View documents
+- See completion status
+
+Do NOT add:
+
+- Approve Document
+- Reject Document
+- Document verification workflow
+- Document review states
+- Complex compliance dashboard
+
+unless already present in the existing architecture.
+
+Keep this implementation simple.
+
+==================================================
+12. VENDOR PORTAL MUST CONTINUE WORKING
+==================================================
+
+After the Admin changes:
+
+Vendor must still be able to:
+
+- Upload documents
+- View documents
+- Replace documents
+- See completion status
+
+Do not break:
+
+GET /api/vendor/documents
+
+or existing upload/replace functionality.
+
+==================================================
+13. ADMIN MOBILE RESPONSIVENESS
+==================================================
+
+The Admin Vendor Documents section must also work in the responsive/mobile UI that was recently implemented.
+
+On mobile:
+
+Document cards should stack vertically.
+
+Example:
+
+FSSAI License
+Mandatory
+Uploaded
+
+[View]
+
+Aadhaar Card
+Mandatory
+Uploaded
+
+[View]
+
+Do not introduce horizontal overflow.
+
+Desktop should continue to use the existing Admin layout.
+
+==================================================
+14. SECURITY TESTS
+==================================================
+
+Add focused tests for:
+
+1. Admin can retrieve Vendor document metadata.
+2. Admin can securely view an uploaded Vendor document.
+3. Non-admin cannot access the Admin Vendor document endpoint.
+4. Vendor A cannot retrieve Vendor B's documents.
+5. Customer cannot retrieve Vendor documents.
+6. Delivery Partner cannot retrieve Vendor documents.
+7. Only the requested Vendor's documents are returned.
+8. Current document is shown after replacement.
+9. Mandatory completion calculation is correct.
+10. Existing Vendor upload/replace functionality remains intact.
+
+==================================================
+15. MANUAL TEST
+==================================================
+
+After implementation, provide this manual test:
+
+### Step 1
+
+Login as Vendor.
+
+Upload:
+
+- FSSAI
+- Aadhaar
+- PAN
+- Photo
+
+### Step 2
+
+Login as Admin.
+
+Go to:
+
+Admin
+→ Vendors
+→ Select the same Vendor
+→ Vendor Details
+
+Expected:
+
+Vendor Documents section appears.
+
+Expected:
+
+Mandatory Documents
+4 / 4 Complete
+
+### Step 3
+
+Click View on FSSAI.
+
+Expected:
+
+The uploaded document opens securely.
+
+### Step 4
+
+Replace the Vendor's FSSAI document from Vendor Portal.
+
+Return to Admin Vendor Details.
+
+Expected:
+
+Admin sees the NEW current FSSAI document.
+
+### Step 5
+
+Check another Vendor.
+
+Expected:
+
+Admin sees only that Vendor's own documents.
+
+### Step 6
+
+Test mobile Admin view.
+
+Expected:
+
+Document cards fit the mobile screen without horizontal scrolling.
+
+==================================================
+16. DOCUMENTATION
+==================================================
+
+Update/create:
+
+docs/ADMIN_VENDOR_DOCUMENT_VIEWING_IMPLEMENTATION_REPORT.md
+
+Include:
+
+- Existing document architecture reused
+- API changes
+- Admin authorization
+- Storage/security approach
+- UI changes
+- Document completion display
+- Replacement behavior
+- Tests and exact pass/fail counts
+- Manual test checklist
+- Confirmation that Vendor/Product/Order/Stock/Customer/Delivery data was not modified
+
+==================================================
+FINAL STOP CONDITION
+==================================================
+
+Implement ONLY Admin visibility of Vendor Documents.
+
+Do not redesign the Admin Portal.
+
+Do not redesign Vendor Documents.
+
+Do not modify the Vendor document upload workflow unnecessarily.
+
+Do not create duplicate document/storage architecture.
+
+Do not add document approval/rejection workflow.
+
+Do not deploy.
+
+Do not run automated browser tests.
+
+Do not fix unrelated pre-existing errors.
+
+After implementation and focused testing, STOP and provide the final report.

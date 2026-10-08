@@ -220,6 +220,49 @@ paths:
           content:
             application/octet-stream:
               schema: {type: string, format: binary}
+  /admin/vendors/{vendorId}/documents:
+    get:
+      operationId: getAdminVendorDocuments
+      tags: [VendorDocuments]
+      description: Admin-only current document metadata for the requested Vendor account. Upload completion is informational, not approval.
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Current requested-store metadata; no private object references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDocumentStatus'
+        '401': {description: Authentication required}
+        '403': {description: Admin role required}
+        '404': {description: Vendor or linked store not found}
+  /admin/vendors/{vendorId}/documents/{documentId}/content:
+    get:
+      operationId: viewAdminVendorDocument
+      tags: [VendorDocuments]
+      description: Admin-only current private document bytes scoped to the requested Vendor account.
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: documentId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Private no-store bytes with inline filename and actual document MIME type
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        '401': {description: Authentication required}
+        '403': {description: Admin role required}
+        '404': {description: Requested Vendor/current document not found}
   /vendor/product-matches:
     get:
       operationId: getVendorProductMatches
@@ -951,6 +994,7 @@ components:
         mimeType: {type: string, enum: [application/pdf, image/jpeg, image/png]}
         sizeBytes: {type: integer, minimum: 1, maximum: 5242880}
         uploadedAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
         version: {type: integer, minimum: 1}
     VendorDocumentSummary:
       type: object
