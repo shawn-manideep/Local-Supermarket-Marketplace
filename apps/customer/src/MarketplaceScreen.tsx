@@ -417,6 +417,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   };
 
   const addToCart = async (selected: CustomerProduct, variant: CustomerProductVariant, qty: number, confirmStoreSwitch = false) => {
+    if (store?.id === selected.storeId && store.operatingStatus === "CLOSED") {
+      setError("This store is currently closed and cannot accept orders.");
+      return;
+    }
     if (!canPurchaseVariant(selected, variant)) {
       setError("This option is currently unavailable.");
       return;
@@ -559,7 +563,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <>
               <Text style={[typography.title3, { marginVertical: spacing.md }]}>{globalPagination?.total ?? globalProducts.length} matching store offers</Text>
               <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
-                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+                {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} quickAddEnabled={false} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
               </View>
               <PaginationControls pagination={globalPagination} onPageChange={setGlobalPage} />
             </>
@@ -575,7 +579,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       backLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}
       onBack={closeProduct}
       onSelect={variant => {
-        if (!canPurchaseVariant(product, variant) || adding || switchDialogLoading) return;
+        if (store.operatingStatus !== "OPEN" || !canPurchaseVariant(product, variant) || adding || switchDialogLoading) return;
         if (variant.id !== selectedVariantId) { setSelectedVariantId(variant.id); setQuantity(1); }
         setError("");
       }}
@@ -591,7 +595,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
           <View style={styles.storeHeading}>
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Closed"} · Serves {pincode}</Text></View>
+            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Currently Closed"} · Serves {pincode}</Text></View>
           </View>
           {productSearchField("Search products or stores")}
 
@@ -618,7 +622,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </View>
           ) : (
             <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
-              {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+      {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} storeOperatingStatus={store.operatingStatus} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
             </View>
           )}
           <PaginationControls pagination={storePagination} onPageChange={setStorePage} />

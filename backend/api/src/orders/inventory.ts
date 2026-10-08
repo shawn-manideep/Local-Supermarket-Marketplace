@@ -70,12 +70,20 @@ export async function restoreOrderStock(tx: InventoryTransaction, id: string) {
 }
 
 /** Called after the same per-customer lock as checkout/cart mutations. */
-export async function checkoutReplay(tx: InventoryTransaction, customerId: string, request: { idempotencyKey: string; cartId: string; addressId: string }) {
-  const existing = await tx.execute(sql`SELECT id, checkout_key, checkout_cart_id, checkout_address_id FROM orders
+export async function checkoutReplay(tx: InventoryTransaction, customerId: string, request: {
+  idempotencyKey: string; cartId: string; addressId: string;
+  deliveryMode?: "INSTANT" | "SCHEDULED"; scheduledStartAt?: string; scheduledEndAt?: string;
+}) {
+  const existing = await tx.execute(sql`SELECT id, checkout_key, checkout_cart_id, checkout_address_id,
+    delivery_mode,scheduled_start_at,scheduled_end_at FROM orders
     WHERE customer_id = ${customerId} AND (checkout_key = ${request.idempotencyKey} OR checkout_cart_id = ${request.cartId})`);
   if (!existing.rows.length) return null;
   const row = existing.rows[0]!;
-  if (existing.rows.length !== 1 || row.checkout_cart_id !== request.cartId || row.checkout_address_id !== request.addressId)
+  const instant = (value: unknown) => value == null ? null : new Date(String(value)).getTime();
+  if (existing.rows.length !== 1 || row.checkout_cart_id !== request.cartId || row.checkout_address_id !== request.addressId ||
+      row.delivery_mode !== (request.deliveryMode ?? "INSTANT") ||
+      instant(row.scheduled_start_at) !== instant(request.scheduledStartAt) ||
+      instant(row.scheduled_end_at) !== instant(request.scheduledEndAt))
     throw new HttpError(409, "This checkout request was already used for another cart or address. Please check your order history before trying again.", undefined, "IDEMPOTENCY_CONFLICT");
   return row.id as string;
 }

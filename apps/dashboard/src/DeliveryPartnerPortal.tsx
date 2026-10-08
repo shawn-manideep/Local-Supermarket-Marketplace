@@ -35,6 +35,25 @@ function dateTime(value: string) {
   return Number.isNaN(date.getTime()) ? "Time unavailable" : new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", day: "numeric", month: "short" }).format(date);
 }
 
+type ScheduleFields = { deliveryMode?: "INSTANT" | "SCHEDULED"; scheduledStartAt?: string | null; scheduledEndAt?: string | null };
+function scheduleFields(delivery: DeliveryAssignment): ScheduleFields {
+  return delivery as DeliveryAssignment & ScheduleFields;
+}
+function scheduledLabel(delivery: DeliveryAssignment) {
+  const { deliveryMode, scheduledStartAt, scheduledEndAt } = scheduleFields(delivery);
+  if (deliveryMode !== "SCHEDULED" || !scheduledStartAt || !scheduledEndAt) return "Instant delivery";
+  const start = new Date(scheduledStartAt);
+  const end = new Date(scheduledEndAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "Scheduled delivery";
+  const day = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }).format(start);
+  const time = (value: Date) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }).format(value);
+  return `Scheduled delivery · ${day} · ${time(start)}–${time(end)} IST`;
+}
+function waitForScheduledStart(delivery: DeliveryAssignment) {
+  const { deliveryMode, scheduledStartAt } = scheduleFields(delivery);
+  return deliveryMode === "SCHEDULED" && Boolean(scheduledStartAt) && Date.now() < new Date(scheduledStartAt!).getTime();
+}
+
 function snapshotAddress(value: DeliveryAssignment["deliveryAddress"]) {
   if (!value || typeof value !== "object") return "";
   const fields = value as Record<string, unknown>;
@@ -186,6 +205,10 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
     const current = selectedDelivery;
     const signal = activeController.current?.signal;
     if (!current || !signal || signal.aborted || actionGate.current || !deliveryActions[current.status]?.some((item) => item.action === action)) return;
+    if ((action === "PICKUP" || action === "START") && waitForScheduledStart(current)) {
+      setActionError("This is a scheduled delivery. Pickup and delivery can start at the selected window.");
+      return;
+    }
     actionGate.current = true;
     setActionPending(action);
     setActionError("");
@@ -263,9 +286,9 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
                </div>
                <aside className="lbp-aside-card"><div><p className="lbp-kicker">Partner note</p><h2>One clear next step at a time.</h2></div><p>Delivery updates refresh automatically every 45 seconds. Open an assignment to review its current status and available actions.</p></aside>
              </section>
-             <section className="lbp-panel lbp-dashboard-activity" aria-label="Recent delivery activity">
+              <section className="lbp-panel lbp-dashboard-activity" aria-label="Recent delivery activity">
                <div className="lbp-section-head"><div><p className="lbp-kicker">On your route</p><h2>Delivery activity</h2></div><button className="lbp-button lbp-button-quiet" type="button" data-testid="button-partner-view-deliveries" onClick={() => setScreen("deliveries")}>View all deliveries</button></div>
-               {data.deliveries?.length ? <div className="lbp-dashboard-delivery-list">{data.deliveries.slice(0, 3).map((delivery) => <article className="lbp-dashboard-delivery" key={delivery.id}><div className="lbp-dashboard-delivery-copy"><span className="lbp-delivery-ref">{delivery.orderReference}</span><span className="lbp-delivery-time">{delivery.storeName} · Updated {dateTime(delivery.updatedAt)}</span></div><span className={`lbp-status lbp-status-${delivery.status.toLowerCase()}`}>{prettyStatus(delivery.status)}</span><button className="lbp-button lbp-button-quiet lbp-open-delivery" type="button" data-testid={`button-partner-open-delivery-${delivery.id}`} onClick={() => { setScreen("deliveries"); void openDelivery(delivery.id); }}>View delivery</button></article>)}</div> : <div className="lbp-empty lbp-dashboard-empty"><strong>No deliveries assigned yet</strong><span>New assignments will appear here when they are available.</span></div>}
+                {data.deliveries?.length ? <div className="lbp-dashboard-delivery-list">{data.deliveries.slice(0, 3).map((delivery) => <article className="lbp-dashboard-delivery" key={delivery.id}><div className="lbp-dashboard-delivery-copy"><span className="lbp-delivery-ref">{delivery.orderReference}</span><span className="lbp-delivery-time">{delivery.storeName} · Updated {dateTime(delivery.updatedAt)}</span><span className="lbp-delivery-schedule">{scheduledLabel(delivery)}</span></div><span className={`lbp-status lbp-status-${delivery.status.toLowerCase()}`}>{prettyStatus(delivery.status)}</span><button className="lbp-button lbp-button-quiet lbp-open-delivery" type="button" data-testid={`button-partner-open-delivery-${delivery.id}`} onClick={() => { setScreen("deliveries"); void openDelivery(delivery.id); }}>View delivery</button></article>)}</div> : <div className="lbp-empty lbp-dashboard-empty"><strong>No deliveries assigned yet</strong><span>New assignments will appear here when they are available.</span></div>}
              </section>
            </div>
         ) : screen === "deliveries" && selectedDelivery ? (
@@ -286,12 +309,14 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
                   <div className="lbp-delivery-detail-item"><span>Store</span><strong>{selectedDelivery.storeName}</strong></div>
                   <div className="lbp-delivery-detail-item"><span>Order status</span><strong>{prettyStatus(selectedDelivery.orderStatus)}</strong></div>
                   <div className="lbp-delivery-detail-item"><span>Order total</span><strong>₹{Number(selectedDelivery.orderTotal).toFixed(2)}</strong></div>
+                  <div className="lbp-delivery-detail-item lbp-schedule-item"><span>Delivery window</span><strong>{scheduledLabel(selectedDelivery)}</strong></div>
                   <div className="lbp-delivery-detail-item"><span>Recipient</span><strong>{selectedDelivery.recipientName || "Not provided"}</strong></div>
                   <div className="lbp-delivery-detail-item lbp-address-item"><span>Delivery address</span><strong>{snapshotAddress(selectedDelivery.deliveryAddress) || "Address not available"}</strong></div>
                 </div>
+                  {waitForScheduledStart(selectedDelivery) && (selectedDelivery.status === "ACCEPTED" || selectedDelivery.status === "PICKED_UP") && <div className="lbp-scheduled-wait" role="status"><strong>Scheduled delivery</strong><span>Pickup and start are available at {scheduledLabel(selectedDelivery).replace("Scheduled delivery · ", "")}. The assignment remains in its current step until then.</span></div>}
                   {deliveryActions[selectedDelivery.status]?.length ? <div className="lbp-duty-actions">
                   <span className="lbp-duty-caption">Next step</span>
-                  {deliveryActions[selectedDelivery.status]!.map(({ action, label }) => <button key={action} className={action === "REJECT" ? "lbp-button lbp-button-danger" : "lbp-button lbp-button-primary"} type="button" disabled={!!actionPending || detailLoading || !!detailError} data-testid={`button-delivery-action-${action.toLowerCase()}`} onClick={() => action === "REJECT" ? setRejectConfirmation(true) : void performAction(action)}>{actionPending === action ? "Updating…" : label}</button>)}
+                  {deliveryActions[selectedDelivery.status]!.map(({ action, label }) => <button key={action} className={action === "REJECT" ? "lbp-button lbp-button-danger" : "lbp-button lbp-button-primary"} type="button" disabled={!!actionPending || detailLoading || !!detailError || ((action === "PICKUP" || action === "START") && waitForScheduledStart(selectedDelivery))} data-testid={`button-delivery-action-${action.toLowerCase()}`} onClick={() => action === "REJECT" ? setRejectConfirmation(true) : void performAction(action)}>{actionPending === action ? "Updating…" : label}</button>)}
                 </div> : <p className="lbp-terminal-note">This assignment has no further actions.</p>}
               </>
             )}
@@ -303,7 +328,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
         ) : screen === "deliveries" ? (
           <section className="lbp-panel lbp-content-panel">
             <div className="lbp-section-head"><h2>Delivery activity</h2><label className="lbp-filter">Filter <select className="lbp-admin-status" aria-label="Filter deliveries by status" data-testid="select-delivery-status" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">All statuses</option>{Array.from(new Set((data.deliveries ?? []).map((item) => item.status))).sort().map((status) => <option key={status} value={status}>{prettyStatus(status)}</option>)}</select></label></div>
-            {visibleDeliveries.length ? <div className="lbp-delivery-list">{visibleDeliveries.map((delivery) => <article className="lbp-delivery-row" key={delivery.id}><div><div className="lbp-delivery-ref">{delivery.orderReference}</div><div className="lbp-delivery-time">{delivery.storeName} · Updated {dateTime(delivery.updatedAt)}</div></div><span className={`lbp-status lbp-status-${delivery.status.toLowerCase()}`}>{prettyStatus(delivery.status)}</span><button className="lbp-button lbp-button-quiet lbp-open-delivery" type="button" onClick={() => void openDelivery(delivery.id)}>View delivery</button></article>)}</div> : <div className="lbp-empty"><strong>{filter === "ALL" ? "No deliveries assigned yet" : "No deliveries in this status"}</strong><span>{filter === "ALL" ? "When delivery activity is recorded, it will appear here." : "Try another status filter to see delivery activity."}</span></div>}
+             {visibleDeliveries.length ? <div className="lbp-delivery-list">{visibleDeliveries.map((delivery) => <article className="lbp-delivery-row" key={delivery.id}><div><div className="lbp-delivery-ref">{delivery.orderReference}</div><div className="lbp-delivery-time">{delivery.storeName} · Updated {dateTime(delivery.updatedAt)}</div><div className="lbp-delivery-schedule">{scheduledLabel(delivery)}</div></div><span className={`lbp-status lbp-status-${delivery.status.toLowerCase()}`}>{prettyStatus(delivery.status)}</span><button className="lbp-button lbp-button-quiet lbp-open-delivery" type="button" onClick={() => void openDelivery(delivery.id)}>View delivery</button></article>)}</div> : <div className="lbp-empty"><strong>{filter === "ALL" ? "No deliveries assigned yet" : "No deliveries in this status"}</strong><span>{filter === "ALL" ? "When delivery activity is recorded, it will appear here." : "Try another status filter to see delivery activity."}</span></div>}
           </section>
         ) : (
           <section className="lbp-panel lbp-content-panel">

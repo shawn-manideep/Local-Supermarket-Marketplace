@@ -1,7 +1,28 @@
 import { supabase } from "./supabase";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 export type { CustomerShoppingCategory } from "../../../../lib/api-client-react/src/generated/api.schemas";
-export type { CustomerCheckoutSubmission } from "../../../../lib/api-client-react/src/generated/api.schemas";
+
+export type CustomerDeliveryMode = "INSTANT" | "SCHEDULED";
+export interface CustomerCheckoutSubmission {
+  cartId: string;
+  addressId: string;
+  paymentMethod: "COD";
+  idempotencyKey: string;
+  deliveryMode: CustomerDeliveryMode;
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
+}
+
+export interface CustomerDeliverySlot {
+  startAt: string;
+  endAt: string;
+}
+
+export interface CustomerDeliverySlotsResponse {
+  timeZone: "Asia/Kolkata";
+  operatingStatus: "OPEN" | "CLOSED";
+  slots: CustomerDeliverySlot[];
+}
 
 export class CustomerRequestError extends Error {
   constructor(message: string, public readonly status: number, public readonly code?: string) {
@@ -129,6 +150,7 @@ export interface CustomerCart {
   minimumOrderValue: string;
   total: string;
   checkoutReady: boolean;
+  operatingStatus: "OPEN" | "CLOSED";
 }
 
 export type CustomerOrderStatus = "PLACED" | "ACCEPTED" | "PREPARING" | "READY" | "OUT_FOR_DELIVERY" | "DELIVERED" | "REJECTED" | "CANCELLED";
@@ -139,6 +161,9 @@ export interface CustomerOrderSummary {
   status: CustomerOrderStatus;
   totalAmount: string;
   createdAt: string;
+  deliveryMode: CustomerDeliveryMode;
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
   itemSummary: Array<{
     productNameSnapshot: string;
     variantNameSnapshot?: string | null;

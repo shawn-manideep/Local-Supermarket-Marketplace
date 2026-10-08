@@ -579,7 +579,15 @@ export const customerOrderCreateSchema = z.object({
   paymentMethod: z.literal("COD"),
   cartId: z.string().uuid(),
   idempotencyKey: z.string().uuid(),
-}).strict();
+  deliveryMode: z.enum(["INSTANT", "SCHEDULED"]).default("INSTANT"),
+  scheduledStartAt: z.string().datetime({ offset: true }).optional(),
+  scheduledEndAt: z.string().datetime({ offset: true }).optional(),
+}).strict().superRefine((input, context) => {
+  if (input.deliveryMode === "SCHEDULED" && (!input.scheduledStartAt || !input.scheduledEndAt))
+    context.addIssue({ code: "custom", message: "Choose a delivery slot.", path: ["scheduledStartAt"] });
+  if (input.deliveryMode === "INSTANT" && (input.scheduledStartAt || input.scheduledEndAt))
+    context.addIssue({ code: "custom", message: "Instant delivery cannot contain a scheduled slot.", path: ["deliveryMode"] });
+});
 
 export const customerOrderIdParamSchema = z.object({
   orderId: z.string().uuid(),

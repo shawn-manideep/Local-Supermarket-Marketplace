@@ -41,7 +41,7 @@ before(async () => {
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
     SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
   const migrations = new URL("../../../../database/migrations/", import.meta.url);
-  for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !file.startsWith("0019")).sort()) {
+  for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !file.startsWith("0019") && !file.startsWith("0021")).sort()) {
     await pool.query(await readFile(new URL(file, migrations), "utf8"));
   }
   for (const id of [legacy, vendorA, vendorB, customer, admin, delivery]) {
@@ -56,6 +56,7 @@ before(async () => {
   await pool.query("INSERT INTO product_variants(id,product_id,name,quantity_value,quantity_unit,price,stock_quantity) VALUES($1,$2,'One kg',1,'kg',17,19)", [protectedVariant, protectedProduct]);
   baseline = (await pool.query("SELECT to_jsonb(p)-'brand'-'requested_category_name' AS p, to_jsonb(v) AS v FROM products p JOIN product_variants v ON v.product_id=p.id WHERE p.id=$1", [protectedProduct])).rows;
   await pool.query(await readFile(new URL("0019_vendor_documents_and_local_products.sql", migrations), "utf8"));
+  await pool.query(await readFile(new URL("0021_orderability_delivery_verification.sql", migrations), "utf8"));
   for (const [id, owner] of [[storeA, vendorA], [storeB, vendorB]]) {
     await pool.query("INSERT INTO stores(id,owner_user_id,name,status) VALUES($1,$2,'New Vendor','ACTIVE')", [id, owner]);
     await pool.query("INSERT INTO store_service_pincodes(store_id,pincode) VALUES($1,'500090')", [id]);
@@ -105,16 +106,19 @@ after(async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+// Distinct synthetic actors originate from distinct test IPs; production rate
+// limiting remains enabled and unchanged.
+const actorIp = (actor: string | null) => `203.0.113.${([legacy, vendorA, vendorB, customer, admin, delivery] as string[]).indexOf(actor ?? "") + 2}`;
 type QAResponse = Omit<Response, "json"> & { json(): Promise<any> };
 async function request(actor: string | null, path: string, method = "GET", body?: unknown): Promise<QAResponse> {
   return originalFetch(`${base}${path}`, {
-    method, headers: { ...(actor ? { Authorization: `Bearer ${actor}` } : {}), "Content-Type": "application/json" },
+    method, headers: { ...(actor ? { Authorization: `Bearer ${actor}` } : {}), "Content-Type": "application/json", "X-Forwarded-For": actorIp(actor) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
 async function upload(actor: string, type: string, bytes = pdf, fileName = "license.pdf", mimeType = "application/pdf"): Promise<QAResponse> {
   return originalFetch(`${base}/api/vendor/documents/${type}?fileName=${encodeURIComponent(fileName)}`, {
-    method: "PUT", headers: { Authorization: `Bearer ${actor}`, "Content-Type": mimeType }, body: new Uint8Array(bytes),
+    method: "PUT", headers: { Authorization: `Bearer ${actor}`, "Content-Type": mimeType, "X-Forwarded-For": actorIp(actor) }, body: new Uint8Array(bytes),
   });
 }
 const localInput = () => ({
@@ -134,7 +138,7 @@ test("new vendors require documents; existing vendors are grandfathered with no 
   assert.equal(fresh.mandatoryCount, 0); assert.equal(fresh.optionalCount, 0);
   assert.deepEqual(fresh.documents.map((item: { label: string }) => item.label),
     ["FSSAI License", "Aadhaar Card", "PAN Card", "Photo", "GST", "Trade License", "Labour License"]);
-  assert.equal(fresh.message, "Complete your document verification before managing your catalog.");
+  assert.equal(fresh.message, "Upload all mandatory documents, submit for verification and await Admin approval.");
 });
 test("server gate covers direct product/category/variant mutations and Master selection", async () => {
   for (const [path, method, body] of [
@@ -174,7 +178,7 @@ test("uploads reject invalid extensions, MIME, empty, corrupt, oversize and unkn
   assert.equal((await pool.query("SELECT count(*)::integer AS n FROM vendor_documents")).rows[0].n, 0);
   assert.equal(objects.size, 0);
 });
-test("optional uploads do not unlock; three mandatory still blocked; four unlock", async () => {
+test("optional uploads and four mandatory uploads remain locked until submission and Admin approval", async () => {
   const optional = await upload(vendorA, "gst");
   assert.equal(optional.status, 201);
   assert.equal((await optional.json()).canManageCatalog, false);
@@ -183,8 +187,16 @@ test("optional uploads do not unlock; three mandatory still blocked; four unlock
   assert.equal(partial.mandatoryCount, 3); assert.equal(partial.optionalCount, 1);
   assert.equal((await request(vendorA, "/api/vendor/products", "POST", localInput())).status, 403);
   const complete = await (await upload(vendorA, "photo")).json();
-  assert.equal(complete.mandatoryCount, 4); assert.equal(complete.canManageCatalog, true);
-  assert.equal(complete.message, "Your mandatory documents are complete. You can now manage your catalog.");
+  assert.equal(complete.mandatoryCount, 4); assert.equal(complete.canManageCatalog, false);
+  assert.equal(complete.verificationStatus, "DRAFT");
+  const submitted = await (await request(vendorA, "/api/vendor/documents/submit", "POST", {})).json();
+  assert.equal(submitted.verificationStatus, "SUBMITTED");
+  assert.equal(submitted.canManageCatalog, false);
+  assert.equal((await request(vendorA, "/api/vendor/products", "POST", localInput())).status, 403);
+  assert.equal((await upload(vendorA, "pan")).status, 409);
+  const approved = await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`, "POST", { submissionId: submitted.submissionId });
+  assert.equal(approved.status, 200);
+  assert.equal((await approved.json()).canManageCatalog, true);
   documentId = complete.documents.find((item: { type: string }) => item.type === "fssai").current.id;
   assert.ok(!JSON.stringify(complete).includes("qa-private"));
   assert.ok(!JSON.stringify(complete).includes("object_ref"));
@@ -219,6 +231,9 @@ test("replacements retain versions, failed provider upload leaves current valid 
   assert.equal((await request(vendorA, "/api/vendor/documents/fssai", "DELETE")).status, 404);
   const rows = (await pool.query("SELECT version,is_current FROM vendor_documents WHERE store_id=$1 AND document_type='fssai' ORDER BY version", [storeA])).rows;
   assert.deepEqual(rows, [{ version: 1, is_current: false }, { version: 2, is_current: true }]);
+  assert.equal(replacement.canManageCatalog, false);
+  const submitted = await (await request(vendorA, "/api/vendor/documents/submit", "POST", {})).json();
+  assert.equal((await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`, "POST", { submissionId: submitted.submissionId })).status, 200);
 });
 test("atomic store-local creation uses existing products/variants, no global writes or other-vendor access", async () => {
   const response = await request(vendorA, "/api/vendor/products", "POST", localInput());
@@ -404,4 +419,139 @@ test("Admin reads and denials leave all existing public-table data unchanged", a
   assert.equal((await request(customer, adminPath())).status, 403);
   assert.equal((await request(admin, `${adminPath(vendorB)}/${adminCurrentId}/content`)).status, 404);
   assert.deepEqual(await snapshot(), before);
+});
+
+test("new Vendor submission, partial rejection, correction and receipt-safe approval", async () => {
+  assert.equal((await request(vendorB, "/api/vendor/documents/submit", "POST", {})).status, 409);
+  for (const type of ["fssai", "aadhaar", "pan", "photo", "gst"]) assert.equal((await upload(vendorB, type)).status, 201);
+  const uploaded = await (await request(vendorB, "/api/vendor/documents")).json();
+  assert.equal(uploaded.canManageCatalog, false);
+  const pending = await (await request(vendorB, "/api/vendor/documents/submit", "POST", {})).json();
+  assert.equal(pending.verificationStatus, "SUBMITTED"); assert.equal(pending.canManageCatalog, false);
+  for (const actor of [null, vendorA, vendorB, customer, delivery]) {
+    for (const action of ["approve", "reject"]) {
+      const response = await request(actor, `${adminPath(vendorB)}/${action}`, "POST",
+        { submissionId: pending.submissionId, ...(action === "reject" ? { reason: "Unclear PAN", rejectedTypes: ["pan"] } : {}) });
+      assert.equal(response.status, actor === null ? 401 : 403);
+    }
+  }
+  assert.equal((await request(admin, `${adminPath(vendorA)}/approve`, "POST", { submissionId: pending.submissionId })).status, 409);
+  assert.equal((await request(admin, `${adminPath(vendorB)}/reject`, "POST", { submissionId: pending.submissionId, reason: "  ", rejectedTypes: ["pan"] })).status, 400);
+  assert.equal((await request(admin, `${adminPath(vendorB)}/reject`, "POST", { submissionId: pending.submissionId, reason: "Invalid", rejectedTypes: ["gst"] })).status, 400);
+  const rejectedResponse = await request(admin, `${adminPath(vendorB)}/reject`, "POST",
+    { submissionId: pending.submissionId, reason: "PAN image is unclear", rejectedTypes: ["pan"] });
+  assert.equal(rejectedResponse.status, 200);
+  const rejected = await rejectedResponse.json();
+  assert.equal(rejected.verificationStatus, "REJECTED"); assert.equal(rejected.canManageCatalog, false);
+  assert.equal(rejected.rejectionReason, "PAN image is unclear");
+  assert.equal(rejected.documents.find((d: any) => d.type === "pan").current.verificationStatus, "REJECTED");
+  assert.equal(rejected.documents.find((d: any) => d.type === "fssai").current.verificationStatus, "APPROVED");
+  assert.equal(rejected.documents.find((d: any) => d.type === "gst").current.verificationStatus, "DRAFT");
+  assert.equal((await request(vendorB, "/api/vendor/products", "POST", localInput())).status, 403);
+  assert.equal((await upload(vendorB, "pan", pdf, "clear-pan.pdf")).status, 201);
+  const resubmitted = await (await request(vendorB, "/api/vendor/documents/submit", "POST", {})).json();
+  assert.notEqual(resubmitted.submissionId, pending.submissionId);
+  assert.equal((await request(admin, `${adminPath(vendorB)}/approve`, "POST", { submissionId: pending.submissionId })).status, 409);
+  const approved = await request(admin, `${adminPath(vendorB)}/approve`, "POST", { submissionId: resubmitted.submissionId });
+  assert.equal(approved.status, 200); assert.equal((await approved.json()).canManageCatalog, true);
+  const ownProduct = await request(vendorB, "/api/vendor/products", "POST",
+    { ...localInput(), name: "Store B jasmine rice", brand: "Store B Brand" });
+  assert.equal(ownProduct.status, 201);
+  assert.equal((await pool.query("SELECT count(*)::integer AS n FROM vendor_documents WHERE store_id=$1 AND document_type='pan'", [storeB])).rows[0].n, 2);
+  const direct = await pool.connect();
+  try {
+    await direct.query("SET ROLE authenticated");
+    await direct.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [vendorB]);
+    await assert.rejects(direct.query("UPDATE stores SET documents_required=false WHERE id=$1", [storeB]), /permission denied|API-only/);
+  } finally { await direct.query("RESET ROLE"); direct.release(); }
+});
+
+test("closed checkout and cart additions reject atomically while browsing remains possible", async () => {
+  assert.equal((await request(customer, "/api/customer/cart", "DELETE")).status, 204);
+  const row = (await pool.query(`SELECT p.id AS product,v.id AS variant,v.stock_quantity FROM products p
+    JOIN product_variants v ON v.product_id=p.id WHERE p.store_id=$1 AND p.is_active AND v.is_active
+    AND v.availability AND v.stock_quantity>2 ORDER BY v.id LIMIT 1`, [storeA])).rows[0];
+  const added = await request(customer, "/api/customer/cart/items", "POST", { productId: row.product, variantId: row.variant, quantity: 1 });
+  assert.equal(added.status, 201);
+  const cart = (await added.json()).cart;
+  const address = (await pool.query("SELECT id FROM customer_addresses WHERE customer_id=$1 LIMIT 1", [customer])).rows[0].id;
+  await pool.query("UPDATE store_operating_hours SET is_closed=true,opens_at=NULL,closes_at=NULL WHERE store_id=$1", [storeA]);
+  const digest = async () => (await pool.query(`SELECT
+    (SELECT jsonb_agg(to_jsonb(o) ORDER BY id) FROM orders o) AS orders,
+    (SELECT jsonb_agg(to_jsonb(v) ORDER BY id) FROM product_variants v) AS variants,
+    (SELECT jsonb_agg(to_jsonb(c) ORDER BY id) FROM carts c) AS carts,
+    (SELECT jsonb_agg(to_jsonb(i) ORDER BY id) FROM cart_items i) AS items,
+    (SELECT count(*) FROM delivery_assignments) AS deliveries`)).rows[0];
+  const before = await digest();
+  const closed = await request(customer, "/api/customer/orders", "POST",
+    { cartId: cart.id, addressId: address, idempotencyKey: randomUUID(), paymentMethod: "COD" });
+  assert.equal(closed.status, 409); assert.equal((await closed.json()).code, "STORE_CLOSED");
+  const scheduled = await request(customer, "/api/customer/orders", "POST", {
+    cartId: cart.id, addressId: address, idempotencyKey: randomUUID(), paymentMethod: "COD", deliveryMode: "SCHEDULED",
+    scheduledStartAt: new Date(Date.now() + 3_600_000).toISOString(), scheduledEndAt: new Date(Date.now() + 7_200_000).toISOString(),
+  });
+  assert.equal(scheduled.status, 409); assert.equal((await scheduled.json()).code, "STORE_CLOSED");
+  assert.equal((await request(customer, "/api/customer/cart/items", "POST", { productId: row.product, variantId: row.variant, quantity: 1 })).status, 409);
+  assert.equal((await request(customer, `/api/customer/cart/items/${cart.items[0].id}`, "PATCH", { quantity: 2 })).status, 409);
+  assert.equal((await request(customer, `/api/customer/stores/${storeA}?pincode=500090`)).status, 200);
+  const viewed = (await (await request(customer, "/api/customer/cart")).json()).cart;
+  assert.equal(viewed.operatingStatus, "CLOSED"); assert.equal(viewed.checkoutReady, false);
+  assert.equal(viewed.items[0].purchasable, true); // Closure is not out-of-stock.
+  assert.deepEqual(await digest(), before);
+  await pool.query("UPDATE store_operating_hours SET is_closed=false,opens_at='00:00',closes_at='23:59' WHERE store_id=$1", [storeA]);
+});
+
+test("Instant/Scheduled checkout snapshots, replay safety, stock deduction and own-product isolation", async () => {
+  const cart = (await (await request(customer, "/api/customer/cart")).json()).cart;
+  const address = (await pool.query("SELECT id FROM customer_addresses WHERE customer_id=$1 LIMIT 1", [customer])).rows[0].id;
+  const variant = (await pool.query("SELECT product_id,stock_quantity FROM product_variants WHERE id=$1", [cart.items[0].variantId])).rows[0];
+  const input = { cartId: cart.id, addressId: address, idempotencyKey: randomUUID(), paymentMethod: "COD" };
+  const instantResponse = await request(customer, "/api/customer/orders", "POST", input);
+  assert.equal(instantResponse.status, 201);
+  const instant = (await instantResponse.json()).order;
+  assert.equal(instant.deliveryMode, "INSTANT"); assert.equal(instant.scheduledStartAt, null);
+  assert.equal((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=$1", [cart.items[0].variantId])).rows[0].stock_quantity, variant.stock_quantity - 1);
+  const replay = (await (await request(customer, "/api/customer/orders", "POST", input)).json()).order;
+  assert.equal(replay.id, instant.id);
+  const nextCart = (await (await request(customer, "/api/customer/cart/items", "POST",
+    { productId: variant.product_id, variantId: cart.items[0].variantId, quantity: 1 })).json()).cart;
+  const slotsResponse = await request(customer, `/api/customer/stores/${storeA}/delivery-slots?pincode=500090`);
+  assert.equal(slotsResponse.status, 200);
+  const slots = (await slotsResponse.json()).slots;
+  assert.ok(slots.length);
+  const slot = slots[0];
+  const scheduledInput = { ...input, cartId: nextCart.id, idempotencyKey: randomUUID(), deliveryMode: "SCHEDULED",
+    scheduledStartAt: slot.startAt, scheduledEndAt: slot.endAt };
+  const scheduledResponse = await request(customer, "/api/customer/orders", "POST", scheduledInput);
+  assert.equal(scheduledResponse.status, 201);
+  const scheduled = (await scheduledResponse.json()).order;
+  assert.equal(scheduled.deliveryMode, "SCHEDULED"); assert.equal(scheduled.scheduledStartAt, slot.startAt);
+  assert.equal(scheduled.scheduledEndAt, slot.endAt);
+  assert.equal((await request(customer, "/api/customer/orders", "POST", { ...scheduledInput, deliveryMode: "INSTANT", scheduledStartAt: undefined, scheduledEndAt: undefined })).status, 409);
+  const stored = (await pool.query("SELECT delivery_mode,scheduled_start_at,scheduled_end_at FROM orders WHERE id=$1", [scheduled.id])).rows[0];
+  await pool.query("UPDATE store_operating_hours SET is_closed=true,opens_at=NULL,closes_at=NULL WHERE store_id=$1", [storeA]);
+  assert.deepEqual((await pool.query("SELECT delivery_mode,scheduled_start_at,scheduled_end_at FROM orders WHERE id=$1", [scheduled.id])).rows[0], stored);
+  const vendorView = await request(vendorA, `/api/vendor/orders/${scheduled.id}`);
+  assert.equal(vendorView.status, 200); assert.equal((await vendorView.json()).order.deliveryMode, "SCHEDULED");
+  const own = (await (await request(vendorB, "/api/vendor/products")).json()).products;
+  assert.ok(own.length > 0);
+  assert.ok(own.every((p: any) => p.storeId === storeB));
+  assert.ok(own.every((p: any) => p.id !== variant.product_id));
+  await pool.query("UPDATE store_operating_hours SET is_closed=false,opens_at='00:00',closes_at='23:59' WHERE store_id=$1", [storeA]);
+});
+
+test("hours writes serialize against the checkout store lock", async () => {
+  const checkout = await pool.connect(), writer = await pool.connect();
+  try {
+    await checkout.query("BEGIN");
+    await checkout.query("SELECT id FROM stores WHERE id=$1 FOR UPDATE", [storeA]);
+    await writer.query("BEGIN");
+    await writer.query("SET LOCAL lock_timeout='150ms'");
+    await assert.rejects(writer.query("UPDATE store_operating_hours SET is_closed=true WHERE store_id=$1", [storeA]), /lock timeout/);
+    await writer.query("ROLLBACK");
+    await checkout.query("COMMIT");
+    await writer.query("BEGIN");
+    await writer.query("UPDATE store_operating_hours SET is_closed=true WHERE store_id=$1", [storeA]);
+    await writer.query("ROLLBACK");
+  } finally { await checkout.query("ROLLBACK"); await writer.query("ROLLBACK"); checkout.release(); writer.release(); }
 });

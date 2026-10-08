@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CustomerCheckoutOutcomeOrderDeliveryMode } from './customerCheckoutOutcomeOrderDeliveryMode';
 import type { CustomerCheckoutOutcomeOrderItemsItem } from './customerCheckoutOutcomeOrderItemsItem';
 import type { CustomerCheckoutOutcomeOrderStatus } from './customerCheckoutOutcomeOrderStatus';
 import type { CustomerCheckoutOutcomeOrderStatusHistoryItem } from './customerCheckoutOutcomeOrderStatusHistoryItem';
@@ -13,6 +14,11 @@ import type { CustomerCheckoutOutcomeOrderStatusHistoryItem } from './customerCh
  * Existing safe order detail with immutable items and status history
  */
 export type CustomerCheckoutOutcomeOrder = {
+  deliveryMode?: CustomerCheckoutOutcomeOrderDeliveryMode;
+  /** @nullable */
+  scheduledStartAt?: Date | null;
+  /** @nullable */
+  scheduledEndAt?: Date | null;
   id: string;
   status: CustomerCheckoutOutcomeOrderStatus;
   totalAmount: string;

@@ -39,6 +39,7 @@ const projection = (kind: ManagementKind) => sql`p.id, ${name[kind]} AS "display
     ? sql`coalesce(s.email,CASE WHEN u.email LIKE '%@accounts.localbasket.invalid' THEN null ELSE u.email END)` : sql`u.email`} AS email,
   n.normalized_username AS username, ${status[kind]} AS status, p.created_at AS "createdAt",
   ${kind === "vendors" ? sql`s.id` : sql`null::uuid`} AS "storeId",
+  ${kind === "vendors" ? sql`CASE WHEN NOT s.documents_required THEN 'EXEMPT' ELSE s.document_verification_status END` : sql`null::text`} AS "documentVerificationStatus",
   ${kind === "vendors" ? sql`s.name` : sql`null::text`} AS "storeName"
   ${kind === "vendors" ? sql`,s.owner_name AS "ownerName",s.city,s.locality,s.pincode` : sql``}`;
 

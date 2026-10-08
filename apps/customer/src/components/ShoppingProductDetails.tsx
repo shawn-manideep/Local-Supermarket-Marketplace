@@ -32,10 +32,11 @@ export function ShoppingProductDetails({
 }: Props) {
   const variants = activeVariants(product);
   const selected = variants.find(variant => variant.id === selectedVariantId);
-  const purchasable = !!selected && canPurchaseVariant(product, selected);
+  const storeOpen = store.operatingStatus === "OPEN";
+  const purchasable = storeOpen && !!selected && canPurchaseVariant(product, selected);
   const status = productAvailabilityLabel(product);
   const needsChoice = !selected && variants.some(variant => canPurchaseVariant(product, variant));
-  const addLabel = purchasable ? `Add ${quantity} to Cart`
+  const addLabel = !storeOpen ? "Currently Closed" : purchasable ? `Add ${quantity} to Cart`
     : needsChoice ? "Choose an option first" : selected ? variantAvailabilityLabel(product, selected) : status;
   return (
     <ScrollView style={commonStyles.viewport} contentContainerStyle={[commonStyles.page, hasCart && styles.cartClearance]}>
@@ -50,6 +51,10 @@ export function ShoppingProductDetails({
         <Text style={typography.hero}>{product.name}</Text>
         {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
         <Text style={[typography.bodySemibold, styles.store]}>Sold by {store.name}</Text>
+        {!storeOpen && <View accessibilityRole="alert" style={styles.closedNotice}>
+          <Text style={styles.closedTitle}>Currently Closed</Text>
+          <Text style={styles.closedCopy}>You can browse this store, but it is not accepting orders right now.</Text>
+        </View>}
         {favoriteControl ?? <FavoriteControl product={product} pincode={pincode} />}
         {!![store.locality, store.city, store.state, store.pincode].filter(Boolean).length && <Text style={typography.caption}>{[store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ")}</Text>}
         <Text style={typography.caption}>Delivers to {pincode}</Text>
@@ -61,13 +66,13 @@ export function ShoppingProductDetails({
           <Text style={typography.title3}>{variants.length > 1 ? "Choose an option" : "Selling option"}</Text>
           {variants.length === 0 && <Text style={typography.body}>No selling options are currently available.</Text>}
           {variants.map(variant => {
-            const available = canPurchaseVariant(product, variant);
+            const available = storeOpen && canPurchaseVariant(product, variant);
             const checked = selected?.id === variant.id;
             const label = formatVariantName(variant.quantityValue, variant.quantityUnit);
             const availability = variantAvailabilityLabel(product, variant);
             return (
               <Pressable key={variant.id} accessibilityRole="radio"
-                accessibilityLabel={`${label} · ₹${formatPrice(variant.price)} · ${availability}${checked ? " · Selected" : ""}`}
+                accessibilityLabel={`${label} · ₹${formatPrice(variant.price)} · ${storeOpen ? availability : "Store currently closed"}${checked ? " · Selected" : ""}`}
                 accessibilityState={{ checked, disabled: !available || busy }}
                 disabled={!available || busy} onPress={() => onSelect(variant)}
                 style={[styles.option, checked && styles.selectedOption, !available && styles.disabledOption]}>
@@ -77,7 +82,7 @@ export function ShoppingProductDetails({
                     <Text style={[typography.bodySemibold, styles.optionName]}>{label}</Text>
                     <Text style={[typography.bodySemibold, styles.optionPrice]}>₹{formatPrice(variant.price)}</Text>
                   </View>
-                  <Text style={[typography.caption, !available && styles.unavailable]}>{availability}{checked ? " · Selected" : ""}</Text>
+                   <Text style={[typography.caption, !storeOpen && styles.unavailable]}>{!storeOpen ? "Store currently closed" : availability}{checked ? " · Selected" : ""}</Text>
                 </View>
               </Pressable>
             );
@@ -136,6 +141,9 @@ const styles = StyleSheet.create({
   quantity: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   quantityLabel: { minWidth: 140, flexGrow: 1, flexShrink: 1 },
   error: { marginBottom: spacing.md },
+  closedNotice: { padding: spacing.md, marginTop: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.soft, gap: spacing.xs },
+  closedTitle: { ...typography.bodySemibold, color: colors.danger },
+  closedCopy: { ...typography.caption, color: colors.ink },
   addButton: { backgroundColor: colors.accent, borderRadius: radius.md, padding: spacing.md, minHeight: 52, alignItems: "center", justifyContent: "center" },
   addText: { ...typography.bodySemibold, color: colors.card, textAlign: "center" },
   disabledOption: { opacity: 0.55 },

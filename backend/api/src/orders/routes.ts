@@ -18,6 +18,7 @@ import { centsToMoney, moneyToCents } from "../customer-cart/money.js";
 import { commissionCents, DEFAULT_COMMISSION_RATE, LEGAL_ORDER_TRANSITIONS } from "./lifecycle.js";
 import { evaluateReorderLine } from "./reorder.js";
 import { checkoutReplay, deductStock, restoreOrderStock, stockError } from "./inventory.js";
+import { assertStoreOrderable, deliverySnapshot, storeOrderability } from "./orderability.js";
 
 export const ordersRouter = Router();
 function userId(req: Request) {
@@ -32,6 +33,7 @@ function orderId(req: Request) {
 }
 const safeOrderFields = {
   id: orders.id, storeId: orders.storeId, status: orders.status, deliveryType: orders.deliveryType,
+  deliveryMode: orders.deliveryMode, scheduledStartAt: orders.scheduledStartAt, scheduledEndAt: orders.scheduledEndAt,
   paymentMethod: orders.paymentMethod, subtotal: orders.subtotal,
   deliveryFeeSnapshot: orders.deliveryFeeSnapshot, totalAmount: orders.totalAmount,
   deliveryAddressSnapshot: orders.deliveryAddressSnapshot, deliveryContactName: orders.deliveryContactName,
@@ -39,6 +41,7 @@ const safeOrderFields = {
 };
 const safeOrderSummaryFields = {
   id: orders.id, storeId: orders.storeId, status: orders.status,
+  deliveryMode: orders.deliveryMode, scheduledStartAt: orders.scheduledStartAt, scheduledEndAt: orders.scheduledEndAt,
   totalAmount: orders.totalAmount, createdAt: orders.createdAt,
 };
 const vendorOrderSummaryFields = {
@@ -117,7 +120,8 @@ async function repeatOrderPreviewData(
     eq(storeServicePincodes.storeId, stores.id),
     eq(storeServicePincodes.pincode, address.pincode),
   )).where(eq(stores.id, order.storeId)).limit(1);
-  const storeAvailable = store?.status === "ACTIVE";
+  const storeAvailable = store?.status === "ACTIVE" &&
+    (await storeOrderability(order.storeId, db)).operatingStatus === "OPEN";
   const [activeCart] = await db.select({ id: carts.id, storeId: carts.storeId, storeName: stores.name }).from(carts)
     .innerJoin(stores, eq(stores.id, carts.storeId))
     .where(and(eq(carts.customerId, customerId), eq(carts.status, "ACTIVE")))
@@ -229,6 +233,10 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     const fee = moneyToCents(store.stores.deliveryFee);
     const minimum = moneyToCents(store.stores.minimumOrderValue);
     if (subtotal < minimum) throw new HttpError(409, `Minimum order value is ${store.stores.minimumOrderValue}`);
+    // Final acceptance check after all potentially blocking inventory locks.
+    // Hours writers lock the same store parent until this transaction completes.
+    const orderability = await assertStoreOrderable(cart.storeId, tx);
+    const snapshot = deliverySnapshot(parsed.data, orderability.hours, orderability.now);
     await deductStock(tx, cart.storeId, rows.map(({ item, product, variant }) => ({
       variantId: variant.id, productId: product.id, quantity: item.quantity,
       productName: (product.masterProductId && masterNameById.get(product.masterProductId)) || product.name,
@@ -237,6 +245,7 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     const rate = store.stores.commissionRate;
     const [order] = await tx.insert(orders).values({
       customerId, storeId: cart.storeId, status: "PLACED", paymentMethod: "COD",
+      ...snapshot,
       inventoryState: "DEDUCTED", checkoutKey: parsed.data.idempotencyKey,
       checkoutCartId: cart.id, checkoutAddressId: address.id,
       subtotal: centsToMoney(subtotal), deliveryFeeSnapshot: centsToMoney(fee),
@@ -327,6 +336,7 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
       and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, address.pincode)),
     ).where(eq(stores.id, order.storeId)).limit(1).for("share");
     const storeAvailable = store?.status === "ACTIVE";
+    if (storeAvailable) await assertStoreOrderable(order.storeId, tx, false);
     const orderRows = await tx.select({
       orderItemId: orderItems.id, productName: orderItems.productNameSnapshot,
       orderProductId: orderItems.productId,

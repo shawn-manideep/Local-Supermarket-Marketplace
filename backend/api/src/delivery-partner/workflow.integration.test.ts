@@ -30,6 +30,7 @@ before(async () => {
     CREATE TABLE customers(id uuid PRIMARY KEY REFERENCES user_profiles);
     CREATE TABLE stores(id uuid PRIMARY KEY,owner_user_id uuid REFERENCES user_profiles,name text NOT NULL);
     CREATE TABLE orders(id uuid PRIMARY KEY,store_id uuid REFERENCES stores,status order_status NOT NULL,
+      delivery_mode text NOT NULL DEFAULT 'INSTANT',scheduled_start_at timestamptz,scheduled_end_at timestamptz,
       total_amount numeric NOT NULL DEFAULT 100,delivery_address_snapshot jsonb NOT NULL DEFAULT '{"line1":"Test street","city":"Test city","state":"Test state","pincode":"123456","phone":"PRIVATE"}',
       delivery_contact_name text DEFAULT 'Recipient', delivery_contact_phone text DEFAULT 'PRIVATE',
       inventory_state text DEFAULT 'DEDUCTED',updated_at timestamptz DEFAULT now());
@@ -237,6 +238,26 @@ test("RLS allows own partner/store metadata only and denies every direct assignm
     assert.equal(vendorRows.some(row=>row.id===other!.id),false);
     await assert.rejects(client.query("INSERT INTO delivery_assignments(order_id,partner_user_id) VALUES($1,$2)",[ours.orderId,a]),{code:"42501"});
   } finally { await client.query("RESET ROLE");client.release(); }
+});
+test("scheduled assignments retain their window and forbid pickup/dispatch before it starts", async () => {
+  await pool.query("UPDATE delivery_partner_profiles SET status='ACTIVE' WHERE user_id=$1", [a]);
+  const id = await order();
+  await pool.query(`UPDATE orders SET delivery_mode='SCHEDULED',
+    scheduled_start_at=clock_timestamp()+interval '1 hour',
+    scheduled_end_at=clock_timestamp()+interval '2 hours' WHERE id=$1`, [id]);
+  const assignment = await workflow.assign(vendor, id, a);
+  const assignmentId = String(assignment.id);
+  assert.equal(assignment.deliveryMode, "SCHEDULED"); assert.ok(assignment.scheduledStartAt);
+  await workflow.action(a, assignmentId, "ACCEPT");
+  await assert.rejects(workflow.action(a, assignmentId, "PICKUP"), { code: "SCHEDULED_DELIVERY_NOT_DUE" });
+  await pool.query("UPDATE delivery_assignments SET status='PICKED_UP',picked_up_at=clock_timestamp() WHERE id=$1", [assignmentId]);
+  await assert.rejects(workflow.action(a, assignmentId, "START"), { code: "SCHEDULED_DELIVERY_NOT_DUE" });
+  // Simulate the clock becoming due in this disposable fixture only.
+  await pool.query("UPDATE delivery_assignments SET status='ACCEPTED',picked_up_at=NULL WHERE id=$1", [assignmentId]);
+  await pool.query("UPDATE orders SET scheduled_start_at=clock_timestamp()-interval '1 minute' WHERE id=$1", [id]);
+  await workflow.action(a, assignmentId, "PICKUP");
+  await workflow.action(a, assignmentId, "START");
+  assert.equal((await pool.query("SELECT status FROM orders WHERE id=$1", [id])).rows[0].status, "OUT_FOR_DELIVERY");
 });
 test("new HTTP routes require authentication and never expose public provisioning/actions", async () => {
   const server = createApp().listen(0,"127.0.0.1");

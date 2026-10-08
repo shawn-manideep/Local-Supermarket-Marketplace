@@ -1,6 +1,6 @@
 import { apiRequest } from "./api";
 import type { OperatingHour, Store } from "./api";
-import type { VendorDocumentStatus } from "../../../lib/api-client-react/src/generated/api.schemas";
+import type { VendorDocumentStatus } from "./vendor-document-types";
 
 export type AdminKind = "vendors" | "customers" | "delivery-partners";
 export type AccountStatus = "ACTIVE" | "INACTIVE";
@@ -9,6 +9,7 @@ export type AdminRow = {
   id: string; displayName: string | null; email: string | null; username: string | null;
   status: string | null; createdAt: string; storeId: string | null; storeName: string | null;
   ownerName?: string | null; city?: string | null; locality?: string | null; pincode?: string | null;
+  documentVerificationStatus?: "EXEMPT" | "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | null;
 };
 export type AdminPage = { items: AdminRow[]; page: number; pageSize: number; total: number };
 export type AdminDetail = AdminRow & {

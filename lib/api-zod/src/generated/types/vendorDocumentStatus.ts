@@ -5,11 +5,21 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DocumentVerificationState } from './documentVerificationState';
 import type { VendorDocumentSummary } from './vendorDocumentSummary';
 
 export interface VendorDocumentStatus {
   required: boolean;
   canManageCatalog: boolean;
+  verificationStatus?: DocumentVerificationState;
+  /** @nullable */
+  submissionId?: string | null;
+  /** @nullable */
+  submittedAt?: Date | null;
+  /** @nullable */
+  reviewedAt?: Date | null;
+  /** @nullable */
+  rejectionReason?: string | null;
   /**
      * @minimum 0
      * @maximum 4

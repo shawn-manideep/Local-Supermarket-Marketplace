@@ -1,5 +1,6 @@
 import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { Router, type Request } from "express";
+import { assertStoreOrderable, storeOrderability } from "../orders/orderability.js";
 import {
   customerCartItemCreateSchema,
   customerCartItemIdParamSchema,
@@ -67,12 +68,14 @@ export async function cartResponse(ownerId: string) {
   const subtotalCents = items.reduce((sum, item) => sum + moneyToCents(item.lineSubtotal), 0n);
   const deliveryCents = moneyToCents(cart.deliveryFee);
   const minimumCents = moneyToCents(cart.minimumOrderValue);
+  const { operatingStatus } = await storeOrderability(cart.storeId);
   return {
     id: cart.id, storeId: cart.storeId, storeName: cart.storeName, status: cart.status,
+    operatingStatus,
     items, subtotal: centsToMoney(subtotalCents), deliveryFee: cart.deliveryFee,
     minimumOrderValue: cart.minimumOrderValue,
     total: centsToMoney(subtotalCents + deliveryCents),
-    checkoutReady: items.length > 0 && items.every((item) => item.purchasable) && subtotalCents >= minimumCents,
+    checkoutReady: operatingStatus === "OPEN" && items.length > 0 && items.every((item) => item.purchasable) && subtotalCents >= minimumCents,
   };
 }
 
@@ -100,6 +103,8 @@ customerCartRouter.post("/api/customer/cart/items", requireRole("customer"), asy
         eq(stores.status, "ACTIVE")))
       .limit(1).for("share");
     if (!variant || !variant.isActive || !variant.variantActive) throw new HttpError(404, "Product variant not available");
+    // The joined store already has a SHARE lock; hours writers take its UPDATE lock.
+    await assertStoreOrderable(variant.storeId, transaction, false);
     if (!variant.availability || !variant.variantAvailability) throw stockError("VARIANT_UNAVAILABLE", variant);
     if (variant.stockQuantity === 0) throw stockError("OUT_OF_STOCK", variant);
     if (parsed.data.quantity > variant.stockQuantity) throw stockError("INSUFFICIENT_STOCK", variant);
@@ -157,6 +162,7 @@ customerCartRouter.patch("/api/customer/cart/items/:itemId", requireRole("custom
     await transaction.execute(sql`select pg_advisory_xact_lock(hashtextextended(${ownerId}, 0))`);
     const [owned] = await transaction.select({
       id: cartItems.id, cartId: cartItems.cartId, stock: productVariants.stockQuantity,
+      currentQuantity: cartItems.quantity,
       productName: products.name, variantName: productVariants.name,
       active: productVariants.isActive, available: productVariants.availability,
       productActive: products.isActive, productAvailable: products.availability,
@@ -178,6 +184,7 @@ customerCartRouter.patch("/api/customer/cart/items/:itemId", requireRole("custom
           .where(and(eq(carts.id, owned.cartId), eq(carts.customerId, ownerId), eq(carts.status, "ACTIVE")));
       }
     } else {
+      if (body.data.quantity > owned.currentQuantity) await assertStoreOrderable(owned.cartStoreId, transaction, false);
       if (!owned.active || !owned.available || !owned.productActive || !owned.productAvailable ||
         owned.productStoreId !== owned.cartStoreId || owned.storeActive !== "ACTIVE") {
         throw stockError("VARIANT_UNAVAILABLE", owned);

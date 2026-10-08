@@ -6,9 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DeliveryAssignmentDeliveryAddress } from './deliveryAssignmentDeliveryAddress';
+import type { DeliveryAssignmentDeliveryMode } from './deliveryAssignmentDeliveryMode';
 import type { DeliveryAssignmentStatus } from './deliveryAssignmentStatus';
 
 export interface DeliveryAssignment {
+  deliveryMode?: DeliveryAssignmentDeliveryMode;
+  /** @nullable */
+  scheduledStartAt?: Date | null;
+  /** @nullable */
+  scheduledEndAt?: Date | null;
   id: string;
   orderId: string;
   orderReference: string;

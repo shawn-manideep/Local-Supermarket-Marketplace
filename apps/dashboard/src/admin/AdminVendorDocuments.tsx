@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { VendorDocumentStatus } from "../../../../lib/api-client-react/src/generated/api.schemas";
-import { apiAuthorizationHeaders, apiUrl } from "../api";
+import { apiAuthorizationHeaders, apiRequest, apiUrl } from "../api";
 import { getAdminVendorDocuments } from "../admin-api";
+import type { VendorDocumentStatus, VendorDocumentTypeName } from "../vendor-document-types";
 
 type DocumentItem = VendorDocumentStatus["documents"][number];
 type CurrentDocument = NonNullable<DocumentItem["current"]>;
@@ -26,6 +26,10 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
   const [error, setError] = useState("");
   const [viewError, setViewError] = useState("");
   const [viewingType, setViewingType] = useState("");
+  const [decisionBusy, setDecisionBusy] = useState(false);
+  const [decisionError, setDecisionError] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectedTypes, setRejectedTypes] = useState<VendorDocumentTypeName[]>([]);
   const [refreshIndex, setRefreshIndex] = useState(0);
   const requestRef = useRef<AbortController | null>(null);
   const viewRequestRef = useRef<AbortController | null>(null);
@@ -48,6 +52,33 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
   }, []);
 
   const refresh = useCallback(() => setRefreshIndex((index) => index + 1), []);
+
+  const reviewSubmission = async (decision: "approve" | "reject") => {
+    if (!status?.submissionId || decisionBusy) return;
+    if (decision === "reject" && (!rejectionReason.trim() || rejectedTypes.length === 0)) {
+      setDecisionError("Add a reason and select at least one mandatory document to reject.");
+      return;
+    }
+    setDecisionBusy(true);
+    setDecisionError("");
+    try {
+      const body = decision === "approve"
+        ? { submissionId: status.submissionId }
+        : { submissionId: status.submissionId, reason: rejectionReason.trim(), rejectedTypes };
+      const next = await apiRequest<VendorDocumentStatus>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/documents/${decision}`, token, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setStatus(next);
+      setRejectedTypes([]);
+      setRejectionReason("");
+      refresh();
+    } catch (cause) {
+      setDecisionError(cause instanceof Error ? cause.message : `Unable to ${decision} this submission.`);
+    } finally {
+      setDecisionBusy(false);
+    }
+  };
 
   useEffect(() => {
     mountedRef.current = true;
@@ -175,12 +206,14 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
         {items.map((item) => {
           const current = item.current as CurrentDocument | null;
           return <article className="lb-admin-doc-row" key={item.type}>
-            <div className="lb-admin-doc-copy">
+        <div className="lb-admin-doc-copy">
               <div className="lb-admin-doc-title"><strong>{item.label}</strong><span className={`lb-admin-doc-kind ${item.mandatory ? "is-mandatory" : "is-optional"}`}>{item.mandatory ? "Mandatory" : "Optional"}</span></div>
               {current ? <>
                 <span className="lb-admin-doc-state is-uploaded">Uploaded</span>
+                {item.mandatory && <span className={`lb-admin-doc-state lb-admin-doc-verification-${(current.verificationStatus ?? "DRAFT").toLowerCase()}`}>Review · {(current.verificationStatus ?? "DRAFT").toLowerCase()}</span>}
                 <span className="lb-admin-doc-filename" title={current.fileName}>{current.fileName}</span>
                 <span className="lb-admin-doc-meta">Uploaded {formatDate(current.uploadedAt)} · Version {current.version}{current.updatedAt ? ` · Updated ${formatDate(current.updatedAt)}` : ""}</span>
+                {current.rejectionReason && <span className="lb-admin-doc-meta lb-admin-doc-rejection-reason">Review note: {current.rejectionReason}</span>}
               </> : <span className="lb-admin-doc-state is-missing">Not uploaded</span>}
             </div>
             {current && <button type="button" className="lb-admin-button lb-admin-doc-view" onClick={() => void viewDocument(item)} disabled={Boolean(viewingType) || loading} aria-label={`View current ${item.label} document`}>
@@ -193,15 +226,34 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
     </section>
   );
 
+  const verificationStatus = status?.verificationStatus ?? "DRAFT";
+  const submittedForReview = verificationStatus === "SUBMITTED" && Boolean(status?.submissionId);
   return <section className="lb-admin-vendor-documents lb-admin-panel" aria-labelledby="admin-vendor-documents-title">
     <div className="lb-admin-panel-head lb-admin-doc-panel-head">
-      <div><p className="lb-admin-eyebrow">Read-only record</p><h3 id="admin-vendor-documents-title">Vendor Documents</h3><p className="lb-admin-secondary">Current files and onboarding completeness. This is informational, not an approval decision.</p></div>
+      <div><p className="lb-admin-eyebrow">Vendor verification</p><h3 id="admin-vendor-documents-title">Vendor Documents</h3><p className="lb-admin-secondary">Current files and mandatory document submission status.</p></div>
       <button className="lb-admin-button" type="button" onClick={refresh} disabled={loading} aria-label="Refresh vendor document details">{loading ? "Refreshing…" : "Refresh"}</button>
     </div>
     {error && <div className="lb-admin-doc-error" role="alert"><span>{error}</span><button className="lb-admin-row-action" type="button" onClick={refresh}>Retry</button></div>}
     {viewError && <div className="lb-admin-doc-error" role="alert"><span>{viewError}</span><button className="lb-admin-row-action" type="button" onClick={() => setViewError("")}>Dismiss</button></div>}
     {status && <>
       {loading && <p className="lb-admin-doc-refreshing" role="status">Refreshing current document details…</p>}
+      <div className={`lb-admin-doc-review-summary lb-admin-doc-verification-${verificationStatus.toLowerCase()}`} role="status">
+        <div><span className="lb-admin-eyebrow">Submission status</span><strong>{verificationStatus === "EXEMPT" ? "Legacy exemption" : verificationStatus.toLowerCase().replaceAll("_", " ")}</strong>
+          {status.submittedAt && <span>Submitted {formatDate(status.submittedAt)}{status.reviewedAt ? ` · Reviewed ${formatDate(status.reviewedAt)}` : ""}</span>}
+          {status.rejectionReason && <span className="lb-admin-doc-rejection-reason">Review note: {status.rejectionReason}</span>}
+        </div>
+        {submittedForReview && <div className="lb-admin-doc-review-actions">
+          <button className="lb-admin-button primary" type="button" disabled={decisionBusy || loading} onClick={() => void reviewSubmission("approve")}>{decisionBusy ? "Saving…" : "Approve submission"}</button>
+        </div>}
+      </div>
+      {submittedForReview && <div className="lb-admin-doc-reject-form">
+        <label>Rejection reason<textarea value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength={1000} rows={2} placeholder="Explain which mandatory document needs correction." /></label>
+        <fieldset><legend>Select mandatory document types to reject</legend>
+          {mandatory.map((item) => <label key={item.type}><input type="checkbox" checked={rejectedTypes.includes(item.type)} onChange={(event) => setRejectedTypes((current) => event.target.checked ? [...current, item.type] : current.filter((type) => type !== item.type))} />{item.label}</label>)}
+        </fieldset>
+        <button className="lb-admin-button" type="button" disabled={decisionBusy || loading} onClick={() => void reviewSubmission("reject")}>{decisionBusy ? "Saving…" : "Reject selected documents"}</button>
+      </div>}
+      {decisionError && <div className="lb-admin-doc-error" role="alert">{decisionError}</div>}
       <div className="lb-admin-doc-groups">
         {renderGroup("Mandatory Documents", mandatory, true)}
         {renderGroup("Optional Documents", optional, false)}

@@ -1,5 +1,11 @@
 export * from "./generated/api";
 export * from "./generated/types";
+// Orval emits identically named path/body validators and input types.
+export { GetCustomerDeliverySlotsParams, SubmitVendorDocumentsBody } from "./generated/api";
+export type {
+  GetCustomerDeliverySlotsParams as CustomerDeliverySlotsQueryInput,
+  SubmitVendorDocumentsBody as VendorDocumentSubmissionInput,
+} from "./generated/types";
 // Orval names both the path schema and query type "PreviewCustomerReorderParams".
 // Keep the path validator under that name, and provide a distinct query-input type.
 export { PreviewCustomerReorderParams } from "./generated/api";

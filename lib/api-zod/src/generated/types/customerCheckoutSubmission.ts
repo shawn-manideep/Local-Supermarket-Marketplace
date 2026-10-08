@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CustomerCheckoutSubmissionDeliveryMode } from './customerCheckoutSubmissionDeliveryMode';
 import type { CustomerCheckoutSubmissionPaymentMethod } from './customerCheckoutSubmissionPaymentMethod';
 
 export interface CustomerCheckoutSubmission {
@@ -12,4 +13,7 @@ export interface CustomerCheckoutSubmission {
   addressId: string;
   paymentMethod: CustomerCheckoutSubmissionPaymentMethod;
   idempotencyKey: string;
+  deliveryMode?: CustomerCheckoutSubmissionDeliveryMode;
+  scheduledStartAt?: Date;
+  scheduledEndAt?: Date;
 }

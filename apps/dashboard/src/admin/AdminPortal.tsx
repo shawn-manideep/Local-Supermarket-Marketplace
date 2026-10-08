@@ -419,7 +419,7 @@ function AccountDirectory({ kind, token, revision, onOpen, onProvisioned }: { ki
     {error && <div className="lb-admin-message error" role="alert">{error}<button className="lb-admin-row-action" type="button" onClick={() => setFetchIndex((value) => value + 1)}>Try again</button></div>}
     <section className="lb-admin-panel">
       {loading && !page ? <div className="lb-admin-loading" aria-label={`Loading ${kindLabel[kind]}`}><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div> : error && !page ? <div className="lb-admin-empty"><strong>Directory could not be loaded</strong>Retry to check your permission and connection.</div> : page && page.items.length === 0 ? <div className="lb-admin-empty"><strong>No {kindLabel[kind].toLowerCase()} found</strong>{searchReady || status ? "Adjust the search or status filter and try again." : `No ${kindLabel[kind].toLowerCase()} are available yet.`}</div> : page && <>
-        <div className="lb-admin-table-wrap"><table className="lb-admin-table"><thead><tr><th>{title}</th>{kind === "vendors" && <><th>Owner</th><th>Location</th><th>Store status</th></>}<th>{kind === "delivery-partners" || kind === "vendors" ? "Username" : "Email / username"}</th><th>Created</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>
+        <div className="lb-admin-table-wrap"><table className="lb-admin-table"><thead><tr><th>{title}</th>{kind === "vendors" && <><th>Owner</th><th>Location</th><th>Store status</th><th>Documents</th></>}<th>{kind === "delivery-partners" || kind === "vendors" ? "Username" : "Email / username"}</th><th>Created</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>
           {page.items.map((row) => <AccountRow key={row.id} kind={kind} row={row} onOpen={() => onOpen(kind, row.id)} />)}
         </tbody></table></div>
         <div className="lb-admin-pagination"><span>Showing {start}–{end} of {page.total.toLocaleString("en-IN")} · Page {page.page} of {Math.max(1, Math.ceil(page.total / page.pageSize))}</span><div className="lb-admin-page-actions"><button type="button" disabled={loading || page.page <= 1} onClick={() => setPageNumber((current) => Math.max(1, current - 1))}>Previous</button><button type="button" disabled={loading || page.page * page.pageSize >= page.total} onClick={() => setPageNumber((current) => current + 1)}>Next</button></div></div>
@@ -436,6 +436,7 @@ function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onO
     <td data-label={kind === "vendors" ? "Shop / vendor" : "Account"}><span className="lb-admin-person">{kind === "vendors" ? row.storeName || "Not linked" : display}</span><span className="lb-admin-secondary">{kind === "vendors" ? [row.locality, row.city, row.pincode].filter(Boolean).join(" · ") || "Location not provided" : row.username ? `@${row.username}` : "Account"}</span></td>
     {kind === "vendors" && <><td data-label="Owner">{row.ownerName || "—"}</td><td data-label="Location">{[row.locality, row.city, row.pincode].filter(Boolean).join(", ") || "—"}</td></>}
     {kind === "vendors" && <td data-label="Store status"><StatusPill value={storeStatus} fallback={row.storeId ? "Unknown" : "Not linked"} /></td>}
+    {kind === "vendors" && <td data-label="Documents"><DocumentVerificationPill value={row.documentVerificationStatus} /></td>}
     <td data-label={kind === "customers" ? "Email / username" : "Username"}>{kind === "delivery-partners" || kind === "vendors" ? row.username || "—" : row.email || row.username || "—"}{kind !== "delivery-partners" && kind !== "vendors" && row.email && row.username && <span className="lb-admin-secondary">@{row.username}</span>}</td>
     <td data-label="Created">{formatDate(row.createdAt)}</td>
     <td data-label="Status"><StatusPill value={accountStatus} fallback={row.storeId || kind !== "vendors" ? "Unknown" : "Not linked"} /></td>
@@ -444,6 +445,11 @@ function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onO
 }
 function StatusPill({ value, fallback }: { value: string | null; fallback: string }) {
   return <span className={`lb-admin-status ${statusClass(value)}`}>{value ? titleCaseStatus(value) : fallback}</span>;
+}
+function DocumentVerificationPill({ value }: { value: AdminRow["documentVerificationStatus"] }) {
+  if (!value) return <span className="lb-admin-secondary">Not provided</span>;
+  const label = value === "EXEMPT" ? "Exempt · not verified" : value === "APPROVED" ? "Verified" : value.toLowerCase().replaceAll("_", " ");
+  return <span className={`lb-admin-doc-directory-status lb-admin-doc-verification-${value.toLowerCase()}`}>{label}</span>;
 }
 
 function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind: AdminKind; account: AdminDetail; token: string; busy: boolean; onStatus: (status: string) => void; onSaved: () => void }) {

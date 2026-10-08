@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminManagementRowDocumentVerificationStatus } from './adminManagementRowDocumentVerificationStatus';
 
 export interface AdminManagementRow {
   id: string;
@@ -19,6 +20,8 @@ export interface AdminManagementRow {
   createdAt: Date;
   /** @nullable */
   storeId: string | null;
+  /** @nullable */
+  documentVerificationStatus?: AdminManagementRowDocumentVerificationStatus;
   /** @nullable */
   storeName: string | null;
   /** @nullable */

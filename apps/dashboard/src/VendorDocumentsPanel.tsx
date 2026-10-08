@@ -1,26 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiAuthorizationHeaders, apiRequest, apiUrl } from "./api";
-
-export type VendorDocumentStatus = {
-  required: boolean;
-  canManageCatalog: boolean;
-  mandatoryCount: number;
-  optionalCount: number;
-  message: string;
-  documents: Array<{
-    type: "fssai" | "aadhaar" | "pan" | "photo" | "gst" | "trade_license" | "labour_license";
-    label: string;
-    mandatory: boolean;
-    current: null | {
-      id: string;
-      fileName: string;
-      mimeType: string;
-      sizeBytes: number;
-      uploadedAt: string;
-      version: number;
-    };
-  }>;
-};
+import type { VendorDocumentStatus } from "./vendor-document-types";
+export type { VendorDocumentStatus } from "./vendor-document-types";
 
 interface Props {
   token: string;
@@ -43,6 +24,7 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
   const [loadError, setLoadError] = useState("");
   const [uploadingType, setUploadingType] = useState("");
   const [viewingId, setViewingId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
@@ -99,6 +81,24 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
       setUploadingType("");
       const input = fileInputs.current[type];
       if (input) input.value = "";
+    }
+  };
+
+  const submitDocuments = async () => {
+    if (!status || submitting || status.mandatoryCount < 4) return;
+    setSubmitting(true);
+    try {
+      const nextStatus = await apiRequest<VendorDocumentStatus>("/api/vendor/documents/submit", token, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setStatus(nextStatus);
+      onChangedRef.current(nextStatus);
+      onMessage("Mandatory documents submitted for verification.", "success");
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Unable to submit documents.", "error");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -160,6 +160,8 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
   const mandatoryUploaded = status?.mandatoryCount ?? 0;
   const optionalUploaded = status?.optionalCount ?? 0;
   const complete = status?.canManageCatalog ?? false;
+  const verification = status?.verificationStatus ?? (status?.required ? "DRAFT" : "EXEMPT");
+  const canSubmit = status?.required && mandatoryUploaded >= 4 && verification !== "SUBMITTED" && verification !== "APPROVED";
 
   return (
     <section className="vendor-documents-section" aria-labelledby="vendor-documents-title">
@@ -177,8 +179,23 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
 
       {!status?.required && (
         <div className="vendor-document-grandfather-note">
-          <strong>Existing vendor account</strong>
-          <span>Document onboarding is not required for this account. Your catalog access remains unchanged.</span>
+          <strong>Legacy catalog access</strong>
+          <span>This account is exempt from document verification. Existing catalog access remains unchanged; exemption is not an approval.</span>
+        </div>
+      )}
+      {status?.required && (
+        <div className={`vendor-document-review-status status-${verification.toLowerCase()}`} role="status">
+          <div><strong>Verification status · {verification === "SUBMITTED" ? "Under review" : verification.toLowerCase()}</strong>
+            <span>{verification === "SUBMITTED"
+              ? `Your mandatory documents were submitted${status.submittedAt ? ` on ${new Date(status.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}. Catalog access will unlock after approval.`
+              : verification === "APPROVED"
+                ? "Mandatory documents approved. Catalog access is available."
+                : verification === "REJECTED"
+                  ? "Some mandatory documents need attention. Replace the requested documents and submit again."
+                  : "Documents uploaded. Submit all four mandatory documents for Admin verification."}</span>
+          </div>
+          {verification === "REJECTED" && status.rejectionReason && <p><strong>Review note:</strong> {status.rejectionReason}</p>}
+          {status.required && !complete && <small>Catalog remains locked until mandatory documents are approved.</small>}
         </div>
       )}
       {status?.message && <div className={`vendor-document-message ${complete ? "is-complete" : ""}`} role="status">{status.message}</div>}
@@ -202,9 +219,12 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
                 item={item}
                 busy={uploadingType === item.type}
                 viewing={viewingId === item.current?.id}
-                disabled={Boolean(uploadingType)}
+                disabled={Boolean(uploadingType) || verification === "SUBMITTED"}
                 inputRef={(element) => { fileInputs.current[item.type] = element; }}
-                onUpload={(file) => void uploadDocument(item.type, file)}
+                onUpload={(file) => {
+                  if (file && verification === "APPROVED" && !window.confirm("Replacing an approved mandatory document will invalidate this approval and lock new-only catalog access until Admin reviews the replacement. Continue?")) return;
+                  void uploadDocument(item.type, file);
+                }}
                 onChoose={() => fileInputs.current[item.type]?.click()}
                 onView={() => item.current && void viewDocument(item.current.id)}
               />
@@ -238,6 +258,11 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
           </div>
         </section>
       </div>
+      {canSubmit && <div className="vendor-document-submit">
+        <p className="vendor-text-muted">{verification === "REJECTED" ? "Review the rejection notes, replace any requested files, then send the mandatory set for another review." : "All four mandatory files are ready. Catalog access stays locked until an Admin approves them."}</p>
+        <button className="vendor-primary-button" type="button" onClick={() => void submitDocuments()} disabled={submitting || Boolean(uploadingType)}>{submitting ? "Submitting…" : verification === "REJECTED" ? "Resubmit for Verification" : "Submit for Verification"}</button>
+      </div>}
+      {verification === "APPROVED" && <div className="vendor-document-approved-note"><strong>Documents approved</strong><span>Your new-vendor catalog access is enabled.</span></div>}
       <p className="vendor-document-file-note">Accepted files: PDF, JPG/JPEG, PNG · Maximum size: 5 MiB. Replacing a document keeps the same document type.</p>
     </section>
   );
@@ -258,13 +283,18 @@ function DocumentRow({
   onView: () => void;
 }) {
   const current = item.current;
+  const verificationStatus = current?.verificationStatus ?? (current ? "DRAFT" : undefined);
   return (
     <article className={`vendor-document-row ${current ? "is-uploaded" : ""}`}>
       <div className="vendor-document-state" aria-hidden="true">{current ? "✓" : item.mandatory ? "!" : "+"}</div>
       <div className="vendor-document-copy">
         <strong>{item.label}</strong>
         {current ? (
-          <span>{current.fileName} · Uploaded {new Date(current.uploadedAt).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}{current.version > 1 ? ` · Version ${current.version}` : ""}</span>
+          <>
+            <span>{current.fileName} · Uploaded {new Date(current.uploadedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}{current.version > 1 ? ` · Version ${current.version}` : ""}</span>
+            {verificationStatus && <span className={`vendor-document-review-pill status-${verificationStatus.toLowerCase()}`}>File · {verificationStatus.toLowerCase()}</span>}
+            {current.rejectionReason && <span className="vendor-document-rejection-reason">Review note: {current.rejectionReason}</span>}
+          </>
         ) : (
           <span>{item.mandatory ? "Not uploaded yet" : "Optional"}</span>
         )}

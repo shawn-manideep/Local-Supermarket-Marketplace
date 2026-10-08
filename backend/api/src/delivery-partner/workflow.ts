@@ -15,6 +15,7 @@ function fail(code: string, message: string, status = 409): never {
   throw new HttpError(status, message, undefined, code);
 }
 const view = sql`a.id,a.order_id AS "orderId",
+  o.delivery_mode AS "deliveryMode",o.scheduled_start_at AS "scheduledStartAt",o.scheduled_end_at AS "scheduledEndAt",
   upper(left(a.order_id::text,8)) AS "orderReference",s.name AS "storeName",
   o.status AS "orderStatus",o.total_amount::text AS "orderTotal",p.display_name AS "partnerName",
   a.status,a.assigned_at AS "assignedAt",a.accepted_at AS "acceptedAt",
@@ -98,7 +99,8 @@ export function deliveryWorkflow(db: Database = getDb()) {
         if (!lookup.rows[0]) fail("NOT_ASSIGNED_PARTNER", "This assignment does not belong to you.", 403);
         const orderId = lookup.rows[0].order_id;
         // All mutation paths lock order first, then profile and assignment.
-        const orderRows = await tx.execute(sql`SELECT status FROM orders WHERE id=${orderId} FOR UPDATE`);
+        const orderRows = await tx.execute(sql`SELECT status,delivery_mode,scheduled_start_at,
+          (scheduled_start_at>clock_timestamp()) AS "awaitingSlot" FROM orders WHERE id=${orderId} FOR UPDATE`);
         const order = orderRows.rows[0];
         if (!order) fail("INVALID_ASSIGNMENT", "The assigned order is unavailable.", 404);
         await active(tx, partnerId);
@@ -111,6 +113,8 @@ export function deliveryWorkflow(db: Database = getDb()) {
         if (assignment.status !== from) fail(
           ["ACCEPT","REJECT"].includes(action) ? "ASSIGNMENT_NOT_PENDING" : "INVALID_DELIVERY_TRANSITION",
           `Cannot ${action.toLowerCase()} an assignment in ${assignment.status} state.`);
+        if (["PICKUP", "START"].includes(action) && orderRows.rows[0]?.delivery_mode === "SCHEDULED" && orderRows.rows[0]?.awaitingSlot)
+          fail("SCHEDULED_DELIVERY_NOT_DUE", "Pickup and dispatch are available only when the scheduled delivery window starts.");
         const requiredOrder = action === "DELIVER" ? "OUT_FOR_DELIVERY" : "READY";
         if (order.status !== requiredOrder) fail("INVALID_DELIVERY_TRANSITION", "The order is no longer eligible for this delivery action.");
         const timestamp = {

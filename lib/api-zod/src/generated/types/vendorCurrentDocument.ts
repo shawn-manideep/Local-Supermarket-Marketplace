@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VendorCurrentDocumentMimeType } from './vendorCurrentDocumentMimeType';
+import type { VendorCurrentDocumentVerificationStatus } from './vendorCurrentDocumentVerificationStatus';
 
 export interface VendorCurrentDocument {
   id: string;
@@ -20,4 +21,7 @@ export interface VendorCurrentDocument {
   updatedAt?: Date;
   /** @minimum 1 */
   version: number;
+  verificationStatus?: VendorCurrentDocumentVerificationStatus;
+  /** @nullable */
+  rejectionReason?: string | null;
 }

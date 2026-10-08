@@ -40,7 +40,11 @@ import type {
   DeliveryAssignRequest,
   DeliveryAssignmentOutcome,
   DeliveryDutyRequest,
+  DeliverySlotsResponse,
+  DocumentApprovalRequest,
+  DocumentRejectionRequest,
   GetCustomerAccountSettings200,
+  GetCustomerDeliverySlotsParams,
   GetCustomerSavedItems200,
   GetCustomerSavedItemsParams,
   GetCustomerShoppingCategoriesParams,
@@ -69,6 +73,7 @@ import type {
   StockFailure,
   StoreProfileInput,
   StoreProfileOutcome,
+  SubmitVendorDocumentsBody,
   UploadVendorDocumentParams,
   UploadVendorProductImage201,
   UploadVendorProductImageParams,
@@ -107,6 +112,337 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetCustomerDeliverySlotsUrl = (storeId: string,
+    params: GetCustomerDeliverySlotsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/api/customer/stores/${storeId}/delivery-slots?${stringifiedParams}` : `/api/api/customer/stores/${storeId}/delivery-slots`
+}
+
+export const getCustomerDeliverySlots = async (storeId: string,
+    params: GetCustomerDeliverySlotsParams, options?: Parameters<typeof customFetch>[1]): Promise<DeliverySlotsResponse> => {
+
+  return customFetch<DeliverySlotsResponse>(getGetCustomerDeliverySlotsUrl(storeId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerDeliverySlotsQueryKey = (storeId: string,
+    params?: GetCustomerDeliverySlotsParams,) => {
+    return [
+    `/api/api/customer/stores/${storeId}/delivery-slots`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCustomerDeliverySlotsQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerDeliverySlots>>, TError = ErrorType<void>>(storeId: string,
+    params: GetCustomerDeliverySlotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerDeliverySlots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerDeliverySlotsQueryKey(storeId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerDeliverySlots>>> = ({ signal }) => getCustomerDeliverySlots(storeId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: storeId !== null && storeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerDeliverySlots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustomerDeliverySlotsQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerDeliverySlots>>>
+export type GetCustomerDeliverySlotsQueryError = ErrorType<void>
+
+
+
+export function useGetCustomerDeliverySlots<TData = Awaited<ReturnType<typeof getCustomerDeliverySlots>>, TError = ErrorType<void>>(
+ storeId: string,
+    params: GetCustomerDeliverySlotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerDeliverySlots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustomerDeliverySlotsQueryOptions(storeId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitVendorDocumentsUrl = () => {
+
+
+
+
+  return `/api/api/vendor/documents/submit`
+}
+
+export const submitVendorDocuments = async (submitVendorDocumentsBody: SubmitVendorDocumentsBody, options?: Parameters<typeof customFetch>[1]): Promise<VendorDocumentStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VendorDocumentStatus>(getSubmitVendorDocumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(submitVendorDocumentsBody)
+  }
+);}
+
+
+
+
+
+export const getSubmitVendorDocumentsMutationKey = () => ['submitVendorDocuments'] as const;
+
+export const getSubmitVendorDocumentsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVendorDocuments>>, TError,SubmitVendorDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitVendorDocuments>>, TError,SubmitVendorDocumentsMutationVariables, TContext> => {
+
+const mutationKey = getSubmitVendorDocumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitVendorDocuments>>, SubmitVendorDocumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitVendorDocuments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitVendorDocumentsMutationResult = NonNullable<Awaited<ReturnType<typeof submitVendorDocuments>>>
+    export type SubmitVendorDocumentsMutationBody = BodyType<SubmitVendorDocumentsBody>
+    export type SubmitVendorDocumentsMutationError = ErrorType<void>
+    export type SubmitVendorDocumentsMutationVariables = {data: BodyType<SubmitVendorDocumentsBody>}
+
+    export const useSubmitVendorDocuments = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVendorDocuments>>, TError,SubmitVendorDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitVendorDocuments>>,
+        TError,
+        SubmitVendorDocumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitVendorDocumentsMutationOptions(options));
+    }
+
+export const getApproveVendorDocumentsUrl = (vendorId: string,) => {
+
+
+
+
+  return `/api/api/admin/vendors/${vendorId}/documents/approve`
+}
+
+export const approveVendorDocuments = async (vendorId: string,
+    documentApprovalRequest: DocumentApprovalRequest, options?: Parameters<typeof customFetch>[1]): Promise<VendorDocumentStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VendorDocumentStatus>(getApproveVendorDocumentsUrl(vendorId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(documentApprovalRequest)
+  }
+);}
+
+
+
+
+
+export const getApproveVendorDocumentsMutationKey = () => ['approveVendorDocuments'] as const;
+
+export const getApproveVendorDocumentsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveVendorDocuments>>, TError,ApproveVendorDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveVendorDocuments>>, TError,ApproveVendorDocumentsMutationVariables, TContext> => {
+
+const mutationKey = getApproveVendorDocumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveVendorDocuments>>, ApproveVendorDocumentsMutationVariables> = (props) => {
+          const {vendorId,data} = props ?? {};
+
+          return  approveVendorDocuments(vendorId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveVendorDocumentsMutationResult = NonNullable<Awaited<ReturnType<typeof approveVendorDocuments>>>
+    export type ApproveVendorDocumentsMutationBody = BodyType<DocumentApprovalRequest>
+    export type ApproveVendorDocumentsMutationError = ErrorType<void>
+    export type ApproveVendorDocumentsMutationVariables = {vendorId: string;data: BodyType<DocumentApprovalRequest>}
+
+    export const useApproveVendorDocuments = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveVendorDocuments>>, TError,ApproveVendorDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveVendorDocuments>>,
+        TError,
+        ApproveVendorDocumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveVendorDocumentsMutationOptions(options));
+    }
+
+export const getRejectVendorDocumentsUrl = (vendorId: string,) => {
+
+
+
+
+  return `/api/api/admin/vendors/${vendorId}/documents/reject`
+}
+
+export const rejectVendorDocuments = async (vendorId: string,
+    documentRejectionRequest: DocumentRejectionRequest, options?: Parameters<typeof customFetch>[1]): Promise<VendorDocumentStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VendorDocumentStatus>(getRejectVendorDocumentsUrl(vendorId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(documentRejectionRequest)
+  }
+);}
+
+
+
+
+
+export const getRejectVendorDocumentsMutationKey = () => ['rejectVendorDocuments'] as const;
+
+export const getRejectVendorDocumentsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectVendorDocuments>>, TError,RejectVendorDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectVendorDocuments>>, TError,RejectVendorDocumentsMutationVariables, TContext> => {
+
+const mutationKey = getRejectVendorDocumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectVendorDocuments>>, RejectVendorDocumentsMutationVariables> = (props) => {
+          const {vendorId,data} = props ?? {};
+
+          return  rejectVendorDocuments(vendorId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectVendorDocumentsMutationResult = NonNullable<Awaited<ReturnType<typeof rejectVendorDocuments>>>
+    export type RejectVendorDocumentsMutationBody = BodyType<DocumentRejectionRequest>
+    export type RejectVendorDocumentsMutationError = ErrorType<void>
+    export type RejectVendorDocumentsMutationVariables = {vendorId: string;data: BodyType<DocumentRejectionRequest>}
+
+    export const useRejectVendorDocuments = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectVendorDocuments>>, TError,RejectVendorDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectVendorDocuments>>,
+        TError,
+        RejectVendorDocumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectVendorDocumentsMutationOptions(options));
+    }
 
 export const getGetCustomerSavedItemsUrl = (params?: GetCustomerSavedItemsParams,) => {
   const normalizedParams = new URLSearchParams();

@@ -1,6 +1,6 @@
 ---
 name: Vendor document onboarding
-description: New-only enforcement and store-local product creation boundaries approved by the user.
+description: Mandatory document review for onboarding Vendors, existing-access compatibility and private version boundaries.
 ---
 Mandatory document onboarding applies only to new Vendors. Existing Vendors
 retain catalog access, even with no documents, and may use the Documents page.
@@ -8,12 +8,21 @@ retain catalog access, even with no documents, and may use the Documents page.
 **Why:** The user explicitly chose "New Vendors only" rather than gating existing
 operating accounts.
 
-**How to apply:** Preserve the existing-account exemption when changing the
-document gate. Uploaded completion, not Admin approval, unlocks new accounts.
-Orders, Profile, account settings and logout remain outside this gate.
+**How to apply:** Preserve access for accounts that could manage catalogs before
+Admin review was introduced, including upload-complete accounts. Existing access
+is an exemption, not evidence of verified documents. Orders, Profile, account
+settings and logout remain outside this gate.
 
-Admin document completion is informational, not Vendor approval or document verification. Mandatory completion excludes optional documents, and grandfathered catalog access must not be displayed as completed uploads.
+For onboarding Vendors, four mandatory uploads alone do not unlock catalog access.
+The Vendor must submit the current mandatory versions and receive explicit Admin
+approval. A rejection needs a reason and selected mandatory types; correction and
+resubmission remain gated until another approval. Submitted mandatory versions
+must stay fixed while under review.
 
-**Why:** The user explicitly stated that uploading documents does not mean the Vendor is approved and requested viewing/completion only, without an approval/rejection workflow.
+**Why:** The user subsequently requested a verification workflow, superseding
+the earlier viewing-only policy while expressly retaining existing catalog access.
 
-**How to apply:** Preserve private storage and current-version ownership boundaries for Admin reads. Derive visible completion from actual mandatory uploads rather than catalog-access eligibility; do not change Vendor/store status as a side effect of viewing or completion.
+**How to apply:** Keep private, current-version ownership boundaries for reads
+and review. Optional uploads remain informational and are not automatically
+approved. Document review must not implicitly activate a store or change its
+administrative status.

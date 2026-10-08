@@ -1,5 +1,5 @@
-import { eq, sql } from "drizzle-orm";
-import { getDb, stores } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { getDb } from "@workspace/db";
 import type { Request } from "express";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { HttpError, asyncHandler } from "../http.js";
@@ -11,22 +11,35 @@ export function ownedDocumentStore(request: Request) {
   return storeId;
 }
 export async function documentStatus(storeId: string) {
-  const [store] = await getDb().select({ required: stores.documentsRequired }).from(stores).where(eq(stores.id, storeId));
+  const storeRows = await getDb().execute(sql`SELECT documents_required AS required,
+    document_verification_status AS "verificationStatus",document_submission_id AS "submissionId",
+    documents_submitted_at AS "submittedAt",documents_reviewed_at AS "reviewedAt",
+    document_rejection_reason AS "rejectionReason" FROM stores WHERE id=${storeId}`);
+  const store = storeRows.rows[0];
   if (!store) throw new HttpError(404, "Vendor store not found");
   const result = await getDb().execute(sql`
     SELECT id,document_type AS type,file_name AS "fileName",mime_type AS "mimeType",
-      size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",updated_at AS "updatedAt",version
+      size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",updated_at AS "updatedAt",version,
+      verification_status AS "verificationStatus",rejection_reason AS "rejectionReason"
     FROM vendor_documents WHERE store_id=${storeId} AND is_current ORDER BY document_type`);
   const documents = DOCUMENT_TYPES.map(type => ({
     ...type, current: result.rows.find(row => row.type === type.type) ?? null,
   }));
   const mandatoryCount = documents.filter(item => item.mandatory && item.current).length;
   const optionalCount = documents.filter(item => !item.mandatory && item.current).length;
-  return { required: store.required, mandatoryCount, optionalCount,
-    canManageCatalog: !store.required || mandatoryCount === 4,
-    message: mandatoryCount === 4
-      ? "Your mandatory documents are complete. You can now manage your catalog."
-      : "Complete your document verification before managing your catalog.",
+  const verified = mandatoryCount === 4 && store.verificationStatus === "APPROVED" &&
+    documents.filter(d => d.mandatory).every(d => d.current?.verificationStatus === "APPROVED");
+  const verificationStatus = store.required ? store.verificationStatus : "EXEMPT";
+  const message = !store.required ? "Existing catalog access is retained; document verification is not required for this account."
+    : verified ? "Documents approved. Your catalog is available."
+    : verificationStatus === "SUBMITTED" ? "Documents submitted for verification. Catalog access will be enabled after approval."
+    : verificationStatus === "REJECTED" ? "Documents rejected. Correct the rejected documents and resubmit for verification."
+    : mandatoryCount === 4 ? "Documents uploaded. Submit them for Admin verification."
+    : "Upload all mandatory documents, submit for verification and await Admin approval.";
+  return { required: Boolean(store.required), mandatoryCount, optionalCount,
+    canManageCatalog: !store.required || verified, verificationStatus,
+    submissionId: store.submissionId, submittedAt: store.submittedAt,
+    reviewedAt: store.reviewedAt, rejectionReason: store.rejectionReason, message,
     documents };
 }
 /** Admin selectors use the Vendor account ID, never a caller-supplied store ID. */

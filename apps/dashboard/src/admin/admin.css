@@ -376,6 +376,25 @@
 
 /* Admin-only, read-only vendor document status and secure preview controls. */
 .lb-admin-vendor-documents { margin-top: 17px; overflow: hidden; }
+.lb-admin-doc-review-summary { align-items: center; background: #f4f5ee; border: 1px solid #dfe4d5; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; margin: 16px; padding: 14px 16px; }
+.lb-admin-doc-review-summary > div:first-child { display: grid; gap: 4px; }
+.lb-admin-doc-review-summary > div:first-child > span:not(.lb-admin-eyebrow) { color: var(--text-muted); font-size: 12px; }
+.lb-admin-doc-verification-submitted { background: #f4f0e3; border-color: #e9d8a9; }
+.lb-admin-doc-verification-approved { background: #edf5ee; border-color: #c7ddca; }
+.lb-admin-doc-verification-rejected { background: #fbefec; border-color: #eac7bf; }
+.lb-admin-doc-review-actions { display: flex; gap: 8px; }
+.lb-admin-doc-reject-form { border-top: 1px solid var(--border-light); display: grid; gap: 12px; margin: 0 16px 16px; padding-top: 14px; }
+.lb-admin-doc-reject-form > label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+.lb-admin-doc-reject-form textarea { border: 1px solid var(--border-light); border-radius: 9px; font: inherit; min-height: 64px; padding: 9px 10px; resize: vertical; width: 100%; }
+.lb-admin-doc-reject-form fieldset { border: 1px solid var(--border-light); border-radius: 10px; display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; }
+.lb-admin-doc-reject-form legend { font-size: 12px; font-weight: 700; padding: 0 4px; }
+.lb-admin-doc-reject-form fieldset label { align-items: center; display: inline-flex; gap: 6px; font-size: 13px; }
+.lb-admin-doc-rejection-reason { color: #9a4538 !important; }
+.lb-admin-doc-verification-draft { color: #6b6b56; }
+.lb-admin-doc-verification-submitted { color: #80652a; }
+.lb-admin-doc-verification-approved { color: #356446; }
+.lb-admin-doc-verification-rejected { color: #9a4538; }
+.lb-admin-doc-directory-status { border-radius: 999px; display: inline-block; font-size: 11px; font-weight: 700; max-width: 150px; padding: 5px 8px; text-transform: capitalize; }
 .lb-admin-doc-panel-head { align-items: center; }
 .lb-admin-doc-panel-head > div { min-width: 0; }
 .lb-admin-doc-panel-head h3 { margin: 0; color: var(--pine-deep); font-size: 15px; letter-spacing: -.025em; }

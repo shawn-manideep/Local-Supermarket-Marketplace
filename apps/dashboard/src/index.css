@@ -1788,6 +1788,32 @@ a:focus-visible {
   width: 100%;
 }
 
+.vendor-catalog-filter-controls {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: min(100%, 430px);
+}
+.vendor-catalog-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.vendor-catalog-filter .vendor-input,
+.vendor-catalog-filter .vendor-select {
+  height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 560px) {
+  .vendor-catalog-filter-controls { grid-template-columns: 1fr; min-width: 0; width: 100%; }
+  .vendor-product-list-heading { align-items: stretch; flex-direction: column; }
+}
+
 .vendor-add-product-chooser {
   margin: 0 0 22px;
   padding: 20px;
@@ -2013,6 +2039,32 @@ a:focus-visible {
 .vendor-document-file-input { display: none; }
 .vendor-document-optional-count { background: var(--bg-page); border-radius: 999px; color: var(--text-muted); font-size: 12px; font-weight: 800; padding: 7px 10px; }
 .vendor-document-file-note { color: var(--text-muted); font-size: 12px; margin: 0; }
+.vendor-document-review-status,
+.vendor-document-approved-note {
+  background: #f4f5ee;
+  border: 1px solid #dfe4d5;
+  border-radius: 12px;
+  color: var(--text-main);
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+}
+.vendor-document-review-status > div { display: grid; gap: 4px; }
+.vendor-document-review-status span,
+.vendor-document-review-status small,
+.vendor-document-approved-note span { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+.vendor-document-review-status p { margin: 0; color: #9a4538; font-size: 13px; }
+.vendor-document-review-status.status-submitted { background: #f4f0e3; border-color: #e9d8a9; }
+.vendor-document-review-status.status-rejected { background: #fbefec; border-color: #eac7bf; }
+.vendor-document-review-status.status-approved,
+.vendor-document-approved-note { background: #edf5ee; border-color: #c7ddca; }
+.vendor-document-review-pill { display: inline-flex; width: fit-content; border-radius: 999px; padding: 3px 8px; text-transform: capitalize; background: #f1f1e9; }
+.vendor-document-review-pill.status-rejected { color: #9a4538; background: #fbefec; }
+.vendor-document-review-pill.status-approved { color: #356446; background: #edf5ee; }
+.vendor-document-review-pill.status-submitted { color: #80652a; background: #f4f0e3; }
+.vendor-document-rejection-reason { color: #9a4538 !important; }
+.vendor-document-submit { align-items: center; display: flex; gap: 18px; justify-content: space-between; }
+.vendor-document-submit p { margin: 0; max-width: 620px; }
 .vendor-document-inline-error { align-items: center; background: var(--danger-bg); border-radius: 9px; color: var(--danger); display: flex; gap: 10px; justify-content: space-between; padding: 11px 14px; }
 .vendor-document-inline-error .vendor-text-button { color: inherit; }
 

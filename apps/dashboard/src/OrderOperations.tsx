@@ -19,6 +19,15 @@ const date = (value: string) => new Date(value).toLocaleString(undefined, { date
 const statusLabel = (value: string) => value.replaceAll("_", " ");
 const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor delivery" : "Platform partner";
 const deliveryStatusLabel = (value: string) => value.replaceAll("_", " ");
+function deliverySnapshot(order: Pick<OrderSummary, "deliveryMode" | "scheduledStartAt" | "scheduledEndAt">) {
+  if (order.deliveryMode !== "SCHEDULED" || !order.scheduledStartAt || !order.scheduledEndAt) return "Instant delivery";
+  const start = new Date(order.scheduledStartAt);
+  const end = new Date(order.scheduledEndAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "Scheduled delivery";
+  const day = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }).format(start);
+  const time = (value: Date) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }).format(value);
+  return `Scheduled delivery · ${day} · ${time(start)}–${time(end)} IST`;
+}
 
 function VendorDeliveryAssignmentPanel({ token, detail, disabled = false }: { token: string; detail: OrderDetail; disabled?: boolean }) {
   const [assignment, setAssignment] = useState<DeliveryAssignment | null>(null);
@@ -346,6 +355,7 @@ function VendorDetail({ detail, token, busy, pendingAction, vendorView, onAction
                <div><dt>Phone</dt><dd><a href={`tel:${detail.deliveryContactPhone}`}>{detail.deliveryContactPhone}</a></dd></div>
                <div><dt>Payment</dt><dd>{detail.paymentMethod}</dd></div>
                <div><dt>Delivery Method</dt><dd>{deliveryLabel(detail.deliveryType)}</dd></div>
+                <div className="vendor-info-full"><dt>Delivery window</dt><dd>{deliverySnapshot(detail)}</dd></div>
              </div>
              <div className="vendor-info-full">
                <dt>Address</dt>
@@ -623,7 +633,8 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
                         <div className="vendor-customer-cell">
                           <strong>{order.deliveryContactName}</strong>
                            <span className="vendor-text-muted">{order.itemCount} items · {order.paymentMethod}</span>
-                           <span className="vendor-text-muted">{deliveryLabel(order.deliveryType)}</span>
+                            <span className="vendor-text-muted">{deliveryLabel(order.deliveryType)}</span>
+                            <span className="vendor-text-muted">{deliverySnapshot(order)}</span>
                         </div>
                      </td>
                       <td data-label="Status"><span className={`vendor-status-badge vendor-status-${order.status.toLowerCase()}`}>{vendorStatusLabel(order.status)}</span></td>

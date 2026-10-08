@@ -11,6 +11,81 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /api/customer/stores/{storeId}/delivery-slots:
+    get:
+      operationId: getCustomerDeliverySlots
+      tags: [CustomerMarketplace]
+      parameters:
+        - {name: storeId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: pincode, in: query, required: true, schema: {type: string, pattern: '^\d{6}$'}}
+      responses:
+        '200':
+          description: Future one-hour store-hours slots for today and tomorrow in India time
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DeliverySlotsResponse'}
+        '401': {description: Authentication required}
+        '403': {description: Customer role required}
+        '404': {description: Store not available for this pincode}
+  /api/vendor/documents/submit:
+    post:
+      operationId: submitVendorDocuments
+      tags: [VendorDocuments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
+      responses:
+        '200':
+          description: Mandatory current versions submitted; catalog remains locked
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorDocumentStatus'}
+        '401': {description: Authentication required}
+        '403': {description: Vendor role required}
+        '409': {description: 'Incomplete, already submitted, approved or exempt'}
+  /api/admin/vendors/{vendorId}/documents/approve:
+    post:
+      operationId: approveVendorDocuments
+      tags: [VendorDocuments]
+      parameters:
+        - {name: vendorId, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DocumentApprovalRequest'}
+      responses:
+        '200':
+          description: Current mandatory submission approved by Admin
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorDocumentStatus'}
+        '401': {description: Authentication required}
+        '403': {description: Admin role required}
+        '409': {description: Stale submission or invalid review state}
+  /api/admin/vendors/{vendorId}/documents/reject:
+    post:
+      operationId: rejectVendorDocuments
+      tags: [VendorDocuments]
+      parameters:
+        - {name: vendorId, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DocumentRejectionRequest'}
+      responses:
+        '200':
+          description: Selected mandatory documents rejected with a required reason
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorDocumentStatus'}
+        '400': {description: Invalid reason or document selection}
+        '401': {description: Authentication required}
+        '403': {description: Admin role required}
+        '409': {description: Stale submission or invalid review state}
   /customer/saved-items:
     get:
       operationId: getCustomerSavedItems
@@ -985,6 +1060,41 @@ components:
     VendorDocumentType:
       type: string
       enum: [fssai, aadhaar, pan, photo, gst, trade_license, labour_license]
+    DeliverySlotsResponse:
+      type: object
+      required: [timeZone, operatingStatus, slots]
+      properties:
+        timeZone: {type: string, enum: [Asia/Kolkata]}
+        operatingStatus: {type: string, enum: [OPEN, CLOSED]}
+        slots:
+          type: array
+          items:
+            type: object
+            required: [startAt, endAt]
+            properties:
+              startAt: {type: string, format: date-time}
+              endAt: {type: string, format: date-time}
+    DocumentApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [submissionId]
+      properties:
+        submissionId: {type: string, format: uuid}
+    DocumentRejectionRequest:
+      type: object
+      additionalProperties: false
+      required: [submissionId, reason, rejectedTypes]
+      properties:
+        submissionId: {type: string, format: uuid}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        rejectedTypes:
+          type: array
+          minItems: 1
+          maxItems: 4
+          items: {type: string, enum: [fssai, aadhaar, pan, photo]}
+    DocumentVerificationState:
+      type: string
+      enum: [EXEMPT, DRAFT, SUBMITTED, APPROVED, REJECTED]
     VendorCurrentDocument:
       type: object
       required: [id, fileName, mimeType, sizeBytes, uploadedAt, version]
@@ -996,6 +1106,8 @@ components:
         uploadedAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
         version: {type: integer, minimum: 1}
+        verificationStatus: {type: string, enum: [DRAFT, SUBMITTED, APPROVED, REJECTED]}
+        rejectionReason: {type: [string, 'null']}
     VendorDocumentSummary:
       type: object
       required: [type, label, mandatory, current]
@@ -1014,6 +1126,11 @@ components:
       properties:
         required: {type: boolean}
         canManageCatalog: {type: boolean}
+        verificationStatus: {$ref: '#/components/schemas/DocumentVerificationState'}
+        submissionId: {type: [string, 'null'], format: uuid}
+        submittedAt: {type: [string, 'null'], format: date-time}
+        reviewedAt: {type: [string, 'null'], format: date-time}
+        rejectionReason: {type: [string, 'null']}
         mandatoryCount: {type: integer, minimum: 0, maximum: 4}
         optionalCount: {type: integer, minimum: 0, maximum: 3}
         message: {type: string}
@@ -1231,6 +1348,7 @@ components:
         status: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
         storeId: { type: [string, "null"], format: uuid }
+        documentVerificationStatus: {type: [string, 'null'], enum: [EXEMPT, DRAFT, SUBMITTED, APPROVED, REJECTED, null]}
         storeName: { type: [string, "null"] }
         ownerName: { type: [string, "null"] }
         city: { type: [string, "null"] }
@@ -1462,6 +1580,9 @@ components:
       type: object
       required: [id, orderId, orderReference, storeName, orderStatus, orderTotal, partnerName, status, assignedAt, acceptedAt, rejectedAt, pickedUpAt, deliveredAt, createdAt, updatedAt, deliveryAddress, recipientName]
       properties:
+        deliveryMode: {type: string, enum: [INSTANT, SCHEDULED]}
+        scheduledStartAt: {type: [string, 'null'], format: date-time}
+        scheduledEndAt: {type: [string, 'null'], format: date-time}
         id: { type: string, format: uuid }
         orderId: { type: string, format: uuid }
         orderReference: { type: string }
@@ -1515,6 +1636,9 @@ components:
         addressId: { type: string, format: uuid }
         paymentMethod: { type: string, enum: [COD] }
         idempotencyKey: { type: string, format: uuid }
+        deliveryMode: {type: string, enum: [INSTANT, SCHEDULED], default: INSTANT}
+        scheduledStartAt: {type: string, format: date-time}
+        scheduledEndAt: {type: string, format: date-time}
     CustomerCheckoutOutcome:
       type: object
       required: [order]
@@ -1524,6 +1648,9 @@ components:
           description: Existing safe order detail with immutable items and status history
           required: [id, status, totalAmount, items, statusHistory]
           properties:
+            deliveryMode: {type: string, enum: [INSTANT, SCHEDULED]}
+            scheduledStartAt: {type: [string, 'null'], format: date-time}
+            scheduledEndAt: {type: [string, 'null'], format: date-time}
             id: { type: string, format: uuid }
             status: { type: string, enum: [PLACED, ACCEPTED, PREPARING, READY, OUT_FOR_DELIVERY, DELIVERED, REJECTED, CANCELLED] }
             totalAmount: { type: string }

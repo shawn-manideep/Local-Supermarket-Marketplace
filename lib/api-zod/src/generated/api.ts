@@ -8,6 +8,178 @@
 import * as zod from 'zod';
 
 
+export const GetCustomerDeliverySlotsParams = zod.object({
+  "storeId": zod.coerce.string().uuid()
+})
+
+export const getCustomerDeliverySlotsQueryPincodeRegExp = new RegExp('^\\d{6}$');
+
+
+export const GetCustomerDeliverySlotsQueryParams = zod.object({
+  "pincode": zod.coerce.string().regex(getCustomerDeliverySlotsQueryPincodeRegExp)
+})
+
+export const GetCustomerDeliverySlotsResponse = zod.object({
+  "timeZone": zod.enum(['Asia/Kolkata']),
+  "operatingStatus": zod.enum(['OPEN', 'CLOSED']),
+  "slots": zod.array(zod.object({
+  "startAt": zod.coerce.date(),
+  "endAt": zod.coerce.date()
+}))
+})
+
+
+export const SubmitVendorDocumentsBody = zod.object({
+
+})
+
+export const submitVendorDocumentsResponseMandatoryCountMin = 0;
+export const submitVendorDocumentsResponseMandatoryCountMax = 4;
+
+export const submitVendorDocumentsResponseOptionalCountMin = 0;
+export const submitVendorDocumentsResponseOptionalCountMax = 3;
+
+export const submitVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const SubmitVendorDocumentsResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "mandatoryCount": zod.number().int().min(submitVendorDocumentsResponseMandatoryCountMin).max(submitVendorDocumentsResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(submitVendorDocumentsResponseOptionalCountMin).max(submitVendorDocumentsResponseOptionalCountMax),
+  "message": zod.string(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(submitVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish()
+}),zod.null()])
+}))
+})
+
+
+export const ApproveVendorDocumentsParams = zod.object({
+  "vendorId": zod.coerce.string().uuid()
+})
+
+export const ApproveVendorDocumentsBody = zod.object({
+  "submissionId": zod.string().uuid()
+})
+
+export const approveVendorDocumentsResponseMandatoryCountMin = 0;
+export const approveVendorDocumentsResponseMandatoryCountMax = 4;
+
+export const approveVendorDocumentsResponseOptionalCountMin = 0;
+export const approveVendorDocumentsResponseOptionalCountMax = 3;
+
+export const approveVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const ApproveVendorDocumentsResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "mandatoryCount": zod.number().int().min(approveVendorDocumentsResponseMandatoryCountMin).max(approveVendorDocumentsResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(approveVendorDocumentsResponseOptionalCountMin).max(approveVendorDocumentsResponseOptionalCountMax),
+  "message": zod.string(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(approveVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish()
+}),zod.null()])
+}))
+})
+
+
+export const RejectVendorDocumentsParams = zod.object({
+  "vendorId": zod.coerce.string().uuid()
+})
+
+export const rejectVendorDocumentsBodyReasonMax = 1000;
+
+export const rejectVendorDocumentsBodyRejectedTypesMax = 4;
+
+
+
+export const RejectVendorDocumentsBody = zod.object({
+  "submissionId": zod.string().uuid(),
+  "reason": zod.string().min(1).max(rejectVendorDocumentsBodyReasonMax),
+  "rejectedTypes": zod.array(zod.enum(['fssai', 'aadhaar', 'pan', 'photo'])).min(1).max(rejectVendorDocumentsBodyRejectedTypesMax)
+})
+
+export const rejectVendorDocumentsResponseMandatoryCountMin = 0;
+export const rejectVendorDocumentsResponseMandatoryCountMax = 4;
+
+export const rejectVendorDocumentsResponseOptionalCountMin = 0;
+export const rejectVendorDocumentsResponseOptionalCountMax = 3;
+
+export const rejectVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const RejectVendorDocumentsResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "mandatoryCount": zod.number().int().min(rejectVendorDocumentsResponseMandatoryCountMin).max(rejectVendorDocumentsResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(rejectVendorDocumentsResponseOptionalCountMin).max(rejectVendorDocumentsResponseOptionalCountMax),
+  "message": zod.string(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(rejectVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish()
+}),zod.null()])
+}))
+})
+
+
 export const getCustomerSavedItemsQueryPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
 
 
@@ -141,6 +313,11 @@ export const getVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax = 524
 export const GetVendorDocumentsResponse = zod.object({
   "required": zod.boolean(),
   "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
   "mandatoryCount": zod.number().int().min(getVendorDocumentsResponseMandatoryCountMin).max(getVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(getVendorDocumentsResponseOptionalCountMin).max(getVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
@@ -155,7 +332,9 @@ export const GetVendorDocumentsResponse = zod.object({
   "sizeBytes": zod.number().int().min(1).max(getVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
   "uploadedAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date().optional(),
-  "version": zod.number().int().min(1)
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish()
 }),zod.null()])
 }))
 })
@@ -187,6 +366,11 @@ export const uploadVendorDocumentResponseDocumentsItemCurrentOneSizeBytesMax = 5
 export const UploadVendorDocumentResponse = zod.object({
   "required": zod.boolean(),
   "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
   "mandatoryCount": zod.number().int().min(uploadVendorDocumentResponseMandatoryCountMin).max(uploadVendorDocumentResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(uploadVendorDocumentResponseOptionalCountMin).max(uploadVendorDocumentResponseOptionalCountMax),
   "message": zod.string(),
@@ -201,7 +385,9 @@ export const UploadVendorDocumentResponse = zod.object({
   "sizeBytes": zod.number().int().min(1).max(uploadVendorDocumentResponseDocumentsItemCurrentOneSizeBytesMax),
   "uploadedAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date().optional(),
-  "version": zod.number().int().min(1)
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish()
 }),zod.null()])
 }))
 })
@@ -235,6 +421,11 @@ export const getAdminVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax 
 export const GetAdminVendorDocumentsResponse = zod.object({
   "required": zod.boolean(),
   "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
   "mandatoryCount": zod.number().int().min(getAdminVendorDocumentsResponseMandatoryCountMin).max(getAdminVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(getAdminVendorDocumentsResponseOptionalCountMin).max(getAdminVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
@@ -249,7 +440,9 @@ export const GetAdminVendorDocumentsResponse = zod.object({
   "sizeBytes": zod.number().int().min(1).max(getAdminVendorDocumentsResponseDocumentsItemCurrentOneSizeBytesMax),
   "uploadedAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date().optional(),
-  "version": zod.number().int().min(1)
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish()
 }),zod.null()])
 }))
 })
@@ -597,6 +790,7 @@ export const CreateAdminVendorResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -665,6 +859,7 @@ export const ListAdminVendorsResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -679,6 +874,7 @@ export const ListAdminVendorsResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -766,6 +962,7 @@ export const UpdateAdminVendorProfileResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -826,6 +1023,7 @@ export const GetAdminVendorResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1025,6 +1223,7 @@ export const ListAdminCustomersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1039,6 +1238,7 @@ export const ListAdminCustomersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1069,6 +1269,7 @@ export const GetAdminCustomerResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1140,6 +1341,7 @@ export const GetAdminDeliveryPartnerResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1188,6 +1390,9 @@ export const GetVendorOrderDeliveryParams = zod.object({
 
 export const GetVendorOrderDeliveryResponse = zod.object({
   "assignment": zod.union([zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
   "id": zod.string().uuid(),
   "orderId": zod.string().uuid(),
   "orderReference": zod.string(),
@@ -1219,6 +1424,9 @@ export const AssignVendorOrderDeliveryBody = zod.object({
 
 export const AssignVendorOrderDeliveryResponse = zod.object({
   "assignment": zod.union([zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
   "id": zod.string().uuid(),
   "orderId": zod.string().uuid(),
   "orderReference": zod.string(),
@@ -1255,6 +1463,9 @@ export const GetOwnDeliveryDetailsParams = zod.object({
 
 export const GetOwnDeliveryDetailsResponse = zod.object({
   "assignment": zod.union([zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
   "id": zod.string().uuid(),
   "orderId": zod.string().uuid(),
   "orderReference": zod.string(),
@@ -1286,6 +1497,9 @@ export const PerformOwnDeliveryActionBody = zod.object({
 
 export const PerformOwnDeliveryActionResponse = zod.object({
   "assignment": zod.union([zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
   "id": zod.string().uuid(),
   "orderId": zod.string().uuid(),
   "orderReference": zod.string(),
@@ -1382,6 +1596,9 @@ export const GetDeliveryPartnerDashboardResponse = zod.object({
 
 export const GetDeliveryPartnerDeliveriesResponse = zod.object({
   "deliveries": zod.array(zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
   "id": zod.string().uuid(),
   "orderId": zod.string().uuid(),
   "orderReference": zod.string(),
@@ -1429,6 +1646,7 @@ export const ListAdminDeliveryPartnersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1443,6 +1661,7 @@ export const ListAdminDeliveryPartnersResponse = zod.object({
   "status": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "storeId": zod.string().uuid().nullable(),
+  "documentVerificationStatus": zod.union([zod.literal('EXEMPT'),zod.literal('DRAFT'),zod.literal('SUBMITTED'),zod.literal('APPROVED'),zod.literal('REJECTED'),zod.literal(null)]).nullish(),
   "storeName": zod.string().nullable(),
   "ownerName": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -1518,15 +1737,23 @@ export const UpdateAdminDeliveryPartnerStatusResponse = zod.object({
 /**
  * @summary Atomically place one order per cart and deduct variant stock once
  */
+export const placeCustomerOrderBodyDeliveryModeDefault = `INSTANT`;
+
 export const PlaceCustomerOrderBody = zod.object({
   "cartId": zod.string().uuid(),
   "addressId": zod.string().uuid(),
   "paymentMethod": zod.enum(['COD']),
-  "idempotencyKey": zod.string().uuid()
+  "idempotencyKey": zod.string().uuid(),
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).default(placeCustomerOrderBodyDeliveryModeDefault),
+  "scheduledStartAt": zod.coerce.date().optional(),
+  "scheduledEndAt": zod.coerce.date().optional()
 })
 
 export const PlaceCustomerOrderResponse = zod.object({
   "order": zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
   "id": zod.string().uuid(),
   "status": zod.enum(['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'REJECTED', 'CANCELLED']),
   "totalAmount": zod.string(),

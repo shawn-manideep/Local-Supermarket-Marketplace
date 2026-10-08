@@ -21,8 +21,22 @@ import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
 import { operatingStatus } from "./operating-status.js";
+import { deliverySlots, storeOrderability, DELIVERY_TIME_ZONE } from "../orders/orderability.js";
 
 export const customerMarketplaceRouter = Router();
+customerMarketplaceRouter.get("/api/customer/stores/:storeId/delivery-slots", requireRole("customer"), asyncHandler(async (request, response) => {
+  const parsed = customerStoreIdParamSchema.safeParse(request.params);
+  const pincode = String(request.query.pincode ?? "");
+  if (!parsed.success || !/^\d{6}$/.test(pincode)) throw new HttpError(400, "Select a valid store and delivery pincode.");
+  const [store] = await getDb().select({ id: stores.id }).from(stores)
+    .innerJoin(storeServicePincodes, eq(storeServicePincodes.storeId, stores.id))
+    .where(and(eq(stores.id, parsed.data.storeId), eq(stores.status, "ACTIVE"), eq(storeServicePincodes.pincode, pincode))).limit(1);
+  if (!store) throw new HttpError(404, "Store is not available for this delivery address.");
+  const state = await storeOrderability(store.id);
+  response.setHeader("Cache-Control", "private, no-store");
+  response.json({ timeZone: DELIVERY_TIME_ZONE, operatingStatus: state.operatingStatus,
+    slots: state.operatingStatus === "OPEN" ? deliverySlots(state.hours, state.now) : [] });
+}));
 const publicStore = {
   id: stores.id, name: stores.name, description: stores.description,
   logoImageUrl: stores.logoImageUrl, phone: stores.phone,

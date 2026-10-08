@@ -157,6 +157,9 @@ export interface OrderSummary {
   storeId: string;
   storeName: string;
   status: OrderStatus;
+  deliveryMode?: "INSTANT" | "SCHEDULED";
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
   deliveryType: string;
   paymentMethod: string;
   totalAmount: string | number;
@@ -192,6 +195,9 @@ export interface OrderDetail {
   storeId: string;
   storeName: string;
   status: OrderStatus;
+  deliveryMode?: "INSTANT" | "SCHEDULED";
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
   deliveryType: string;
   paymentMethod: string;
   subtotal: string | number;

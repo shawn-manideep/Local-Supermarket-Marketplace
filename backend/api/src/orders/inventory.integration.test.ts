@@ -38,6 +38,7 @@ before(async () => {
     CREATE TABLE orders (
       id uuid PRIMARY KEY, customer_id uuid NOT NULL, store_id uuid NOT NULL, status text NOT NULL DEFAULT 'PLACED',
       delivery_type text, payment_method text, subtotal numeric, delivery_fee_snapshot numeric, total_amount numeric,
+      delivery_mode text NOT NULL DEFAULT 'INSTANT',scheduled_start_at timestamptz,scheduled_end_at timestamptz,
       delivery_address_snapshot jsonb, delivery_contact_name text, delivery_contact_phone text,
       created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
     CREATE TABLE order_items (

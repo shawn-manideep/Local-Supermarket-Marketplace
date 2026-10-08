@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { filterVendorProducts } from "./vendor-product-search";
 import { formatPrice } from "@workspace/validation/variant-formatting";
 import { apiRequest, type Category, type Product } from "./api";
 import { SellingVariantEditor } from "./SellingVariantEditor";
@@ -72,6 +73,7 @@ export function CatalogManagementPanel({
   const [productDraft, setProductDraft] = useState<ProductDraft>(emptyProductDraft);
   const [editingProductId, setEditingProductId] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [productSearch, setProductSearch] = useState("");
   const [expandedVariantProductId, setExpandedVariantProductId] = useState("");
   const [addProductMode, setAddProductMode] = useState<"choose" | "master" | "new">("choose");
   const productSaveBusyRef = useRef(false);
@@ -116,15 +118,8 @@ export function CatalogManagementPanel({
     [categories],
   );
 
-  const visibleProducts = useMemo(
-    () =>
-      categoryFilter === "all"
-        ? products
-        : categoryFilter === "uncategorized"
-          ? products.filter((product) => product.categoryId === null)
-          : products.filter((product) => product.categoryId === categoryFilter),
-    [categoryFilter, products],
-  );
+  const visibleProducts = useMemo(() => filterVendorProducts(products, categoryFilter, productSearch),
+    [categoryFilter, productSearch, products]);
   const currentEditingProduct = products.find((product) => product.id === editingProductId);
   const editingMappedProduct = Boolean(currentEditingProduct?.masterProductId);
 
@@ -495,8 +490,13 @@ export function CatalogManagementPanel({
               <h3 className="vendor-subtitle">My Store Products</h3>
               <p className="vendor-text-muted">Manage your products and each selling option's price, stock, and availability.</p>
             </div>
-            <label className="vendor-filter-label">
-              Filter:
+            <div className="vendor-catalog-filter-controls">
+            <label className="vendor-catalog-filter">
+              <span>Search Products</span>
+              <input className="vendor-input" type="search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Search by name or brand" aria-label="Search my store products by name or brand" />
+            </label>
+            <label className="vendor-catalog-filter">
+              <span>Browse by Category</span>
               <select className="vendor-select" onChange={(event) => setCategoryFilter(event.target.value)} value={categoryFilter}>
                 <option value="all">All Products</option>
                 <option value="uncategorized">Uncategorized</option>
@@ -505,6 +505,7 @@ export function CatalogManagementPanel({
                 ))}
               </select>
             </label>
+            </div>
           </div>
           {visibleProducts.length === 0 ? (
             <div className="vendor-empty-state vendor-compact">

@@ -10,6 +10,17 @@ import { reorderInput, reorderItemLabel, reorderPreviewQuery, reorderSummary } f
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor Delivery" : "Platform Delivery";
+const deliverySchedule = (order: Pick<CustomerOrderSummary, "deliveryMode" | "scheduledStartAt" | "scheduledEndAt">) => {
+  if (order.deliveryMode !== "SCHEDULED") return "Instant delivery";
+  if (!order.scheduledStartAt || !order.scheduledEndAt) return "Scheduled delivery";
+  const day = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", year: "numeric",
+  }).format(new Date(order.scheduledStartAt));
+  const time = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true,
+  });
+  return `Scheduled · ${day} · ${time.format(new Date(order.scheduledStartAt))} – ${time.format(new Date(order.scheduledEndAt))} IST`;
+};
 
 function createSecureUuid(): string {
   return randomUUID();
@@ -86,6 +97,7 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping
                   <Text style={typography.title3}>#{order.id.slice(0, 8).toUpperCase()}</Text>
                   <Text style={typography.body}>{date(order.createdAt)}</Text>
                 </View>
+                 <Text style={typography.caption}>{deliverySchedule(order)}</Text>
                 <View style={styles.between}>
                    <Text style={[typography.bodySemibold, { flex: 1, paddingRight: spacing.sm }]}>{order.storeName}</Text>
                   <Text style={typography.bodySemibold}>Total: {money(order.totalAmount)}</Text>
@@ -396,6 +408,8 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
             <Text style={typography.body}>{localOrder.deliveryAddressSnapshot.line1}{localOrder.deliveryAddressSnapshot.line2 ? `, ${localOrder.deliveryAddressSnapshot.line2}` : ""}</Text>
             <Text style={typography.body}>{localOrder.deliveryAddressSnapshot.city}, {localOrder.deliveryAddressSnapshot.state} {localOrder.deliveryAddressSnapshot.pincode}</Text>
             <Text style={[typography.caption, { marginTop: spacing.sm }]}>{deliveryLabel(localOrder.deliveryType)}</Text>
+            <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{deliverySchedule(localOrder)}</Text>
+            {localOrder.deliveryMode === "SCHEDULED" && <Text style={typography.caption}>Delivery window shown in India Standard Time (IST).</Text>}
           </View>
 
           {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md, textAlign: "center" }]}>{error}</Text>}

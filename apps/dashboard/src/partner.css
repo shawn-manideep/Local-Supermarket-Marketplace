@@ -17,6 +17,11 @@
   padding: clamp(18px, 4vw, 52px);
 }
 
+.lbp-delivery-schedule { color: var(--lbp-muted); display: block; font-size: 12px; line-height: 1.45; margin-top: 4px; }
+.lbp-schedule-item { grid-column: 1 / -1; }
+.lbp-scheduled-wait { background: #f4f0e3; border: 1px solid #e9d8a9; border-radius: 12px; display: grid; gap: 4px; padding: 12px 14px; }
+.lbp-scheduled-wait span { color: var(--lbp-muted); font-size: 13px; line-height: 1.5; }
+
 .lbp *,
 .lbp *::before,
 .lbp *::after { box-sizing: border-box; }

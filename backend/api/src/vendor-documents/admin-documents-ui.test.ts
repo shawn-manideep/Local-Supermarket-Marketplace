@@ -3,14 +3,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const ui = () => readFile(new URL("../../../../apps/dashboard/src/admin/AdminVendorDocuments.tsx", import.meta.url), "utf8");
-test("Admin Vendor detail mounts an account-keyed read-only document section only for Vendors", async () => {
+test("Admin Vendor detail mounts account-keyed private documents and submission-scoped review controls only for Vendors", async () => {
   const portal = await readFile(new URL("../../../../apps/dashboard/src/admin/AdminPortal.tsx", import.meta.url), "utf8");
   assert.match(portal, /kind === "vendors" && <AdminVendorDocuments key=\{account.id\} vendorId=\{account.id\}/);
   const panel = await ui();
-  for (const label of ["Vendor Documents", "Mandatory Documents", "Optional Documents", "Not uploaded", "Uploaded", "informational, not an approval decision"])
+  for (const label of ["Vendor Documents", "Mandatory Documents", "Optional Documents", "Not uploaded", "Uploaded", "Approve", "Reject"])
     assert.ok(panel.includes(label), label);
   assert.match(panel, /status\?\.mandatoryCount/);
-  assert.doesNotMatch(panel, /canManageCatalog|Approve Document|Reject Document|type="file"|object_ref|objectRef/);
+  assert.doesNotMatch(panel, /canManageCatalog|type="file"|object_ref|objectRef/);
+  assert.match(panel, /verificationStatus/);
+  assert.match(panel, /submissionId/);
 });
 test("Admin metadata uses existing API client and binary reads preserve same-origin credentials", async () => {
   const client = await readFile(new URL("../../../../apps/dashboard/src/admin-api.ts", import.meta.url), "utf8");

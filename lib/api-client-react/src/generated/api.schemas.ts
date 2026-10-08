@@ -78,6 +78,71 @@ export const VendorDocumentType = {
   labour_license: 'labour_license',
 } as const;
 
+export type DeliverySlotsResponseTimeZone = typeof DeliverySlotsResponseTimeZone[keyof typeof DeliverySlotsResponseTimeZone];
+
+
+export const DeliverySlotsResponseTimeZone = {
+  'Asia/Kolkata': 'Asia/Kolkata',
+} as const;
+
+export type DeliverySlotsResponseOperatingStatus = typeof DeliverySlotsResponseOperatingStatus[keyof typeof DeliverySlotsResponseOperatingStatus];
+
+
+export const DeliverySlotsResponseOperatingStatus = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+} as const;
+
+export type DeliverySlotsResponseSlotsItem = {
+  startAt: string;
+  endAt: string;
+};
+
+export interface DeliverySlotsResponse {
+  timeZone: DeliverySlotsResponseTimeZone;
+  operatingStatus: DeliverySlotsResponseOperatingStatus;
+  slots: DeliverySlotsResponseSlotsItem[];
+}
+
+export interface DocumentApprovalRequest {
+  submissionId: string;
+}
+
+export type DocumentRejectionRequestRejectedTypesItem = typeof DocumentRejectionRequestRejectedTypesItem[keyof typeof DocumentRejectionRequestRejectedTypesItem];
+
+
+export const DocumentRejectionRequestRejectedTypesItem = {
+  fssai: 'fssai',
+  aadhaar: 'aadhaar',
+  pan: 'pan',
+  photo: 'photo',
+} as const;
+
+export interface DocumentRejectionRequest {
+  submissionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+  /**
+     * @minItems 1
+     * @maxItems 4
+     */
+  rejectedTypes: DocumentRejectionRequestRejectedTypesItem[];
+}
+
+export type DocumentVerificationState = typeof DocumentVerificationState[keyof typeof DocumentVerificationState];
+
+
+export const DocumentVerificationState = {
+  EXEMPT: 'EXEMPT',
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
 export type VendorCurrentDocumentMimeType = typeof VendorCurrentDocumentMimeType[keyof typeof VendorCurrentDocumentMimeType];
 
 
@@ -85,6 +150,16 @@ export const VendorCurrentDocumentMimeType = {
   'application/pdf': 'application/pdf',
   'image/jpeg': 'image/jpeg',
   'image/png': 'image/png',
+} as const;
+
+export type VendorCurrentDocumentVerificationStatus = typeof VendorCurrentDocumentVerificationStatus[keyof typeof VendorCurrentDocumentVerificationStatus];
+
+
+export const VendorCurrentDocumentVerificationStatus = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
 } as const;
 
 export interface VendorCurrentDocument {
@@ -100,6 +175,9 @@ export interface VendorCurrentDocument {
   updatedAt?: string;
   /** @minimum 1 */
   version: number;
+  verificationStatus?: VendorCurrentDocumentVerificationStatus;
+  /** @nullable */
+  rejectionReason?: string | null;
 }
 
 export interface VendorDocumentSummary {
@@ -112,6 +190,15 @@ export interface VendorDocumentSummary {
 export interface VendorDocumentStatus {
   required: boolean;
   canManageCatalog: boolean;
+  verificationStatus?: DocumentVerificationState;
+  /** @nullable */
+  submissionId?: string | null;
+  /** @nullable */
+  submittedAt?: string | null;
+  /** @nullable */
+  reviewedAt?: string | null;
+  /** @nullable */
+  rejectionReason?: string | null;
   /**
      * @minimum 0
      * @maximum 4
@@ -367,6 +454,20 @@ export interface AdminDashboardOutcome {
   dashboard: AdminDashboardOutcomeDashboard;
 }
 
+/**
+ * @nullable
+ */
+export type AdminManagementRowDocumentVerificationStatus = typeof AdminManagementRowDocumentVerificationStatus[keyof typeof AdminManagementRowDocumentVerificationStatus] | null;
+
+
+export const AdminManagementRowDocumentVerificationStatus = {
+  EXEMPT: 'EXEMPT',
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
 export interface AdminManagementRow {
   id: string;
   /** @nullable */
@@ -380,6 +481,8 @@ export interface AdminManagementRow {
   createdAt: string;
   /** @nullable */
   storeId: string | null;
+  /** @nullable */
+  documentVerificationStatus?: AdminManagementRowDocumentVerificationStatus;
   /** @nullable */
   storeName: string | null;
   /** @nullable */
@@ -862,6 +965,14 @@ export interface PartnerDashboardOutcome {
   summary: PartnerDashboardOutcomeSummary;
 }
 
+export type DeliveryAssignmentDeliveryMode = typeof DeliveryAssignmentDeliveryMode[keyof typeof DeliveryAssignmentDeliveryMode];
+
+
+export const DeliveryAssignmentDeliveryMode = {
+  INSTANT: 'INSTANT',
+  SCHEDULED: 'SCHEDULED',
+} as const;
+
 export type DeliveryAssignmentStatus = typeof DeliveryAssignmentStatus[keyof typeof DeliveryAssignmentStatus];
 
 
@@ -881,6 +992,11 @@ export const DeliveryAssignmentStatus = {
 export type DeliveryAssignmentDeliveryAddress = { [key: string]: unknown } | null;
 
 export interface DeliveryAssignment {
+  deliveryMode?: DeliveryAssignmentDeliveryMode;
+  /** @nullable */
+  scheduledStartAt?: string | null;
+  /** @nullable */
+  scheduledEndAt?: string | null;
   id: string;
   orderId: string;
   orderReference: string;
@@ -940,12 +1056,31 @@ export const CustomerCheckoutSubmissionPaymentMethod = {
   COD: 'COD',
 } as const;
 
+export type CustomerCheckoutSubmissionDeliveryMode = typeof CustomerCheckoutSubmissionDeliveryMode[keyof typeof CustomerCheckoutSubmissionDeliveryMode];
+
+
+export const CustomerCheckoutSubmissionDeliveryMode = {
+  INSTANT: 'INSTANT',
+  SCHEDULED: 'SCHEDULED',
+} as const;
+
 export interface CustomerCheckoutSubmission {
   cartId: string;
   addressId: string;
   paymentMethod: CustomerCheckoutSubmissionPaymentMethod;
   idempotencyKey: string;
+  deliveryMode?: CustomerCheckoutSubmissionDeliveryMode;
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
 }
+
+export type CustomerCheckoutOutcomeOrderDeliveryMode = typeof CustomerCheckoutOutcomeOrderDeliveryMode[keyof typeof CustomerCheckoutOutcomeOrderDeliveryMode];
+
+
+export const CustomerCheckoutOutcomeOrderDeliveryMode = {
+  INSTANT: 'INSTANT',
+  SCHEDULED: 'SCHEDULED',
+} as const;
 
 export type CustomerCheckoutOutcomeOrderStatus = typeof CustomerCheckoutOutcomeOrderStatus[keyof typeof CustomerCheckoutOutcomeOrderStatus];
 
@@ -969,6 +1104,11 @@ export type CustomerCheckoutOutcomeOrderStatusHistoryItem = { [key: string]: unk
  * Existing safe order detail with immutable items and status history
  */
 export type CustomerCheckoutOutcomeOrder = {
+  deliveryMode?: CustomerCheckoutOutcomeOrderDeliveryMode;
+  /** @nullable */
+  scheduledStartAt?: string | null;
+  /** @nullable */
+  scheduledEndAt?: string | null;
   id: string;
   status: CustomerCheckoutOutcomeOrderStatus;
   totalAmount: string;
@@ -1077,6 +1217,15 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type GetCustomerDeliverySlotsParams = {
+/**
+ * @pattern ^\d{6}$
+ */
+pincode: string;
+};
+
+export type SubmitVendorDocumentsBody = { [key: string]: unknown };
 
 export type GetCustomerSavedItemsParams = {
 /**

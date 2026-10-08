@@ -23,6 +23,7 @@
 - [Admin management boundaries](admin-management-boundaries.md) — approved account/store management only; preserve original identities, operational workflows and outstanding deliveries.
 - [Auth username assignment](auth-username-assignment.md) — approved Customer email-prefix migration; explicit registration must not consume Admin-provisioned usernames.
 - [Vendor document onboarding](vendor-document-onboarding.md) — document gating is new-Vendor-only; existing accounts keep catalog access.
+- [Delivery booking policy](delivery-booking-policy.md) — one-hour India-time slots today/tomorrow; scheduling never bypasses current closure or rewrites accepted windows.
 - [Router mount boundaries](router-mount-boundaries.md) — authorization mounts must cover nested mutations; collection-route success alone is insufficient.
 - [Development preview credentials](development-preview-credentials.md) — preserve same-origin preview cookies independently of Supabase bearer authentication.
 - [Saved Items and product images](saved-items-and-product-images.md) — exact store-listing favorites; existing profile/password boundaries; product photos separate from private Documents.
