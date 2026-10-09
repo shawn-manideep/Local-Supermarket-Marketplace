@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { waitForCartQuantityWrites } from "./lib/cart-quantity";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
 import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated, useWindowDimensions } from "react-native";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./components/CustomerTypography";
@@ -109,7 +110,7 @@ function ClosedStoreNotice({ store }: { store: CustomerStore }) {
   </View>;
 }
 
-export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder, onPincodeChange, requestedSavedItem, onSavedItemRequestHandled }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void; onPincodeChange?: (pincode: string) => void; requestedSavedItem?: { productId: string; storeId: string }; onSavedItemRequestHandled?: () => void }) {
+export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, cartUpdate, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder, onPincodeChange, requestedSavedItem, onSavedItemRequestHandled }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; cartUpdate?: { units: number; storeName: string }; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void; onPincodeChange?: (pincode: string) => void; requestedSavedItem?: { productId: string; storeId: string }; onSavedItemRequestHandled?: () => void }) {
   const { width: viewportWidth } = useWindowDimensions();
   const compactWidth = viewportWidth < 360;
   const savedItems = useSavedItems();
@@ -221,8 +222,11 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     if (active) void savedItems.load(pincode || undefined);
   }, [active, pincode]);
   const refreshCart = useCallback(async () => {
+    const generation = ++cartSummaryGeneration.current;
     try {
+      await waitForCartQuantityWrites();
       const result = await customerApi<{ cart: { storeName: string; items: Array<{ quantity: number }> } | null }>("/api/customer/cart");
+      if (generation !== cartSummaryGeneration.current) return;
       const count = result.cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
       setCartUnits(count);
       setCartStoreName(result.cart?.storeName ?? "");
@@ -230,6 +234,14 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       onCartUnitsChange?.(count);
     } catch { setCartSummaryError(true); }
   }, [onCartUnitsChange]);
+  const cartSummaryGeneration = useRef(0);
+  useEffect(() => {
+    if (!cartUpdate) return;
+    ++cartSummaryGeneration.current;
+    setCartUnits(cartUpdate.units);
+    setCartStoreName(cartUpdate.storeName);
+    setCartSummaryError(false);
+  }, [cartUpdate]);
   useEffect(() => { if (active) void refreshCart(); }, [refreshCart, active]);
   useEffect(() => {
     let active = true;
@@ -555,7 +567,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   };
 
   const productSearchField = (placeholder: string) => (
-    <View style={[styles.searchBar, { marginTop: spacing.lg }]}>
+    <View style={styles.searchBar}>
       <SearchIcon />
       <TextInput
         accessibilityLabel="Search products or stores"
@@ -725,15 +737,6 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. Search still works. Tap to retry.</Text></Pressable>}
 
           <Text style={[typography.caption, { marginTop: spacing.md }]}>Browse eligible supermarkets and their current grocery options.</Text>
-          {homeCategories.length > 0 && <View style={{ marginBottom: spacing.xl }}>
-            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Shop by Category</Text>
-            <View style={styles.homeCategories}>
-              {homeCategories.map(category => <Pressable accessibilityRole="button" key={category.id} onPress={() => { setGlobalCategoryId(category.id); setGlobalPage(1); setError(""); }} style={styles.homeCategory}>
-                <View style={styles.homeCategoryIcon}><Text style={styles.homeCategoryInitial}>{category.name.charAt(0).toUpperCase()}</Text></View>
-                <Text style={styles.homeCategoryText}>{category.name}</Text>
-              </Pressable>)}
-            </View>
-          </View>}
           <HomeHistory key={`home-history-${!active || loadingAddresses ? "inactive" : `${activeAddress?.id ?? "none"}-${pincode}`}`}
             active={active && !loadingAddresses} addressId={activeAddress?.id ?? ""} stores={stores}
             storesReady={!loadingStores && !loadingAddresses && storeDirectoryPincode === pincode}
@@ -823,13 +826,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.lg },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
-  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingHorizontal: spacing.md, minHeight: 52, ...shadows.sm },
+  header: { marginBottom: spacing.sm },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs, minHeight: 44 },
+  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingHorizontal: spacing.md, minHeight: 56, marginTop: spacing.sm, ...shadows.sm },
   pagination: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginVertical: spacing.lg },
   pageButton: { backgroundColor: colors.soft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44, justifyContent: "center" },
   pageButtonText: { ...typography.caption, color: colors.accent, fontWeight: "700" },
-  searchInput: { flex: 1, height: "100%", marginLeft: spacing.xs, ...typography.bodySemibold, color: colors.ink },
+  searchInput: { flex: 1, height: 52, minWidth: 0, marginLeft: spacing.xs, ...typography.bodySemibold, color: colors.ink },
   storeCard: { backgroundColor: colors.card, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line, padding: spacing.md, ...shadows.sm },
   storeCardInner: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, alignItems: "center" },
   storeLogo: { width: 72, height: 72, borderRadius: radius.lg },
@@ -912,9 +915,4 @@ const styles = StyleSheet.create({
   categoryHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, backgroundColor: colors.accent, marginHorizontal: -spacing.lg },
   categoryHeaderText: { color: colors.card, fontSize: 27 },
   categoryHeaderTitle: { color: colors.card, fontSize: 20, fontWeight: fontWeights.semibold },
-  homeCategories: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  homeCategory: { width: 72, alignItems: "center", gap: 6 },
-  homeCategoryIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
-  homeCategoryInitial: { color: colors.accent, fontSize: 22, fontWeight: fontWeights.semibold },
-  homeCategoryText: { fontSize: 11, color: colors.ink, textAlign: "center" },
 });

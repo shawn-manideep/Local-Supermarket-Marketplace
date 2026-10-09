@@ -1,0 +1,69 @@
+# Customer Home Page UI Refinement + Cart Quantity Fix
+
+Make the following targeted improvements to the existing Customer Portal. First inspect the current implementation and reuse existing components, styling, cart logic, and design tokens.
+
+## 1. Remove “Shop by Categories” from the Home Page
+
+- Remove the entire **Shop by Categories** section shown in the provided screenshot.
+- Remove its category tiles, circular letter icons, labels, and any empty space left by the section.
+- Do not delete or modify the underlying product categories, category data, category browsing functionality, or dedicated Categories navigation.
+- Ensure the remaining home page sections move up naturally without unnecessary gaps.
+
+## 2. Improve the Home Page UI Without Redesigning It
+
+Make the existing home page more polished, attractive, and user-friendly while preserving its current identity.
+
+**Keep unchanged:**
+- Existing primary blue, deep navy, light background, and white color palette.
+- Existing bottom navigation, including Home and Reorder.
+- Existing logo, branding, routes, and major home page functionality.
+- Current store selection, search, product browsing, favorites, cart, and ordering behavior.
+
+**Make only focused visual improvements:**
+- Improve spacing and alignment between the header, store information, search bar, promotional content, and product sections.
+- Establish consistent margins, padding, and vertical spacing.
+- Make search visually prominent, easy to tap, and appropriately sized for mobile.
+- Improve product cards with consistent image sizing, clean text hierarchy, readable prices, and aligned Add/quantity controls.
+- Keep product names and prices readable without awkward clipping or overlap.
+- Refine section headings and action labels such as “See all” for consistent alignment and typography.
+- Make promotional banners fit their containers without excessive empty space.
+- Ensure the bottom navigation does not cover product prices, quantity controls, or other important content. Preserve appropriate safe-area and bottom spacing.
+- Ensure the layout works at mobile widths of 320px, 390px, and on desktop.
+- Retain the existing colors and recognizable layout. Do not introduce a new theme, excessive gradients, unrelated sections, or unnecessary animations.
+
+## 3. Fix the Cart Minus Button at Quantity 1
+
+There is a cart bug: when a customer has exactly one unit of a product in the cart, tapping the **minus (−) button** does not work.
+
+Inspect the actual quantity-update logic and fix the root cause.
+
+**Required behavior:**
+- If quantity is greater than 1, tapping minus decreases the quantity by exactly 1.
+- If quantity is exactly 1, tapping minus removes that cart line item, or follows the existing intended remove-item behavior.
+- The cart count, subtotal, total, contextual cart bar, and product-card quantity controls must update immediately and consistently.
+- If the removed item was the last cart item, show the existing empty-cart state and hide the contextual cart bar when appropriate.
+- Ensure repeated taps do not produce negative quantities, duplicate items, stale UI, or incorrect totals.
+- Preserve product variant identity and store identity. Removing one variant must not remove a different variant or another store's item.
+- If the cart is persisted through the backend or local storage, ensure the removal is persisted and the item does not reappear after navigating away and returning.
+- Do not change stock rules, order placement, checkout validation, or inventory behavior.
+
+## 4. Verification and Safety
+
+- Add focused regression tests for decrementing quantities above 1, removing an item at quantity 1, removing the last cart item, updating totals, and preserving product/variant/store identity.
+- Run relevant existing Customer Portal tests, type checks, and build checks.
+- Do not perform automated browser testing; I will verify the UI manually in the preview.
+- Do not change the database schema unless absolutely necessary to fix the identified cart bug.
+- Do not modify Vendor, Delivery Partner, or Admin functionality.
+- Do not fix unrelated pre-existing errors or consume credits on broad refactoring.
+- Do not deploy or publish the application.
+
+## Final Report
+
+Report:
+1. Files and components changed.
+2. Confirmation that Shop by Categories was removed from Home without deleting category functionality.
+3. The specific cause and fix for the minus-button issue.
+4. Tests and build results.
+5. Any remaining manual checks.
+
+Stop after implementation and reporting. Do not proceed to deployment.

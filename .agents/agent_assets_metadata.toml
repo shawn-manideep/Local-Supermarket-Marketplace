@@ -196,3 +196,17 @@ mtime_ms = 1791532662402
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/1f610e30-7f78-49d8-8232-e59228c73302/b53198ec-82e4-480f-b8ca-7fcafaca4cbb"
 storage_version_token = "1791532713997568"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "zsUmc47AFFjmAhEm_f4Uu"
+uri = "file://docs/CUSTOMER_HOME_CART_QUANTITY_REPORT.md"
+type = "text"
+title = "Home refinement and cart quantity report"
+description = "Changed files, minus-button root cause, 98 passing tests, build results and manual preview checklist."
+logical_id = "1030a459-c519-4c86-a03d-fa0a6895f401"
+content_hash = "sha256:4c99c379b6b0f15597b044482d2e086a457b4345726b2789703082ec9201ab07"
+size = 5544
+mtime_ms = 1791535543145
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/1030a459-c519-4c86-a03d-fa0a6895f401/f0ecf6e0-57ae-46a7-b91f-1312a6d03712"
+storage_version_token = "1791535573819488"
+content_type = "text/markdown"

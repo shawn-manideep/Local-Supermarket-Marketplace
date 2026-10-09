@@ -654,3 +654,47 @@ test("administratively unavailable stores never gain scheduled eligibility from 
   assert.equal((await pool.query("SELECT count(*)::integer AS n FROM orders")).rows[0].n, before);
   await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeA]);
 });
+
+test("quantity decrement and zero-removal persist exact variants, totals and empty state without touching another store or inventory", async () => {
+  await request(customer, "/api/customer/cart", "DELETE");
+  await request(customerB, "/api/customer/cart", "DELETE");
+  const p = randomUUID(), otherProduct = randomUUID(), v1 = randomUUID(), v2 = randomUUID(), otherVariant = randomUUID();
+  await pool.query("INSERT INTO products(id,store_id,name,price,stock_quantity) VALUES($1,$2,'Quantity fixture',10.05,5),($3,$4,'Other store fixture',7.5,5)", [p, storeA, otherProduct, storeB]);
+  await pool.query(`INSERT INTO product_variants(id,product_id,name,quantity_value,quantity_unit,price,stock_quantity)
+    VALUES($1,$2,'1 kg',1,'kg',10.05,5),($3,$2,'500 g',500,'g',7.5,5),($4,$5,'500 g',500,'g',7.5,5)`, [v1, p, v2, otherVariant, otherProduct]);
+  await pool.query("UPDATE store_operating_hours SET is_closed=false,opens_at='00:00',closes_at='23:59' WHERE store_id=ANY($1::uuid[])", [[storeA, storeB]]);
+  const add1 = await request(customer, "/api/customer/cart/items", "POST", { productId: p, variantId: v1, quantity: 3 });
+  assert.equal(add1.status, 201);
+  const added = await request(customer, "/api/customer/cart/items", "POST", { productId: p, variantId: v2, quantity: 1 });
+  assert.equal(added.status, 201);
+  const original = (await added.json()).cart;
+  await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeB]);
+  await pool.query("INSERT INTO store_service_pincodes(store_id,pincode) VALUES($1,'500090') ON CONFLICT DO NOTHING", [storeB]);
+  const address = await request(customerB, "/api/customer/addresses", "POST", {
+    recipientName: "Synthetic other Customer", phone: "9876543210", houseNumber: "20",
+    city: "Hyderabad", state: "Telangana", pincode: "500090",
+  });
+  assert.equal(address.status, 201);
+  const other = await request(customerB, "/api/customer/cart/items", "POST", { productId: otherProduct, variantId: otherVariant, quantity: 1 });
+  assert.equal(other.status, 201);
+  const otherCart = (await other.json()).cart;
+  const first = original.items.find((row: any) => row.variantId === v1);
+  const second = original.items.find((row: any) => row.variantId === v2);
+  const decreased = await request(customer, `/api/customer/cart/items/${first.id}`, "PATCH", { quantity: 2 });
+  assert.equal(decreased.status, 200);
+  const smaller = (await decreased.json()).cart;
+  assert.equal(smaller.subtotal, "27.60");
+  assert.equal(smaller.items.find((row: any) => row.id === first.id).quantity, 2);
+  assert.equal(smaller.storeId, storeA);
+  const removed = await request(customer, `/api/customer/cart/items/${second.id}`, "PATCH", { quantity: 0 });
+  assert.equal(removed.status, 200);
+  const readBack = (await (await request(customer, "/api/customer/cart")).json()).cart;
+  assert.equal(readBack.items.length, 1); assert.equal(readBack.items[0].variantId, v1);
+  assert.equal(readBack.subtotal, "20.10");
+  assert.equal((await request(customer, `/api/customer/cart/items/${otherCart.items[0].id}`, "PATCH", { quantity: 0 })).status, 404);
+  assert.equal((await request(customer, `/api/customer/cart/items/${first.id}`, "PATCH", { quantity: 0 })).status, 200);
+  assert.equal((await (await request(customer, "/api/customer/cart")).json()).cart, null);
+  assert.equal((await pool.query("SELECT status FROM carts WHERE id=$1", [original.id])).rows[0].status, "ABANDONED");
+  assert.deepEqual((await (await request(customerB, "/api/customer/cart")).json()).cart, otherCart);
+  assert.deepEqual((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=ANY($1::uuid[])", [[v1, v2, otherVariant]])).rows.map((row: any) => row.stock_quantity), [5, 5, 5]);
+});

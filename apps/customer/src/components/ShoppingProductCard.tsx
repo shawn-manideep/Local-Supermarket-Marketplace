@@ -29,14 +29,14 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, sin
   return <View style={[styles.card, singleColumn && styles.singleColumn]}>
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}${product.storeName ? ` at ${product.storeName}` : ""}`} onPress={onOpen}>
       {customerImageUri(product.imageUrl)
-        ? <Image source={{ uri: customerImageUri(product.imageUrl) }} style={styles.image} />
+        ? <Image source={{ uri: customerImageUri(product.imageUrl) }} resizeMode="contain" style={styles.image} />
         : <PlaceholderImage name={product.name} style={styles.image} />}
       <View style={styles.info}>
-        <Text style={typography.bodySemibold}>{product.name}</Text>
+        <Text style={[typography.bodySemibold, styles.productName]} numberOfLines={2}>{product.name}</Text>
         {!!product.brand && <Text style={typography.caption} numberOfLines={1}>{product.brand}</Text>}
-        {!!product.storeName && <Text style={typography.caption} numberOfLines={2}>{product.storeName}</Text>}
+        {!!product.storeName && <Text style={typography.caption} numberOfLines={1}>{product.storeName}</Text>}
         <Text style={[typography.title3, styles.price]} numberOfLines={2}>{productPriceLabel(product)}</Text>
-        <Text style={[typography.caption, !product.purchasable && styles.unavailable]}>{productAvailabilityLabel(product)}</Text>
+        <Text style={[typography.caption, !product.purchasable && styles.unavailable]} numberOfLines={1}>{productAvailabilityLabel(product)}</Text>
       </View>
     </Pressable>
     <FavoriteControl product={product} pincode={pincode} compact />
@@ -53,9 +53,10 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, sin
 const styles = StyleSheet.create({
   card: { width: "48%", minWidth: 0, backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.sm, marginBottom: spacing.md, justifyContent: "space-between" },
   singleColumn: { width: "100%" },
-  image: { width: "100%", aspectRatio: 1.7, borderRadius: radius.md, marginBottom: spacing.sm },
-  info: { gap: spacing.xs, marginBottom: spacing.sm, minWidth: 0 },
-  price: { flexShrink: 1, marginTop: spacing.xs },
+  image: { width: "100%", aspectRatio: 1.42, borderRadius: radius.md, marginBottom: spacing.sm, backgroundColor: colors.soft },
+  info: { gap: spacing.xs, marginBottom: spacing.sm, minWidth: 0, flexGrow: 1 },
+  productName: { minHeight: 40, lineHeight: 20 },
+  price: { flexShrink: 1, marginTop: spacing.xs, lineHeight: 22 },
   unavailable: { color: colors.danger },
   action: { backgroundColor: colors.accent, borderRadius: radius.sm, minHeight: 44, padding: spacing.xs, alignItems: "center", justifyContent: "center" },
   actionText: { ...typography.bodySemibold, color: colors.card, textAlign: "center", fontSize: 12 },

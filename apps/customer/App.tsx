@@ -824,6 +824,7 @@ function CustomerApp() {
   const [requestedSavedItem, setRequestedSavedItem] = useState<{ productId: string; storeId: string } | undefined>();
   const [homeResetToken, setHomeResetToken] = useState(0);
   const [cartUnits, setCartUnits] = useState(0);
+  const [cartUpdate, setCartUpdate] = useState<{ units: number; storeName: string }>();
   const navItems: Array<"home" | "orders" | "account"> = [
     "home",
     "orders",
@@ -839,6 +840,7 @@ function CustomerApp() {
             openCart={() => setScreen("cart")}
             resetToken={homeResetToken}
             onCartUnitsChange={setCartUnits}
+            cartUpdate={cartUpdate}
             requestedStoreId={requestedStoreId}
             onStoreRequestHandled={() => setRequestedStoreId(undefined)}
             onPincodeChange={setActivePincode}
@@ -849,6 +851,11 @@ function CustomerApp() {
         </View>
         {screen === "home" ? null : screen === "cart" ? (
           <CartScreen
+            onCartChange={value => {
+              const units = value?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+              setCartUnits(units);
+              setCartUpdate({ units, storeName: value?.storeName ?? "" });
+            }}
             openAddresses={() => setScreen("addresses")}
             continueShopping={(storeId) => {
               setRequestedStoreId(storeId);

@@ -40,8 +40,9 @@ test("Home, search, catalog and Details bound their existing ScrollView without 
     assert.ok(marketplace.includes(`<ScrollView ${key} style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>`));
   }
   assert.match(details, /<ScrollView style=\{commonStyles\.viewport\} contentContainerStyle=/);
-  assert.equal((marketplace.match(/<ScrollView /g) ?? []).length, 6);
-  assert.match(marketplace, /<ScrollView horizontal showsHorizontalScrollIndicator=\{false\}/);
+  // The removed Home category tiles owned the other three scroll containers.
+  assert.equal((marketplace.match(/<ScrollView /g) ?? []).length, 3);
+  assert.match(marketplace, /categories\.map/);
   assert.doesNotMatch(marketplace, /overflow:\s*["']hidden["'][\s\S]{0,30}\{content\}/);
 });
 

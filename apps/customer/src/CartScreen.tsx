@@ -9,6 +9,7 @@ import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { PlaceholderImage } from "./components/PlaceholderImage";
 import { shoppingError } from "./lib/shopping";
 import { addressStreetLines } from "./lib/address-format";
+import { createCartQuantityController, waitForCartQuantityWrites } from "./lib/cart-quantity";
 
 function BasketIcon() {
   return (
@@ -18,14 +19,29 @@ function BasketIcon() {
   );
 }
 
-export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void; continueShopping: (storeId?: string) => void }) {
+export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onCartChange }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void; continueShopping: (storeId?: string) => void; onCartChange?: (cart: CustomerCart | null) => void }) {
   const [cart, setCart] = useState<CustomerCart | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
-  const quantityQueues = useRef<Record<string, { target: number; running: boolean }>>({});
+  const [quantityBusy, setQuantityBusy] = useState(false);
+  const mounted = useRef(true);
+  const quantityController = useRef<ReturnType<typeof createCartQuantityController> | null>(null);
+  if (!quantityController.current) quantityController.current = createCartQuantityController({
+    write: async (itemId, quantity) => (await customerApi<{ cart: CustomerCart | null }>(`/api/customer/cart/items/${itemId}`, {
+      method: "PATCH", body: JSON.stringify({ quantity }),
+    })).cart,
+    read: async () => (await customerApi<{ cart: CustomerCart | null }>("/api/customer/cart")).cart,
+    onChange: value => { if (mounted.current) setCart(value); onCartChange?.(value); },
+    onPending: value => { if (mounted.current) setQuantityBusy(value); },
+    onError: (reason, syncFailed) => { if (mounted.current) {
+      setMessage(shoppingError(reason, "Unable to update your cart. Please try again."));
+      if (syncFailed) setLoadFailed(true);
+    } },
+  });
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const checkoutInFlight = useRef(false);
   const [deliveryMode, setDeliveryMode] = useState<CustomerDeliveryMode>("INSTANT");
@@ -50,11 +66,12 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
     checkoutChoiceChanged.current = false;
     setSlotRefresh(value => value + 1);
     try {
+      await waitForCartQuantityWrites();
       const [cartResult, addressResult] = await Promise.all([
         customerApi<{ cart: CustomerCart | null }>("/api/customer/cart"),
         customerApi<{ addresses: CustomerAddress[] }>("/api/customer/addresses"),
       ]);
-      setCart(cartResult.cart); setAddresses(addressResult.addresses);
+      quantityController.current!.reset(cartResult.cart); setAddresses(addressResult.addresses);
       const selected = addressResult.addresses.find((address) => address.isDefault) ?? addressResult.addresses[0];
       if (selected) setAddressId(selected.id);
     } catch (reason) { setLoadFailed(true); setMessage(shoppingError(reason, "Unable to load your cart. Please try again.")); }
@@ -129,42 +146,15 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
     setMessage("That delivery time has passed. Choose a new available time.");
   }, [selectedSlot, freshnessNow]);
 
-  const quantity = (itemId: string, next: number) => {
-    const current = cart?.items.find((item) => item.id === itemId)?.quantity ?? next;
-    const queue = quantityQueues.current[itemId] ?? { target: current, running: false };
-    if (queue.target === 0) {
-      if (next === 0) return;
-    }
-    queue.target = next === 0 ? 0 : Math.max(1, queue.target + (next - current));
-    quantityQueues.current[itemId] = queue;
-    if (!queue.running) void flushQuantity(itemId);
-  };
-  
-  const flushQuantity = async (itemId: string) => {
-    const queue = quantityQueues.current[itemId];
-    if (!queue || queue.running) return;
-    queue.running = true;
-    try {
-      while (true) {
-        const sentTarget = queue.target;
-        const result = await customerApi<{ cart: CustomerCart }>(`/api/customer/cart/items/${itemId}`, { method:"PATCH", body:JSON.stringify({ quantity:sentTarget }) });
-        setCart(result.cart);
-        if (queue.target === sentTarget) break;
-      }
-    } catch (reason) {
-      setMessage(shoppingError(reason, "Unable to update your cart. Please try again."));
-    } finally {
-      delete quantityQueues.current[itemId];
-    }
-  };
+  const quantity = (itemId: string, delta: -1 | 1) => quantityController.current!.adjust(itemId, delta);
 
-  const clear = () => setClearDialogVisible(true);
+  const clear = () => { if (!quantityController.current!.isPending()) setClearDialogVisible(true); };
 
   const confirmClear = async () => {
     setClearLoading(true);
     try {
       await customerApi("/api/customer/cart", { method: "DELETE" });
-      setCart(null);
+      quantityController.current!.reset(null);
     } catch (reason) {
       setMessage(shoppingError(reason, "Unable to clear your basket. Please try again."));
     } finally {
@@ -183,7 +173,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
       setMessage("Choose an available delivery time before placing your order.");
       return;
     }
-    if (Object.values(quantityQueues.current).some(queue => queue.running)) {
+    if (quantityController.current!.isPending()) {
       setMessage("Please wait for your quantity changes to finish before placing the order.");
       return;
     }
@@ -269,12 +259,12 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
                   <Text style={[typography.caption, { color: colors.accent, fontWeight: "700" }]}>{formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
                   <Text style={typography.caption}>₹{formatPrice(item.unitPrice)} each</Text>
                   <Text style={typography.caption}>Qty: {item.quantity} × {formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
-                  <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, item.quantity - 1)} onIncrease={() => quantity(item.id, item.quantity + 1)} min={1} />
+                  <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, -1)} onIncrease={() => quantity(item.id, 1)} min={0} disabled={checkoutBusy || clearLoading} />
                   {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{item.unavailableReason === "OUT_OF_STOCK" ? "Out of stock" : item.unavailableReason === "INSUFFICIENT_STOCK" ? "No longer available in the selected quantity. Please reduce the quantity." : "This item is no longer available."}</Text>}
                 </View>
                 <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
                   <Text style={typography.title3}>₹{formatPrice(item.lineSubtotal)}</Text>
-                  <Pressable onPress={() => quantity(item.id, 0)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>Remove</Text></Pressable>
+                  <Pressable disabled={checkoutBusy || clearLoading} onPress={() => quantityController.current!.remove(item.id)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>Remove</Text></Pressable>
                 </View>
               </View>
             ))}
@@ -405,7 +395,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
               : !cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>Resolve unavailable items or meet the minimum order value to checkout.</Text>}
             {!!message && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{message}</Text>}
             
-            <Pressable accessibilityRole="button" disabled={!cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))) && styles.disabled]}>
+            <Pressable accessibilityRole="button" disabled={quantityBusy || !cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))} onPress={validate} style={[styles.primaryBtn, (quantityBusy || !cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))) && styles.disabled]}>
               {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Place Order • ₹{cart.total}</Text>}
             </Pressable>
           </View>
