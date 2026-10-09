@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated, useWindowDimensions } from "react-native";
+import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated, useWindowDimensions } from "react-native";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./components/CustomerTypography";
 import { customerApi, type CustomerAddress, type CustomerCategory, type CustomerProduct, type CustomerProductPagination, type CustomerProductSearchResponse, type CustomerProductVariant, type CustomerStore, type CustomerProfile } from "./lib/api";
 import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
@@ -76,6 +76,38 @@ function customerVariantLabel(variant: CustomerProductVariant) {
 function customerStoreLocation(store: CustomerStore) {
   return [store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ");
 }
+function nextOpeningLabel(value: string) {
+  const date = new Date(value);
+  const today = indiaDayKey(new Date());
+  const openingDay = indiaDayKey(date);
+  const tomorrowDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const tomorrow = indiaDayKey(tomorrowDate);
+  const dayName = openingDay === today ? "Today" : openingDay === tomorrow ? "Tomorrow"
+    : new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" }).format(date);
+  const time = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(date);
+  if (openingDay === tomorrow) return `Store is closed for today. Opens tomorrow at ${time}`;
+  if (openingDay === today) return `Store is currently closed. Opens today at ${time}`;
+  return `Store is currently closed. Opens on ${dayName} at ${time}`;
+}
+
+function indiaDayKey(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(item => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function ClosedStoreNotice({ store }: { store: CustomerStore }) {
+  return <View accessibilityRole="alert" style={styles.closedBanner}>
+    <View style={styles.closedClock}><View style={styles.clockHandHour} /><View style={styles.clockHandMinute} /></View>
+    <View style={styles.closedBannerCopy}>
+      <Text style={styles.closedBannerTitle}>We’ll be back shortly!</Text>
+      {store.scheduledDeliveryAvailable && <Text style={styles.closedBannerBody}>Don’t worry — scheduled delivery is available. Keep browsing and choose a future delivery time at checkout.</Text>}
+      {!!store.nextOpeningAt
+        ? <Text style={styles.closedBannerBody}>{nextOpeningLabel(store.nextOpeningAt)}.</Text>
+        : <Text style={styles.closedBannerBody}>The next opening time isn’t available yet.</Text>}
+    </View>
+  </View>;
+}
 
 export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder, onPincodeChange, requestedSavedItem, onSavedItemRequestHandled }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void; onPincodeChange?: (pincode: string) => void; requestedSavedItem?: { productId: string; storeId: string }; onSavedItemRequestHandled?: () => void }) {
   const { width: viewportWidth } = useWindowDimensions();
@@ -130,6 +162,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const pendingCategoryId = useRef("");
   const cartAddInFlight = useRef(false);
   const productRefreshGeneration = useRef(0);
+  const storeMetadataGeneration = useRef(0);
   const defaultAddressId = useRef("");
   const selectedAddressIdRef = useRef("");
 
@@ -217,6 +250,41 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   }, [pincode]);
 
   useEffect(() => { loadStores(); }, [loadStores]);
+  const refreshStoreMetadata = useCallback(async (storeId: string) => {
+    const generation = ++storeMetadataGeneration.current;
+    try {
+      const { store: refreshed } = await customerApi<{ store: CustomerStore }>(`/api/customer/stores/${encodeURIComponent(storeId)}?pincode=${encodeURIComponent(pincode)}`);
+      if (generation !== storeMetadataGeneration.current || refreshed.id !== storeId) return;
+      setStore(current => current?.id === storeId
+        ? current.operatingStatus === refreshed.operatingStatus &&
+          current.scheduledDeliveryAvailable === refreshed.scheduledDeliveryAvailable &&
+          current.nextOpeningAt === refreshed.nextOpeningAt &&
+          JSON.stringify(current.operatingHours) === JSON.stringify(refreshed.operatingHours) &&
+          current.name === refreshed.name ? current : refreshed
+        : current);
+      setStores(current => current.map(item => item.id !== storeId ? item :
+        item.operatingStatus === refreshed.operatingStatus &&
+          item.scheduledDeliveryAvailable === refreshed.scheduledDeliveryAvailable &&
+          item.nextOpeningAt === refreshed.nextOpeningAt &&
+          JSON.stringify(item.operatingHours) === JSON.stringify(refreshed.operatingHours) ? item : refreshed));
+    } catch {
+      // Keep the last verified store metadata visible; refresh again on the next focus/timer.
+    }
+  }, [pincode]);
+  useEffect(() => {
+    if (!active || !store?.id || !pincode) return;
+    const refresh = () => { void refreshStoreMetadata(store.id); };
+    refresh();
+    const timer = setInterval(refresh, 45_000);
+    const subscription = AppState.addEventListener("change", state => { if (state === "active") refresh(); });
+    if (Platform.OS === "web" && typeof window !== "undefined") window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+      if (Platform.OS === "web" && typeof window !== "undefined") window.removeEventListener("focus", refresh);
+      ++storeMetadataGeneration.current;
+    };
+  }, [active, store?.id, pincode, refreshStoreMetadata]);
   useEffect(() => {
     if (!active || !requestedStoreId || !pincode || loadingAddresses || loadingStores || storeDirectoryPincode !== pincode) return;
     const eligibleStore = stores.find(candidate => candidate.id === requestedStoreId);
@@ -417,8 +485,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   };
 
   const addToCart = async (selected: CustomerProduct, variant: CustomerProductVariant, qty: number, confirmStoreSwitch = false) => {
-    if (store?.id === selected.storeId && store.operatingStatus === "CLOSED") {
-      setError("This store is currently closed and cannot accept orders.");
+    if (store?.id === selected.storeId && store.operatingStatus === "CLOSED" && !store.scheduledDeliveryAvailable) {
+      setError("This store has no available future delivery times. Your basket has not been changed.");
       return;
     }
     if (!canPurchaseVariant(selected, variant)) {
@@ -574,12 +642,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   } else if (product && store) {
     content = <ShoppingProductDetails key="product-detail" product={product} store={store} pincode={pincode}
       favoriteControl={<FavoriteControl product={product} pincode={pincode} />}
+      closedStoreNotice={<ClosedStoreNotice store={store} />}
       selectedVariantId={selectedVariantId} quantity={quantity} busy={adding || switchDialogLoading}
       hasCart={cartUnits > 0} error={error}
       backLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}
       onBack={closeProduct}
       onSelect={variant => {
-        if (store.operatingStatus !== "OPEN" || !canPurchaseVariant(product, variant) || adding || switchDialogLoading) return;
+        if ((store.operatingStatus !== "OPEN" && !store.scheduledDeliveryAvailable) || !canPurchaseVariant(product, variant) || adding || switchDialogLoading) return;
         if (variant.id !== selectedVariantId) { setSelectedVariantId(variant.id); setQuantity(1); }
         setError("");
       }}
@@ -597,6 +666,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Currently Closed"} · Serves {pincode}</Text></View>
           </View>
+          {store.operatingStatus === "CLOSED" && <ClosedStoreNotice store={store} />}
           {productSearchField("Search products or stores")}
 
           {!!categoryId && <View style={styles.categoryHeader}><Pressable onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? "Products"}</Text></View>}
@@ -622,7 +692,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </View>
           ) : (
             <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
-      {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} storeOperatingStatus={store.operatingStatus} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
+              {products.map(item => <ShoppingProductCard key={item.id} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} storeOperatingStatus={store.operatingStatus} canScheduleWhileClosed={store.scheduledDeliveryAvailable === true} onOpen={() => void showProduct(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
             </View>
           )}
           <PaginationControls pagination={storePagination} onPageChange={setStorePage} />
@@ -832,6 +902,13 @@ const styles = StyleSheet.create({
   storeAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
   storeAvatarText: { color: colors.card, fontSize: 22, fontWeight: fontWeights.semibold },
   openText: { color: colors.accent, fontSize: 12, marginTop: 3, fontWeight: "600" },
+  closedBanner: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, padding: spacing.md, marginBottom: spacing.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.highlight },
+  closedClock: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.danger, position: "relative", flexShrink: 0, marginTop: 2 },
+  clockHandHour: { position: "absolute", width: 2, height: 7, top: 4, left: 10, borderRadius: 1, backgroundColor: colors.danger },
+  clockHandMinute: { position: "absolute", width: 6, height: 2, top: 10, left: 11, borderRadius: 1, backgroundColor: colors.danger },
+  closedBannerCopy: { flex: 1, gap: spacing.xs },
+  closedBannerTitle: { ...typography.title3, color: colors.danger },
+  closedBannerBody: { ...typography.caption, color: colors.ink },
   categoryHeader: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, backgroundColor: colors.accent, marginHorizontal: -spacing.lg },
   categoryHeaderText: { color: colors.card, fontSize: 27 },
   categoryHeaderTitle: { color: colors.card, fontSize: 20, fontWeight: fontWeights.semibold },

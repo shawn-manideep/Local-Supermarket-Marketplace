@@ -14,6 +14,8 @@ import { documentStorage } from "./storage.js";
 const exec = promisify(execFile);
 const postgres = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
 const legacy = randomUUID(), vendorA = randomUUID(), vendorB = randomUUID(), customer = randomUUID();
+const customerB = randomUUID();
+let structuredAddressId: string;
 const admin = randomUUID(), delivery = randomUUID();
 const legacyStore = randomUUID(), storeA = randomUUID(), storeB = randomUUID(), masterId = randomUUID();
 const protectedProduct = randomUUID(), protectedVariant = randomUUID();
@@ -44,9 +46,9 @@ before(async () => {
   for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !file.startsWith("0019") && !file.startsWith("0021")).sort()) {
     await pool.query(await readFile(new URL(file, migrations), "utf8"));
   }
-  for (const id of [legacy, vendorA, vendorB, customer, admin, delivery]) {
+  for (const id of [legacy, vendorA, vendorB, customer, admin, delivery, customerB]) {
     await pool.query("INSERT INTO auth.users(id,email) VALUES($1,$2)", [id, `${id}@qa.invalid`]);
-    if (id !== customer) {
+    if (id !== customer && id !== customerB) {
       await pool.query("UPDATE user_profiles SET role=$2 WHERE id=$1", [id, id === admin ? "admin" : id === delivery ? "delivery_partner" : "vendor"]);
       await pool.query("DELETE FROM customers WHERE id=$1", [id]);
     }
@@ -73,7 +75,7 @@ before(async () => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url !== `${process.env.SUPABASE_URL}/auth/v1/user`) return originalFetch(input, init);
     const id = new Headers(init?.headers).get("authorization")?.replace("Bearer ", "");
-    return [legacy, vendorA, vendorB, customer, admin, delivery].some(actor => actor === id)
+    return [legacy, vendorA, vendorB, customer, admin, delivery, customerB].some(actor => actor === id)
       ? Response.json({ id, email: `${id}@qa.invalid` }) : Response.json({ message: "Invalid identity" }, { status: 401 });
   };
   // External provider bytes only are simulated; HTTP/authz/transactions/RLS/DB are real.
@@ -108,7 +110,7 @@ after(async () => {
 });
 // Distinct synthetic actors originate from distinct test IPs; production rate
 // limiting remains enabled and unchanged.
-const actorIp = (actor: string | null) => `203.0.113.${([legacy, vendorA, vendorB, customer, admin, delivery] as string[]).indexOf(actor ?? "") + 2}`;
+const actorIp = (actor: string | null) => `203.0.113.${([legacy, vendorA, vendorB, customer, admin, delivery, customerB] as string[]).indexOf(actor ?? "") + 2}`;
 type QAResponse = Omit<Response, "json"> & { json(): Promise<any> };
 async function request(actor: string | null, path: string, method = "GET", body?: unknown): Promise<QAResponse> {
   return originalFetch(`${base}${path}`, {
@@ -490,7 +492,7 @@ test("closed checkout and cart additions reject atomically while browsing remain
     cartId: cart.id, addressId: address, idempotencyKey: randomUUID(), paymentMethod: "COD", deliveryMode: "SCHEDULED",
     scheduledStartAt: new Date(Date.now() + 3_600_000).toISOString(), scheduledEndAt: new Date(Date.now() + 7_200_000).toISOString(),
   });
-  assert.equal(scheduled.status, 409); assert.equal((await scheduled.json()).code, "STORE_CLOSED");
+  assert.equal(scheduled.status, 409); assert.equal((await scheduled.json()).code, "DELIVERY_SLOT_UNAVAILABLE");
   assert.equal((await request(customer, "/api/customer/cart/items", "POST", { productId: row.product, variantId: row.variant, quantity: 1 })).status, 409);
   assert.equal((await request(customer, `/api/customer/cart/items/${cart.items[0].id}`, "PATCH", { quantity: 2 })).status, 409);
   assert.equal((await request(customer, `/api/customer/stores/${storeA}?pincode=500090`)).status, 200);
@@ -554,4 +556,101 @@ test("hours writes serialize against the checkout store lock", async () => {
     await writer.query("UPDATE store_operating_hours SET is_closed=true WHERE store_id=$1", [storeA]);
     await writer.query("ROLLBACK");
   } finally { await checkout.query("ROLLBACK"); await writer.query("ROLLBACK"); checkout.release(); writer.release(); }
+});
+
+test("structured address create/edit/read-back preserves legacy rows, ownership and historical snapshots", async () => {
+  const original = (await pool.query("SELECT to_jsonb(a) AS row FROM customer_addresses a WHERE customer_id=$1 ORDER BY created_at", [customer])).rows;
+  const histories = (await pool.query("SELECT id,delivery_address_snapshot FROM orders ORDER BY id")).rows;
+  const baseInput = { recipientName: "Synthetic recipient", phone: "9876543210", city: "Hyderabad", state: "Telangana", pincode: "500090" };
+  assert.equal((await request(customer, "/api/customer/addresses", "POST", baseInput)).status, 400);
+  assert.equal((await request(customer, "/api/customer/addresses", "POST", { ...baseInput, houseNumber: " " })).status, 400);
+  const created = await request(customer, "/api/customer/addresses", "POST", { ...baseInput,
+    houseNumber: "Flat No. 302", buildingName: "Green Heights Apartments", landmark: "Near ABC School", locality: "Pragathi Nagar" });
+  assert.equal(created.status, 201);
+  const address = (await created.json()).address;
+  structuredAddressId = address.id;
+  assert.equal(address.houseNumber, "Flat No. 302");
+  assert.equal(address.line1, "Flat No. 302");
+  assert.equal(address.line2, "Green Heights Apartments, Near ABC School, Pragathi Nagar");
+  assert.deepEqual((await pool.query("SELECT to_jsonb(a) AS row FROM customer_addresses a WHERE id=ANY($1::uuid[]) ORDER BY created_at",
+    [original.map((r: any) => r.row.id)])).rows, original);
+  const updated = await request(customer, `/api/customer/addresses/${address.id}`, "PATCH",
+    { buildingName: null, landmark: "Near updated school" });
+  assert.equal(updated.status, 200);
+  const read = (await (await request(customer, `/api/customer/addresses/${address.id}`)).json()).address;
+  assert.equal(read.buildingName, null); assert.equal(read.landmark, "Near updated school");
+  assert.equal(read.locality, "Pragathi Nagar"); assert.equal(read.line2, "Near updated school, Pragathi Nagar");
+  const concurrent = await Promise.all([
+    request(customer, `/api/customer/addresses/${address.id}`, "PATCH", { buildingName: "Tower B" }),
+    request(customer, `/api/customer/addresses/${address.id}`, "PATCH", { landmark: "Near corner school" }),
+  ]);
+  assert.ok(concurrent.every(response => response.status === 200));
+  const merged = (await (await request(customer, `/api/customer/addresses/${address.id}`)).json()).address;
+  assert.equal(merged.buildingName, "Tower B"); assert.equal(merged.landmark, "Near corner school");
+  await request(customer, `/api/customer/addresses/${address.id}`, "PATCH", { buildingName: null, landmark: "Near updated school" });
+  assert.ok((await (await request(customer, "/api/customer/addresses")).json()).addresses.some((a: any) => a.id === address.id && a.houseNumber === "Flat No. 302"));
+  for (const method of ["GET", "PATCH", "DELETE"]) {
+    assert.equal((await request(customerB, `/api/customer/addresses/${address.id}`, method,
+      method === "PATCH" ? { houseNumber: "Wrong owner" } : undefined)).status, 404);
+  }
+  assert.equal((await request(vendorA, "/api/customer/addresses")).status, 403);
+  assert.deepEqual((await pool.query("SELECT id,delivery_address_snapshot FROM orders ORDER BY id")).rows, histories);
+});
+
+test("daily-closed store permits future scheduled checkout, blocks Instant/expired slots and freezes new address snapshot", async () => {
+  await request(customer, "/api/customer/cart", "DELETE");
+  await pool.query(`UPDATE store_operating_hours SET is_closed=(day_of_week=extract(dow FROM clock_timestamp() AT TIME ZONE 'Asia/Kolkata')::integer),
+    opens_at='00:00',closes_at='23:59' WHERE store_id=$1`, [storeA]);
+  const row = (await pool.query(`SELECT p.id AS product,v.id AS variant,v.stock_quantity FROM products p JOIN product_variants v ON v.product_id=p.id
+    WHERE p.store_id=$1 AND p.is_active AND p.availability AND v.is_active AND v.availability AND v.stock_quantity>1 ORDER BY v.id LIMIT 1`, [storeA])).rows[0];
+  const slots = (await (await request(customer, `/api/customer/stores/${storeA}/delivery-slots?pincode=500090`)).json());
+  assert.equal(slots.operatingStatus, "CLOSED"); assert.equal(slots.scheduledDeliveryAvailable, true);
+  assert.ok(slots.nextOpeningAt); assert.ok(slots.slots.length);
+  const store = (await (await request(customer, `/api/customer/stores/${storeA}?pincode=500090`)).json()).store;
+  assert.equal(store.nextOpeningAt, slots.nextOpeningAt);
+  const added = await request(customer, "/api/customer/cart/items", "POST", { productId: row.product, variantId: row.variant, quantity: 1 });
+  assert.equal(added.status, 201);
+  const cart = (await added.json()).cart;
+  assert.equal(cart.instantDeliveryAvailable, false); assert.equal(cart.scheduledDeliveryAvailable, true); assert.equal(cart.checkoutReady, true);
+  const input = { cartId: cart.id, addressId: structuredAddressId, idempotencyKey: randomUUID(), paymentMethod: "COD" };
+  const count = (await pool.query("SELECT count(*)::integer AS n FROM orders")).rows[0].n;
+  const instant = await request(customer, "/api/customer/orders", "POST", input);
+  assert.equal(instant.status, 409); assert.equal((await instant.json()).code, "STORE_CLOSED");
+  const expired = await request(customer, "/api/customer/orders", "POST", { ...input, deliveryMode: "SCHEDULED",
+    scheduledStartAt: new Date(Date.now()-7_200_000).toISOString(), scheduledEndAt: new Date(Date.now()-3_600_000).toISOString() });
+  assert.equal(expired.status, 409); assert.equal((await expired.json()).code, "DELIVERY_SLOT_UNAVAILABLE");
+  assert.equal((await pool.query("SELECT count(*)::integer AS n FROM orders")).rows[0].n, count);
+  assert.equal((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=$1", [row.variant])).rows[0].stock_quantity, row.stock_quantity);
+  const slot = slots.slots[0];
+  const accepted = await request(customer, "/api/customer/orders", "POST", { ...input, deliveryMode: "SCHEDULED", scheduledStartAt: slot.startAt, scheduledEndAt: slot.endAt });
+  assert.equal(accepted.status, 201);
+  const order = (await accepted.json()).order;
+  assert.equal(order.scheduledStartAt, slot.startAt);
+  assert.equal(order.deliveryAddressSnapshot.houseNumber, "Flat No. 302");
+  assert.equal(order.deliveryAddressSnapshot.buildingName, null);
+  assert.equal(order.deliveryAddressSnapshot.landmark, "Near updated school");
+  await request(customer, `/api/customer/addresses/${structuredAddressId}`, "PATCH", { houseNumber: "777", locality: null });
+  const persisted = (await pool.query("SELECT delivery_address_snapshot FROM orders WHERE id=$1", [order.id])).rows[0].delivery_address_snapshot;
+  assert.equal(persisted.houseNumber, "Flat No. 302"); assert.equal(persisted.locality, "Pragathi Nagar");
+  assert.equal((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=$1", [row.variant])).rows[0].stock_quantity, row.stock_quantity-1);
+  await pool.query("UPDATE store_operating_hours SET is_closed=false WHERE store_id=$1", [storeA]);
+});
+
+test("administratively unavailable stores never gain scheduled eligibility from future hours", async () => {
+  await request(customer, "/api/customer/cart", "DELETE");
+  const row = (await pool.query(`SELECT p.id AS product,v.id AS variant FROM products p JOIN product_variants v ON v.product_id=p.id
+    WHERE p.store_id=$1 AND p.is_active AND p.availability AND v.is_active AND v.availability AND v.stock_quantity>0 LIMIT 1`, [storeA])).rows[0];
+  const cart = (await (await request(customer, "/api/customer/cart/items", "POST", { productId: row.product, variantId: row.variant, quantity: 1 })).json()).cart;
+  const unavailable = (await pool.query("SELECT enumlabel FROM pg_enum JOIN pg_type ON pg_type.oid=enumtypid WHERE typname='store_status' AND enumlabel<>'ACTIVE' LIMIT 1")).rows[0].enumlabel;
+  await pool.query("UPDATE stores SET status=$2 WHERE id=$1", [storeA, unavailable]);
+  const before = (await pool.query("SELECT count(*)::integer AS n FROM orders")).rows[0].n;
+  assert.equal((await request(customer, `/api/customer/stores/${storeA}/delivery-slots?pincode=500090`)).status, 404);
+  const viewed = (await (await request(customer, "/api/customer/cart")).json()).cart;
+  assert.equal(viewed.scheduledDeliveryAvailable, false); assert.equal(viewed.checkoutReady, false);
+  const response = await request(customer, "/api/customer/orders", "POST", { cartId: cart.id, addressId: structuredAddressId,
+    idempotencyKey: randomUUID(), paymentMethod: "COD", deliveryMode: "SCHEDULED",
+    scheduledStartAt: new Date(Date.now()+3_600_000).toISOString(), scheduledEndAt: new Date(Date.now()+7_200_000).toISOString() });
+  assert.equal(response.status, 409);
+  assert.equal((await pool.query("SELECT count(*)::integer AS n FROM orders")).rows[0].n, before);
+  await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeA]);
 });

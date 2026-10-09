@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { CustomerText as Text } from "./components/CustomerTypography";
 import { customerApi, CustomerRequestError, type CustomerAddress, type CustomerCart, type CustomerCheckoutSubmission, type CustomerDeliveryMode, type CustomerDeliverySlot, type CustomerDeliverySlotsResponse } from "./lib/api";
 import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
@@ -8,6 +8,7 @@ import { QuantitySelector } from "./components/QuantitySelector";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { PlaceholderImage } from "./components/PlaceholderImage";
 import { shoppingError } from "./lib/shopping";
+import { addressStreetLines } from "./lib/address-format";
 
 function BasketIcon() {
   return (
@@ -30,10 +31,12 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
   const [deliveryMode, setDeliveryMode] = useState<CustomerDeliveryMode>("INSTANT");
   const [slotResponse, setSlotResponse] = useState<CustomerDeliverySlotsResponse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<CustomerDeliverySlot | null>(null);
+  const selectedSlotRef = useRef<CustomerDeliverySlot | null>(null);
   const [selectedDay, setSelectedDay] = useState("");
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
   const [slotRefresh, setSlotRefresh] = useState(0);
+  const [freshnessNow, setFreshnessNow] = useState(Date.now());
   const checkoutIntent = useRef<{ cartId: string; addressId: string; mode: CustomerDeliveryMode; startAt: string; endAt: string; key: string } | null>(null);
   const checkoutChoiceChanged = useRef(false);
 
@@ -42,7 +45,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
 
   const load = async () => {
     setLoading(true); setMessage(""); setLoadFailed(false);
-    setDeliveryMode("INSTANT"); setSelectedSlot(null); setSelectedDay(""); setSlotResponse(null); setSlotsError("");
+    setDeliveryMode("INSTANT"); selectedSlotRef.current = null; setSelectedSlot(null); setSelectedDay(""); setSlotResponse(null); setSlotsError("");
     checkoutIntent.current = null;
     checkoutChoiceChanged.current = false;
     setSlotRefresh(value => value + 1);
@@ -60,11 +63,13 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
   useEffect(() => { void load(); }, []);
 
   const selectedAddress = addresses.find(address => address.id === addressId);
+  const validSlots = useMemo(() => (slotResponse?.slots ?? []).filter(slot => isFullFutureSlot(slot, freshnessNow)), [slotResponse, freshnessNow]);
+  const instantAvailable = !!cart && cart.operatingStatus === "OPEN" && cart.instantDeliveryAvailable !== false;
+  const scheduledAvailable = slotResponse
+    ? (slotResponse.scheduledDeliveryAvailable ?? slotResponse.slots.length > 0)
+    : (cart?.scheduledDeliveryAvailable ?? false);
+
   useEffect(() => {
-    setSelectedSlot(null);
-    setSelectedDay("");
-    setSlotResponse(null);
-    setSlotsError("");
     if (deliveryMode !== "SCHEDULED" || !cart || !selectedAddress?.pincode) {
       setSlotsLoading(false);
       return;
@@ -76,13 +81,53 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
       .then(result => {
         if (!active) return;
         setSlotResponse(result);
-        const firstDay = result.slots.length ? indiaDayKey(result.slots[0].startAt) : "";
-        setSelectedDay(firstDay);
+        const fresh = result.slots.filter(slot => isFullFutureSlot(slot, Date.now()));
+        const current = selectedSlotRef.current;
+        const stillAvailable = current && fresh.some(slot => slot.startAt === current.startAt && slot.endAt === current.endAt);
+        if (current && !stillAvailable) {
+            checkoutIntent.current = null;
+            checkoutChoiceChanged.current = true;
+            setMessage("That delivery time is no longer available. Choose another time.");
+        }
+        selectedSlotRef.current = stillAvailable ? current : null;
+        setSelectedSlot(selectedSlotRef.current);
+        setSelectedDay(current => fresh.some(slot => indiaDayKey(slot.startAt) === current)
+          ? current
+          : fresh.length ? indiaDayKey(fresh[0].startAt) : "");
+        setSlotsError("");
       })
       .catch(reason => { if (active) setSlotsError(shoppingError(reason, "Available delivery times could not be loaded.")); })
       .finally(() => { if (active) setSlotsLoading(false); });
     return () => { active = false; };
   }, [deliveryMode, cart?.storeId, selectedAddress?.pincode, slotRefresh]);
+
+  useEffect(() => {
+    if (deliveryMode !== "SCHEDULED") return;
+    const refreshFreshness = () => {
+      setFreshnessNow(Date.now());
+      setSlotRefresh(value => value + 1);
+    };
+    const timer = setInterval(refreshFreshness, 25_000);
+    const subscription = AppState.addEventListener("change", state => {
+      if (state === "active") refreshFreshness();
+    });
+    const onFocus = () => refreshFreshness();
+    if (Platform.OS === "web" && typeof window !== "undefined") window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+      if (Platform.OS === "web" && typeof window !== "undefined") window.removeEventListener("focus", onFocus);
+    };
+  }, [deliveryMode]);
+
+  useEffect(() => {
+    if (!selectedSlot || isFullFutureSlot(selectedSlot, freshnessNow)) return;
+    selectedSlotRef.current = null;
+    setSelectedSlot(null);
+    checkoutIntent.current = null;
+    checkoutChoiceChanged.current = true;
+    setMessage("That delivery time has passed. Choose a new available time.");
+  }, [selectedSlot, freshnessNow]);
 
   const quantity = (itemId: string, next: number) => {
     const current = cart?.items.find((item) => item.id === itemId)?.quantity ?? next;
@@ -130,11 +175,11 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
 
   const validate = async () => {
     if (checkoutInFlight.current || checkoutBusy || !cart || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
-    if (cart.operatingStatus === "CLOSED") {
-      setMessage("This store is currently closed and cannot accept orders. Your cart has been kept.");
+    if (deliveryMode === "INSTANT" && !instantAvailable) {
+      setMessage("Instant delivery is unavailable while this store is closed. Choose an available scheduled time.");
       return;
     }
-    if (deliveryMode === "SCHEDULED" && (!selectedSlot || slotsLoading || slotResponse?.operatingStatus !== "OPEN")) {
+    if (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, Date.now()) || slotsLoading)) {
       setMessage("Choose an available delivery time before placing your order.");
       return;
     }
@@ -172,8 +217,12 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
       onOrderPlaced(result.order.id);
     } catch (reason) {
       if (reason instanceof CustomerRequestError && reason.code === "STORE_CLOSED") {
-        setCart(current => current ? { ...current, operatingStatus: "CLOSED" } : current);
-        setMessage("This store is currently closed and cannot accept orders. Your cart has been kept.");
+        setCart(current => current ? {
+          ...current, operatingStatus: "CLOSED", instantDeliveryAvailable: false, scheduledDeliveryAvailable: undefined,
+        } : current);
+        setMessage(deliveryMode === "INSTANT"
+          ? "Instant delivery is no longer available. Your cart is safe; choose a scheduled time if one is available."
+          : "The store could not accept this delivery request. Your cart is safe; refresh delivery times and try again.");
       } else setMessage(shoppingError(reason, "Unable to place your order. Please review your cart or try again."));
       if (reason instanceof CustomerRequestError && ["OUT_OF_STOCK", "INSUFFICIENT_STOCK", "VARIANT_UNAVAILABLE", "INVALID_QUANTITY"].includes(reason.code ?? "")) {
         try {
@@ -248,7 +297,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
                 <Pressable key={address.id} accessibilityRole="radio" accessibilityState={{ selected: addressId === address.id }} onPress={() => {
                   if (address.id !== addressId) {
                     setAddressId(address.id);
-                    setSelectedSlot(null);
+                    selectedSlotRef.current = null; setSelectedSlot(null);
                     setSelectedDay("");
                     setSlotResponse(null);
                     setSlotsError("");
@@ -261,7 +310,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={typography.bodySemibold}>{address.label ?? address.recipientName}</Text>
-                    <Text style={typography.body}>{address.line1}, {address.city} {address.pincode}</Text>
+                    {addressStreetLines(address).map((line, index) => <Text key={`${address.id}-address-${index}`} style={typography.body}>{line}</Text>)}
                   </View>
                 </Pressable>
               ))}
@@ -270,21 +319,21 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
 
           <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Delivery Option</Text>
           <View style={{ gap: spacing.sm }}>
-            <Pressable accessibilityRole="radio" accessibilityState={{ selected: deliveryMode === "INSTANT" }} onPress={() => {
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: deliveryMode === "INSTANT", disabled: !instantAvailable }} disabled={!instantAvailable} onPress={() => {
               if (deliveryMode !== "INSTANT") {
-                setDeliveryMode("INSTANT"); setSelectedSlot(null); setSelectedDay(""); checkoutIntent.current = null; checkoutChoiceChanged.current = true;
+                setDeliveryMode("INSTANT"); selectedSlotRef.current = null; setSelectedSlot(null); setSelectedDay(""); checkoutIntent.current = null; checkoutChoiceChanged.current = true;
               }
-            }} style={[styles.deliveryChoice, deliveryMode === "INSTANT" && styles.deliveryChoiceActive]}>
+            }} style={[styles.deliveryChoice, deliveryMode === "INSTANT" && styles.deliveryChoiceActive, !instantAvailable && styles.disabled]}>
               <View style={[styles.radio, deliveryMode === "INSTANT" && styles.radioActive]}>{deliveryMode === "INSTANT" && <View style={styles.radioInner} />}</View>
-              <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>Instant Delivery</Text><Text style={typography.caption}>Deliver as soon as possible</Text></View>
+              <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>Instant Delivery</Text><Text style={typography.caption}>{instantAvailable ? "Deliver as soon as possible" : "Unavailable while the store is closed"}</Text></View>
             </Pressable>
-            <Pressable accessibilityRole="radio" accessibilityState={{ selected: deliveryMode === "SCHEDULED" }} onPress={() => {
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: deliveryMode === "SCHEDULED", disabled: cart.scheduledDeliveryAvailable === false }} disabled={cart.scheduledDeliveryAvailable === false} onPress={() => {
               if (deliveryMode !== "SCHEDULED") {
-                setDeliveryMode("SCHEDULED"); setSelectedSlot(null); setSelectedDay(""); setSlotResponse(null); setSlotsError(""); checkoutIntent.current = null; checkoutChoiceChanged.current = true;
+                setDeliveryMode("SCHEDULED"); selectedSlotRef.current = null; setSelectedSlot(null); setSelectedDay(""); setSlotResponse(null); setSlotsError(""); checkoutIntent.current = null; checkoutChoiceChanged.current = true;
               }
-            }} style={[styles.deliveryChoice, deliveryMode === "SCHEDULED" && styles.deliveryChoiceActive]}>
+            }} style={[styles.deliveryChoice, deliveryMode === "SCHEDULED" && styles.deliveryChoiceActive, cart.scheduledDeliveryAvailable === false && styles.disabled]}>
               <View style={[styles.radio, deliveryMode === "SCHEDULED" && styles.radioActive]}>{deliveryMode === "SCHEDULED" && <View style={styles.radioInner} />}</View>
-              <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>Scheduled Delivery</Text><Text style={typography.caption}>Choose an available time</Text></View>
+              <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>Scheduled Delivery</Text><Text style={typography.caption}>{cart.scheduledDeliveryAvailable === false ? "No future delivery times are available" : "Choose an available time"}</Text></View>
             </Pressable>
           </View>
           {deliveryMode === "SCHEDULED" && (
@@ -292,8 +341,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
               <View style={styles.between}>
                 <Text style={typography.bodySemibold}>Available delivery times</Text>
                 <Pressable accessibilityRole="button" disabled={slotsLoading} onPress={() => {
-                  setSelectedSlot(null); setSelectedDay(""); setSlotResponse(null); setSlotsError("");
-                  checkoutIntent.current = null; checkoutChoiceChanged.current = true;
+                  setSlotsError("");
                   setSlotRefresh(value => value + 1);
                 }} style={slotsLoading && styles.disabled}>
                   <Text style={[typography.caption, { color: colors.accent, fontWeight: fontWeights.semibold }]}>Refresh</Text>
@@ -303,26 +351,33 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
               {!!slotsError && !slotsLoading && <View style={{ gap: spacing.sm }}>
                 <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger }]}>{slotsError}</Text>
                 <Pressable accessibilityRole="button" onPress={() => {
-                  setSelectedSlot(null); checkoutIntent.current = null; checkoutChoiceChanged.current = true;
                   setSlotRefresh(value => value + 1);
                 }} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Try again</Text></Pressable>
               </View>}
-              {!slotsLoading && !slotsError && slotResponse?.operatingStatus === "CLOSED" && <Text style={[typography.body, { color: colors.danger }]}>Currently Closed. This store is not accepting orders.</Text>}
-              {!slotsLoading && !slotsError && slotResponse?.operatingStatus === "OPEN" && slotResponse.slots.length === 0 && <Text style={typography.caption}>No delivery times are available right now. Refresh to check again.</Text>}
-              {!slotsLoading && !slotsError && slotResponse?.operatingStatus === "OPEN" && slotResponse.slots.length > 0 && <>
+              {!slotsError && slotResponse?.operatingStatus === "CLOSED" && <Text style={[typography.body, { color: colors.danger }]}>The store is closed for instant delivery. Choose a future scheduled time to place this order.</Text>}
+              {!slotsLoading && !slotsError && !scheduledAvailable && <Text style={typography.caption}>No future delivery times are available right now. Your cart is safe; try again later.</Text>}
+              {!slotsLoading && !slotsError && scheduledAvailable && validSlots.length === 0 && <Text style={typography.caption}>No full delivery windows remain available. Refresh to check again.</Text>}
+              {!slotsError && scheduledAvailable && validSlots.length > 0 && <>
                 <View style={styles.slotDays}>
-                  {availableDays(slotResponse.slots).map(day => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: selectedDay === day }} onPress={() => {
-                    if (day !== selectedDay) { setSelectedDay(day); setSelectedSlot(null); checkoutIntent.current = null; checkoutChoiceChanged.current = true; }
+                  {availableDays(validSlots).map(day => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: selectedDay === day }} onPress={() => {
+                    if (day !== selectedDay) {
+                      setSelectedDay(day);
+                      selectedSlotRef.current = null;
+                      setSelectedSlot(null);
+                      checkoutIntent.current = null;
+                      checkoutChoiceChanged.current = true;
+                      setSlotRefresh(value => value + 1);
+                    }
                   }} style={[styles.dayChip, selectedDay === day && styles.dayChipActive]}>
                     <Text style={[styles.dayChipText, selectedDay === day && styles.dayChipTextActive]}>{dayLabel(day)}</Text>
                   </Pressable>)}
                 </View>
                 <View style={styles.slotTimes}>
-                  {slotResponse.slots.filter(slot => indiaDayKey(slot.startAt) === selectedDay).map(slot => {
+                  {validSlots.filter(slot => indiaDayKey(slot.startAt) === selectedDay).map(slot => {
                     const chosen = selectedSlot?.startAt === slot.startAt && selectedSlot?.endAt === slot.endAt;
                     return <Pressable key={`${slot.startAt}-${slot.endAt}`} accessibilityRole="radio" accessibilityState={{ selected: chosen }} onPress={() => {
                       if (!chosen) {
-                        setSelectedSlot(slot); checkoutIntent.current = null; checkoutChoiceChanged.current = true; setMessage("");
+                        selectedSlotRef.current = slot; setSelectedSlot(slot); checkoutIntent.current = null; checkoutChoiceChanged.current = true; setMessage("");
                       }
                     }} style={[styles.timeChip, chosen && styles.timeChipActive]}>
                       <Text style={[styles.timeChipText, chosen && styles.timeChipTextActive]}>{indiaTime(slot.startAt)} – {indiaTime(slot.endAt)}</Text>
@@ -342,13 +397,15 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping }: {
 
           <View style={{ marginTop: spacing.xxl, gap: spacing.md }}>
             {cart.operatingStatus === "CLOSED" && <View accessibilityRole="alert" style={styles.closedNotice}>
-              <Text style={styles.closedNoticeTitle}>Currently Closed</Text>
-              <Text style={typography.body}>This store is not accepting orders right now. Your cart is safe; try again when it reopens.</Text>
+              <Text style={styles.closedNoticeTitle}>Store closed for instant delivery</Text>
+              <Text style={typography.body}>Your cart is safe. Select Scheduled Delivery if a valid future time is available.</Text>
             </View>}
-            {!cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>Resolve unavailable items or meet the minimum order value to checkout.</Text>}
+            {!cart.checkoutReady && cart.operatingStatus === "CLOSED" && !scheduledAvailable
+              ? <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>This store has no currently available delivery option. Your cart is safe; try again when delivery becomes available.</Text>
+              : !cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>Resolve unavailable items or meet the minimum order value to checkout.</Text>}
             {!!message && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{message}</Text>}
             
-            <Pressable accessibilityRole="button" disabled={!cart.checkoutReady || !addressId || checkoutBusy || cart.operatingStatus === "CLOSED" || (deliveryMode === "SCHEDULED" && (!selectedSlot || slotsLoading || !!slotsError || slotResponse?.operatingStatus !== "OPEN"))} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy || cart.operatingStatus === "CLOSED" || (deliveryMode === "SCHEDULED" && (!selectedSlot || slotsLoading || !!slotsError || slotResponse?.operatingStatus !== "OPEN"))) && styles.disabled]}>
+            <Pressable accessibilityRole="button" disabled={!cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))} onPress={validate} style={[styles.primaryBtn, (!cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))) && styles.disabled]}>
               {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Place Order • ₹{cart.total}</Text>}
             </Pressable>
           </View>
@@ -393,6 +450,12 @@ function indiaTime(value: string) {
 
 function availableDays(slots: CustomerDeliverySlot[]) {
   return [...new Set(slots.map(slot => indiaDayKey(slot.startAt)))];
+}
+
+function isFullFutureSlot(slot: CustomerDeliverySlot, now: number) {
+  const start = new Date(slot.startAt).getTime();
+  const end = new Date(slot.endAt).getTime();
+  return Number.isFinite(start) && Number.isFinite(end) && start > now && end > now;
 }
 
 function stableCheckoutKey(cartId: string, addressId: string, mode: CustomerDeliveryMode, startAt: string, endAt: string) {

@@ -1,0 +1,109 @@
+# Customer Portal Improvements — Address, Scheduled Delivery, Store Closure & Bottom Navigation
+
+Implement the following four changes in the existing Local Supermarket Marketplace project. First inspect the current implementation and reuse the existing components, APIs, database schema, store operating hours, and delivery-slot logic wherever possible.
+
+## 1. Update the Customer Address Form
+
+Replace the existing **Address Line 1** and **Address Line 2** fields with the following fields:
+
+- **House Number / Flat Number** — required.
+- **Building Name / Apartment Name** — optional.
+- **Landmark** — optional.
+
+Retain the existing fields for locality, city, state, PIN code, and any other necessary address information.
+
+Requirements:
+- Update the Add Address and Edit Address forms consistently.
+- Update address display wherever saved addresses appear, including checkout and order details.
+- Ensure the saved address is formatted clearly, for example: Flat No. 302, Green Heights Apartments, Near ABC School, Pragathi Nagar, Hyderabad.
+- Update the existing API validation and persistence mapping only as necessary to support the new fields.
+- Preserve existing customer addresses and historical orders. Do not delete existing address data or break existing records during migration.
+- Make the form responsive on mobile devices.
+
+## 2. Improve Scheduled Delivery Date and Time Selection
+
+Currently, Scheduled Delivery shows only tomorrow. Update it to support **today as well as future eligible dates**.
+
+### Date selection
+- Display Today when the store supports scheduled delivery today and at least one valid future slot remains.
+- Display Tomorrow and other currently supported future dates.
+- Do not offer a date when no valid delivery slots are available.
+- Respect the selected store's operating hours, delivery configuration, and existing scheduling rules.
+
+### Time-slot validation
+Calculate slot availability using the current time in the store's local timezone.
+
+Example: If the current time is 1:30 PM:
+- A slot ending at or before 1:30 PM must not be selectable.
+- A slot that has already started should not be selectable if the existing delivery rules require the full slot to remain available.
+- A slot that is still valid may be selected, provided it satisfies the store's delivery rules and any required preparation or delivery buffer.
+- If a slot is unavailable, either hide it or display it in grey with selection disabled. Prefer hiding expired slots for a cleaner mobile experience.
+
+Additional requirements:
+- Recalculate availability when the customer changes the date or reopens checkout.
+- Do not hard-code today's date or a fixed list of time slots.
+- Validate the selected date and slot again on the backend when the order is placed. Do not rely only on frontend validation.
+- Prevent customers from placing scheduled orders for expired slots.
+- If no valid slots remain today, automatically guide the customer to the next eligible date.
+- Keep Instant Delivery and Scheduled Delivery behavior consistent with the existing delivery workflow.
+- Display clear validation messages when a selected slot becomes unavailable.
+
+## 3. Display a Store-Closed Message Outside Operating Hours
+
+Use the uploaded reference image as the visual and behavioral reference.
+
+When a customer opens the app or visits a store after its closing time, show a prominent, mobile-friendly store-closed banner similar to the reference:
+
+**We'll be back shortly!**
+
+Don't worry — you can still order with our scheduled delivery option.
+
+Store is closed for today. Opens tomorrow at [opening time].
+
+Requirements:
+- Show the message automatically when the selected store is closed according to its configured operating hours, including when the customer opens or refreshes the app after closing time.
+- Display the correct next opening date and time based on the store's actual schedule. Handle different opening hours, days when the store is closed, and applicable timezones.
+- Show the banner on the customer home/store-shopping screen without covering the search bar, product cards, or navigation.
+- Use a light pink background, red heading and clock-style icon, with readable text and responsive spacing inspired by the reference image.
+- If the store is closed for the entire day, show the next actual opening time rather than assuming it opens tomorrow.
+- Allow customers to browse products if that is already supported.
+- Disable Instant Delivery and prevent order placement while the store is closed.
+- If Scheduled Delivery is available, allow customers to choose a valid future delivery slot.
+- Enforce store-closure restrictions on the backend as well as the frontend. A hidden or disabled button alone is not sufficient.
+- Do not confuse daily operating-hour closure with an Admin-disabled, suspended, or inactive store. Existing administrative status rules must continue to apply.
+
+## 4. Rename “Orders” to “Reorder” in Bottom Navigation
+
+In the Customer Portal's bottom navigation, rename the existing **Orders** tab to **Reorder**.
+
+Requirements:
+- Keep the existing navigation destination and order-history/reorder functionality intact.
+- Ensure the correct icon, label, active state, and navigation behavior remain consistent.
+- Do not create a new page or duplicate the existing order/reorder functionality.
+- Update the label anywhere else in the Customer Portal only if needed for consistency; do not change Vendor, Delivery Partner, or Admin navigation labels.
+- Verify that the label fits correctly on mobile screens without overlapping neighboring navigation items.
+
+## Implementation and Safety Rules
+
+1. Inspect the existing Customer Portal components, address API/schema, store-hours logic, scheduled-delivery implementation, and bottom-navigation configuration before making changes.
+2. Reuse the current architecture and existing APIs wherever possible. Do not introduce a new scheduling system or duplicate store-hours logic.
+3. Make only the changes required for these four improvements.
+4. Preserve existing customer accounts, saved addresses, products, variants, prices, stock, orders, delivery assignments, and historical order snapshots.
+5. If a database migration is necessary, make it backward-compatible and preserve existing records.
+6. Add or update focused tests for address validation and persistence, today's scheduled slots, expired-slot rejection, store-closed behavior, backend order validation, and bottom-navigation labeling.
+7. Run the relevant existing tests, Customer Portal type checks, and build checks. Do not spend credits fixing unrelated pre-existing errors.
+8. Do not deploy, change production configuration, or run destructive database operations.
+
+## Final Report
+
+After implementation, report:
+- Files and components changed.
+- Address fields and backward-compatibility handling.
+- How today's delivery slots and expired-slot validation work.
+- How the store-closed banner determines the next opening time.
+- Confirmation that Instant Delivery is blocked when the store is closed and Scheduled Delivery remains available only for valid slots.
+- Bottom-navigation rename confirmation.
+- Tests and build results, including any failures or limitations.
+- Any manual verification I need to perform in the Replit preview.
+
+Stop after reporting the results. Do not proceed to deployment.

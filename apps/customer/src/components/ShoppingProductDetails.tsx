@@ -24,19 +24,21 @@ interface Props {
   onQuantityChange: (quantity: number) => void;
   onAdd: (variant: CustomerProductVariant) => void;
   favoriteControl?: React.ReactNode;
+  closedStoreNotice?: React.ReactNode;
 }
 
 export function ShoppingProductDetails({
   product, store, pincode, selectedVariantId, quantity, busy, hasCart, error, backLabel,
-  onBack, onSelect, onQuantityChange, onAdd, favoriteControl,
+  onBack, onSelect, onQuantityChange, onAdd, favoriteControl, closedStoreNotice,
 }: Props) {
   const variants = activeVariants(product);
   const selected = variants.find(variant => variant.id === selectedVariantId);
   const storeOpen = store.operatingStatus === "OPEN";
-  const purchasable = storeOpen && !!selected && canPurchaseVariant(product, selected);
+  const orderingAvailable = storeOpen || store.scheduledDeliveryAvailable === true;
+  const purchasable = orderingAvailable && !!selected && canPurchaseVariant(product, selected);
   const status = productAvailabilityLabel(product);
   const needsChoice = !selected && variants.some(variant => canPurchaseVariant(product, variant));
-  const addLabel = !storeOpen ? "Currently Closed" : purchasable ? `Add ${quantity} to Cart`
+  const addLabel = !orderingAvailable ? "Currently Closed" : purchasable ? `Add ${quantity} to Cart`
     : needsChoice ? "Choose an option first" : selected ? variantAvailabilityLabel(product, selected) : status;
   return (
     <ScrollView style={commonStyles.viewport} contentContainerStyle={[commonStyles.page, hasCart && styles.cartClearance]}>
@@ -51,10 +53,10 @@ export function ShoppingProductDetails({
         <Text style={typography.hero}>{product.name}</Text>
         {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
         <Text style={[typography.bodySemibold, styles.store]}>Sold by {store.name}</Text>
-        {!storeOpen && <View accessibilityRole="alert" style={styles.closedNotice}>
+        {!storeOpen && (closedStoreNotice ?? <View accessibilityRole="alert" style={styles.closedNotice}>
           <Text style={styles.closedTitle}>Currently Closed</Text>
-          <Text style={styles.closedCopy}>You can browse this store, but it is not accepting orders right now.</Text>
-        </View>}
+          <Text style={styles.closedCopy}>{store.scheduledDeliveryAvailable ? "Instant delivery is paused. Add items now and choose an available future delivery time at checkout." : "You can browse this store, but no delivery option is available right now."}</Text>
+        </View>)}
         {favoriteControl ?? <FavoriteControl product={product} pincode={pincode} />}
         {!![store.locality, store.city, store.state, store.pincode].filter(Boolean).length && <Text style={typography.caption}>{[store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ")}</Text>}
         <Text style={typography.caption}>Delivers to {pincode}</Text>
@@ -66,13 +68,13 @@ export function ShoppingProductDetails({
           <Text style={typography.title3}>{variants.length > 1 ? "Choose an option" : "Selling option"}</Text>
           {variants.length === 0 && <Text style={typography.body}>No selling options are currently available.</Text>}
           {variants.map(variant => {
-            const available = storeOpen && canPurchaseVariant(product, variant);
+            const available = orderingAvailable && canPurchaseVariant(product, variant);
             const checked = selected?.id === variant.id;
             const label = formatVariantName(variant.quantityValue, variant.quantityUnit);
             const availability = variantAvailabilityLabel(product, variant);
             return (
               <Pressable key={variant.id} accessibilityRole="radio"
-                accessibilityLabel={`${label} · ₹${formatPrice(variant.price)} · ${storeOpen ? availability : "Store currently closed"}${checked ? " · Selected" : ""}`}
+                accessibilityLabel={`${label} · ₹${formatPrice(variant.price)} · ${orderingAvailable ? availability : "Store currently closed"}${checked ? " · Selected" : ""}`}
                 accessibilityState={{ checked, disabled: !available || busy }}
                 disabled={!available || busy} onPress={() => onSelect(variant)}
                 style={[styles.option, checked && styles.selectedOption, !available && styles.disabledOption]}>
@@ -82,7 +84,7 @@ export function ShoppingProductDetails({
                     <Text style={[typography.bodySemibold, styles.optionName]}>{label}</Text>
                     <Text style={[typography.bodySemibold, styles.optionPrice]}>₹{formatPrice(variant.price)}</Text>
                   </View>
-                   <Text style={[typography.caption, !storeOpen && styles.unavailable]}>{!storeOpen ? "Store currently closed" : availability}{checked ? " · Selected" : ""}</Text>
+                   <Text style={[typography.caption, !orderingAvailable && styles.unavailable]}>{!orderingAvailable ? "Store currently closed" : availability}{checked ? " · Selected" : ""}</Text>
                 </View>
               </Pressable>
             );

@@ -8,6 +8,265 @@
 import * as zod from 'zod';
 
 
+export const ListManagedCustomerAddressesResponse = zod.object({
+  "addresses": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "customerId": zod.string().uuid(),
+  "label": zod.string().nullish(),
+  "recipientName": zod.string(),
+  "phone": zod.string(),
+  "houseNumber": zod.string().nullish(),
+  "buildingName": zod.string().nullish(),
+  "landmark": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "line1": zod.string(),
+  "line2": zod.string().nullable(),
+  "city": zod.string(),
+  "state": zod.string(),
+  "pincode": zod.string(),
+  "isDefault": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+export const createManagedCustomerAddressBodyOneLabelMax = 60;
+
+export const createManagedCustomerAddressBodyOneRecipientNameMax = 120;
+
+export const createManagedCustomerAddressBodyOnePhoneRegExp = new RegExp('^[6-9]\\d{9}$');
+export const createManagedCustomerAddressBodyOneHouseNumberMax = 240;
+
+export const createManagedCustomerAddressBodyOneBuildingNameMax = 160;
+
+export const createManagedCustomerAddressBodyOneLandmarkMax = 240;
+
+export const createManagedCustomerAddressBodyOneLocalityMax = 240;
+
+export const createManagedCustomerAddressBodyOneLine1Max = 240;
+
+export const createManagedCustomerAddressBodyOneLine2Max = 240;
+
+export const createManagedCustomerAddressBodyOneCityMax = 120;
+
+export const createManagedCustomerAddressBodyOneStateMax = 120;
+
+export const createManagedCustomerAddressBodyOnePincodeRegExp = new RegExp('^[1-9]\\d{5}$');
+export const createManagedCustomerAddressBodyTwoLabelMax = 60;
+
+export const createManagedCustomerAddressBodyTwoRecipientNameMax = 120;
+
+export const createManagedCustomerAddressBodyTwoPhoneRegExp = new RegExp('^[6-9]\\d{9}$');
+export const createManagedCustomerAddressBodyTwoHouseNumberMax = 240;
+
+export const createManagedCustomerAddressBodyTwoBuildingNameMax = 160;
+
+export const createManagedCustomerAddressBodyTwoLandmarkMax = 240;
+
+export const createManagedCustomerAddressBodyTwoLocalityMax = 240;
+
+export const createManagedCustomerAddressBodyTwoLine1Max = 240;
+
+export const createManagedCustomerAddressBodyTwoLine2Max = 240;
+
+export const createManagedCustomerAddressBodyTwoCityMax = 120;
+
+export const createManagedCustomerAddressBodyTwoStateMax = 120;
+
+export const createManagedCustomerAddressBodyTwoPincodeRegExp = new RegExp('^[1-9]\\d{5}$');
+export const createManagedCustomerAddressBodyThreeLabelMax = 60;
+
+export const createManagedCustomerAddressBodyThreeRecipientNameMax = 120;
+
+export const createManagedCustomerAddressBodyThreePhoneRegExp = new RegExp('^[6-9]\\d{9}$');
+export const createManagedCustomerAddressBodyThreeHouseNumberMax = 240;
+
+export const createManagedCustomerAddressBodyThreeBuildingNameMax = 160;
+
+export const createManagedCustomerAddressBodyThreeLandmarkMax = 240;
+
+export const createManagedCustomerAddressBodyThreeLocalityMax = 240;
+
+export const createManagedCustomerAddressBodyThreeLine1Max = 240;
+
+export const createManagedCustomerAddressBodyThreeLine2Max = 240;
+
+export const createManagedCustomerAddressBodyThreeCityMax = 120;
+
+export const createManagedCustomerAddressBodyThreeStateMax = 120;
+
+export const createManagedCustomerAddressBodyThreePincodeRegExp = new RegExp('^[1-9]\\d{5}$');
+
+
+export const CreateManagedCustomerAddressBody = zod.union([zod.object({
+  "label": zod.string().min(1).max(createManagedCustomerAddressBodyOneLabelMax).nullish(),
+  "recipientName": zod.string().min(1).max(createManagedCustomerAddressBodyOneRecipientNameMax).optional(),
+  "phone": zod.string().regex(createManagedCustomerAddressBodyOnePhoneRegExp).optional(),
+  "houseNumber": zod.string().min(1).max(createManagedCustomerAddressBodyOneHouseNumberMax),
+  "buildingName": zod.string().min(1).max(createManagedCustomerAddressBodyOneBuildingNameMax).nullish(),
+  "landmark": zod.string().min(1).max(createManagedCustomerAddressBodyOneLandmarkMax).nullish(),
+  "locality": zod.string().min(1).max(createManagedCustomerAddressBodyOneLocalityMax).nullish(),
+  "line1": zod.string().min(1).max(createManagedCustomerAddressBodyOneLine1Max).optional().describe('Legacy input remains supported'),
+  "line2": zod.string().min(1).max(createManagedCustomerAddressBodyOneLine2Max).nullish(),
+  "city": zod.string().min(1).max(createManagedCustomerAddressBodyOneCityMax).optional(),
+  "state": zod.string().min(1).max(createManagedCustomerAddressBodyOneStateMax).optional(),
+  "pincode": zod.string().regex(createManagedCustomerAddressBodyOnePincodeRegExp).optional(),
+  "isDefault": zod.boolean().optional()
+}),zod.object({
+  "label": zod.string().min(1).max(createManagedCustomerAddressBodyTwoLabelMax).nullish(),
+  "recipientName": zod.string().min(1).max(createManagedCustomerAddressBodyTwoRecipientNameMax).optional(),
+  "phone": zod.string().regex(createManagedCustomerAddressBodyTwoPhoneRegExp).optional(),
+  "houseNumber": zod.string().min(1).max(createManagedCustomerAddressBodyTwoHouseNumberMax).optional(),
+  "buildingName": zod.string().min(1).max(createManagedCustomerAddressBodyTwoBuildingNameMax).nullish(),
+  "landmark": zod.string().min(1).max(createManagedCustomerAddressBodyTwoLandmarkMax).nullish(),
+  "locality": zod.string().min(1).max(createManagedCustomerAddressBodyTwoLocalityMax).nullish(),
+  "line1": zod.string().min(1).max(createManagedCustomerAddressBodyTwoLine1Max).describe('Legacy input remains supported'),
+  "line2": zod.string().min(1).max(createManagedCustomerAddressBodyTwoLine2Max).nullish(),
+  "city": zod.string().min(1).max(createManagedCustomerAddressBodyTwoCityMax).optional(),
+  "state": zod.string().min(1).max(createManagedCustomerAddressBodyTwoStateMax).optional(),
+  "pincode": zod.string().regex(createManagedCustomerAddressBodyTwoPincodeRegExp).optional(),
+  "isDefault": zod.boolean().optional()
+})]).and(zod.object({
+  "label": zod.string().min(1).max(createManagedCustomerAddressBodyThreeLabelMax).nullish(),
+  "recipientName": zod.string().min(1).max(createManagedCustomerAddressBodyThreeRecipientNameMax),
+  "phone": zod.string().regex(createManagedCustomerAddressBodyThreePhoneRegExp),
+  "houseNumber": zod.string().min(1).max(createManagedCustomerAddressBodyThreeHouseNumberMax).optional(),
+  "buildingName": zod.string().min(1).max(createManagedCustomerAddressBodyThreeBuildingNameMax).nullish(),
+  "landmark": zod.string().min(1).max(createManagedCustomerAddressBodyThreeLandmarkMax).nullish(),
+  "locality": zod.string().min(1).max(createManagedCustomerAddressBodyThreeLocalityMax).nullish(),
+  "line1": zod.string().min(1).max(createManagedCustomerAddressBodyThreeLine1Max).optional().describe('Legacy input remains supported'),
+  "line2": zod.string().min(1).max(createManagedCustomerAddressBodyThreeLine2Max).nullish(),
+  "city": zod.string().min(1).max(createManagedCustomerAddressBodyThreeCityMax),
+  "state": zod.string().min(1).max(createManagedCustomerAddressBodyThreeStateMax),
+  "pincode": zod.string().regex(createManagedCustomerAddressBodyThreePincodeRegExp),
+  "isDefault": zod.boolean().optional()
+}))
+
+export const CreateManagedCustomerAddressResponse = zod.object({
+  "address": zod.object({
+  "id": zod.string().uuid(),
+  "customerId": zod.string().uuid(),
+  "label": zod.string().nullish(),
+  "recipientName": zod.string(),
+  "phone": zod.string(),
+  "houseNumber": zod.string().nullish(),
+  "buildingName": zod.string().nullish(),
+  "landmark": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "line1": zod.string(),
+  "line2": zod.string().nullable(),
+  "city": zod.string(),
+  "state": zod.string(),
+  "pincode": zod.string(),
+  "isDefault": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+export const GetManagedCustomerAddressParams = zod.object({
+  "addressId": zod.coerce.string().uuid()
+})
+
+export const GetManagedCustomerAddressResponse = zod.object({
+  "address": zod.object({
+  "id": zod.string().uuid(),
+  "customerId": zod.string().uuid(),
+  "label": zod.string().nullish(),
+  "recipientName": zod.string(),
+  "phone": zod.string(),
+  "houseNumber": zod.string().nullish(),
+  "buildingName": zod.string().nullish(),
+  "landmark": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "line1": zod.string(),
+  "line2": zod.string().nullable(),
+  "city": zod.string(),
+  "state": zod.string(),
+  "pincode": zod.string(),
+  "isDefault": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+export const UpdateManagedCustomerAddressParams = zod.object({
+  "addressId": zod.coerce.string().uuid()
+})
+
+export const updateManagedCustomerAddressBodyLabelMax = 60;
+
+export const updateManagedCustomerAddressBodyRecipientNameMax = 120;
+
+export const updateManagedCustomerAddressBodyPhoneRegExp = new RegExp('^[6-9]\\d{9}$');
+export const updateManagedCustomerAddressBodyHouseNumberMax = 240;
+
+export const updateManagedCustomerAddressBodyBuildingNameMax = 160;
+
+export const updateManagedCustomerAddressBodyLandmarkMax = 240;
+
+export const updateManagedCustomerAddressBodyLocalityMax = 240;
+
+export const updateManagedCustomerAddressBodyLine1Max = 240;
+
+export const updateManagedCustomerAddressBodyLine2Max = 240;
+
+export const updateManagedCustomerAddressBodyCityMax = 120;
+
+export const updateManagedCustomerAddressBodyStateMax = 120;
+
+export const updateManagedCustomerAddressBodyPincodeRegExp = new RegExp('^[1-9]\\d{5}$');
+
+
+export const UpdateManagedCustomerAddressBody = zod.object({
+  "label": zod.string().min(1).max(updateManagedCustomerAddressBodyLabelMax).nullish(),
+  "recipientName": zod.string().min(1).max(updateManagedCustomerAddressBodyRecipientNameMax).optional(),
+  "phone": zod.string().regex(updateManagedCustomerAddressBodyPhoneRegExp).optional(),
+  "houseNumber": zod.string().min(1).max(updateManagedCustomerAddressBodyHouseNumberMax).optional(),
+  "buildingName": zod.string().min(1).max(updateManagedCustomerAddressBodyBuildingNameMax).nullish(),
+  "landmark": zod.string().min(1).max(updateManagedCustomerAddressBodyLandmarkMax).nullish(),
+  "locality": zod.string().min(1).max(updateManagedCustomerAddressBodyLocalityMax).nullish(),
+  "line1": zod.string().min(1).max(updateManagedCustomerAddressBodyLine1Max).optional(),
+  "line2": zod.string().min(1).max(updateManagedCustomerAddressBodyLine2Max).nullish(),
+  "city": zod.string().min(1).max(updateManagedCustomerAddressBodyCityMax).optional(),
+  "state": zod.string().min(1).max(updateManagedCustomerAddressBodyStateMax).optional(),
+  "pincode": zod.string().regex(updateManagedCustomerAddressBodyPincodeRegExp).optional(),
+  "isDefault": zod.boolean().optional()
+})
+
+export const UpdateManagedCustomerAddressResponse = zod.object({
+  "address": zod.object({
+  "id": zod.string().uuid(),
+  "customerId": zod.string().uuid(),
+  "label": zod.string().nullish(),
+  "recipientName": zod.string(),
+  "phone": zod.string(),
+  "houseNumber": zod.string().nullish(),
+  "buildingName": zod.string().nullish(),
+  "landmark": zod.string().nullish(),
+  "locality": zod.string().nullish(),
+  "line1": zod.string(),
+  "line2": zod.string().nullable(),
+  "city": zod.string(),
+  "state": zod.string(),
+  "pincode": zod.string(),
+  "isDefault": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+export const DeleteManagedCustomerAddressParams = zod.object({
+  "addressId": zod.coerce.string().uuid()
+})
+
+export const DeleteManagedCustomerAddressResponse = zod.void()
+
+
 export const GetCustomerDeliverySlotsParams = zod.object({
   "storeId": zod.coerce.string().uuid()
 })
@@ -21,6 +280,8 @@ export const GetCustomerDeliverySlotsQueryParams = zod.object({
 
 export const GetCustomerDeliverySlotsResponse = zod.object({
   "timeZone": zod.enum(['Asia/Kolkata']),
+  "nextOpeningAt": zod.coerce.date().nullish(),
+  "scheduledDeliveryAvailable": zod.boolean().optional(),
   "operatingStatus": zod.enum(['OPEN', 'CLOSED']),
   "slots": zod.array(zod.object({
   "startAt": zod.coerce.date(),

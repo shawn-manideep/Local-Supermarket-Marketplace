@@ -7,12 +7,35 @@ type ReadDatabase = Pick<ReturnType<typeof getDb>, "execute">;
 export interface DeliverySlot { startAt: string; endAt: string }
 export const DELIVERY_TIME_ZONE = "Asia/Kolkata";
 
-export function deliverySlots(hours: OperatingHourValue[], now = new Date()): DeliverySlot[] {
+function indiaMidnight(now: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: DELIVERY_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(now);
   const part = (type: string) => parts.find(p => p.type === type)!.value;
-  const midnight = new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00+05:30`).getTime();
+  return new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00+05:30`).getTime();
+}
+
+export function nextOpeningAt(hours: OperatingHourValue[], now = new Date()): string | null {
+  const midnight = indiaMidnight(now);
+  for (let offset = 0; offset <= 7; offset++) {
+    const day = midnight + offset * 86_400_000;
+    const hour = hours.find(h => h.dayOfWeek === indiaCurrentDayAndTime(new Date(day)).dayOfWeek);
+    if (!hour || hour.isClosed || !hour.opensAt || !hour.closesAt || hour.opensAt >= hour.closesAt) continue;
+    const opening = day + (Number(hour.opensAt.slice(0, 2)) * 60 + Number(hour.opensAt.slice(3, 5))) * 60_000;
+    if (Number.isFinite(opening) && opening > now.getTime()) return new Date(opening).toISOString();
+  }
+  return null;
+}
+
+export function shoppingAvailability(hours: OperatingHourValue[], now = new Date()) {
+  const status = operatingStatus(hours, now);
+  return { operatingStatus: status, timeZone: DELIVERY_TIME_ZONE,
+    nextOpeningAt: status === "CLOSED" ? nextOpeningAt(hours, now) : null,
+    scheduledDeliveryAvailable: deliverySlots(hours, now).length > 0 };
+}
+
+export function deliverySlots(hours: OperatingHourValue[], now = new Date()): DeliverySlot[] {
+  const midnight = indiaMidnight(now);
   const slots: DeliverySlot[] = [];
   for (let offset = 0; offset < 2; offset++) {
     const day = midnight + offset * 86_400_000;
@@ -38,13 +61,23 @@ export async function storeOrderability(storeId: string, db: ReadDatabase = getD
   const clock = await db.execute(sql`SELECT clock_timestamp() AS now`);
   const now = new Date(String(clock.rows[0]!.now));
   const hours = rows.rows as unknown as OperatingHourValue[];
-  const isOpen = stores.rows[0]?.status === "ACTIVE" && operatingStatus(hours, now) === "OPEN";
-  return { hours, now, operatingStatus: isOpen ? "OPEN" as const : "CLOSED" as const };
+  const isActive = stores.rows[0]?.status === "ACTIVE";
+  const availability = shoppingAvailability(hours, now);
+  return { hours, now, isActive, ...availability,
+    operatingStatus: isActive ? availability.operatingStatus : "CLOSED" as const,
+    scheduledDeliveryAvailable: isActive && availability.scheduledDeliveryAvailable,
+    nextOpeningAt: isActive ? availability.nextOpeningAt : null };
 }
 
-export async function assertStoreOrderable(storeId: string, db: ReadDatabase = getDb(), lock = true) {
+export async function assertStoreOrderable(
+  storeId: string, db: ReadDatabase = getDb(), lock = true,
+  mode: "INSTANT" | "SCHEDULED" | "CART" = "INSTANT",
+) {
   const state = await storeOrderability(storeId, db, lock);
-  if (state.operatingStatus !== "OPEN") {
+  if (!state.isActive) throw new HttpError(409, "This store is not available for orders.", undefined, "STORE_UNAVAILABLE");
+  if (mode === "SCHEDULED" && !state.scheduledDeliveryAvailable)
+    throw new HttpError(409, "No valid scheduled delivery slots are available.", undefined, "DELIVERY_SLOT_UNAVAILABLE");
+  if (state.operatingStatus !== "OPEN" && (mode === "INSTANT" || !state.scheduledDeliveryAvailable)) {
     throw new HttpError(409, "This store is currently closed and cannot accept orders.", undefined, "STORE_CLOSED");
   }
   return state;

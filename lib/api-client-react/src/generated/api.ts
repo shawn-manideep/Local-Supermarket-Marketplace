@@ -55,6 +55,10 @@ import type {
   ListAdminCustomersParams,
   ListAdminDeliveryPartnersParams,
   ListAdminVendorsParams,
+  ListManagedCustomerAddresses200,
+  ManagedCustomerAddressInput,
+  ManagedCustomerAddressResponse,
+  ManagedCustomerAddressUpdate,
   PartnerAdministrationOutcome,
   PartnerCredentials,
   PartnerDashboardOutcome,
@@ -112,6 +116,381 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListManagedCustomerAddressesUrl = () => {
+
+
+
+
+  return `/api/api/customer/addresses`
+}
+
+export const listManagedCustomerAddresses = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListManagedCustomerAddresses200> => {
+
+  return customFetch<ListManagedCustomerAddresses200>(getListManagedCustomerAddressesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListManagedCustomerAddressesQueryKey = () => {
+    return [
+    `/api/api/customer/addresses`
+    ] as const;
+    }
+
+
+export const getListManagedCustomerAddressesQueryOptions = <TData = Awaited<ReturnType<typeof listManagedCustomerAddresses>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManagedCustomerAddresses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListManagedCustomerAddressesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listManagedCustomerAddresses>>> = ({ signal }) => listManagedCustomerAddresses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listManagedCustomerAddresses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListManagedCustomerAddressesQueryResult = NonNullable<Awaited<ReturnType<typeof listManagedCustomerAddresses>>>
+export type ListManagedCustomerAddressesQueryError = ErrorType<void>
+
+
+
+export function useListManagedCustomerAddresses<TData = Awaited<ReturnType<typeof listManagedCustomerAddresses>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManagedCustomerAddresses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListManagedCustomerAddressesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateManagedCustomerAddressUrl = () => {
+
+
+
+
+  return `/api/api/customer/addresses`
+}
+
+export const createManagedCustomerAddress = async (managedCustomerAddressInput: ManagedCustomerAddressInput, options?: Parameters<typeof customFetch>[1]): Promise<ManagedCustomerAddressResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ManagedCustomerAddressResponse>(getCreateManagedCustomerAddressUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(managedCustomerAddressInput)
+  }
+);}
+
+
+
+
+
+export const getCreateManagedCustomerAddressMutationKey = () => ['createManagedCustomerAddress'] as const;
+
+export const getCreateManagedCustomerAddressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManagedCustomerAddress>>, TError,CreateManagedCustomerAddressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createManagedCustomerAddress>>, TError,CreateManagedCustomerAddressMutationVariables, TContext> => {
+
+const mutationKey = getCreateManagedCustomerAddressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createManagedCustomerAddress>>, CreateManagedCustomerAddressMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createManagedCustomerAddress(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateManagedCustomerAddressMutationResult = NonNullable<Awaited<ReturnType<typeof createManagedCustomerAddress>>>
+    export type CreateManagedCustomerAddressMutationBody = BodyType<ManagedCustomerAddressInput>
+    export type CreateManagedCustomerAddressMutationError = ErrorType<void>
+    export type CreateManagedCustomerAddressMutationVariables = {data: BodyType<ManagedCustomerAddressInput>}
+
+    export const useCreateManagedCustomerAddress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManagedCustomerAddress>>, TError,CreateManagedCustomerAddressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createManagedCustomerAddress>>,
+        TError,
+        CreateManagedCustomerAddressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateManagedCustomerAddressMutationOptions(options));
+    }
+
+export const getGetManagedCustomerAddressUrl = (addressId: string,) => {
+
+
+
+
+  return `/api/api/customer/addresses/${addressId}`
+}
+
+export const getManagedCustomerAddress = async (addressId: string, options?: Parameters<typeof customFetch>[1]): Promise<ManagedCustomerAddressResponse> => {
+
+  return customFetch<ManagedCustomerAddressResponse>(getGetManagedCustomerAddressUrl(addressId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetManagedCustomerAddressQueryKey = (addressId: string,) => {
+    return [
+    `/api/api/customer/addresses/${addressId}`
+    ] as const;
+    }
+
+
+export const getGetManagedCustomerAddressQueryOptions = <TData = Awaited<ReturnType<typeof getManagedCustomerAddress>>, TError = ErrorType<void>>(addressId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getManagedCustomerAddress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetManagedCustomerAddressQueryKey(addressId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getManagedCustomerAddress>>> = ({ signal }) => getManagedCustomerAddress(addressId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: addressId !== null && addressId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getManagedCustomerAddress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetManagedCustomerAddressQueryResult = NonNullable<Awaited<ReturnType<typeof getManagedCustomerAddress>>>
+export type GetManagedCustomerAddressQueryError = ErrorType<void>
+
+
+
+export function useGetManagedCustomerAddress<TData = Awaited<ReturnType<typeof getManagedCustomerAddress>>, TError = ErrorType<void>>(
+ addressId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getManagedCustomerAddress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetManagedCustomerAddressQueryOptions(addressId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateManagedCustomerAddressUrl = (addressId: string,) => {
+
+
+
+
+  return `/api/api/customer/addresses/${addressId}`
+}
+
+export const updateManagedCustomerAddress = async (addressId: string,
+    managedCustomerAddressUpdate: ManagedCustomerAddressUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ManagedCustomerAddressResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ManagedCustomerAddressResponse>(getUpdateManagedCustomerAddressUrl(addressId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(managedCustomerAddressUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateManagedCustomerAddressMutationKey = () => ['updateManagedCustomerAddress'] as const;
+
+export const getUpdateManagedCustomerAddressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateManagedCustomerAddress>>, TError,UpdateManagedCustomerAddressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateManagedCustomerAddress>>, TError,UpdateManagedCustomerAddressMutationVariables, TContext> => {
+
+const mutationKey = getUpdateManagedCustomerAddressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateManagedCustomerAddress>>, UpdateManagedCustomerAddressMutationVariables> = (props) => {
+          const {addressId,data} = props ?? {};
+
+          return  updateManagedCustomerAddress(addressId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateManagedCustomerAddressMutationResult = NonNullable<Awaited<ReturnType<typeof updateManagedCustomerAddress>>>
+    export type UpdateManagedCustomerAddressMutationBody = BodyType<ManagedCustomerAddressUpdate>
+    export type UpdateManagedCustomerAddressMutationError = ErrorType<void>
+    export type UpdateManagedCustomerAddressMutationVariables = {addressId: string;data: BodyType<ManagedCustomerAddressUpdate>}
+
+    export const useUpdateManagedCustomerAddress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateManagedCustomerAddress>>, TError,UpdateManagedCustomerAddressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateManagedCustomerAddress>>,
+        TError,
+        UpdateManagedCustomerAddressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateManagedCustomerAddressMutationOptions(options));
+    }
+
+export const getDeleteManagedCustomerAddressUrl = (addressId: string,) => {
+
+
+
+
+  return `/api/api/customer/addresses/${addressId}`
+}
+
+export const deleteManagedCustomerAddress = async (addressId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteManagedCustomerAddressUrl(addressId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteManagedCustomerAddressMutationKey = () => ['deleteManagedCustomerAddress'] as const;
+
+export const getDeleteManagedCustomerAddressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteManagedCustomerAddress>>, TError,DeleteManagedCustomerAddressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteManagedCustomerAddress>>, TError,DeleteManagedCustomerAddressMutationVariables, TContext> => {
+
+const mutationKey = getDeleteManagedCustomerAddressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteManagedCustomerAddress>>, DeleteManagedCustomerAddressMutationVariables> = (props) => {
+          const {addressId} = props ?? {};
+
+          return  deleteManagedCustomerAddress(addressId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteManagedCustomerAddressMutationResult = NonNullable<Awaited<ReturnType<typeof deleteManagedCustomerAddress>>>
+
+    export type DeleteManagedCustomerAddressMutationError = ErrorType<void>
+    export type DeleteManagedCustomerAddressMutationVariables = {addressId: string}
+
+    export const useDeleteManagedCustomerAddress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteManagedCustomerAddress>>, TError,DeleteManagedCustomerAddressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteManagedCustomerAddress>>,
+        TError,
+        DeleteManagedCustomerAddressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteManagedCustomerAddressMutationOptions(options));
+    }
 
 export const getGetCustomerDeliverySlotsUrl = (storeId: string,
     params: GetCustomerDeliverySlotsParams,) => {

@@ -68,6 +68,8 @@ function addressSnapshot(address: typeof customerAddresses.$inferSelect) {
   return {
     label: address.label, recipientName: address.recipientName, phone: address.phone,
     line1: address.line1, line2: address.line2, city: address.city,
+    houseNumber: address.houseNumber, buildingName: address.buildingName,
+    landmark: address.landmark, locality: address.locality,
     state: address.state, pincode: address.pincode,
   };
 }
@@ -120,8 +122,8 @@ async function repeatOrderPreviewData(
     eq(storeServicePincodes.storeId, stores.id),
     eq(storeServicePincodes.pincode, address.pincode),
   )).where(eq(stores.id, order.storeId)).limit(1);
-  const storeAvailable = store?.status === "ACTIVE" &&
-    (await storeOrderability(order.storeId, db)).operatingStatus === "OPEN";
+  const state = await storeOrderability(order.storeId, db);
+  const storeAvailable = store?.status === "ACTIVE" && (state.operatingStatus === "OPEN" || state.scheduledDeliveryAvailable);
   const [activeCart] = await db.select({ id: carts.id, storeId: carts.storeId, storeName: stores.name }).from(carts)
     .innerJoin(stores, eq(stores.id, carts.storeId))
     .where(and(eq(carts.customerId, customerId), eq(carts.status, "ACTIVE")))
@@ -235,7 +237,7 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     if (subtotal < minimum) throw new HttpError(409, `Minimum order value is ${store.stores.minimumOrderValue}`);
     // Final acceptance check after all potentially blocking inventory locks.
     // Hours writers lock the same store parent until this transaction completes.
-    const orderability = await assertStoreOrderable(cart.storeId, tx);
+    const orderability = await assertStoreOrderable(cart.storeId, tx, true, parsed.data.deliveryMode);
     const snapshot = deliverySnapshot(parsed.data, orderability.hours, orderability.now);
     await deductStock(tx, cart.storeId, rows.map(({ item, product, variant }) => ({
       variantId: variant.id, productId: product.id, quantity: item.quantity,
@@ -336,7 +338,7 @@ ordersRouter.post("/api/customer/orders/:orderId/repeat", requireRole("customer"
       and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, address.pincode)),
     ).where(eq(stores.id, order.storeId)).limit(1).for("share");
     const storeAvailable = store?.status === "ACTIVE";
-    if (storeAvailable) await assertStoreOrderable(order.storeId, tx, false);
+    if (storeAvailable) await assertStoreOrderable(order.storeId, tx, false, "CART");
     const orderRows = await tx.select({
       orderItemId: orderItems.id, productName: orderItems.productNameSnapshot,
       orderProductId: orderItems.productId,

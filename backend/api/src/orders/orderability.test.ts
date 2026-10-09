@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { customerOrderCreateSchema } from "@workspace/validation";
-import { deliverySlots, deliverySnapshot } from "./orderability.js";
+import { deliverySlots, deliverySnapshot, nextOpeningAt, shoppingAvailability } from "./orderability.js";
 import { operatingStatus } from "../customer-marketplace/operating-status.js";
 
 const hours = Array.from({ length: 7 }, (_, dayOfWeek) => ({
@@ -29,6 +29,25 @@ test("a closed tomorrow is excluded while today's available hours remain", () =>
   const slots = deliverySlots(hours.map(h => ({ ...h, isClosed: h.dayOfWeek === 5 })), now);
   assert.ok(slots.length);
   assert.ok(slots.every(s => s.startAt.startsWith("2026-10-08")));
+});
+test("Today remains eligible before opening and expired/started slots disappear as time advances", () => {
+  const before = new Date("2026-10-08T02:00:00Z");
+  assert.equal(shoppingAvailability(hours, before).operatingStatus, "CLOSED");
+  assert.ok(deliverySlots(hours, before).some(slot => slot.startAt.startsWith("2026-10-08")));
+  const boundary = new Date("2026-10-08T07:00:00.000Z");
+  const start = deliverySlots(hours, boundary)[0]!;
+  assert.equal(start.startAt, boundary.toISOString());
+  assert.notEqual(deliverySlots(hours, new Date(boundary.getTime() + 1))[0]!.startAt, start.startAt);
+  assert.throws(() => deliverySnapshot({ deliveryMode: "SCHEDULED", scheduledStartAt: start.startAt, scheduledEndAt: start.endAt }, hours, new Date(boundary.getTime() + 1)), /no longer available/);
+});
+test("next opening uses the actual weekday schedule rather than assuming tomorrow", () => {
+  const afterClosing = new Date("2026-10-08T15:00:00Z");
+  assert.equal(nextOpeningAt(hours, afterClosing), "2026-10-09T03:00:00.000Z");
+  const weekend = hours.map(h => ({ ...h, isClosed: h.dayOfWeek === 5 || h.dayOfWeek === 6,
+    opensAt: h.dayOfWeek === 0 ? "10:15" : h.opensAt }));
+  assert.equal(nextOpeningAt(weekend, afterClosing), "2026-10-11T04:45:00.000Z");
+  assert.equal(nextOpeningAt(hours.map(h => ({ ...h, isClosed: true })), afterClosing), null);
+  assert.equal(shoppingAvailability(hours, afterClosing).scheduledDeliveryAvailable, true);
 });
 test("daily closure is independent of product availability and closes at the end boundary", () => {
   assert.equal(operatingStatus(hours, new Date("2026-10-08T03:00:00Z")), "OPEN");

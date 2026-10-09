@@ -11,6 +11,9 @@ import type { DeliverySlotsResponseTimeZone } from './deliverySlotsResponseTimeZ
 
 export interface DeliverySlotsResponse {
   timeZone: DeliverySlotsResponseTimeZone;
+  /** @nullable */
+  nextOpeningAt?: Date | null;
+  scheduledDeliveryAvailable?: boolean;
   operatingStatus: DeliverySlotsResponseOperatingStatus;
   slots: DeliverySlotsResponseSlotsItem[];
 }

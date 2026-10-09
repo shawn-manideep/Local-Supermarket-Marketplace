@@ -78,6 +78,163 @@ export const VendorDocumentType = {
   labour_license: 'labour_license',
 } as const;
 
+export type ManagedCustomerAddressInput = (unknown & ({
+  /**
+     * @minLength 1
+     * @maxLength 60
+     * @nullable
+     */
+  label?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  recipientName: string;
+  /** @pattern ^[6-9]\d{9}$ */
+  phone: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  houseNumber?: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     * @nullable
+     */
+  buildingName?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     * @nullable
+     */
+  landmark?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     * @nullable
+     */
+  locality?: string | null;
+  /**
+     * Legacy input remains supported
+     * @minLength 1
+     * @maxLength 240
+     */
+  line1?: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     * @nullable
+     */
+  line2?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  city: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  state: string;
+  /** @pattern ^[1-9]\d{5}$ */
+  pincode: string;
+  isDefault?: boolean;
+}));
+
+export interface ManagedCustomerAddressUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     * @nullable
+     */
+  label?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  recipientName?: string;
+  /** @pattern ^[6-9]\d{9}$ */
+  phone?: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  houseNumber?: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     * @nullable
+     */
+  buildingName?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     * @nullable
+     */
+  landmark?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     * @nullable
+     */
+  locality?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  line1?: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     * @nullable
+     */
+  line2?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  city?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  state?: string;
+  /** @pattern ^[1-9]\d{5}$ */
+  pincode?: string;
+  isDefault?: boolean;
+}
+
+export interface ManagedCustomerAddress {
+  id: string;
+  customerId: string;
+  /** @nullable */
+  label?: string | null;
+  recipientName: string;
+  phone: string;
+  /** @nullable */
+  houseNumber?: string | null;
+  /** @nullable */
+  buildingName?: string | null;
+  /** @nullable */
+  landmark?: string | null;
+  /** @nullable */
+  locality?: string | null;
+  line1: string;
+  /** @nullable */
+  line2: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ManagedCustomerAddressResponse {
+  address: ManagedCustomerAddress;
+}
+
 export type DeliverySlotsResponseTimeZone = typeof DeliverySlotsResponseTimeZone[keyof typeof DeliverySlotsResponseTimeZone];
 
 
@@ -100,6 +257,9 @@ export type DeliverySlotsResponseSlotsItem = {
 
 export interface DeliverySlotsResponse {
   timeZone: DeliverySlotsResponseTimeZone;
+  /** @nullable */
+  nextOpeningAt?: string | null;
+  scheduledDeliveryAvailable?: boolean;
   operatingStatus: DeliverySlotsResponseOperatingStatus;
   slots: DeliverySlotsResponseSlotsItem[];
 }
@@ -1217,6 +1377,10 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type ListManagedCustomerAddresses200 = {
+  addresses: ManagedCustomerAddress[];
+};
 
 export type GetCustomerDeliverySlotsParams = {
 /**

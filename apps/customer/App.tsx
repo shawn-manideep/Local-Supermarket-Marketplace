@@ -38,6 +38,7 @@ import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/co
 import { SavedItemsProvider } from "./src/SavedItemsContext";
 import { SavedItemsScreen } from "./src/SavedItemsScreen";
 import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
+import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings";
 
@@ -460,6 +461,10 @@ const blankAddress: AddressInput = {
   phone: "",
   line1: "",
   line2: null,
+  houseNumber: "",
+  buildingName: null,
+  landmark: null,
+  locality: null,
   city: "",
   state: "",
   pincode: "",
@@ -468,12 +473,19 @@ const blankAddress: AddressInput = {
 function editableAddress(
   address: AddressInput | CustomerAddress,
 ): AddressInput {
+  const legacy = isLegacyAddress(address);
+  const houseNumber = legacy ? address.line1 : address.houseNumber ?? "";
+  const locality = legacy ? address.line2 : address.locality ?? null;
   return {
     label: address.label,
     recipientName: address.recipientName,
     phone: address.phone,
-    line1: address.line1,
-    line2: address.line2,
+    line1: houseNumber,
+    line2: locality,
+    houseNumber,
+    buildingName: address.buildingName ?? null,
+    landmark: address.landmark ?? null,
+    locality,
     city: address.city,
     state: address.state,
     pincode: address.pincode,
@@ -504,7 +516,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
     if (
       !draft.recipientName ||
       !draft.phone ||
-      !draft.line1 ||
+      !draft.houseNumber?.trim() ||
       !draft.city ||
       !draft.state ||
       !draft.pincode
@@ -519,13 +531,24 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
     setMessage("");
     try {
+      const houseNumber = draft.houseNumber?.trim() ?? "";
+      const locality = draft.locality?.trim() ?? "";
+      const submittedAddress: AddressInput = {
+        ...editableAddress(draft),
+        line1: houseNumber,
+        line2: locality || null,
+        houseNumber,
+        buildingName: draft.buildingName?.trim() || null,
+        landmark: draft.landmark?.trim() || null,
+        locality: locality || null,
+      };
       await customerApi(
         editId
           ? `/api/customer/addresses/${editId}`
           : "/api/customer/addresses",
         {
           method: editId ? "PATCH" : "POST",
-          body: JSON.stringify(editableAddress(draft)),
+          body: JSON.stringify(submittedAddress),
         },
       );
       setDraft(blankAddress);
@@ -585,15 +608,37 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 value={draft.phone}
                 onChangeText={(v) => setDraft({ ...draft, phone: v })}
               />
+              {editId && (() => {
+                const editing = items.find((item) => item.id === editId);
+                return editing && !editing.houseNumber
+                  ? <Text style={[typography.caption, { marginBottom: spacing.xs }]}>
+                    This saved address predates structured fields. Its existing address text is retained in House Number / Flat Number and Locality; no address history has been changed.
+                  </Text>
+                  : null;
+              })()}
               <Field
-                label="Address Line 1"
-                onChangeText={(v) => setDraft({ ...draft, line1: v })}
-                value={draft.line1}
+                label="House Number / Flat Number *"
+                placeholder="e.g. Flat 302"
+                onChangeText={(v) => setDraft({ ...draft, houseNumber: v, line1: v })}
+                value={draft.houseNumber ?? ""}
               />
               <Field
-                label="Address Line 2 (Optional)"
-                onChangeText={(v) => setDraft({ ...draft, line2: v || null })}
-                value={draft.line2 ?? ""}
+                label="Building Name / Apartment Name (Optional)"
+                placeholder="e.g. Green Heights Apartments"
+                onChangeText={(v) => setDraft({ ...draft, buildingName: v || null })}
+                value={draft.buildingName ?? ""}
+              />
+              <Field
+                label="Landmark (Optional)"
+                placeholder="e.g. Near ABC School"
+                onChangeText={(v) => setDraft({ ...draft, landmark: v || null })}
+                value={draft.landmark ?? ""}
+              />
+              <Field
+                label="Locality"
+                placeholder="e.g. Pragathi Nagar"
+                onChangeText={(v) => setDraft({ ...draft, locality: v || null, line2: v || null })}
+                value={draft.locality ?? ""}
               />
               <View style={{ gap: spacing.md }}>
                 <View style={{ flex: 1 }}>
@@ -718,13 +763,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   <Text style={typography.body}>
                     {item.recipientName} • +91 {item.phone}
                   </Text>
-                  <Text style={typography.body}>
-                    {item.line1}
-                    {item.line2 ? `, ${item.line2}` : ""}
-                  </Text>
-                  <Text style={typography.body}>
-                    {item.city}, {item.state} {item.pincode}
-                  </Text>
+                  {addressStreetLines(item).map((line, index) => <Text key={`${item.id}-address-${index}`} style={typography.body}>{line}</Text>)}
 
                   <View
                     style={{
@@ -851,7 +890,7 @@ function CustomerApp() {
         {navItems.map((item) => (
           <Pressable
             accessibilityRole="tab"
-            accessibilityLabel={`${item} tab`}
+            accessibilityLabel={`${item === "orders" ? "Reorder" : item} tab`}
             accessibilityState={{
               selected:
                 screen === item ||
@@ -886,7 +925,7 @@ function CustomerApp() {
                   styles.navActive,
               ]}
             >
-              {item[0].toUpperCase() + item.slice(1)}
+              {item === "orders" ? "Reorder" : item[0].toUpperCase() + item.slice(1)}
             </Text>
           </Pressable>
         ))}

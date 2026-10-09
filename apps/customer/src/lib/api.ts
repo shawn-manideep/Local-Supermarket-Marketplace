@@ -22,6 +22,8 @@ export interface CustomerDeliverySlotsResponse {
   timeZone: "Asia/Kolkata";
   operatingStatus: "OPEN" | "CLOSED";
   slots: CustomerDeliverySlot[];
+  nextOpeningAt?: string | null;
+  scheduledDeliveryAvailable?: boolean;
 }
 
 export class CustomerRequestError extends Error {
@@ -44,13 +46,22 @@ export interface CustomerAddress {
   phone: string;
   line1: string;
   line2: string | null;
+  houseNumber?: string | null;
+  buildingName?: string | null;
+  landmark?: string | null;
+  locality?: string | null;
   city: string;
   state: string;
   pincode: string;
   isDefault: boolean;
 }
 
-export type AddressInput = Omit<CustomerAddress, "id">;
+export type AddressInput = Omit<CustomerAddress, "id" | "houseNumber" | "buildingName" | "landmark" | "locality"> & {
+  houseNumber: string;
+  buildingName: string | null;
+  landmark: string | null;
+  locality: string | null;
+};
 
 export interface OperatingHour {
   dayOfWeek: number;
@@ -73,6 +84,9 @@ export interface CustomerStore {
   minimumOrderValue: string;
   operatingStatus: "OPEN" | "CLOSED";
   operatingHours: OperatingHour[];
+  nextOpeningAt?: string | null;
+  scheduledDeliveryAvailable?: boolean;
+  timeZone?: "Asia/Kolkata";
 }
 
 export interface CustomerCategory {
@@ -151,6 +165,8 @@ export interface CustomerCart {
   total: string;
   checkoutReady: boolean;
   operatingStatus: "OPEN" | "CLOSED";
+  instantDeliveryAvailable?: boolean;
+  scheduledDeliveryAvailable?: boolean;
 }
 
 export type CustomerOrderStatus = "PLACED" | "ACCEPTED" | "PREPARING" | "READY" | "OUT_FOR_DELIVERY" | "DELIVERED" | "REJECTED" | "CANCELLED";
@@ -193,6 +209,10 @@ export interface CustomerOrderAddressSnapshot {
   phone: string;
   line1: string;
   line2: string | null;
+  houseNumber?: string | null;
+  buildingName?: string | null;
+  landmark?: string | null;
+  locality?: string | null;
   city: string;
   state: string;
   pincode: string;

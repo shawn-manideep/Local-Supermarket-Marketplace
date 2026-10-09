@@ -20,8 +20,7 @@ import {
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
-import { operatingStatus } from "./operating-status.js";
-import { deliverySlots, storeOrderability, DELIVERY_TIME_ZONE } from "../orders/orderability.js";
+import { deliverySlots, storeOrderability, shoppingAvailability, DELIVERY_TIME_ZONE } from "../orders/orderability.js";
 
 export const customerMarketplaceRouter = Router();
 customerMarketplaceRouter.get("/api/customer/stores/:storeId/delivery-slots", requireRole("customer"), asyncHandler(async (request, response) => {
@@ -35,7 +34,8 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId/delivery-slots", re
   const state = await storeOrderability(store.id);
   response.setHeader("Cache-Control", "private, no-store");
   response.json({ timeZone: DELIVERY_TIME_ZONE, operatingStatus: state.operatingStatus,
-    slots: state.operatingStatus === "OPEN" ? deliverySlots(state.hours, state.now) : [] });
+    nextOpeningAt: state.nextOpeningAt, scheduledDeliveryAvailable: state.scheduledDeliveryAvailable,
+    slots: deliverySlots(state.hours, state.now) });
 }));
 const publicStore = {
   id: stores.id, name: stores.name, description: stores.description,
@@ -175,8 +175,9 @@ customerMarketplaceRouter.get("/api/customer/stores", requireRole("customer"), a
   }
   const results = rows.map((store) => {
     const hours = (hoursByStore.get(store.id) ?? []).map(({ storeId: _storeId, ...hour }) => hour);
-    return { ...store, operatingStatus: operatingStatus(hours), operatingHours: hours };
+    return { ...store, ...shoppingAvailability(hours), operatingHours: hours };
   });
+  response.setHeader("Cache-Control", "private, no-store");
   response.json({ stores: results });
 }));
 
@@ -204,7 +205,8 @@ customerMarketplaceRouter.get("/api/customer/stores/:storeId", requireRole("cust
   const { pincode } = await discoveryContext(request);
   const store = await visibleStore(parsed.data.storeId, pincode);
   const hours = await hoursFor(store.id);
-  response.json({ store: { ...store, operatingStatus: operatingStatus(hours), operatingHours: hours } });
+  response.setHeader("Cache-Control", "private, no-store");
+  response.json({ store: { ...store, ...shoppingAvailability(hours), operatingHours: hours } });
 }));
 
 customerMarketplaceRouter.get("/api/customer/stores/:storeId/categories", requireRole("customer"), asyncHandler(async (request, response) => {

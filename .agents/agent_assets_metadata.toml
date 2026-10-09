@@ -182,3 +182,17 @@ mtime_ms = 1791476043384
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/e46c2a31-0dc3-4a98-8ac8-35ff4f239ca3/ee6534fd-d216-4bb8-9979-862dbf140359"
 storage_version_token = "1791476091061348"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "7c6Lcx0Tjq2baIbLtVhvJ"
+uri = "file://docs/CUSTOMER_ADDRESS_SCHEDULED_DELIVERY_CLOSURE_REORDER_REPORT.md"
+type = "text"
+title = "Customer portal implementation report"
+description = "Completed changes, verification results, data-safety checks and authenticated manual preview checklist."
+logical_id = "1f610e30-7f78-49d8-8232-e59228c73302"
+content_hash = "sha256:771df703d90bb3e692dcc0827d83cd6e558fae2a1df163e32540289e83493405"
+size = 6649
+mtime_ms = 1791532662402
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/1f610e30-7f78-49d8-8232-e59228c73302/b53198ec-82e4-480f-b8ca-7fcafaca4cbb"
+storage_version_token = "1791532713997568"
+content_type = "text/markdown"

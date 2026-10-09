@@ -6,6 +6,7 @@ import { customerApi, type CustomerAddress, type CustomerOrderDetail, type Custo
 import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { reorderInput, reorderItemLabel, reorderPreviewQuery, reorderSummary } from "./lib/reorder";
+import { addressStreetLines } from "./lib/address-format";
 
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
 const date = (value: string) => new Date(value).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
@@ -248,6 +249,7 @@ export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onCl
               }
             }} style={[styles.addressChip, addressId === address.id && styles.addressChipActive]}>
               <Text style={[styles.addressChipText, addressId === address.id && styles.addressChipTextActive]}>{address.label || address.city}{address.isDefault ? " · Default" : ""}</Text>
+              <Text style={[typography.caption, { maxWidth: 220 }]} numberOfLines={2}>{addressStreetLines(address).join(", ")}</Text>
             </Pressable>)}
           </ScrollView>
         </> : !message && <Text style={styles.noticeText}>Add a delivery address before reordering.</Text>}
@@ -405,8 +407,7 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
           <View style={[commonStyles.card, { marginTop: spacing.xl, marginBottom: spacing.xl }]}>
             <Text style={[typography.title3, { marginBottom: spacing.md }]}>Delivery details</Text>
             <Text style={typography.body}>{localOrder.deliveryContactName} • {localOrder.deliveryContactPhone}</Text>
-            <Text style={typography.body}>{localOrder.deliveryAddressSnapshot.line1}{localOrder.deliveryAddressSnapshot.line2 ? `, ${localOrder.deliveryAddressSnapshot.line2}` : ""}</Text>
-            <Text style={typography.body}>{localOrder.deliveryAddressSnapshot.city}, {localOrder.deliveryAddressSnapshot.state} {localOrder.deliveryAddressSnapshot.pincode}</Text>
+            {addressStreetLines(localOrder.deliveryAddressSnapshot).map((line, index) => <Text key={`order-address-${localOrder.id}-${index}`} style={typography.body}>{line}</Text>)}
             <Text style={[typography.caption, { marginTop: spacing.sm }]}>{deliveryLabel(localOrder.deliveryType)}</Text>
             <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{deliverySchedule(localOrder)}</Text>
             {localOrder.deliveryMode === "SCHEDULED" && <Text style={typography.caption}>Delivery window shown in India Standard Time (IST).</Text>}

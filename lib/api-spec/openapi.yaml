@@ -11,6 +11,78 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /api/customer/addresses:
+    get:
+      operationId: listManagedCustomerAddresses
+      tags: [CustomerManagement]
+      responses:
+        '200':
+          description: Caller-owned saved addresses, including legacy lines and structured details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [addresses]
+                properties:
+                  addresses: {type: array, items: {$ref: '#/components/schemas/ManagedCustomerAddress'}}
+        '401': {description: Authentication required}
+        '403': {description: Customer role required}
+    post:
+      operationId: createManagedCustomerAddress
+      tags: [CustomerManagement]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ManagedCustomerAddressInput'}
+      responses:
+        '201':
+          description: Saved address
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedCustomerAddressResponse'}
+        '400': {description: Invalid address fields}
+        '401': {description: Authentication required}
+        '403': {description: Customer role required}
+  /api/customer/addresses/{addressId}:
+    get:
+      operationId: getManagedCustomerAddress
+      tags: [CustomerManagement]
+      parameters:
+        - {name: addressId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Caller-owned address
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedCustomerAddressResponse'}
+        '404': {description: Address not found or not owned}
+    patch:
+      operationId: updateManagedCustomerAddress
+      tags: [CustomerManagement]
+      parameters:
+        - {name: addressId, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ManagedCustomerAddressUpdate'}
+      responses:
+        '200':
+          description: Saved address with existing fields preserved unless explicitly changed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedCustomerAddressResponse'}
+        '400': {description: Invalid address fields}
+        '404': {description: Address not found or not owned}
+    delete:
+      operationId: deleteManagedCustomerAddress
+      tags: [CustomerManagement]
+      parameters:
+        - {name: addressId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '204': {description: Caller-owned address deleted}
+        '404': {description: Address not found or not owned}
   /api/customer/stores/{storeId}/delivery-slots:
     get:
       operationId: getCustomerDeliverySlots
@@ -1060,11 +1132,78 @@ components:
     VendorDocumentType:
       type: string
       enum: [fssai, aadhaar, pan, photo, gst, trade_license, labour_license]
+    ManagedCustomerAddressInput:
+      type: object
+      additionalProperties: false
+      required: [recipientName, phone, city, state, pincode]
+      anyOf:
+        - {required: [houseNumber]}
+        - {required: [line1]}
+      properties:
+        label: {type: [string, 'null'], minLength: 1, maxLength: 60}
+        recipientName: {type: string, minLength: 1, maxLength: 120}
+        phone: {type: string, pattern: '^[6-9]\d{9}$'}
+        houseNumber: {type: string, minLength: 1, maxLength: 240}
+        buildingName: {type: [string, 'null'], minLength: 1, maxLength: 160}
+        landmark: {type: [string, 'null'], minLength: 1, maxLength: 240}
+        locality: {type: [string, 'null'], minLength: 1, maxLength: 240}
+        line1: {type: string, minLength: 1, maxLength: 240, description: Legacy input remains supported}
+        line2: {type: [string, 'null'], minLength: 1, maxLength: 240}
+        city: {type: string, minLength: 1, maxLength: 120}
+        state: {type: string, minLength: 1, maxLength: 120}
+        pincode: {type: string, pattern: '^[1-9]\d{5}$'}
+        isDefault: {type: boolean}
+    ManagedCustomerAddressUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        label: {type: [string, 'null'], minLength: 1, maxLength: 60}
+        recipientName: {type: string, minLength: 1, maxLength: 120}
+        phone: {type: string, pattern: '^[6-9]\d{9}$'}
+        houseNumber: {type: string, minLength: 1, maxLength: 240}
+        buildingName: {type: [string, 'null'], minLength: 1, maxLength: 160}
+        landmark: {type: [string, 'null'], minLength: 1, maxLength: 240}
+        locality: {type: [string, 'null'], minLength: 1, maxLength: 240}
+        line1: {type: string, minLength: 1, maxLength: 240}
+        line2: {type: [string, 'null'], minLength: 1, maxLength: 240}
+        city: {type: string, minLength: 1, maxLength: 120}
+        state: {type: string, minLength: 1, maxLength: 120}
+        pincode: {type: string, pattern: '^[1-9]\d{5}$'}
+        isDefault: {type: boolean}
+    ManagedCustomerAddress:
+      type: object
+      required: [id, customerId, recipientName, phone, line1, line2, city, state, pincode, isDefault, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        customerId: {type: string, format: uuid}
+        label: {type: [string, 'null']}
+        recipientName: {type: string}
+        phone: {type: string}
+        houseNumber: {type: [string, 'null']}
+        buildingName: {type: [string, 'null']}
+        landmark: {type: [string, 'null']}
+        locality: {type: [string, 'null']}
+        line1: {type: string}
+        line2: {type: [string, 'null']}
+        city: {type: string}
+        state: {type: string}
+        pincode: {type: string}
+        isDefault: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    ManagedCustomerAddressResponse:
+      type: object
+      required: [address]
+      properties:
+        address: {$ref: '#/components/schemas/ManagedCustomerAddress'}
     DeliverySlotsResponse:
       type: object
       required: [timeZone, operatingStatus, slots]
       properties:
         timeZone: {type: string, enum: [Asia/Kolkata]}
+        nextOpeningAt: {type: [string, 'null'], format: date-time}
+        scheduledDeliveryAvailable: {type: boolean}
         operatingStatus: {type: string, enum: [OPEN, CLOSED]}
         slots:
           type: array

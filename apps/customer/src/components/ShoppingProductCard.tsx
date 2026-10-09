@@ -7,7 +7,7 @@ import { PlaceholderImage } from "./PlaceholderImage";
 import { FavoriteControl } from "./FavoriteControl";
 import { customerImageUri } from "../lib/api";
 
-export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, singleColumn = false, quickAddEnabled = true, storeOperatingStatus }: {
+export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, singleColumn = false, quickAddEnabled = true, storeOperatingStatus, canScheduleWhileClosed = false }: {
   product: CustomerProduct;
   onOpen: () => void;
   onAdd: (variant: CustomerProductVariant) => void;
@@ -16,12 +16,14 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, sin
   singleColumn?: boolean;
   quickAddEnabled?: boolean;
   storeOperatingStatus?: "OPEN" | "CLOSED";
+  canScheduleWhileClosed?: boolean;
 }) {
   const variants = activeVariants(product);
   const single = variants.length === 1 ? variants[0] : undefined;
   const quickAdd = single && canPurchaseVariant(product, single);
   const hasPurchasableVariant = variants.some(variant => canPurchaseVariant(product, variant));
-  const actionLabel = busy ? "Adding…" : storeOperatingStatus === "CLOSED" ? "Currently Closed" : quickAdd && quickAddEnabled ? "Add to Cart"
+  const storeUnavailable = storeOperatingStatus === "CLOSED" && !canScheduleWhileClosed;
+  const actionLabel = busy ? "Adding…" : storeUnavailable ? "Currently Closed" : quickAdd && quickAddEnabled ? "Add to Cart"
     : hasPurchasableVariant ? "View details"
     : "Unavailable";
   return <View style={[styles.card, singleColumn && styles.singleColumn]}>
@@ -39,8 +41,8 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, sin
     </Pressable>
     <FavoriteControl product={product} pincode={pincode} compact />
     <Pressable accessibilityRole="button" accessibilityLabel={`${actionLabel} ${product.name}`}
-      accessibilityState={{ disabled: busy || storeOperatingStatus === "CLOSED" || !hasPurchasableVariant, busy }}
-      disabled={busy || storeOperatingStatus === "CLOSED" || !hasPurchasableVariant}
+      accessibilityState={{ disabled: busy || storeUnavailable || !hasPurchasableVariant, busy }}
+      disabled={busy || storeUnavailable || !hasPurchasableVariant}
       onPress={() => quickAddEnabled && quickAdd && single ? onAdd(single) : onOpen()}
       style={[styles.action, (busy || !hasPurchasableVariant) && styles.busy]}>
       <Text style={styles.actionText}>{actionLabel}</Text>

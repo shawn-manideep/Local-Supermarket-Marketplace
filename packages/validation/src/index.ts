@@ -500,6 +500,10 @@ const customerAddressFields = {
   phone: customerPhoneSchema,
   line1: customerText(240),
   line2: customerText(240).nullable().optional(),
+  houseNumber: customerText(240).optional(),
+  buildingName: customerText(160).nullable().optional(),
+  landmark: customerText(240).nullable().optional(),
+  locality: customerText(240).nullable().optional(),
   city: customerText(120),
   state: customerText(120),
   pincode: z.string().trim().regex(/^[1-9]\d{5}$/, "Use a valid six-digit Indian pincode"),
@@ -510,13 +514,19 @@ export const customerAddressCreateSchema = z.object({
   label: customerAddressFields.label,
   recipientName: customerAddressFields.recipientName,
   phone: customerAddressFields.phone,
-  line1: customerAddressFields.line1,
+  line1: customerAddressFields.line1.optional(),
   line2: customerAddressFields.line2,
+  houseNumber: customerAddressFields.houseNumber,
+  buildingName: customerAddressFields.buildingName,
+  landmark: customerAddressFields.landmark,
+  locality: customerAddressFields.locality,
   city: customerAddressFields.city,
   state: customerAddressFields.state,
   pincode: customerAddressFields.pincode,
   isDefault: customerAddressFields.isDefault.optional(),
-}).strict();
+}).strict().refine(value => Boolean(value.houseNumber || value.line1), {
+  message: "House Number / Flat Number is required", path: ["houseNumber"],
+});
 
 export const customerAddressUpdateSchema = z
   .object({
@@ -525,6 +535,10 @@ export const customerAddressUpdateSchema = z
     phone: customerAddressFields.phone.optional(),
     line1: customerAddressFields.line1.optional(),
     line2: customerAddressFields.line2,
+    houseNumber: customerAddressFields.houseNumber,
+    buildingName: customerAddressFields.buildingName,
+    landmark: customerAddressFields.landmark,
+    locality: customerAddressFields.locality,
     city: customerAddressFields.city.optional(),
     state: customerAddressFields.state.optional(),
     pincode: customerAddressFields.pincode.optional(),

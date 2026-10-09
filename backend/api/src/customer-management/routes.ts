@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { Router, type Request, type Response } from "express";
 import {
   customerAddressCreateSchema,
@@ -10,6 +10,7 @@ import { customerAddresses, customers, getDb } from "@workspace/db";
 import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
+import { addressWriteFields } from "./address-fields.js";
 
 export const customerManagementRouter = Router();
 
@@ -109,7 +110,11 @@ customerManagementRouter.post(
       return;
     }
     const ownerId = customerId(request);
+    const fields = addressWriteFields(parsed.data);
+    const line1 = fields.line1 ?? parsed.data.line1;
+    if (!line1) throw new HttpError(400, "House Number / Flat Number is required.");
     const address = await getDb().transaction(async (transaction) => {
+      await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${ownerId}:addresses`},0))`);
       if (parsed.data.isDefault) {
         await transaction
           .update(customerAddresses)
@@ -118,7 +123,7 @@ customerManagementRouter.post(
       }
       const [created] = await transaction
         .insert(customerAddresses)
-        .values({ ...parsed.data, customerId: ownerId })
+        .values({ ...fields, line1, customerId: ownerId })
         .returning();
       return created;
     });
@@ -138,11 +143,12 @@ customerManagementRouter.patch(
     const ownerId = customerId(request);
     const id = addressId(request);
     const address = await getDb().transaction(async (transaction) => {
+      await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${ownerId}:addresses`},0))`);
       const [existing] = await transaction
-        .select({ id: customerAddresses.id })
+        .select()
         .from(customerAddresses)
         .where(addressOwnership(ownerId, id))
-        .limit(1);
+        .limit(1).for("update");
       if (!existing) return null;
       if (parsed.data.isDefault) {
         await transaction
@@ -152,7 +158,7 @@ customerManagementRouter.patch(
       }
       const [updated] = await transaction
         .update(customerAddresses)
-        .set({ ...parsed.data, updatedAt: new Date() })
+        .set({ ...addressWriteFields(parsed.data, existing), updatedAt: new Date() })
         .where(addressOwnership(ownerId, id))
         .returning();
       return updated;
