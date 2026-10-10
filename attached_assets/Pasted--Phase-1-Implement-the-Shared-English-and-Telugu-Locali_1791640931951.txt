@@ -1,0 +1,86 @@
+# Phase 1 — Implement the Shared English and Telugu Localization Foundation
+
+Follow the completed localization audit. Implement Phase 1 only.
+
+## 1. Shared localization package
+
+Create `packages/localization` with:
+- Central English (`en`) and Telugu (`te`) dictionaries.
+- Typed translation keys.
+- A shared React language provider and `useTranslation` hook.
+- Translation interpolation for dynamic values.
+- English fallback for missing Telugu translations.
+- A persistence adapter suitable for both applications.
+
+Use namespaces such as `common`, `auth`, `customer`, `vendor`, `delivery`, and `admin`.
+
+Do not add a third-party localization dependency unless the existing architecture makes it necessary.
+
+## 2. Language preference
+
+Customer Portal:
+- Use the existing AsyncStorage dependency with a dedicated language-preference key.
+
+Dashboard:
+- Use browser localStorage with a separate language-preference key.
+
+Requirements:
+- Default to English.
+- Support English and Telugu.
+- Preserve the preference across reopening the app on the same device.
+- Scope signed-in preferences by account.
+- Provide a signed-out preference for login and password recovery screens.
+- Prevent delayed storage reads or account switching from overwriting the current selection.
+- Changing the language must update visible text without remounting screens, resetting forms, clearing carts, or changing navigation state.
+
+Do not modify authentication storage or session handling.
+
+## 3. Language selector
+
+Add a reusable, accessible `English | తెలుగు` selector.
+
+For this phase, integrate it into:
+- Customer authentication screens.
+- Customer Settings.
+- Dashboard authentication screens.
+- Each authenticated Vendor, Delivery Partner, and Admin portal shell.
+
+The selector must work even before users sign in.
+
+## 4. Telugu font support
+
+Inspect existing font configuration and add a reliable Telugu-capable font, such as Noto Sans Telugu, using an appropriate existing loading mechanism.
+
+Support Customer native, Customer web, and Dashboard web. Retain Inter for English and preserve the existing color palette and visual design.
+
+Do not assume the font works until it has been verified. Check Telugu glyphs, mixed-language text, button sizing, and clipping.
+
+## 5. Scope restrictions
+
+This phase establishes the shared foundation. Do not attempt to translate every screen yet; that is handled in subsequent phases.
+
+Do not change:
+- API contracts or backend behavior.
+- Database schema or data.
+- Authentication and authorization logic.
+- Cart, stock, pricing, orders, delivery scheduling, or business rules.
+- Existing navigation destinations or portal routing.
+
+## 6. Verification
+
+Add focused tests for:
+- English default and missing-translation fallback.
+- Telugu translation lookup and interpolation.
+- Preference save, load and invalid stored values.
+- Storage failures.
+- Live language changes without screen remounts.
+- Account-specific preference isolation.
+- Delayed preference hydration and account switching.
+
+Run Customer and Dashboard typechecks, Dashboard build, Customer web export, and relevant focused tests. Do not run automated browser tests; I will inspect the preview manually.
+
+Do not deploy or publish.
+
+## Final report
+
+Report the files changed, selector locations, font setup, persistence behavior, tests/build results, and any remaining limitations. Stop after Phase 1. Do not begin Phase 2 until reviewed.
