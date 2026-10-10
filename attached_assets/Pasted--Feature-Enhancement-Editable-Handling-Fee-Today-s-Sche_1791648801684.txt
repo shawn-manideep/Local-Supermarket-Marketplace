@@ -1,0 +1,122 @@
+# Feature Enhancement: Editable Handling Fee + Today's Scheduled Delivery
+
+Implement the following changes in the existing Local Supermarket Marketplace. Inspect the current architecture and reuse existing store settings, cart calculations, checkout validation, and scheduled-delivery logic. Do not redesign the application.
+
+## 1. Handling Fee — Vendor Portal
+
+Add an editable **Handling Fee** setting to the existing Vendor store settings/profile area.
+
+Requirements:
+- Allow the vendor to configure the handling fee for their own store.
+- Accept valid non-negative monetary amounts, including zero and decimal values.
+- Use the existing currency formatting (₹).
+- Validate inputs and prevent negative, invalid, or malformed amounts.
+- Display the currently saved value when the vendor reopens the setting.
+- Persist the setting through the existing backend and database architecture.
+- Ensure one vendor cannot view or modify another vendor's handling fee.
+- Use zero as the default for existing stores if no handling fee has been configured.
+- Do not confuse handling fees with delivery fees or product prices.
+
+## 2. Handling Fee — Admin Portal
+
+Add an editable **Handling Fee** field to the existing Admin store/vendor management screen.
+
+Requirements:
+- Admin can view and edit the handling fee for each store.
+- Save changes through an authenticated, server-authorized Admin API.
+- Validate the amount using the same rules as the Vendor Portal.
+- Display the same saved value in both Vendor and Admin portals.
+- Follow the existing permission and audit patterns where available.
+- Admin changes must update the store's current handling fee without modifying product prices, stock, vendor status, or delivery settings.
+
+The Vendor and Admin portals must use the same authoritative store-level handling fee. Do not create separate conflicting fee values.
+
+## 3. Customer Cart — Show Handling Fee
+
+In the Customer cart page, display the cost breakdown in this order:
+
+- Subtotal
+- Delivery Fee
+- Handling Fee
+- **Total**
+
+Example:
+
+Subtotal: ₹250.00  
+Delivery Fee: ₹30.00  
+Handling Fee: ₹5.00  
+Total: ₹285.00
+
+Requirements:
+- Use the actual subtotal, delivery fee, and configured handling fee. The numbers above are illustrative only.
+- Read the handling fee from the selected store's authoritative settings.
+- Calculate Total consistently as Subtotal + Delivery Fee + Handling Fee, plus any existing applicable charges or discounts according to the current pricing rules.
+- If the handling fee is zero, display ₹0.00 or follow the existing fee-display convention consistently.
+- Update the breakdown when the cart changes, the selected store changes, or a fee setting is updated.
+- Ensure the Customer cart and checkout show consistent fee amounts and totals.
+- Validate the fee and final total on the backend before accepting an order. Never rely exclusively on frontend calculations.
+- Use the existing order pricing/snapshot pattern so an accepted order retains its agreed fee amounts even if the store later changes its current handling fee.
+- Ensure a manipulated client request cannot submit an arbitrary handling fee or incorrect total.
+- Preserve existing delivery fee calculations, discounts, inventory transactions, cart behavior, and order status workflow.
+
+## 4. Scheduled Delivery — Add Today
+
+The current Scheduled Delivery selector shows Tomorrow. Add **Today** as an option when at least one eligible delivery slot remains today.
+
+Requirements:
+- Show Today and Tomorrow when each date has valid slots.
+- Calculate availability using the existing store timezone, operating hours, and scheduled-delivery rules.
+- Show only complete, valid future slots. Do not allow selecting a slot that has already started or expired.
+- If no eligible slots remain today, hide or disable Today and direct the customer to the next eligible date.
+- Do not hard-code today's date or arbitrary time slots.
+- Refresh availability when the customer changes the date, returns to checkout, or the app resumes.
+- Validate the selected date and exact time window again on the backend immediately before order creation.
+- Reject expired or invalid slots without creating an order or deducting stock.
+- Preserve the existing Instant Delivery behavior and store-closure restrictions. When a store is closed, Scheduled Delivery may remain available only for a valid future slot.
+- Keep the existing delivery workflow and order-status transitions unchanged.
+
+## 5. Implementation and Data Safety
+
+Before coding:
+1. Inspect the current store schema/settings, Vendor store profile screen, Admin store management screen, Customer cart and checkout totals, and scheduled-delivery implementation.
+2. Identify whether an appropriate handling-fee field or existing configuration already exists. Reuse it if safe.
+3. Confirm where authoritative fee calculations and order pricing snapshots are created.
+
+If a database migration is necessary:
+- Make it additive and backward-compatible.
+- Default existing stores to a handling fee of zero.
+- Preserve all existing store, product, variant, cart, order, delivery and account data.
+- Do not rewrite historical orders or recalculate previously accepted order totals.
+
+Do not modify the Customer localization implementation, translate additional portals, or change unrelated UI/business logic.
+
+## 6. Verification
+
+Add focused tests for:
+- Vendor handling-fee create/update and persistence.
+- Admin handling-fee update and permission enforcement.
+- Vendor isolation and invalid/negative fee rejection.
+- Customer cart subtotal, delivery fee, handling fee and total calculation.
+- Backend rejection of manipulated fee values.
+- Immutable accepted-order fee snapshots after a store's fee changes.
+- Today's eligible slots, expired-slot rejection, and no-eligible-slots-today behavior.
+- Ensuring invalid scheduled orders do not create orders or change stock.
+
+Run relevant existing tests, API and portal typechecks, and build/export checks. Do not run automated browser tests; I will manually verify the preview.
+
+Do not deploy or publish.
+
+## 7. Final Report
+
+Report:
+- Exact files and components changed.
+- Where Vendor and Admin edit the handling fee.
+- The authoritative fee storage and calculation approach.
+- How the Customer cart and checkout totals are calculated.
+- How accepted orders preserve their fee amounts.
+- How Today and Tomorrow slots are determined and validated.
+- Migration details, if any.
+- Test and build results, including failures or limitations.
+- A concise manual acceptance checklist.
+
+Stop after implementation and reporting. Do not proceed to deployment.
