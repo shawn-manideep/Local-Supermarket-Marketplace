@@ -24,7 +24,7 @@ const creation = {
   phone: "9876543210", email: "owner_a@qa.invalid", description: "Neighborhood groceries",
   logoImageUrl: "https://example.invalid/logo.png", addressLine1: "Plot No. 12, Main Road", addressLine2: "Near Community Hall",
   locality: "Pragathi Nagar", city: "Hyderabad", state: "Telangana", pincode: "500090",
-  deliveryFee: 15, minimumOrderValue: 100,
+   deliveryFee: 15, handlingFee: "2.25", minimumOrderValue: 100,
   hours: [{ dayOfWeek: 1, isClosed: false, opensAt: "09:00", closesAt: "21:00" }],
 };
 before(async () => {
@@ -38,7 +38,7 @@ before(async () => {
   pool = new pg.Pool({ host: "127.0.0.1", port, database: "postgres", user: "vendor_qa", ssl: false });
   await pool.query(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE ROLE postgres SUPERUSER;
     CREATE SCHEMA auth; GRANT USAGE ON SCHEMA auth TO authenticated;
-    CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,raw_user_meta_data jsonb DEFAULT '{}');
+    CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,raw_user_meta_data jsonb DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
       SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
   const migrations = new URL("../../../../database/migrations/", import.meta.url);
@@ -335,4 +335,66 @@ test("direct authenticated store writes remain prohibited", async () => {
     await connection.query("SELECT set_config('request.jwt.claim.sub',$1,true)", [vendorB]);
     await assert.rejects(() => connection.query("UPDATE stores SET city='Unauthorized'"));
   } finally { await connection.query("ROLLBACK"); connection.release(); }
+});
+
+test("handling fee provisioning, Vendor updates and Admin updates share one isolated store setting", async () => {
+  assert.equal((await http(vendorA, "/api/vendor/store")).store.handlingFee, "2.25");
+  assert.equal((await http(existingVendor, "/api/vendor/store")).store.handlingFee, "0.00", "unconfigured stores default to zero");
+  const bBefore = (await http(vendorB, "/api/vendor/store")).store;
+  await http(vendorA, "/api/vendor/store", "PATCH", { handlingFee: "5.25" });
+  assert.equal((await http(admin, `/api/admin/vendors/${vendorA}`)).account.store.handlingFee, "5.25");
+  assert.deepEqual((await http(vendorB, "/api/vendor/store")).store, bBefore);
+  await http(vendorA, "/api/vendor/store", "PATCH", { handlingFee: "90", storeId: bBefore.id }, 400);
+  for (const actor of [null, customer, partner, vendorA, vendorB]) {
+    await http(actor, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee: "99.00" }, actor ? 403 : 401);
+  }
+  for (const handlingFee of [-1, "-0.01", "", "abc", "1e2", "1.234", 0.001, 1000001]) {
+    await http(vendorA, "/api/vendor/store", "PATCH", { handlingFee }, 400);
+    await http(admin, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee }, 400);
+  }
+  const before = (await http(vendorA, "/api/vendor/store")).store;
+  const protectedBefore = await protectedData();
+  await http(admin, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee: "8.50" });
+  const after = (await http(vendorA, "/api/vendor/store")).store;
+  assert.equal(after.handlingFee, "8.50");
+  for (const key of ["deliveryFee", "minimumOrderValue", "status", "name", "ownerUserId"]) assert.equal(after[key], before[key]);
+  assert.deepEqual(await protectedData(), protectedBefore);
+  await http(admin, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee: "0" });
+  assert.equal((await http(vendorA, "/api/vendor/store")).store.handlingFee, "0.00");
+  const audit = await pool.query("SELECT count(*)::int AS n FROM platform_management_events WHERE target_id=$1 AND action='vendor_profile_updated'", [before.id]);
+  assert.ok(audit.rows[0].n > 0);
+});
+
+test("authoritative cart/checkout fees and order snapshots; rejected scheduled requests leave inventory unchanged", async () => {
+  const hours = Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, isClosed: false, opensAt: "00:00", closesAt: "23:59" }));
+  await http(admin, `/api/admin/vendors/${existingVendor}`, "PATCH", { handlingFee: "5.25", hours });
+  const addressId = (await pool.query("SELECT id FROM customer_addresses WHERE customer_id=$1", [customer])).rows[0].id as string;
+  await http(customer, "/api/customer/cart/items", "POST", { productId: product, variantId: variant, quantity: 2 }, 201);
+  const cart = (await http(customer, "/api/customer/cart") as unknown as { cart: { id: string; subtotal: string; deliveryFee: string; handlingFee: string; total: string } }).cart;
+  assert.equal(cart.handlingFee, "5.25");
+  assert.equal(Number(cart.total), Number(cart.subtotal) + Number(cart.deliveryFee) + 5.25);
+  const slots = (await http(customer, `/api/customer/stores/${existingStore}/delivery-slots?pincode=500090`) as unknown as { slots: Array<{ startAt: string; endAt: string }> }).slots;
+  assert.ok(slots.length > 0);
+  const choice = { addressId, cartId: cart.id, paymentMethod: "COD", deliveryMode: "SCHEDULED", scheduledStartAt: slots[0].startAt, scheduledEndAt: slots[0].endAt };
+  const checkout = (await http(customer, "/api/customer/checkout/validate", "POST", { addressId, paymentMethod: "COD" }) as unknown as { checkout: typeof cart }).checkout;
+  assert.equal(checkout.handlingFee, cart.handlingFee); assert.equal(checkout.total, cart.total);
+  const protectedBefore = await protectedData();
+  await http(customer, "/api/customer/orders", "POST", { ...choice, idempotencyKey: randomUUID(), handlingFee: "0", total: 1 }, 400);
+  const expired = { ...choice, scheduledStartAt: new Date(Date.now() - 7200000).toISOString(), scheduledEndAt: new Date(Date.now() - 3600000).toISOString() };
+  await http(customer, "/api/customer/orders", "POST", { ...expired, idempotencyKey: randomUUID() }, 409);
+  await http(customer, "/api/customer/orders", "POST", { ...choice, scheduledEndAt: new Date(Date.parse(choice.scheduledEndAt) + 60000).toISOString(), idempotencyKey: randomUUID() }, 409);
+  assert.deepEqual(await protectedData(), protectedBefore, "invalid requests must not create orders or deduct stock");
+  await http(customer, "/api/customer/orders", "POST", { ...choice, idempotencyKey: randomUUID() }, 201);
+  const accepted = (await pool.query("SELECT * FROM orders WHERE customer_id=$1 ORDER BY created_at DESC LIMIT 1", [customer])).rows[0];
+  assert.equal(accepted.handling_fee_snapshot, "5.25");
+  assert.equal(accepted.total_amount, cart.total);
+  assert.equal((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=$1", [variant])).rows[0].stock_quantity,
+    15, "accepted order deducts exactly the ordered quantity");
+  await http(existingVendor, "/api/vendor/store", "PATCH", { handlingFee: "25.00" });
+  const preserved = (await pool.query("SELECT * FROM orders WHERE id=$1", [accepted.id])).rows[0];
+  assert.deepEqual(preserved, accepted, "current store fee changes must not rewrite accepted order snapshots");
+  await assert.rejects(() => pool.query("UPDATE orders SET handling_fee_snapshot=99 WHERE id=$1", [accepted.id]), /immutable/);
+  const historical = (await pool.query("SELECT handling_fee_snapshot,total_amount FROM orders WHERE id=$1", [order])).rows[0];
+  assert.equal(historical.handling_fee_snapshot, "0.00");
+  assert.equal(historical.total_amount, "100.00");
 });

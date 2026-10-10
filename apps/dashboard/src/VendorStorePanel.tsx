@@ -372,6 +372,7 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
           state: form.get("state"),
           pincode: form.get("pincode"),
           deliveryFee: Number(form.get("deliveryFee")),
+          handlingFee: String(form.get("handlingFee") ?? "0"),
           minimumOrderValue: Number(form.get("minimumOrderValue")),
         }),
       });

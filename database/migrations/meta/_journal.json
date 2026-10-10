@@ -113,6 +113,13 @@
       "when": 1791106804307,
       "tag": "0015_admin_platform_management",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791651000000,
+      "tag": "0023_store_handling_fee",
+      "breakpoints": true
     }
   ]
 }

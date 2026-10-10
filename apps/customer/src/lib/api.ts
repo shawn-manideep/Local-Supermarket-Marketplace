@@ -161,6 +161,7 @@ export interface CustomerCart {
   items: CustomerCartItem[];
   subtotal: string;
   deliveryFee: string;
+  handlingFee?: string;
   minimumOrderValue: string;
   total: string;
   checkoutReady: boolean;
@@ -221,6 +222,7 @@ export interface CustomerOrderDetail extends CustomerOrderSummary {
   items: CustomerOrderItem[];
   subtotal: string;
   deliveryFeeSnapshot: string;
+  handlingFeeSnapshot?: string;
   deliveryAddressSnapshot: CustomerOrderAddressSnapshot;
   paymentMethod: "COD";
   deliveryType: string;

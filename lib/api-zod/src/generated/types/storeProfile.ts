@@ -35,6 +35,7 @@ export interface StoreProfile {
   pincode?: string | null;
   status: StoreProfileStatus;
   deliveryFee: string;
+  handlingFee?: string;
   minimumOrderValue: string;
   /** @nullable */
   commissionRate?: string | null;

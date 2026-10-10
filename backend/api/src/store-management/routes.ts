@@ -87,6 +87,7 @@ storeManagementRouter.patch(
         updates.deliveryFee === undefined
           ? undefined
           : updates.deliveryFee.toFixed(2),
+      handlingFee: updates.handlingFee === undefined ? undefined : updates.handlingFee.toFixed(2),
       minimumOrderValue:
         updates.minimumOrderValue === undefined
           ? undefined

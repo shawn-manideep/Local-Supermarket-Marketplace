@@ -74,6 +74,7 @@ export * from './getEligibleDeliveryPartners200PartnersItem';
 export * from './getEligibleDeliveryPartners200PartnersItemStatus';
 export * from './getMasterCatalogExcelHistoryParams';
 export * from './getVendorProductMatchesParams';
+export * from './handlingFeeInput';
 export * from './healthStatus';
 export * from './listAdminCustomersParams';
 export * from './listAdminDeliveryPartnersParams';

@@ -15,6 +15,7 @@ import { requireRole } from "../auth/index.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
 import { centsToMoney, moneyToCents } from "./money.js";
+import { cartPricing } from "./pricing.js";
 import { stockError } from "../orders/inventory.js";
 
 export const customerCartRouter = Router();
@@ -32,7 +33,7 @@ function customerId(request: Request) {
 async function activeCart(ownerId: string) {
   const [cart] = await getDb().select({
     id: carts.id, storeId: carts.storeId, status: carts.status,
-    storeName: stores.name, deliveryFee: stores.deliveryFee,
+    storeName: stores.name, deliveryFee: stores.deliveryFee, handlingFee: stores.handlingFee,
     minimumOrderValue: stores.minimumOrderValue,
   }).from(carts).innerJoin(stores, eq(stores.id, carts.storeId))
     .where(and(eq(carts.customerId, ownerId), eq(carts.status, "ACTIVE")))
@@ -66,16 +67,14 @@ export async function cartResponse(ownerId: string) {
       : stockQuantity === 0 ? "OUT_OF_STOCK" : item.quantity > stockQuantity ? "INSUFFICIENT_STOCK" : null,
   }));
   const subtotalCents = items.reduce((sum, item) => sum + moneyToCents(item.lineSubtotal), 0n);
-  const deliveryCents = moneyToCents(cart.deliveryFee);
   const minimumCents = moneyToCents(cart.minimumOrderValue);
   const { operatingStatus, scheduledDeliveryAvailable } = await storeOrderability(cart.storeId);
   return {
     id: cart.id, storeId: cart.storeId, storeName: cart.storeName, status: cart.status,
     operatingStatus,
     instantDeliveryAvailable: operatingStatus === "OPEN", scheduledDeliveryAvailable,
-    items, subtotal: centsToMoney(subtotalCents), deliveryFee: cart.deliveryFee,
+    items, ...cartPricing(subtotalCents, cart),
     minimumOrderValue: cart.minimumOrderValue,
-    total: centsToMoney(subtotalCents + deliveryCents),
     checkoutReady: (operatingStatus === "OPEN" || scheduledDeliveryAvailable) && items.length > 0 && items.every((item) => item.purchasable) && subtotalCents >= minimumCents,
   };
 }
@@ -261,7 +260,7 @@ customerCartRouter.post("/api/customer/checkout/validate", requireRole("customer
       .where(and(eq(customerAddresses.id, parsed.data.addressId), eq(customerAddresses.customerId, ownerId))).limit(1).for("share");
     if (!address) throw new HttpError(404, "Delivery address not found");
     const [store] = await transaction.select({
-      status: stores.status, deliveryFee: stores.deliveryFee, minimumOrderValue: stores.minimumOrderValue,
+      status: stores.status, deliveryFee: stores.deliveryFee, handlingFee: stores.handlingFee, minimumOrderValue: stores.minimumOrderValue,
     }).from(stores).innerJoin(storeServicePincodes, and(eq(storeServicePincodes.storeId, stores.id), eq(storeServicePincodes.pincode, address.pincode)))
       .where(eq(stores.id, cartRecord.storeId)).limit(1).for("share");
     if (!store || store.status !== "ACTIVE") throw new HttpError(409, "Store cannot deliver to the selected address");
@@ -269,8 +268,7 @@ customerCartRouter.post("/api/customer/checkout/validate", requireRole("customer
     if (subtotalCents < moneyToCents(store.minimumOrderValue)) throw new HttpError(409, `Minimum order value is ${store.minimumOrderValue}`);
     return {
       cartId: cartRecord.id, storeId: cartRecord.storeId, address,
-      paymentMethod: "COD" as const, subtotal: centsToMoney(subtotalCents), deliveryFee: store.deliveryFee,
-      total: centsToMoney(subtotalCents + moneyToCents(store.deliveryFee)), ready: true as const,
+      paymentMethod: "COD" as const, ...cartPricing(subtotalCents, store), ready: true as const,
     };
   }, { isolationLevel: "serializable" });
   response.json({ checkout });

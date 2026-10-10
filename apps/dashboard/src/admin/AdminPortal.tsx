@@ -481,7 +481,7 @@ function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind
           addressLine2: optional("addressLine2"), locality: String(form.get("locality") ?? "").trim(),
           city: String(form.get("city") ?? "").trim(), state: String(form.get("state") ?? "").trim(),
           pincode: String(form.get("pincode") ?? "").trim(),
-          deliveryFee: Number(form.get("deliveryFee") ?? 0), minimumOrderValue: Number(form.get("minimumOrderValue") ?? 0),
+          deliveryFee: Number(form.get("deliveryFee") ?? 0), handlingFee: String(form.get("handlingFee") ?? "0"), minimumOrderValue: Number(form.get("minimumOrderValue") ?? 0),
           hours: readWeeklyHours(form),
         });
         onSaved();
@@ -518,7 +518,7 @@ function VendorDetailGroups({ account }: { account: AdminDetail }) {
     <section><h3>Owner</h3><p>{store.ownerName || account.ownerName || "—"} · {store.phone || account.contactNumber || "No mobile"} · {store.email || account.email || "No email"}</p></section>
     <section><h3>Store</h3><p>{store.name}</p><p>{store.description || "No store description provided."}</p>{store.logoImageUrl && <a href={store.logoImageUrl} target="_blank" rel="noreferrer">View store logo</a>}</section>
     <section><h3>Store location</h3><p>{line || "Store address not provided."}</p></section>
-    <section><h3>Operations</h3><p>Delivery fee ₹{store.deliveryFee} · Minimum order ₹{store.minimumOrderValue}</p></section>
+    <section><h3>Operations</h3><p>Delivery fee ₹{store.deliveryFee} · Handling fee ₹{store.handlingFee ?? "0.00"} · Minimum order ₹{store.minimumOrderValue}</p></section>
   </div>;
 }
 function actionLabel(kind: AdminKind, current: string | null, next: string) {
@@ -569,7 +569,7 @@ function VendorProvisionForm({ token, onCancel, onComplete }: { token: string; o
         addressLine1: String(form.get("addressLine1") ?? "").trim(), addressLine2: optional("addressLine2"),
         locality: String(form.get("locality") ?? "").trim(), city: String(form.get("city") ?? "").trim(),
         state: String(form.get("state") ?? "").trim(), pincode: String(form.get("pincode") ?? "").trim(),
-        deliveryFee: Number(form.get("deliveryFee") || 0), minimumOrderValue: Number(form.get("minimumOrderValue") || 0),
+        deliveryFee: Number(form.get("deliveryFee") || 0), handlingFee: String(form.get("handlingFee") ?? "0"), minimumOrderValue: Number(form.get("minimumOrderValue") || 0),
         hours,
       });
       clearSecrets();

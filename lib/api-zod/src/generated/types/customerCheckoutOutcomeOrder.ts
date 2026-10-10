@@ -22,6 +22,8 @@ export type CustomerCheckoutOutcomeOrder = {
   id: string;
   status: CustomerCheckoutOutcomeOrderStatus;
   totalAmount: string;
+  /** Immutable accepted-order handling fee; historical orders default to zero without recalculating their totals. */
+  handlingFeeSnapshot?: string;
   items: CustomerCheckoutOutcomeOrderItemsItem[];
   statusHistory: CustomerCheckoutOutcomeOrderStatusHistoryItem[];
 };

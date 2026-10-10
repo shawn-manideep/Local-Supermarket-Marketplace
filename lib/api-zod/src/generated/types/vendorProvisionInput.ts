@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { HandlingFeeInput } from './handlingFeeInput';
 import type { StoreProfileHour } from './storeProfileHour';
 
 export interface VendorProvisionInput {
@@ -67,6 +68,7 @@ export interface VendorProvisionInput {
      * @maximum 1000000
      */
   deliveryFee?: number;
+  handlingFee?: HandlingFeeInput;
   /**
      * @minimum 0
      * @maximum 1000000

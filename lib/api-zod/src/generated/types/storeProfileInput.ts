@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { HandlingFeeInput } from './handlingFeeInput';
 
 export interface StoreProfileInput {
   /**
@@ -65,6 +66,7 @@ export interface StoreProfileInput {
   state?: string;
   /** @pattern ^[1-9][0-9]{5}$ */
   pincode?: string;
+  handlingFee?: HandlingFeeInput;
   /**
      * @minimum 0
      * @maximum 1000000

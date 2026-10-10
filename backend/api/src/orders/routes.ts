@@ -19,6 +19,7 @@ import { commissionCents, DEFAULT_COMMISSION_RATE, LEGAL_ORDER_TRANSITIONS } fro
 import { evaluateReorderLine } from "./reorder.js";
 import { checkoutReplay, deductStock, restoreOrderStock, stockError } from "./inventory.js";
 import { assertStoreOrderable, deliverySnapshot, storeOrderability } from "./orderability.js";
+import { cartPricing } from "../customer-cart/pricing.js";
 
 export const ordersRouter = Router();
 function userId(req: Request) {
@@ -35,7 +36,7 @@ const safeOrderFields = {
   id: orders.id, storeId: orders.storeId, status: orders.status, deliveryType: orders.deliveryType,
   deliveryMode: orders.deliveryMode, scheduledStartAt: orders.scheduledStartAt, scheduledEndAt: orders.scheduledEndAt,
   paymentMethod: orders.paymentMethod, subtotal: orders.subtotal,
-  deliveryFeeSnapshot: orders.deliveryFeeSnapshot, totalAmount: orders.totalAmount,
+  deliveryFeeSnapshot: orders.deliveryFeeSnapshot, handlingFeeSnapshot: orders.handlingFeeSnapshot, totalAmount: orders.totalAmount,
   deliveryAddressSnapshot: orders.deliveryAddressSnapshot, deliveryContactName: orders.deliveryContactName,
   deliveryContactPhone: orders.deliveryContactPhone, createdAt: orders.createdAt, updatedAt: orders.updatedAt,
 };
@@ -232,13 +233,15 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
     const masterNameById = new Map(currentMasterProducts.map(({ id, name }) => [id, name]));
     const subtotal = rows.reduce((sum, { item, variant }) =>
       sum + moneyToCents(variant.price) * BigInt(item.quantity), 0n);
-    const fee = moneyToCents(store.stores.deliveryFee);
+    const pricing = cartPricing(subtotal, store.stores);
     const minimum = moneyToCents(store.stores.minimumOrderValue);
     if (subtotal < minimum) throw new HttpError(409, `Minimum order value is ${store.stores.minimumOrderValue}`);
     // Final acceptance check after all potentially blocking inventory locks.
     // Hours writers lock the same store parent until this transaction completes.
     const orderability = await assertStoreOrderable(cart.storeId, tx, true, parsed.data.deliveryMode);
-    const snapshot = deliverySnapshot(parsed.data, orderability.hours, orderability.now);
+    // Product/category reads and row locks can take time; recheck expiry at the
+    // stock-write boundary rather than reuse the earlier availability timestamp.
+    const snapshot = deliverySnapshot(parsed.data, orderability.hours, new Date());
     await deductStock(tx, cart.storeId, rows.map(({ item, product, variant }) => ({
       variantId: variant.id, productId: product.id, quantity: item.quantity,
       productName: (product.masterProductId && masterNameById.get(product.masterProductId)) || product.name,
@@ -250,8 +253,9 @@ ordersRouter.post("/api/customer/orders", requireRole("customer"), asyncHandler(
       ...snapshot,
       inventoryState: "DEDUCTED", checkoutKey: parsed.data.idempotencyKey,
       checkoutCartId: cart.id, checkoutAddressId: address.id,
-      subtotal: centsToMoney(subtotal), deliveryFeeSnapshot: centsToMoney(fee),
-      totalAmount: centsToMoney(subtotal + fee),
+      subtotal: pricing.subtotal, deliveryFeeSnapshot: pricing.deliveryFee,
+      handlingFeeSnapshot: pricing.handlingFee,
+      totalAmount: pricing.total,
       commissionRateSnapshot: rate ?? DEFAULT_COMMISSION_RATE,
       commissionAmountSnapshot: centsToMoney(commissionCents(subtotal, rate)),
       deliveryAddressSnapshot: addressSnapshot(address), deliveryContactName: address.recipientName,

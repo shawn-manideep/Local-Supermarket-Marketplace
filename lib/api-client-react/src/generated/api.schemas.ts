@@ -701,6 +701,7 @@ export interface StoreProfile {
   pincode?: string | null;
   status: StoreProfileStatus;
   deliveryFee: string;
+  handlingFee?: string;
   minimumOrderValue: string;
   /** @nullable */
   commissionRate?: string | null;
@@ -741,6 +742,8 @@ export type AdminDetailOutcomeAccount = AdminManagementRow & ({
 export interface AdminDetailOutcome {
   account: AdminDetailOutcomeAccount;
 }
+
+export type HandlingFeeInput = number | string;
 
 export interface StoreProfileInput {
   /**
@@ -801,6 +804,7 @@ export interface StoreProfileInput {
   state?: string;
   /** @pattern ^[1-9][0-9]{5}$ */
   pincode?: string;
+  handlingFee?: HandlingFeeInput;
   /**
      * @minimum 0
      * @maximum 1000000
@@ -873,6 +877,7 @@ export interface VendorProfileInput {
      * @maximum 1000000
      */
   deliveryFee?: number;
+  handlingFee?: HandlingFeeInput;
   /**
      * @minimum 0
      * @maximum 1000000
@@ -942,6 +947,7 @@ export interface VendorProvisionInput {
      * @maximum 1000000
      */
   deliveryFee?: number;
+  handlingFee?: HandlingFeeInput;
   /**
      * @minimum 0
      * @maximum 1000000
@@ -1272,6 +1278,8 @@ export type CustomerCheckoutOutcomeOrder = {
   id: string;
   status: CustomerCheckoutOutcomeOrderStatus;
   totalAmount: string;
+  /** Immutable accepted-order handling fee; historical orders default to zero without recalculating their totals. */
+  handlingFeeSnapshot?: string;
   items: CustomerCheckoutOutcomeOrderItemsItem[];
   statusHistory: CustomerCheckoutOutcomeOrderStatusHistoryItem[];
 };

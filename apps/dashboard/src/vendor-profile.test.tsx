@@ -21,7 +21,7 @@ test("shared store form renders all owner and address controls with required mar
 });
 test("shared store form supports cents and matching owner/address/pincode limits without commercial fields", () => {
   const html = renderToStaticMarkup(createElement(StoreProfileFields));
-  for (const name of ["deliveryFee", "minimumOrderValue"]) {
+  for (const name of ["deliveryFee", "handlingFee", "minimumOrderValue"]) {
     const input = html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))?.[0];
     for (const constraint of ['min="0"', 'max="1000000"', 'step="0.01"']) assert.ok(input?.includes(constraint));
   }
@@ -29,6 +29,15 @@ test("shared store form supports cents and matching owner/address/pincode limits
   assert.ok(html.match(/<input[^>]*name="addressLine1"[^>]*>/)?.[0].includes('maxLength="250"'));
   assert.match(html, /pattern="\[1-9\]\[0-9\]\{5\}"/);
   assert.doesNotMatch(html, /name="(?:price|stock|sku|variants|username|password|status|ownerUserId)"/);
+});
+test("Vendor and Admin handling fee controls reload the saved amount and default to zero", () => {
+  for (const variant of ["vendor", "admin"] as const) {
+    const saved = renderToStaticMarkup(createElement(StoreProfileFields, { variant, values: { handlingFee: "8.50" } }));
+    assert.match(saved, /name="handlingFee"[^>]*value="8.50"/);
+    const empty = renderToStaticMarkup(createElement(StoreProfileFields, { variant }));
+    assert.match(empty, /name="handlingFee"[^>]*value="0.00"/);
+    assert.match(empty, /Handling fee/);
+  }
 });
 test("weekly hours preserve saved days and serialize closed days with null times", () => {
   const hours: OperatingHour[] = [{ id: "qa", storeId: "qa", dayOfWeek: 1, isClosed: false, opensAt: "08:30:00", closesAt: "20:15:00", createdAt: "", updatedAt: "" }];

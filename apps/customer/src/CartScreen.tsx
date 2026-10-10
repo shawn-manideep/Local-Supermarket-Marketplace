@@ -44,6 +44,35 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
     } },
   });
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    let active = true;
+    let refreshing = false;
+    const refreshPrices = async () => {
+      if (refreshing || quantityController.current!.isPending() || checkoutInFlight.current) return;
+      refreshing = true;
+      try {
+        const { cart: fresh } = await customerApi<{ cart: CustomerCart | null }>("/api/customer/cart");
+        if (!active || quantityController.current!.isPending() || checkoutInFlight.current) return;
+        setCart(current => current && fresh && current.id === fresh.id
+          && current.items.length === fresh.items.length
+          && current.items.every(item => fresh.items.some(next => next.id === item.id && next.quantity === item.quantity))
+          ? fresh : current);
+      } catch (reason) {
+        if (active) setMessage(shoppingError(reason));
+      }
+      finally { refreshing = false; }
+    };
+    const timer = setInterval(() => { if (AppState.currentState === "active") void refreshPrices(); }, 30_000);
+    const subscription = AppState.addEventListener("change", state => { if (state === "active") void refreshPrices(); });
+    const onFocus = () => { void refreshPrices(); };
+    if (Platform.OS === "web" && typeof window !== "undefined") window.addEventListener("focus", onFocus);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      subscription.remove();
+      if (Platform.OS === "web" && typeof window !== "undefined") window.removeEventListener("focus", onFocus);
+    };
+  }, []);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const checkoutInFlight = useRef(false);
   const [deliveryMode, setDeliveryMode] = useState<CustomerDeliveryMode>("INSTANT");
@@ -275,6 +304,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
           <View style={commonStyles.card}>
             <Line label={t("Subtotal")} value={cart.subtotal} />
             <Line label={t("Delivery fee")} value={cart.deliveryFee} />
+            <Line label={localizeCustomerMessage("Handling Fee", t)} value={cart.handlingFee ?? "0.00"} />
             <Text style={[typography.caption, { marginVertical: 4 }]}>{t("Minimum order ₹{minimum}", { minimum: cart.minimumOrderValue })}</Text>
             <View style={styles.divider} />
             <Line label={t("Total")} value={cart.total} strong />
@@ -354,6 +384,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
                   {availableDays(validSlots).map(day => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: selectedDay === day }} onPress={() => {
                     if (day !== selectedDay) {
                       setSelectedDay(day);
+                      setSlotRefresh(value => value + 1);
                       selectedSlotRef.current = null;
                       setSelectedSlot(null);
                       checkoutIntent.current = null;

@@ -408,6 +408,7 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
             <View style={styles.divider} />
             <Line label={t("Subtotal")} value={localOrder.subtotal} />
             <Line label={t("Delivery fee")} value={localOrder.deliveryFeeSnapshot} />
+            <Line label={localizeCustomerMessage("Handling Fee", t)} value={localOrder.handlingFeeSnapshot ?? "0.00"} />
             <View style={styles.divider} />
             <Line label={t("Total Paid (COD)")} value={localOrder.totalAmount} strong />
           </View>

@@ -14,6 +14,7 @@ export type StoreProfileValues = {
   state?: string | null;
   pincode?: string | null;
   deliveryFee?: string | number | null;
+  handlingFee?: string | number | null;
   minimumOrderValue?: string | number | null;
 };
 
@@ -82,6 +83,7 @@ export function StoreProfileFields({ values = {}, disabled = false, variant = "a
         <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Store operations</strong>
         <div className={vendor ? "vendor-profile-fields-grid" : "lb-admin-provision-grid"}>
           {field("Delivery fee (₹)", "deliveryFee", { type: "number", value: values.deliveryFee, inputMode: "decimal" })}
+          {field("Handling fee (₹)", "handlingFee", { type: "number", value: values.handlingFee ?? "0.00", inputMode: "decimal", required: true })}
           {field("Minimum order value (₹)", "minimumOrderValue", { type: "number", value: values.minimumOrderValue, inputMode: "decimal" })}
         </div>
       </div>

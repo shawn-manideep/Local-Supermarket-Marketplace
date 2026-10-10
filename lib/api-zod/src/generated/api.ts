@@ -994,6 +994,11 @@ export const createAdminVendorBodyPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
 export const createAdminVendorBodyDeliveryFeeMin = 0;
 export const createAdminVendorBodyDeliveryFeeMax = 1000000;
 
+export const createAdminVendorBodyHandlingFeeOneMin = 0;
+export const createAdminVendorBodyHandlingFeeOneMax = 1000000;
+export const createAdminVendorBodyHandlingFeeOneMultipleOf = 0.01;
+
+export const createAdminVendorBodyHandlingFeeTwoRegExp = new RegExp('^\\d+(?:\\.\\d{1,2})?$');
 export const createAdminVendorBodyMinimumOrderValueMin = 0;
 export const createAdminVendorBodyMinimumOrderValueMax = 1000000;
 
@@ -1026,6 +1031,7 @@ export const CreateAdminVendorBody = zod.object({
   "state": zod.string().min(1).max(createAdminVendorBodyStateMax),
   "pincode": zod.string().regex(createAdminVendorBodyPincodeRegExp),
   "deliveryFee": zod.number().min(createAdminVendorBodyDeliveryFeeMin).max(createAdminVendorBodyDeliveryFeeMax).optional(),
+  "handlingFee": zod.union([zod.number().min(createAdminVendorBodyHandlingFeeOneMin).max(createAdminVendorBodyHandlingFeeOneMax).multipleOf(createAdminVendorBodyHandlingFeeOneMultipleOf),zod.string().regex(createAdminVendorBodyHandlingFeeTwoRegExp).describe('Non-negative rupee amount with up to two decimal places; maximum 1000000.')]).optional(),
   "minimumOrderValue": zod.number().min(createAdminVendorBodyMinimumOrderValueMin).max(createAdminVendorBodyMinimumOrderValueMax).optional(),
   "hours": zod.array(zod.object({
   "dayOfWeek": zod.number().int().min(createAdminVendorBodyHoursItemDayOfWeekMin).max(createAdminVendorBodyHoursItemDayOfWeekMax),
@@ -1037,6 +1043,7 @@ export const CreateAdminVendorBody = zod.object({
   "password": zod.string().min(createAdminVendorBodyPasswordMin).max(createAdminVendorBodyPasswordMax)
 })
 
+export const createAdminVendorResponseAccountTwoStoreOneHandlingFeeDefault = `0.00`;
 export const createAdminVendorResponseAccountTwoHoursItemDayOfWeekMin = 0;
 export const createAdminVendorResponseAccountTwoHoursItemDayOfWeekMax = 6;
 
@@ -1079,6 +1086,7 @@ export const CreateAdminVendorResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(createAdminVendorResponseAccountTwoStoreOneHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -1176,6 +1184,11 @@ export const updateAdminVendorProfileBodyPincodeRegExp = new RegExp('^[1-9][0-9]
 export const updateAdminVendorProfileBodyDeliveryFeeMin = 0;
 export const updateAdminVendorProfileBodyDeliveryFeeMax = 1000000;
 
+export const updateAdminVendorProfileBodyHandlingFeeOneMin = 0;
+export const updateAdminVendorProfileBodyHandlingFeeOneMax = 1000000;
+export const updateAdminVendorProfileBodyHandlingFeeOneMultipleOf = 0.01;
+
+export const updateAdminVendorProfileBodyHandlingFeeTwoRegExp = new RegExp('^\\d+(?:\\.\\d{1,2})?$');
 export const updateAdminVendorProfileBodyMinimumOrderValueMin = 0;
 export const updateAdminVendorProfileBodyMinimumOrderValueMax = 1000000;
 
@@ -1200,6 +1213,7 @@ export const UpdateAdminVendorProfileBody = zod.object({
   "state": zod.string().min(1).max(updateAdminVendorProfileBodyStateMax).optional(),
   "pincode": zod.string().regex(updateAdminVendorProfileBodyPincodeRegExp).optional(),
   "deliveryFee": zod.number().min(updateAdminVendorProfileBodyDeliveryFeeMin).max(updateAdminVendorProfileBodyDeliveryFeeMax).optional(),
+  "handlingFee": zod.union([zod.number().min(updateAdminVendorProfileBodyHandlingFeeOneMin).max(updateAdminVendorProfileBodyHandlingFeeOneMax).multipleOf(updateAdminVendorProfileBodyHandlingFeeOneMultipleOf),zod.string().regex(updateAdminVendorProfileBodyHandlingFeeTwoRegExp).describe('Non-negative rupee amount with up to two decimal places; maximum 1000000.')]).optional(),
   "minimumOrderValue": zod.number().min(updateAdminVendorProfileBodyMinimumOrderValueMin).max(updateAdminVendorProfileBodyMinimumOrderValueMax).optional(),
   "hours": zod.array(zod.object({
   "dayOfWeek": zod.number().int().min(updateAdminVendorProfileBodyHoursItemDayOfWeekMin).max(updateAdminVendorProfileBodyHoursItemDayOfWeekMax),
@@ -1209,6 +1223,7 @@ export const UpdateAdminVendorProfileBody = zod.object({
 })).max(updateAdminVendorProfileBodyHoursMax).optional()
 })
 
+export const updateAdminVendorProfileResponseAccountTwoStoreOneHandlingFeeDefault = `0.00`;
 export const updateAdminVendorProfileResponseAccountTwoHoursItemDayOfWeekMin = 0;
 export const updateAdminVendorProfileResponseAccountTwoHoursItemDayOfWeekMax = 6;
 
@@ -1251,6 +1266,7 @@ export const UpdateAdminVendorProfileResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(updateAdminVendorProfileResponseAccountTwoStoreOneHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -1270,6 +1286,7 @@ export const GetAdminVendorParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+export const getAdminVendorResponseAccountTwoStoreOneHandlingFeeDefault = `0.00`;
 export const getAdminVendorResponseAccountTwoHoursItemDayOfWeekMin = 0;
 export const getAdminVendorResponseAccountTwoHoursItemDayOfWeekMax = 6;
 
@@ -1312,6 +1329,7 @@ export const GetAdminVendorResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(getAdminVendorResponseAccountTwoStoreOneHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -1360,6 +1378,8 @@ export const LoginVendorUsernameResponse = zod.object({
 })
 
 
+export const getVendorStoreProfileResponseStoreHandlingFeeDefault = `0.00`;
+
 export const GetVendorStoreProfileResponse = zod.object({
   "store": zod.object({
   "id": zod.string().uuid(),
@@ -1378,6 +1398,7 @@ export const GetVendorStoreProfileResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(getVendorStoreProfileResponseStoreHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -1407,6 +1428,11 @@ export const updateVendorStoreProfileBodyOneCityMax = 120;
 export const updateVendorStoreProfileBodyOneStateMax = 120;
 
 export const updateVendorStoreProfileBodyOnePincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+export const updateVendorStoreProfileBodyOneHandlingFeeOneMin = 0;
+export const updateVendorStoreProfileBodyOneHandlingFeeOneMax = 1000000;
+export const updateVendorStoreProfileBodyOneHandlingFeeOneMultipleOf = 0.01;
+
+export const updateVendorStoreProfileBodyOneHandlingFeeTwoRegExp = new RegExp('^\\d+(?:\\.\\d{1,2})?$');
 export const updateVendorStoreProfileBodyOneDeliveryFeeMin = 0;
 export const updateVendorStoreProfileBodyOneDeliveryFeeMax = 1000000;
 
@@ -1428,9 +1454,12 @@ export const UpdateVendorStoreProfileBody = zod.object({
   "city": zod.string().min(1).max(updateVendorStoreProfileBodyOneCityMax).optional(),
   "state": zod.string().min(1).max(updateVendorStoreProfileBodyOneStateMax).optional(),
   "pincode": zod.string().regex(updateVendorStoreProfileBodyOnePincodeRegExp).optional(),
+  "handlingFee": zod.union([zod.number().min(updateVendorStoreProfileBodyOneHandlingFeeOneMin).max(updateVendorStoreProfileBodyOneHandlingFeeOneMax).multipleOf(updateVendorStoreProfileBodyOneHandlingFeeOneMultipleOf),zod.string().regex(updateVendorStoreProfileBodyOneHandlingFeeTwoRegExp).describe('Non-negative rupee amount with up to two decimal places; maximum 1000000.')]).optional(),
   "deliveryFee": zod.number().min(updateVendorStoreProfileBodyOneDeliveryFeeMin).max(updateVendorStoreProfileBodyOneDeliveryFeeMax).optional(),
   "minimumOrderValue": zod.number().min(updateVendorStoreProfileBodyOneMinimumOrderValueMin).max(updateVendorStoreProfileBodyOneMinimumOrderValueMax).optional()
 })
+
+export const updateVendorStoreProfileResponseStoreHandlingFeeDefault = `0.00`;
 
 export const UpdateVendorStoreProfileResponse = zod.object({
   "store": zod.object({
@@ -1450,6 +1479,7 @@ export const UpdateVendorStoreProfileResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(updateVendorStoreProfileResponseStoreHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -1516,6 +1546,7 @@ export const GetAdminCustomerParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+export const getAdminCustomerResponseAccountTwoStoreOneHandlingFeeDefault = `0.00`;
 export const getAdminCustomerResponseAccountTwoHoursItemDayOfWeekMin = 0;
 export const getAdminCustomerResponseAccountTwoHoursItemDayOfWeekMax = 6;
 
@@ -1558,6 +1589,7 @@ export const GetAdminCustomerResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(getAdminCustomerResponseAccountTwoStoreOneHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -1588,6 +1620,7 @@ export const GetAdminDeliveryPartnerParams = zod.object({
   "partnerId": zod.coerce.string().uuid()
 })
 
+export const getAdminDeliveryPartnerResponseAccountTwoStoreOneHandlingFeeDefault = `0.00`;
 export const getAdminDeliveryPartnerResponseAccountTwoHoursItemDayOfWeekMin = 0;
 export const getAdminDeliveryPartnerResponseAccountTwoHoursItemDayOfWeekMax = 6;
 
@@ -1630,6 +1663,7 @@ export const GetAdminDeliveryPartnerResponse = zod.object({
   "pincode": zod.string().nullish(),
   "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED']),
   "deliveryFee": zod.string(),
+  "handlingFee": zod.string().default(getAdminDeliveryPartnerResponseAccountTwoStoreOneHandlingFeeDefault),
   "minimumOrderValue": zod.string(),
   "commissionRate": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
@@ -2010,6 +2044,8 @@ export const PlaceCustomerOrderBody = zod.object({
   "scheduledEndAt": zod.coerce.date().optional()
 })
 
+export const placeCustomerOrderResponseOrderHandlingFeeSnapshotDefault = `0.00`;
+
 export const PlaceCustomerOrderResponse = zod.object({
   "order": zod.object({
   "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
@@ -2018,6 +2054,7 @@ export const PlaceCustomerOrderResponse = zod.object({
   "id": zod.string().uuid(),
   "status": zod.enum(['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'REJECTED', 'CANCELLED']),
   "totalAmount": zod.string(),
+  "handlingFeeSnapshot": zod.string().default(placeCustomerOrderResponseOrderHandlingFeeSnapshotDefault).describe('Immutable accepted-order handling fee; historical orders default to zero without recalculating their totals.'),
   "items": zod.array(zod.object({
 
 }).passthrough()),

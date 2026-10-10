@@ -16,6 +16,7 @@ function storeValues({ hours: _hours, ...input }: ProfileInput) {
   return {
     ...input,
     deliveryFee: input.deliveryFee === undefined ? undefined : input.deliveryFee.toFixed(2),
+    handlingFee: input.handlingFee === undefined ? undefined : input.handlingFee.toFixed(2),
     minimumOrderValue: input.minimumOrderValue === undefined ? undefined : input.minimumOrderValue.toFixed(2),
   };
 }

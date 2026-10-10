@@ -252,3 +252,17 @@ mtime_ms = 1791646805974
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/37b426c5-f6e9-4ceb-af34-2bab1873a828/0b77479d-f758-4905-a873-e23d2cfa62d8"
 storage_version_token = "1791646839867196"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "upndy6yFgSTiuc2n1U6BC"
+uri = "file://docs/HANDLING_FEE_SCHEDULED_DELIVERY_REPORT.md"
+type = "text"
+title = "Handling Fee and Scheduled Delivery — Implementation Report"
+description = "Exact changed files, pricing and snapshot rules, migration verification, test/build results, limitations and manual acceptance checklist."
+logical_id = "0768ff8d-8d51-465b-a1e0-a329c095d55f"
+content_hash = "sha256:0d2a8b04b15eb98f91b03a4b580d51cce70007741139001f0dd1aa7c35a0be1e"
+size = 13263
+mtime_ms = 1791652066086
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/0768ff8d-8d51-465b-a1e0-a329c095d55f/a1967e6d-bc0a-44cc-8d0a-3e5bb80f7803"
+storage_version_token = "1791652087057821"
+content_type = "text/markdown"

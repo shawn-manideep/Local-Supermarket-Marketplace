@@ -15,6 +15,16 @@ winner's committed cart state rather than an earlier transaction snapshot.
 
 **How to apply:** Keep customer/vendor/admin direct order mutations revoked.
 Use row locks for status changes and append history in the same transaction.
+New store-level charges affect future orders only; do not recalculate historical
+accepted orders when adding a fee or changing a store's current settings.
+
+**Why:** The user requires historical order pricing and all inventory/delivery
+effects to remain unchanged when store-level fees are introduced.
+
+**How to apply:** Keep the current store setting separate from the accepted-order
+snapshot; reject client-owned fees/totals and preserve the existing commission,
+discount, minimum-order and stock rules.
+
 Deduct variant stock exactly once at successful order placement, inside the
 same transaction as snapshots, initial history, and cart conversion. Carts
 never reserve stock. Later fulfillment transitions do not deduct again.

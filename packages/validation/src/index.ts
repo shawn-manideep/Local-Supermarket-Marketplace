@@ -64,6 +64,11 @@ const nullableCustomerPhoneSchema = z.preprocess(
   customerPhoneSchema.nullable(),
 );
 
+export const handlingFeeSchema = z.union([
+  z.string().trim().regex(/^\d+(?:\.\d{1,2})?$/, "Use a non-negative amount with at most two decimal places").transform(Number),
+  z.number().finite().nonnegative().refine(value => Number(value.toFixed(2)) === value, "Use at most two decimal places"),
+]).pipe(z.number().finite().min(0).max(1_000_000));
+
 export const storeUpdateSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
@@ -79,6 +84,7 @@ export const storeUpdateSchema = z
     state: z.string().trim().min(1).max(120).optional(),
     pincode: z.string().trim().regex(/^[1-9]\d{5}$/, "Use a valid six-digit Indian pincode").optional(),
     deliveryFee: optionalMoneySchema,
+    handlingFee: handlingFeeSchema.optional(),
     minimumOrderValue: optionalMoneySchema,
   })
   .strict();

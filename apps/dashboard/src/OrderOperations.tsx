@@ -224,6 +224,7 @@ function AdminDetail({ detail, busy, onClose }: {
           <dl className="detail-list">
             <div><dt>Subtotal</dt><dd>{money(detail.subtotal)}</dd></div>
             <div><dt>Delivery fee</dt><dd>{money(detail.deliveryFeeSnapshot)}</dd></div>
+            <div><dt>Handling fee</dt><dd>{money(detail.handlingFeeSnapshot ?? "0.00")}</dd></div>
             <div><dt>Total</dt><dd><strong>{money(detail.totalAmount)}</strong></dd></div>
             <div><dt>Commission rate</dt><dd>{detail.commissionRateSnapshot == null ? "Not recorded" : `${detail.commissionRateSnapshot}%`}</dd></div><div><dt>Commission amount</dt><dd>{detail.commissionAmountSnapshot == null ? "Not recorded" : money(detail.commissionAmountSnapshot)}</dd></div>
           </dl>

@@ -159,6 +159,9 @@ export const stores = pgTable(
     deliveryFee: numeric("delivery_fee", { precision: 12, scale: 2 })
       .notNull()
       .default("0"),
+    handlingFee: numeric("handling_fee", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0"),
     minimumOrderValue: numeric("minimum_order_value", {
       precision: 12,
       scale: 2,
@@ -479,6 +482,9 @@ export const orders = pgTable(
       precision: 12,
       scale: 2,
     }).notNull(),
+    handlingFeeSnapshot: numeric("handling_fee_snapshot", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0"),
     totalAmount: numeric("total_amount", {
       precision: 12,
       scale: 2,

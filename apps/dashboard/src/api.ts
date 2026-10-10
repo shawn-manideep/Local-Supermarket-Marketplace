@@ -20,6 +20,7 @@ export interface Store {
   state: string | null;
   pincode: string | null;
   deliveryFee: string;
+  handlingFee?: string;
   minimumOrderValue: string;
   commissionRate: string | null;
   status: StoreStatus;
@@ -202,6 +203,7 @@ export interface OrderDetail {
   paymentMethod: string;
   subtotal: string | number;
   deliveryFeeSnapshot: string | number;
+  handlingFeeSnapshot?: string | number;
   totalAmount: string | number;
   deliveryAddressSnapshot: OrderSummary["deliveryAddressSnapshot"];
   deliveryContactName: string;

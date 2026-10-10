@@ -30,7 +30,7 @@ before(async () => {
   pool = new pg.Pool({ host: "127.0.0.1", port, database: "postgres", user: "admin_qa", ssl: false });
   await pool.query(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE ROLE postgres SUPERUSER;
     CREATE SCHEMA auth; GRANT USAGE ON SCHEMA auth TO authenticated;
-    CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,raw_user_meta_data jsonb DEFAULT '{}');
+    CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,raw_user_meta_data jsonb DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
       SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
   const migrations = new URL("../../../../database/migrations/", import.meta.url);

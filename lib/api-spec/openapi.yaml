@@ -1546,8 +1546,13 @@ components:
         city: { type: string, minLength: 1, maxLength: 120 }
         state: { type: string, minLength: 1, maxLength: 120 }
         pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
+        handlingFee: { $ref: "#/components/schemas/HandlingFeeInput" }
         deliveryFee: { type: number, minimum: 0, maximum: 1000000 }
         minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
+    HandlingFeeInput:
+      oneOf:
+        - { type: number, minimum: 0, maximum: 1000000, multipleOf: 0.01 }
+        - { type: string, pattern: '^\d+(?:\.\d{1,2})?$', description: "Non-negative rupee amount with up to two decimal places; maximum 1000000." }
     VendorProfileInput:
       type: object
       additionalProperties: false
@@ -1565,6 +1570,7 @@ components:
         state: { type: string, minLength: 1, maxLength: 120 }
         pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
         deliveryFee: { type: number, minimum: 0, maximum: 1000000 }
+        handlingFee: { $ref: "#/components/schemas/HandlingFeeInput" }
         minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
         hours: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/StoreProfileHour" } }
     VendorProvisionInput:
@@ -1585,6 +1591,7 @@ components:
         state: { type: string, minLength: 1, maxLength: 120 }
         pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
         deliveryFee: { type: number, minimum: 0, maximum: 1000000 }
+        handlingFee: { $ref: "#/components/schemas/HandlingFeeInput" }
         minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
         hours: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/StoreProfileHour" } }
         username: { type: string, minLength: 3, maxLength: 30, pattern: '^[A-Za-z][A-Za-z0-9_]{2,29}$', description: Global existing registry; lowercase normalization; reserved names rejected }
@@ -1609,6 +1616,7 @@ components:
         pincode: { type: [string, "null"] }
         status: { type: string, enum: [PENDING_APPROVAL, ACTIVE, SUSPENDED, REJECTED] }
         deliveryFee: { type: string }
+        handlingFee: { type: string, default: "0.00" }
         minimumOrderValue: { type: string }
         commissionRate: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
@@ -1793,6 +1801,7 @@ components:
             id: { type: string, format: uuid }
             status: { type: string, enum: [PLACED, ACCEPTED, PREPARING, READY, OUT_FOR_DELIVERY, DELIVERED, REJECTED, CANCELLED] }
             totalAmount: { type: string }
+            handlingFeeSnapshot: { type: string, default: "0.00", description: "Immutable accepted-order handling fee; historical orders default to zero without recalculating their totals." }
             items: { type: array, items: { type: object } }
             statusHistory: { type: array, items: { type: object } }
     StockFailure:

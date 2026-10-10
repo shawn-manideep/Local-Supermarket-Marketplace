@@ -86,7 +86,8 @@ test("migration is additive, legacy orders remain NONE, and checkout identities 
 });
 test("customer checkout retains a stable retry identity and does not silently remove unavailable cart items", async () => {
   const cart = await source("../../../../apps/customer/src/CartScreen.tsx");
-  assert.match(cart, /idempotencyKey: cart\.id/);
+  assert.match(cart, /idempotencyKey: intent\.key/);
+  assert.match(cart, /checkoutIntent\.current/);
   assert.doesNotMatch(cart, /checkout\/validate/);
   assert.match(cart, /INSUFFICIENT_STOCK/);
   assert.match(cart, /No longer available in the selected quantity/);
