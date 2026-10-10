@@ -7,6 +7,7 @@ import { CustomerText as Text, CustomerTextInput as TextInput } from "./componen
 import { PasswordField } from "./components/AuthControls";
 import { PhoneInput } from "./components/PhoneInput";
 import { colors, commonStyles, radius, spacing, typography } from "./theme";
+import { CustomerLanguageSelector } from "./components/LanguageSelector";
 
 export function CustomerSettingsScreen({ onBack }: { onBack: () => void }) {
   const [account, setAccount] = useState<GetCustomerAccountSettings200Account | null>(null);
@@ -81,6 +82,9 @@ export function CustomerSettingsScreen({ onBack }: { onBack: () => void }) {
       <Text style={typography.eyebrow}>PREFERENCES & SECURITY</Text>
       <Text style={typography.hero}>Settings</Text>
       <Text style={[typography.body, styles.intro]}>Your account details and sign-in security.</Text>
+      <View style={styles.languageCard}>
+        <CustomerLanguageSelector labelKey="customer.language" />
+      </View>
       {!!profileError && !loading && <View style={styles.errorBox}>
         <Text accessibilityRole="alert" style={styles.error}>{profileError}</Text>
         <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={styles.backText}>Retry loading account details</Text></Pressable>
@@ -125,6 +129,7 @@ const styles = StyleSheet.create({
   back: { alignSelf: "flex-start", paddingVertical: spacing.md },
   backText: { ...typography.bodySemibold, color: colors.accent },
   intro: { marginTop: spacing.sm, marginBottom: spacing.xl },
+  languageCard: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.md },
   loading: { padding: spacing.xl, alignItems: "center", gap: spacing.md },
   card: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, marginBottom: spacing.md },
   help: { ...typography.caption, marginTop: -spacing.sm },

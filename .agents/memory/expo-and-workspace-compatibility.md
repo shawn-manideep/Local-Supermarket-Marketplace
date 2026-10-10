@@ -20,3 +20,15 @@ Development export startup must account for the managed preview's port deadline.
 **Why:** Unconditionally clearing the bundler cache during a routine UI restart caused a preview startup timeout; a bounded-worker export with normal cache reuse restored startup.
 
 **How to apply:** When export logs show progress but no server yet, diagnose bundling/resource pressure before changing routing or application logic. Prefer normal source-aware cache invalidation for routine UI work; reserve a cold rebuild for suspected stale bundler state.
+
+Leaf packages that include Node-based tests or Vite configuration should declare
+their Node typings directly instead of relying on transitive resolution.
+
+**Why:** Linking a new testable shared package exposed overlapping Node 14/25
+declarations in the dashboard: UTF-8 readFile calls inferred buffers and proxy
+event methods disappeared from types despite unchanged runtime code.
+
+**How to apply:** Align Node types at the consuming package before rewriting
+working source to satisfy these symptoms. Cross-package TSX tests also need an
+explicit JSX-enabled tsconfig; otherwise the Node harness can select classic
+JSX and report React missing even though Vite's automatic JSX build works.

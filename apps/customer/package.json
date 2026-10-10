@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.57.4",
     "@workspace/api-client-react": "workspace:*",
     "@workspace/constants": "workspace:*",
+    "@workspace/localization": "workspace:*",
     "@workspace/validation": "workspace:*",
     "expo": "~54.0.20",
     "expo-crypto": "~15.0.9",

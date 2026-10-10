@@ -6,6 +6,7 @@ import { CustomerText as Text, CustomerTextInput as TextInput } from "./Customer
 import { colors, radius, spacing, typography, commonStyles } from "../theme";
 import { supabase } from "../lib/supabase";
 import { passwordVisibility } from "@workspace/constants";
+import { CustomerLanguageSelector } from "./LanguageSelector";
 
 export function PasswordField({ label = "Password", ...props }: React.ComponentProps<typeof TextInput> & { label?: string }) {
   const [visible, setVisible] = useState(false);
@@ -70,6 +71,7 @@ export function CustomerResetForm({ onComplete }: { onComplete: (success: boolea
     finally { setBusy(false); }
   };
   return <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.resetPage}><View style={[commonStyles.card, styles.form]}>
+    <CustomerLanguageSelector />
     <Text style={typography.title1}>Choose a new password</Text>
     <Text style={typography.body}>Use at least 8 characters.</Text>
     <PasswordField label="New password" autoComplete="new-password" value={password} onChangeText={setPassword} />

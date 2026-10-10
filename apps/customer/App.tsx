@@ -39,6 +39,8 @@ import { SavedItemsProvider } from "./src/SavedItemsContext";
 import { SavedItemsScreen } from "./src/SavedItemsScreen";
 import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
 import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
+import { useLanguageScope } from "@workspace/localization";
+import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings";
 
@@ -187,6 +189,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
           <Text style={styles.brandName}>LOCAL BASKET</Text>
           <Text style={styles.brandSub}>Fresh Groceries · Local Stores</Text>
         </View>
+        <CustomerLanguageSelector />
         <Text style={typography.hero}>
           {mode === "signup" ? "Create an account" : mode === "recovery" ? "Recover your account" : "Welcome back!"}
         </Text>
@@ -948,6 +951,7 @@ export default function App() {
   const [customerAccess, setCustomerAccess] = useState<"checking" | "allowed" | "denied">("checking");
   const [accessError, setAccessError] = useState("");
   const verifiedCustomer = useRef<string | null>(null);
+  useLanguageScope(session?.user.id ?? null);
   useEffect(() => {
     void supabase.auth
       .getSession()

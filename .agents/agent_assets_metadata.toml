@@ -210,3 +210,17 @@ mtime_ms = 1791535543145
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/1030a459-c519-4c86-a03d-fa0a6895f401/f0ecf6e0-57ae-46a7-b91f-1312a6d03712"
 storage_version_token = "1791535573819488"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "WaStxFOW8OBlqgPAWsxKB"
+uri = "file://docs/ENGLISH_TELUGU_PHASE1_REPORT.md"
+type = "text"
+title = "English/Telugu Phase 1 — implementation report"
+description = "Exact changed files, selector locations, persistence and font behavior, test/build results and manual review checklist."
+logical_id = "4ecb609b-6da1-4ba8-a0e4-bc5676aee132"
+content_hash = "sha256:46b0fae07dd743381484fddbbbf0c20e9ba7e1e44b34ace5efec7a35f49f6404"
+size = 10038
+mtime_ms = 1791642744215
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/4ecb609b-6da1-4ba8-a0e4-bc5676aee132/38ae2afb-278f-47cc-b614-ee1f672cc2db"
+storage_version_token = "1791642837313740"
+content_type = "text/markdown"

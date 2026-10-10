@@ -4,6 +4,7 @@ import type { PartnerCredentials, PartnerSessionOutcome } from "../../../lib/api
 import { ApiRequestError, apiRequest } from "./api";
 import "./partner.css";
 import { PasswordInput, ForgotPassword } from "./AuthControls";
+import { LanguageSelector } from "./LanguageSelector";
 
 type Props = {
   onAuthenticated: (session: { access_token: string; refresh_token: string }) => Promise<void>;
@@ -58,6 +59,8 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
             </div>
           </section>
           <section className="lbp-login-form-wrap">
+            <div className="lbp-login-content">
+            <LanguageSelector labelKey="delivery.language" />
             <form className="lbp-login-form" onSubmit={submit}>
               <p className="lbp-kicker">Secure access</p>
               <h2>Partner sign in</h2>
@@ -75,6 +78,7 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
               <div className="lbp-login-footer"><span>Partner accounts are provided by an administrator.</span><button className="lbp-button lbp-button-quiet" data-testid="button-partner-login-cancel" onClick={onCancel} type="button">Cancel</button></div>
             </form>
             <ForgotPassword role="delivery_partner" initialIdentity={username} />
+            </div>
           </section>
         </div>
       </div>

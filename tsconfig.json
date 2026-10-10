@@ -4,6 +4,9 @@
   "files": [],
   "references": [
     {
+      "path": "./packages/localization"
+    },
+    {
       "path": "./packages/shared-types"
     },
     {
