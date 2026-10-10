@@ -151,9 +151,6 @@ importers:
       '@workspace/constants':
         specifier: workspace:*
         version: link:../../packages/constants
-      '@workspace/localization':
-        specifier: workspace:*
-        version: link:../../packages/localization
       '@workspace/validation':
         specifier: workspace:*
         version: link:../../packages/validation

@@ -1,16 +1,19 @@
 ---
-name: Localization product boundaries
-description: Approved English/Telugu coverage goal and preference/data boundaries for future localization phases.
+name: Customer-only localization boundaries
+description: Customer-only English/Telugu scope and preference/data boundaries; other portals are excluded.
 ---
-The product's language-support goal covers Customer, Vendor, Delivery Partner
-and Admin interfaces, including authentication and shared controls. Do not call
-the product bilingual after translating only Home or the language selector.
+English/Telugu localization is exclusively for the Customer Portal. Vendor,
+Delivery Partner, Admin, shared dashboard UI and their authentication screens
+are out of scope. This supersedes the earlier all-portals localization scope.
 
-**Why:** The user explicitly requires complete English/Telugu coverage across
-all four portals, delivered in reviewed phases.
+**Why:** The user explicitly narrowed the scope to Customer only and requested
+removal of prior language-feature additions to the other portals.
 
-**How to apply:** Later phases must inventory labels, errors, empty/loading
-states, accessibility text and receipt presentation, not just navigation.
+**How to apply:** Reuse the Customer foundation without adding dashboard
+providers, selectors, font/style changes or language dependencies. Later
+Customer phases must inventory labels, errors, empty/loading states,
+accessibility text and receipt presentation, not just navigation. Do not call
+the Customer interface fully bilingual after translating only the selector.
 
 Keep language preferences separate from authentication storage. English is the
 default; signed-out and individual account preferences are independent and

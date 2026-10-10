@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DeliveryAssignment, DeliveryAssignmentOutcome, PartnerDashboardOutcome, PartnerDeliveriesOutcome, PartnerProfileOutcome } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { ApiRequestError, apiRequest } from "./api";
 import "./partner.css";
-import { LanguageSelector } from "./LanguageSelector";
 
 type Props = { token: string; onSignOut: () => Promise<void> };
 type Screen = "dashboard" | "deliveries" | "profile";
@@ -261,7 +260,6 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
       <div className="lbp-frame">
         <header className="lbp-topline">
           <div className="lbp-brand"><span className="lbp-mark" aria-hidden="true">LB</span><div className="lbp-brand-copy"><strong>Local Basket</strong><span>Delivery partner</span></div></div>
-          <LanguageSelector labelKey="delivery.language" />
           <button className="lbp-button" data-testid="button-partner-logout" type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
         </header>
         <section className="lbp-heading-row">

@@ -92,13 +92,13 @@ test("signed-out and different accounts have independent preferences", async () 
   assert.notEqual(languagePreferenceKey("language", null), languagePreferenceKey("language", "signed-out"));
 });
 
-test("Customer and dashboard keys do not collide", async () => {
+test("independent Customer preference namespaces do not collide", async () => {
   const { storage } = memory();
-  const customer = createLanguagePreference(storage, "customer-language");
-  const dashboard = createLanguagePreference(storage, "dashboard-language");
+  const customer = createLanguagePreference(storage, "customer-language:v1");
+  const otherNamespace = createLanguagePreference(storage, "customer-language:v2");
   await customer.switchScope("a"); await customer.setLanguage("te");
-  await dashboard.switchScope("a");
-  assert.equal(dashboard.getSnapshot().language, "en");
+  await otherNamespace.switchScope("a");
+  assert.equal(otherNamespace.getSnapshot().language, "en");
 });
 
 test("a delayed read cannot overwrite a user's current choice", async () => {

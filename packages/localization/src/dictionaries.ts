@@ -8,9 +8,6 @@ export const en = {
   "common.englishFallback": "English fallback",
   "auth.language": "Sign-in language",
   "customer.language": "Preferred language",
-  "vendor.language": "Portal language",
-  "delivery.language": "Portal language",
-  "admin.language": "Portal language",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -25,7 +22,4 @@ export const te: Partial<Record<TranslationKey, string>> = {
   "common.greeting": "నమస్కారం, {name}!",
   "auth.language": "సైన్-ఇన్ భాష",
   "customer.language": "ప్రాధాన్య భాష",
-  "vendor.language": "పోర్టల్ భాష",
-  "delivery.language": "పోర్టల్ భాష",
-  "admin.language": "పోర్టల్ భాష",
 };

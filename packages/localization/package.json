@@ -1,5 +1,6 @@
 {
   "name": "@workspace/localization",
+  "description": "Customer-only English/Telugu localization foundation",
   "version": "0.1.0",
   "private": true,
   "type": "module",

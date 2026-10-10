@@ -10,8 +10,8 @@ these assets include Latin glyphs for mixed Telugu/English native text.
 
 License: SIL Open Font License 1.1; see OFL.txt.
 
-The Customer loads these via its existing expo-font mechanism. Dashboard CSS
-loads the same assets through package exports. Inter remains the English font.
+The Customer loads these via its existing expo-font mechanism. These assets are
+Customer-only; no dashboard loads them. Inter remains the English font.
 Fontconfig confirms family/weight metadata and Telugu/ASCII cmap coverage;
 web preview rendering and physical Android/iOS checks are separate acceptance
 steps, not implied by cmap validation.

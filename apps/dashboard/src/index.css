@@ -1,88 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "@workspace/constants/theme.css";
 
-@font-face {
-  font-family: "Noto Sans Telugu";
-  src: url("@workspace/localization/assets/NotoSansTelugu-Regular.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Noto Sans Telugu";
-  src: url("@workspace/localization/assets/NotoSansTelugu-Medium.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Noto Sans Telugu";
-  src: url("@workspace/localization/assets/NotoSansTelugu-SemiBold.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Noto Sans Telugu";
-  src: url("@workspace/localization/assets/NotoSansTelugu-Bold.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
 :root {
-  --lb-font-family: Inter, "Noto Sans Telugu", system-ui, -apple-system, sans-serif;
   font-family: var(--lb-font-family);
   color: rgb(var(--lb-text));
   background: rgb(var(--lb-light-blue));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
-
-.lb-language-selector {
-  display: grid;
-  justify-items: start;
-  gap: 5px;
-  min-width: 0;
-  color: rgb(var(--lb-text));
-  font-size: 12px;
-  line-height: 1.35;
-}
-.lb-language-label { font-weight: 650; }
-.lb-language-options {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid rgb(var(--lb-border));
-  border-radius: 10px;
-  background: rgb(var(--lb-light-blue));
-}
-.lb-language-options button {
-  min-width: 82px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 7px;
-  color: rgb(var(--lb-secondary-text));
-  background: transparent;
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-.lb-language-options button.is-selected {
-  color: rgb(var(--lb-primary));
-  background: rgb(var(--lb-white));
-  box-shadow: 0 1px 3px rgb(31 41 55 / 10%);
-}
-.lb-language-options button:focus-visible {
-  outline: 2px solid rgb(var(--lb-primary));
-  outline-offset: 2px;
-}
-.lb-language-help, .lb-language-error { max-width: 320px; color: rgb(var(--lb-secondary-text)); }
-.lb-language-error { color: rgb(var(--lb-error)); }
 
 * {
   box-sizing: border-box;
@@ -227,7 +152,6 @@ body {
   max-width: 480px;
   padding: 34px;
 }
-.auth-frame > .lb-language-selector { margin: -14px 0 24px; }
 
 .auth-mark {
   align-items: center;

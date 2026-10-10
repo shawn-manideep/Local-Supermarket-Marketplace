@@ -22,7 +22,6 @@ import { partnerProvisionSchema, storeUpdateSchema, usernameSchema } from "@work
 import { StoreProfileFields } from "../StoreProfileFields";
 import { readWeeklyHours, WeeklyHoursFields } from "../WeeklyHoursFields";
 import "./admin.css";
-import { LanguageSelector } from "../LanguageSelector";
 
 type Section = "dashboard" | AdminKind | "profile" | "master-catalog";
 type Props = { token: string; session: Session; userId: string; onLogout: () => void };
@@ -316,7 +315,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
         </aside>
         <main className="lb-admin-main">
           <div className="lb-admin-mobile-head"><button ref={mobileMenuButton} className="lb-admin-menu-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="admin-primary-navigation" onClick={() => setMobileMenuOpen(true)}>Admin menu</button><strong>Local Basket · Admin</strong><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
-          <div className="lb-admin-top"><div className="lb-admin-breadcrumb">LOCAL BASKET <span aria-hidden="true">/</span> ADMIN / {heading[0].toUpperCase()}</div><div className="lb-admin-top-right"><LanguageSelector labelKey="admin.language" /><div className="lb-admin-top-status"><i className="lb-admin-live-dot" /> Admin access verified</div></div></div>
+          <div className="lb-admin-top"><div className="lb-admin-breadcrumb">LOCAL BASKET <span aria-hidden="true">/</span> ADMIN / {heading[0].toUpperCase()}</div><div className="lb-admin-top-status"><i className="lb-admin-live-dot" /> Admin access verified</div></div>
           {message && <div className={`lb-admin-message ${message.kind}`} role={message.kind === "error" ? "alert" : "status"}>{message.text}</div>}
           <section className="lb-admin-content" key={section}>
             <header className="lb-admin-heading"><div><p className="lb-admin-eyebrow">Platform administration</p><h1>{heading[0]}</h1><p className="lb-admin-subtitle">{heading[1]}</p></div>

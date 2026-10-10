@@ -1,0 +1,92 @@
+# English + Telugu Language Support — Customer Portal Only
+
+Implement bilingual language support exclusively in the existing Customer Portal of the Local Supermarket Marketplace.
+
+## 1. Strict Scope
+
+**In scope:** Customer Portal only.
+
+**Out of scope:** Vendor Portal, Delivery Partner Portal, Admin Portal, shared dashboard UI, and their authentication screens.
+
+If any preliminary localization changes have already been made to Vendor, Delivery Partner, or Admin, revert only those specific localization changes introduced for this feature. Preserve all pre-existing functionality and unrelated code changes.
+
+Do not modify shared dashboard components or configuration in ways that change the behavior or appearance of the other portals.
+
+Before reverting anything, inspect the current Git diff and identify exactly which changes belong to the language feature. Do not use a broad Git reset or revert unrelated work.
+
+## 2. Customer Language Selector
+
+Add an accessible `English | తెలుగు` selector in these Customer Portal locations:
+- Login and registration screens.
+- Forgot-password and password-recovery screens.
+- Customer Settings.
+
+Requirements:
+- English remains the default for existing customers who have not selected a language.
+- Telugu can be selected at any time.
+- The selected language updates Customer Portal interface text immediately, without logout or screen reset.
+- Remember the language preference across app restarts on the same device.
+- Keep preferences separate for different signed-in customer accounts, while allowing a language choice before login.
+- Do not modify authentication logic, session storage, or account behavior.
+
+## 3. Customer-Only Localization Foundation
+
+Create or reuse a localization module scoped to the Customer application.
+
+Provide:
+- Central English and Telugu translation dictionaries.
+- Typed translation keys and a translation hook/provider.
+- English fallback for missing translations.
+- Dynamic text interpolation.
+- Customer-specific language preference persistence.
+
+Reuse the existing AsyncStorage dependency where appropriate.
+
+Do not introduce a shared dashboard localization provider or modify Vendor, Delivery Partner, or Admin components.
+
+## 4. Telugu Font Support
+
+Ensure Telugu characters render correctly in Customer Portal Android, iOS, and web builds.
+
+Inspect the existing Expo font setup and add a Telugu-capable font, such as Noto Sans Telugu, only where necessary. Retain the current English font, colors, branding, and layout.
+
+Check text wrapping, buttons, form fields, product cards, and mobile layouts for clipping.
+
+## 5. Translation Coverage
+
+Prepare the foundation for translating all Customer-facing interface text in the next implementation phase, including:
+- Home and store selection.
+- Search, categories, product details and favorites.
+- Cart, checkout and delivery options.
+- Orders, Reorder and order statuses.
+- Saved Items and Settings.
+- Login, registration, addresses and password recovery.
+- Validation messages, confirmation dialogs, empty states, loading states and errors.
+
+Do not translate vendor-entered product names, store names, customer-entered addresses, or other user-generated content automatically.
+
+Do not change API contracts, database values, product data, prices, stock, orders, or delivery rules.
+
+## 6. Implementation and Verification
+
+First inspect the current Git diff and existing localization work.
+
+If localization changes were previously added to the other portals, remove only those feature-specific changes while preserving unrelated work.
+
+Implement the Customer-only language selector, localization foundation, and font support. Do not translate all Customer screens in this phase unless the foundation already requires a minimal set of strings to demonstrate functionality.
+
+Add focused tests for translation lookup, English fallback, preference persistence, account isolation, and immediate language switching.
+
+Run the relevant Customer typecheck, tests, and web export. Do not run automated browser tests or deploy.
+
+## Final Report
+
+Report:
+1. Any Vendor, Delivery Partner, or Admin localization changes removed.
+2. Confirmation that those portals' behavior and appearance remain unchanged.
+3. Customer files changed and selector locations.
+4. Font and language-persistence implementation.
+5. Tests and build results.
+6. Remaining work required to translate all Customer screens.
+
+Stop after this Customer-only phase. Do not begin other portal localization or deployment.

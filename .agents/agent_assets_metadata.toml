@@ -224,3 +224,17 @@ mtime_ms = 1791642744215
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/4ecb609b-6da1-4ba8-a0e4-bc5676aee132/38ae2afb-278f-47cc-b614-ee1f672cc2db"
 storage_version_token = "1791642837313740"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "KMV1zo3Kvt1zYCg_XAna6"
+uri = "file://docs/CUSTOMER_ONLY_LOCALIZATION_REPORT.md"
+type = "text"
+title = "Customer-only localization — final report"
+description = "Exact removed portal changes, retained Customer controls/fonts/persistence, all test and build results, and remaining Customer-only translation work."
+logical_id = "a5298691-1379-4357-9ca3-b0868e3cf2cc"
+content_hash = "sha256:9845af68e387954cac4efb722ba17971805e01aa1d1e18b7d126939275a8f5ba"
+size = 9955
+mtime_ms = 1791643797000
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/a5298691-1379-4357-9ca3-b0868e3cf2cc/f58ca773-b180-40d9-ae2d-f4baec0a19b9"
+storage_version_token = "1791643807636697"
+content_type = "text/markdown"

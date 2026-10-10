@@ -9,8 +9,6 @@ import { AdminPortal } from "./admin/AdminPortal";
 import { matchesAdminPath } from "./admin/route-access";
 import { usernameSchema } from "@workspace/validation";
 import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
-import { useLanguageScope } from "@workspace/localization";
-import { LanguageSelector } from "./LanguageSelector";
 
 type Role = "customer" | "vendor" | "admin" | "delivery_partner";
 type AuthProfile = { auth: { userId: string; role: Role; storeId: string | null } };
@@ -27,7 +25,6 @@ export default function App() {
   const [notice, setNotice] = useState<{ message: string; kind: "success" | "error" } | null>(null);
   const [partnerMode, setPartnerMode] = useState(() => window.location.pathname.replace(/\/$/, "").endsWith("/delivery-partner"));
   const [adminMode, setAdminMode] = useState(() => isAdminPath(window.location.pathname));
-  useLanguageScope(session?.user.id ?? null);
   const selectPortal = (partner: boolean) => {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     window.history.pushState(null, "", partner ? `${base}/delivery-partner` : `${base}/`);
@@ -295,7 +292,7 @@ function isAdminPath(pathname: string) {
 }
 
 function AuthFrame({ children }: { children: ReactNode }) {
-  return <div className="auth-frame"><div className="auth-mark">LS</div><LanguageSelector labelKey="auth.language" />{children}</div>;
+  return <div className="auth-frame"><div className="auth-mark">LS</div>{children}</div>;
 }
 
 function AuthState({ title, message, action, actionLabel = "Return to sign in" }: { title: string; message: string; action?: () => void; actionLabel?: string }) {

@@ -36,7 +36,7 @@ test("Customer login is username-only; registration alone collects a recovery co
   assert.match(app, /setPassword\(""\)/);
   assert.doesNotMatch(app, /supabase\.auth\.signInWithPassword/);
   assert.match(app, /result\.auth\.role === "customer"/);
-  assert.match(app, /customerAccess === "allowed" && verifiedCustomer\.current === session\.user\.id \? <CustomerApp/);
+  assert.match(app, /customerAccess === "allowed" && verifiedCustomer\.current === session\.user\.id \? <SavedItemsProvider key=\{session\.user\.id\}><CustomerApp \/><\/SavedItemsProvider>/);
   assert.match(app, /\/api\/auth\/me/);
 });
 

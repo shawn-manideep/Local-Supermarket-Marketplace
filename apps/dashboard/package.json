@@ -11,7 +11,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "@workspace/constants": "workspace:*",
-    "@workspace/localization": "workspace:*",
     "@workspace/validation": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

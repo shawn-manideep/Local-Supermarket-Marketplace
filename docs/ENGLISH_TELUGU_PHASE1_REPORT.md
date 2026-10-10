@@ -1,5 +1,9 @@
 # English/Telugu localization — Phase 1 report
 
+> Historical report. Its all-portals scope has been superseded by
+> CUSTOMER_ONLY_LOCALIZATION_REPORT.md. Dashboard localization additions were
+> subsequently removed; only Customer localization remains in scope.
+
 ## Delivered scope
 
 Shared localization foundation only. The language selector and its captions,

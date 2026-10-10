@@ -11,7 +11,6 @@ import { CatalogManagementPanel } from "./CatalogManagementPanel";
 import { OrderOperations } from "./OrderOperations";
 import { StoreProfileFields } from "./StoreProfileFields";
 import { VendorDocumentsPanel, type VendorDocumentStatus } from "./VendorDocumentsPanel";
-import { LanguageSelector } from "./LanguageSelector";
 
 const dayNames = [
   "Sunday",
@@ -218,7 +217,6 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
         )}
         
         <div className="vendor-content-scroll">
-          <LanguageSelector labelKey="vendor.language" />
           {currentTab === "dashboard" && <VendorDashboardHome token={token} store={store} onNavigate={setCurrentTab} onMessage={onMessage} />}
           {currentTab === "store" && (
             <VendorStoreProfile 

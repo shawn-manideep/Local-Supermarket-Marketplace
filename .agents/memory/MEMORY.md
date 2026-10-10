@@ -28,4 +28,4 @@
 - [Development preview credentials](development-preview-credentials.md) — preserve same-origin preview cookies independently of Supabase bearer authentication.
 - [Saved Items and product images](saved-items-and-product-images.md) — exact store-listing favorites; existing profile/password boundaries; product photos separate from private Documents.
 - [Legacy address compatibility](legacy-address-compatibility.md) — preserve unparsed old address text; structured fields never justify guessing or rewriting historical order addresses.
-- [Localization boundaries](localization-boundaries.md) — all four portals need reviewed English/Telugu coverage; preferences stay outside auth and entered data is never auto-translated.
+- [Customer-only localization](localization-boundaries.md) — Vendor, Delivery Partner, Admin and dashboard auth are excluded; preferences stay outside auth and entered data is never auto-translated.
