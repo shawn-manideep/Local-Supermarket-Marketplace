@@ -1,0 +1,49 @@
+# Phase 1 — Audit and Plan Telugu + English Language Support
+
+We need to introduce complete English and Telugu language support in the existing Local Supermarket Marketplace.
+
+The application includes the Expo/React Native Customer Portal and shared Vendor, Delivery Partner, and Admin dashboard.
+
+## Objective
+
+Allow users to switch between English and Telugu, with all relevant interface text changing immediately and the selection persisting when the app is reopened.
+
+## Step 1: Audit Only — Do Not Modify Code Yet
+
+Inspect the existing project and report:
+
+1. The Customer Portal's current localization or translation setup, if any.
+2. The shared dashboard architecture and how Vendor, Delivery Partner, and Admin screens are rendered.
+3. The best place to add a common translation dictionary and language-selection mechanism without duplicating logic.
+4. The existing persistence approach for user preferences.
+5. All major screens and components containing user-visible text that must be translated.
+6. Any dependencies already installed that can support localization. Do not install a new dependency unless it is necessary.
+7. How Telugu Unicode fonts will render in the existing Expo web/mobile and dashboard environments.
+8. Existing tests and build commands that should be used to verify the change.
+
+## Translation Requirements
+
+- Supported languages: English (`en`) and Telugu (`te`).
+- English remains the default for existing users unless they have already selected a language.
+- A user's selection must persist across app restarts and navigation.
+- The selected language should update interface text immediately without requiring logout or a full application restart.
+- Use centralized translation keys rather than scattered inline language conditions.
+- Provide a safe fallback to English when a translation is missing.
+- Do not automatically translate vendor-entered product names, store names, customer addresses, or other user-generated content.
+- Preserve all existing business logic, API contracts, database records, navigation, colors, and layouts.
+- Do not modify authentication, inventory, cart, order, delivery, or payment logic as part of this audit.
+
+## Scope
+
+Include Customer, Vendor, Delivery Partner, and Admin portals in the implementation plan. Identify whether any public-facing pages or shared components also require translation.
+
+Do not translate only the home page and claim the application is bilingual.
+
+## Safety and Reporting
+
+- Audit only. Do not modify files, install packages, run database migrations, or deploy.
+- Recommend the smallest implementation plan that fits the existing architecture.
+- Separate the work into manageable implementation phases and identify likely risks.
+- Report the exact files/components that would be affected and the verification required.
+
+Stop after presenting the audit and proposed plan. Wait for approval before implementing.
