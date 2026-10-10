@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { waitForCartQuantityWrites } from "./lib/cart-quantity";
+import { deliveryLocationLabel } from "./lib/address-format";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
 import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, View, Animated, useWindowDimensions } from "react-native";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./components/CustomerTypography";
@@ -725,7 +726,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.locationRow}>
               {loadingAddresses ? <Skeleton style={{ width: 150, height: 24, borderRadius: 6 }} /> : (
                 <>
-                  <Text style={typography.title2} numberOfLines={1}>{activeAddress ? `${activeAddress.label || activeAddress.city} • ${activeAddress.pincode}` : 'Add Delivery Address'}</Text>
+                  <Text style={[typography.title2, styles.locationText]} numberOfLines={1} ellipsizeMode="tail">{activeAddress ? deliveryLocationLabel(activeAddress) : 'Add Delivery Address'}</Text>
                   <Text style={{ color: colors.accent, fontSize: 12 }}>▼</Text>
                 </>
               )}
@@ -828,6 +829,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
 const styles = StyleSheet.create({
   header: { marginBottom: spacing.sm },
   locationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs, minHeight: 44 },
+  locationText: { flexShrink: 1, minWidth: 0 },
   searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingHorizontal: spacing.md, minHeight: 56, marginTop: spacing.sm, ...shadows.sm },
   pagination: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginVertical: spacing.lg },
   pageButton: { backgroundColor: colors.soft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44, justifyContent: "center" },

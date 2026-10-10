@@ -3,6 +3,11 @@ import type { CustomerAddress, CustomerOrderAddressSnapshot } from "./api";
 type AddressShape = Pick<CustomerAddress, "line1" | "line2" | "city" | "state" | "pincode"> &
   Partial<Pick<CustomerAddress, "houseNumber" | "buildingName" | "landmark" | "locality">>;
 
+export function deliveryLocationLabel(address: Pick<CustomerAddress, "label" | "city" | "pincode" | "houseNumber" | "buildingName">): string {
+  const detail = address.houseNumber?.trim() || address.buildingName?.trim() || address.pincode;
+  return `${address.label || address.city} • ${detail}`;
+}
+
 export function addressStreetLines(address: AddressShape | CustomerOrderAddressSnapshot): string[] {
   const streetParts = isLegacyAddress(address)
     ? [address.line1, address.line2]

@@ -1,7 +1,28 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { addressStreetLines, formatAddress } from "./address-format";
+import { addressStreetLines, deliveryLocationLabel, formatAddress } from "./address-format";
+
+test("delivery header prefers house/flat, then building, then PIN without guessing legacy address text", () => {
+  const address = { label: "Home", city: "Hyderabad", pincode: "505327" };
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "Flat 302", buildingName: "Green Heights" }), "Home • Flat 302");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "  Flat 302  ", buildingName: "Green Heights" }), "Home • Flat 302");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: null, buildingName: "Green Heights" }), "Home • Green Heights");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "  ", buildingName: "  Green Heights  " }), "Home • Green Heights");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: null, buildingName: null }), "Home • 505327");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "", buildingName: "  " }), "Home • 505327");
+  assert.equal(deliveryLocationLabel(address), "Home • 505327");
+  assert.equal(deliveryLocationLabel({ ...address, label: null, buildingName: "Green Heights" }), "Hyderabad • Green Heights");
+});
+
+test("Home delivery header keeps selection and arrow while bounding long location text", async () => {
+  const screen = await readFile(new URL("../MarketplaceScreen.tsx", import.meta.url), "utf8");
+  assert.match(screen, /onPress=\{openAddresses\} style=\{styles\.locationRow\}/);
+  assert.match(screen, /⌖  Delivering to/);
+  assert.match(screen, /numberOfLines=\{1\} ellipsizeMode="tail">\{activeAddress \? deliveryLocationLabel\(activeAddress\)/);
+  assert.match(screen, /locationText: \{ flexShrink: 1, minWidth: 0 \}/);
+  assert.match(screen, /<Text style=\{\{ color: colors\.accent, fontSize: 12 \}\}>▼<\/Text>/);
+});
 
 test("legacy addresses retain both original address lines", () => {
   assert.deepEqual(addressStreetLines({
