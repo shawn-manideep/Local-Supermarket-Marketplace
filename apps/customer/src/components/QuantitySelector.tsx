@@ -2,6 +2,7 @@ import React from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 import { CustomerText as Text } from "./CustomerTypography";
 import { colors, radius, typography } from "../theme";
+import { useTranslation } from "@workspace/localization";
 
 interface QuantitySelectorProps {
   quantity: number;
@@ -12,13 +13,14 @@ interface QuantitySelectorProps {
 }
 
 export function QuantitySelector({ quantity, onDecrease, onIncrease, min = 0, disabled }: QuantitySelectorProps) {
+  const { t } = useTranslation();
   return (
     <View style={[styles.container, disabled && styles.disabled]}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Decrease quantity" accessibilityState={{ disabled: quantity <= min || !!disabled }} disabled={quantity <= min || disabled} onPress={onDecrease} style={styles.btn}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Decrease quantity")} accessibilityState={{ disabled: quantity <= min || !!disabled }} disabled={quantity <= min || disabled} onPress={onDecrease} style={styles.btn}>
         <Text style={styles.btnText}>−</Text>
       </Pressable>
       <Text style={styles.qty}>{quantity}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Increase quantity" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onIncrease} style={styles.btn}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Increase quantity")} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onIncrease} style={styles.btn}>
         <Text style={styles.btnText}>+</Text>
       </Pressable>
     </View>

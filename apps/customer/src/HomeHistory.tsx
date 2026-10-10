@@ -7,6 +7,12 @@ import { reorderPreviewQuery } from "./lib/reorder";
 import { colors, radius, spacing, typography } from "./theme";
 import { RepeatOrderDialog } from "./OrdersScreen";
 import { homeHistorySelection, homeRecentStore, homePreviewRows, homeItemAvailable, type HomePreviewRow } from "./lib/home-history";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
+
+const orderStatusLabel = (status: CustomerOrderSummary["status"], t: ReturnType<typeof useTranslation>["t"]) => {
+  const labels = { PLACED: "Placed", ACCEPTED: "Accepted", PREPARING: "Preparing", READY: "Ready", OUT_FOR_DELIVERY: "Out for delivery", DELIVERED: "Delivered", REJECTED: "Rejected", CANCELLED: "Cancelled" } as const;
+  return t(labels[status]);
+};
 
 export function HomeHistory({ active, addressId, stores, storesReady = true, onOpenStore, onOpenOrder, onCart }: {
   active: boolean;
@@ -17,6 +23,7 @@ export function HomeHistory({ active, addressId, stores, storesReady = true, onO
   onOpenOrder: (orderId: string) => void;
   onCart: () => void;
 }) {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<CustomerOrderSummary[]>([]);
   const [activeOrder, setActiveOrder] = useState<CustomerOrderSummary | null>(null);
   const [rows, setRows] = useState<HomePreviewRow[]>([]);
@@ -82,53 +89,53 @@ export function HomeHistory({ active, addressId, stores, storesReady = true, onO
   return <>
     {currentScope && activeOrder && <View style={styles.orderPanel}>
       <View style={{ flex: 1 }}>
-        <Text style={typography.eyebrow}>YOUR CURRENT ORDER</Text>
-        <Text style={[typography.bodySemibold, { marginTop: spacing.xs }]}>{activeOrder.storeName} · {activeOrder.status.replaceAll("_", " ")}</Text>
-         <Text style={typography.caption}>Order #{activeOrder.id.slice(0, 8).toUpperCase()}</Text>
+          <Text style={typography.eyebrow}>{t("YOUR CURRENT ORDER")}</Text>
+        <Text style={[typography.bodySemibold, { marginTop: spacing.xs }]}>{activeOrder.storeName} · {orderStatusLabel(activeOrder.status, t)}</Text>
+          <Text style={typography.caption}>{t("Order #{id}", { id: activeOrder.id.slice(0, 8).toUpperCase() })}</Text>
       </View>
-      <Pressable accessibilityRole="button" onPress={() => onOpenOrder(activeOrder.id)} style={styles.smallButton}><Text style={styles.buttonText}>View order</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => onOpenOrder(activeOrder.id)} style={styles.smallButton}><Text style={styles.buttonText}>{t("View order")}</Text></Pressable>
     </View>}
 
     {currentScope && storesReady && latest && <View style={styles.section}>
-      <Text style={typography.title3}>Recent Store</Text>
+      <Text style={typography.title3}>{t("Recent Store")}</Text>
       {recentStore ? <Pressable accessibilityRole="button" onPress={() => onOpenStore(recentStore.id)} style={styles.storePanel}>
         <View style={{ flex: 1 }}>
           <Text style={typography.bodySemibold}>{recentStore.name}</Text>
-          <Text style={typography.caption}>From your latest order · Shop this supermarket</Text>
+          <Text style={typography.caption}>{t("From your latest order · Shop this supermarket")}</Text>
         </View>
         <Text style={styles.arrow}>›</Text>
       </Pressable> : <View style={styles.storePanel}>
-        <Text style={[typography.caption, { flex: 1 }]}>Your last supermarket is not available at this delivery location.</Text>
+        <Text style={[typography.caption, { flex: 1 }]}>{t("Your last supermarket is not available at this delivery location.")}</Text>
       </View>}
     </View>}
 
     <View style={styles.section}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, marginBottom: spacing.md }}>
-        <Text style={[typography.title3, { flexShrink: 1 }]}>Recently Ordered</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Refresh recent shopping and order status" disabled={loading || !addressId || !currentScope} onPress={() => setRetry(value => value + 1)}>
-          <Text style={[typography.caption, { color: colors.accent }]}>Refresh</Text>
+        <Text style={[typography.title3, { flexShrink: 1 }]}>{t("Recently Ordered")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Refresh recent shopping and order status")} disabled={loading || !addressId || !currentScope} onPress={() => setRetry(value => value + 1)}>
+          <Text style={[typography.caption, { color: colors.accent }]}>{t("Refresh")}</Text>
         </Pressable>
       </View>
-      {loading || (!!addressId && !currentScope) ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={[typography.caption, { flex: 1, minWidth: 0 }]}>Checking current availability and prices…</Text></View>
-        : error ? <View style={styles.message}><Text accessibilityRole="alert" style={typography.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => setRetry(value => value + 1)} style={styles.smallButton}><Text style={styles.buttonText}>Try again</Text></Pressable></View>
-        : !addressId ? <View style={styles.message}><Text style={typography.caption}>Choose a delivery address to check current prices and availability.</Text></View>
-        : orders.length === 0 ? <View style={styles.message}><Text style={typography.bodySemibold}>{hasHistory ? "No recent shopping to repeat" : "No orders yet"}</Text><Text style={typography.caption}>{hasHistory ? "Your cancelled or rejected orders remain in Orders." : "Your ordered groceries will appear here."}</Text></View>
-        : rows.length === 0 ? <View style={styles.message}><Text style={typography.caption}>No recent item details are available to check right now.</Text></View>
+      {loading || (!!addressId && !currentScope) ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={[typography.caption, { flex: 1, minWidth: 0 }]}>{t("Checking current availability and prices…")}</Text></View>
+        : error ? <View style={styles.message}><Text accessibilityRole="alert" style={typography.body}>{localizeCustomerMessage(error, t)}</Text><Pressable accessibilityRole="button" onPress={() => setRetry(value => value + 1)} style={styles.smallButton}><Text style={styles.buttonText}>{t("Try again")}</Text></Pressable></View>
+        : !addressId ? <View style={styles.message}><Text style={typography.caption}>{t("Choose a delivery address to check current prices and availability.")}</Text></View>
+        : orders.length === 0 ? <View style={styles.message}><Text style={typography.bodySemibold}>{hasHistory ? t("No recent shopping to repeat") : t("No orders yet")}</Text><Text style={typography.caption}>{hasHistory ? t("Your cancelled or rejected orders remain in Orders.") : t("Your ordered groceries will appear here.")}</Text></View>
+        : rows.length === 0 ? <View style={styles.message}><Text style={typography.caption}>{t("No recent item details are available to check right now.")}</Text></View>
         : <View style={styles.items}>
           {rows.map(({ orderId, item, storeAvailable, storeName }) => {
              const available = homeItemAvailable({ orderId, item, storeAvailable, storeName });
             return <View key={`${orderId}:${item.orderItemId}`} style={styles.item}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={typography.bodySemibold} numberOfLines={2}>{item.productName}{item.variantNameSnapshot ? ` · ${item.variantNameSnapshot}` : ""}</Text>
-                <Text style={typography.caption} numberOfLines={1}>{storeName} · Qty {item.quantity}</Text>
+                <Text style={typography.caption} numberOfLines={1}>{storeName} · {t("Qty {quantity}", { quantity: item.quantity })}</Text>
                 <Text style={[typography.caption, !available && styles.unavailable]}>
-                  {available ? `Available · ₹${formatPrice(item.currentUnitPrice!)} each` : !storeAvailable ? "Store unavailable for this address" : item.reason || (item.available ? "Current price unavailable" : "Currently unavailable")}
+                  {available ? t("Available · ₹{price} each", { price: formatPrice(item.currentUnitPrice!) }) : !storeAvailable ? t("Store unavailable for this address") : item.reason ? localizeCustomerMessage(item.reason, t) : item.available ? t("Current price unavailable") : t("Currently unavailable")}
                 </Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityState={{ disabled: !available }} disabled={!available}
                 onPress={() => setBuyAgain({ orderId, itemId: item.orderItemId })}
                 style={[styles.buyButton, !available && styles.disabled]}>
-                <Text style={styles.buttonText}>Buy Again</Text>
+                <Text style={styles.buttonText}>{t("Buy Again")}</Text>
               </Pressable>
             </View>;
           })}

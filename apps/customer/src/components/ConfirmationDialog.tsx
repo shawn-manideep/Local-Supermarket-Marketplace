@@ -2,6 +2,7 @@ import React from "react";
 import { Modal, View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { CustomerText as Text } from "./CustomerTypography";
 import { colors, radius, typography, spacing, shadows } from "../theme";
+import { useTranslation } from "@workspace/localization";
 
 interface ConfirmationDialogProps {
   visible: boolean;
@@ -18,6 +19,8 @@ interface ConfirmationDialogProps {
 export function ConfirmationDialog({
   visible, title, message, confirmLabel, cancelLabel = "Cancel", onConfirm, onCancel, isDestructive, loading
 }: ConfirmationDialogProps) {
+  const { t } = useTranslation();
+  const translatedCancelLabel = cancelLabel === "Cancel" ? t("Cancel") : cancelLabel;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.overlay}>
@@ -26,7 +29,7 @@ export function ConfirmationDialog({
           <Text style={typography.body}>{message}</Text>
           <View style={styles.actions}>
             <Pressable accessibilityRole="button" style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
+              <Text style={styles.cancelText}>{translatedCancelLabel}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" style={[styles.confirmBtn, isDestructive && styles.destructiveBtn]} onPress={onConfirm} disabled={loading}>
               {loading ? <ActivityIndicator color={colors.card} /> : <Text style={styles.confirmText}>{confirmLabel}</Text>}

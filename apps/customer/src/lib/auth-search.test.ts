@@ -17,7 +17,7 @@ test("one shared global query finds visible store names without matching interna
 
 test("Customer has one search entry component, no duplicate store search state, and preserves categories/products", async () => {
   const screen = await readFile(new URL("../MarketplaceScreen.tsx", import.meta.url), "utf8");
-  assert.match(screen, /accessibilityLabel="Search products or stores"/);
+  assert.match(screen, /accessibilityLabel=\{t\("Search products or stores"\)\}/);
   assert.doesNotMatch(screen, /storeSearchQuery|Search supermarkets\.\.\./);
   assert.match(screen, /matchingCustomerStores\(stores, searchQuery\)/);
   assert.match(screen, /\/api\/customer\/products/);
@@ -31,7 +31,7 @@ test("Customer login is username-only; registration alone collects a recovery co
   const app = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
   assert.match(app, /loginCustomerUsername\(\{ username: parsed\.data, password \}\)/);
   assert.match(app, /supabase\.auth\.setSession\(result\.session\)/);
-  assert.match(app, /mode === "signup" && <Field\s+label="Recovery email address"/);
+  assert.match(app, /mode === "signup" && <Field\s+label=\{t\("Recovery email address"\)\}/);
   assert.match(app, /customer_signup: true, username: parsed\.data/);
   assert.match(app, /setPassword\(""\)/);
   assert.doesNotMatch(app, /supabase\.auth\.signInWithPassword/);

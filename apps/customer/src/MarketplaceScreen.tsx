@@ -15,6 +15,7 @@ import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, 
 import { HomeHistory } from "./HomeHistory";
 import { FavoriteControl } from "./components/FavoriteControl";
 import { useSavedItems } from "./SavedItemsContext";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
@@ -43,20 +44,21 @@ const StoreSkeleton = () => (
 );
 
 function PaginationControls({ pagination, onPageChange }: { pagination: CustomerProductPagination | null; onPageChange: (page: number) => void }) {
+  const { t } = useTranslation();
   if (!pagination) return null;
   const pages = Math.ceil(pagination.total / pagination.pageSize);
   return (
     <View style={styles.pagination}>
       <Text style={typography.caption}>
-        {pagination.total === 0 ? "No products" : `Showing ${(pagination.page - 1) * pagination.pageSize + 1}–${Math.min(pagination.page * pagination.pageSize, pagination.total)} of ${pagination.total}`}
+        {pagination.total === 0 ? t("No products") : t("Showing {first}–{last} of {total}", { first: (pagination.page - 1) * pagination.pageSize + 1, last: Math.min(pagination.page * pagination.pageSize, pagination.total), total: pagination.total })}
       </Text>
       {pages > 1 && <>
         <Pressable accessibilityRole="button" disabled={pagination.page <= 1} onPress={() => onPageChange(pagination.page - 1)} style={[styles.pageButton, pagination.page <= 1 && styles.disabled]}>
-          <Text style={styles.pageButtonText}>Previous</Text>
+          <Text style={styles.pageButtonText}>{t("Previous")}</Text>
         </Pressable>
-        <Text style={typography.caption}>Page {pagination.page} of {pages}</Text>
+        <Text style={typography.caption}>{t("Page {page} of {pages}", { page: pagination.page, pages })}</Text>
         <Pressable accessibilityRole="button" disabled={pagination.page >= pages} onPress={() => onPageChange(pagination.page + 1)} style={[styles.pageButton, pagination.page >= pages && styles.disabled]}>
-          <Text style={styles.pageButtonText}>Next</Text>
+          <Text style={styles.pageButtonText}>{t("Next")}</Text>
         </Pressable>
       </>}
     </View>
@@ -78,18 +80,18 @@ function customerVariantLabel(variant: CustomerProductVariant) {
 function customerStoreLocation(store: CustomerStore) {
   return [store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ");
 }
-function nextOpeningLabel(value: string) {
+function nextOpeningLabel(value: string, language: "en" | "te", t: ReturnType<typeof useTranslation>["t"]) {
   const date = new Date(value);
   const today = indiaDayKey(new Date());
   const openingDay = indiaDayKey(date);
   const tomorrowDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const tomorrow = indiaDayKey(tomorrowDate);
-  const dayName = openingDay === today ? "Today" : openingDay === tomorrow ? "Tomorrow"
-    : new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" }).format(date);
-  const time = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(date);
-  if (openingDay === tomorrow) return `Store is closed for today. Opens tomorrow at ${time}`;
-  if (openingDay === today) return `Store is currently closed. Opens today at ${time}`;
-  return `Store is currently closed. Opens on ${dayName} at ${time}`;
+  const dayName = openingDay === today ? t("Today") : openingDay === tomorrow ? t("Tomorrow")
+    : new Intl.DateTimeFormat(language === "te" ? "te-IN" : "en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" }).format(date);
+  const time = new Intl.DateTimeFormat(language === "te" ? "te-IN" : "en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(date);
+  if (openingDay === tomorrow) return t("Store is closed for today. Opens tomorrow at {time}", { time });
+  if (openingDay === today) return t("Store is currently closed. Opens today at {time}", { time });
+  return t("Store is currently closed. Opens on {day} at {time}", { day: dayName, time });
 }
 
 function indiaDayKey(value: Date) {
@@ -99,19 +101,21 @@ function indiaDayKey(value: Date) {
 }
 
 function ClosedStoreNotice({ store }: { store: CustomerStore }) {
+  const { t, language } = useTranslation();
   return <View accessibilityRole="alert" style={styles.closedBanner}>
     <View style={styles.closedClock}><View style={styles.clockHandHour} /><View style={styles.clockHandMinute} /></View>
     <View style={styles.closedBannerCopy}>
-      <Text style={styles.closedBannerTitle}>We’ll be back shortly!</Text>
-      {store.scheduledDeliveryAvailable && <Text style={styles.closedBannerBody}>Don’t worry — scheduled delivery is available. Keep browsing and choose a future delivery time at checkout.</Text>}
+      <Text style={styles.closedBannerTitle}>{t("We’ll be back shortly!")}</Text>
+      {store.scheduledDeliveryAvailable && <Text style={styles.closedBannerBody}>{t("Don’t worry — scheduled delivery is available. Keep browsing and choose a future delivery time at checkout.")}</Text>}
       {!!store.nextOpeningAt
-        ? <Text style={styles.closedBannerBody}>{nextOpeningLabel(store.nextOpeningAt)}.</Text>
-        : <Text style={styles.closedBannerBody}>The next opening time isn’t available yet.</Text>}
+        ? <Text style={styles.closedBannerBody}>{nextOpeningLabel(store.nextOpeningAt, language, t)}.</Text>
+        : <Text style={styles.closedBannerBody}>{t("The next opening time isn’t available yet.")}</Text>}
     </View>
   </View>;
 }
 
 export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartUnitsChange, cartUpdate, active = true, requestedStoreId, onStoreRequestHandled, onOpenOrder, onPincodeChange, requestedSavedItem, onSavedItemRequestHandled }: { openAddresses: () => void; openCart: () => void; resetToken: number; onCartUnitsChange?: (count: number) => void; cartUpdate?: { units: number; storeName: string }; active?: boolean; requestedStoreId?: string; onStoreRequestHandled?: () => void; onOpenOrder?: (orderId: string) => void; onPincodeChange?: (pincode: string) => void; requestedSavedItem?: { productId: string; storeId: string }; onSavedItemRequestHandled?: () => void }) {
+  const { t, language } = useTranslation();
   const { width: viewportWidth } = useWindowDimensions();
   const compactWidth = viewportWidth < 360;
   const savedItems = useSavedItems();
@@ -148,7 +152,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [adding, setAdding] = useState(false);
-  const [addedNotice, setAddedNotice] = useState("");
+  const [addedNotice, setAddedNotice] = useState<{ productName: string; variantName: string } | null>(null);
   const [cartUnits, setCartUnits] = useState(0);
   const [cartStoreName, setCartStoreName] = useState("");
   const [cartSummaryError, setCartSummaryError] = useState(false);
@@ -519,8 +523,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       setCartUnits(count); onCartUnitsChange?.(count);
       setCartStoreName(result.cart?.storeName ?? selected.storeName ?? store?.name ?? "");
       setCartSummaryError(false);
-      setAddedNotice(`${selected.name} · ${customerVariantLabel(variant)} added to cart`);
-      setTimeout(() => setAddedNotice(""), 2600);
+      setAddedNotice({ productName: selected.name, variantName: customerVariantLabel(variant) });
+      setTimeout(() => setAddedNotice(null), 2600);
     } catch (reason) {
       if (generation !== catalogGeneration.current) return;
       const errorMsg = reason instanceof Error ? reason.message : "Unable to add product.";
@@ -554,8 +558,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       setCartStoreName(result.cart?.storeName ?? pendingProduct.product.storeName ?? store?.name ?? "");
       setCartSummaryError(false);
       setSwitchDialogVisible(false);
-      setAddedNotice(`${pendingProduct.product.name} · ${customerVariantLabel(pendingProduct.variant)} added to cart`);
-      setTimeout(() => setAddedNotice(""), 2600);
+      setAddedNotice({ productName: pendingProduct.product.name, variantName: customerVariantLabel(pendingProduct.variant) });
+      setTimeout(() => setAddedNotice(null), 2600);
       setPendingProduct(null);
     } catch (reason) {
       setError(shoppingError(reason, "Unable to start a basket at this store. Please try again."));
@@ -571,7 +575,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     <View style={styles.searchBar}>
       <SearchIcon />
       <TextInput
-        accessibilityLabel="Search products or stores"
+        accessibilityLabel={t("Search products or stores")}
         style={styles.searchInput}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
@@ -579,7 +583,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         maxLength={120}
         onChangeText={(value) => { setSearchQuery(value); setGlobalPage(1); setError(""); }}
       />
-      {!!searchQuery && <Pressable accessibilityRole="button" accessibilityLabel="Clear product search" onPress={() => { setSearchQuery(""); setGlobalPage(1); setError(""); }} style={styles.clearSearch}><Text style={styles.backText}>Clear</Text></Pressable>}
+      {!!searchQuery && <Pressable accessibilityRole="button" accessibilityLabel={t("Clear product search")} onPress={() => { setSearchQuery(""); setGlobalPage(1); setError(""); }} style={styles.clearSearch}><Text style={styles.backText}>{t("Clear")}</Text></Pressable>}
     </View>
   );
 
@@ -597,13 +601,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     <View>
       <View style={styles.categoryChoices}>
         <Pressable accessibilityRole="button" accessibilityState={{ selected: !globalCategoryId }} style={[styles.chip, !globalCategoryId && styles.chipActive]} onPress={() => { setGlobalCategoryId(""); setGlobalPage(1); setError(""); }}>
-          <Text style={!globalCategoryId ? styles.chipActiveText : styles.chipText}>All categories</Text>
+          <Text style={!globalCategoryId ? styles.chipActiveText : styles.chipText}>{t("All categories")}</Text>
         </Pressable>
         {homeCategories.map(category => <Pressable accessibilityRole="button" accessibilityState={{ selected: globalCategoryId === category.id }} key={category.id} style={[styles.chip, globalCategoryId === category.id && styles.chipActive]} onPress={() => { setGlobalCategoryId(category.id); setGlobalPage(1); setError(""); }}>
           <Text style={globalCategoryId === category.id ? styles.chipActiveText : styles.chipText}>{category.name}</Text>
         </Pressable>)}
       </View>
-      {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. You can still search. Tap to retry.</Text></Pressable>}
+      {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>{t("Category filters couldn't load. You can still search. Tap to retry.")}</Text></Pressable>}
     </View>
   );
 
@@ -616,33 +620,33 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           <View style={styles.storeHeading}>
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>⌕</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={typography.title2}>Search all nearby stores</Text>
-              <Text style={typography.caption}>Available listings serving {pincode}</Text>
+              <Text style={typography.title2}>{t("Search all nearby stores")}</Text>
+              <Text style={typography.caption}>{t("Available listings serving {pincode}", { pincode })}</Text>
             </View>
-            <Pressable accessibilityRole="button" onPress={clearSearch}><Text style={styles.backText}>Back to shopping</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={clearSearch}><Text style={styles.backText}>{t("Back to shopping")}</Text></Pressable>
           </View>
           {productSearchField("Search products or stores")}
           {categoryFilters()}
           {!!searchQuery.trim() && <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
-            <Text style={typography.title3}>Matching stores</Text>
-            {loadingStores || storeDirectoryPincode !== pincode ? <ActivityIndicator accessibilityLabel="Loading stores" color={colors.accent} /> :
-              matchingStores.length === 0 ? <Text style={typography.caption}>No matching stores in your delivery area.</Text> :
-                matchingStores.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.name}`} style={styles.storeCard} onPress={() => { clearSearch(); selectStore(item); }}>
+            <Text style={typography.title3}>{t("Matching stores")}</Text>
+            {loadingStores || storeDirectoryPincode !== pincode ? <ActivityIndicator accessibilityLabel={t("Loading stores")} color={colors.accent} /> :
+              matchingStores.length === 0 ? <Text style={typography.caption}>{t("No matching stores in your delivery area.")}</Text> :
+                matchingStores.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={t("Open {store}", { store: item.name })} style={styles.storeCard} onPress={() => { clearSearch(); selectStore(item); }}>
                       <Text style={typography.title3}>{item.name}</Text>
-                  <Text style={typography.caption}>{customerStoreLocation(item) || "Serving your selected delivery area"}</Text>
-                  <Text style={[typography.caption, { color: colors.accent }]}>Browse store</Text>
+                  <Text style={typography.caption}>{customerStoreLocation(item) || t("Serving your selected delivery area")}</Text>
+                  <Text style={[typography.caption, { color: colors.accent }]}>{t("Browse store")}</Text>
                 </Pressable>)}
           </View>}
-          <Text style={[typography.title3, { marginTop: spacing.lg }]}>Products</Text>
-          {loadingCatalog && <Text accessibilityLiveRegion="polite" style={typography.caption}>Opening product…</Text>}
-          {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => { setError(""); setSearchRetry(value => value + 1); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Try again</Text></Pressable></View> : loadingGlobalProducts ? <ActivityIndicator accessibilityLabel="Searching products" color={colors.accent} style={{ marginTop: spacing.xl }} /> : globalProducts.length === 0 ? (
+          <Text style={[typography.title3, { marginTop: spacing.lg }]}>{t("Products")}</Text>
+          {loadingCatalog && <Text accessibilityLiveRegion="polite" style={typography.caption}>{t("Opening product…")}</Text>}
+          {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{localizeCustomerMessage(error, t)}</Text><Pressable accessibilityRole="button" onPress={() => { setError(""); setSearchRetry(value => value + 1); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Try again")}</Text></Pressable></View> : loadingGlobalProducts ? <ActivityIndicator accessibilityLabel={t("Searching products")} color={colors.accent} style={{ marginTop: spacing.xl }} /> : globalProducts.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={typography.title3}>No products found</Text>
-              <Text style={typography.body}>Try another search or browse a different category.</Text>
+              <Text style={typography.title3}>{t("No products found")}</Text>
+              <Text style={typography.body}>{t("Try another search or browse a different category.")}</Text>
             </View>
           ) : (
             <>
-              <Text style={[typography.title3, { marginVertical: spacing.md }]}>{globalPagination?.total ?? globalProducts.length} matching store offers</Text>
+              <Text style={[typography.title3, { marginVertical: spacing.md }]}>{t("{count} matching store offers", { count: globalPagination?.total ?? globalProducts.length })}</Text>
               <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
                 {globalProducts.map(item => <ShoppingProductCard key={`${item.storeId}:${item.id}`} product={item} pincode={pincode} busy={adding || switchDialogLoading} singleColumn={compactWidth} quickAddEnabled={false} onOpen={() => void selectGlobalOffer(item)} onAdd={variant => void addToCart(item, variant, 1)} />)}
               </View>
@@ -658,7 +662,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       closedStoreNotice={<ClosedStoreNotice store={store} />}
       selectedVariantId={selectedVariantId} quantity={quantity} busy={adding || switchDialogLoading}
       hasCart={cartUnits > 0} error={error}
-      backLabel={searchQuery.trim() || globalCategoryId ? "Back to search results" : `Back to ${store.name}`}
+      backLabel={searchQuery.trim() || globalCategoryId ? t("Back to search results") : t("Back to {store}", { store: store.name })}
       onBack={closeProduct}
       onSelect={variant => {
         if ((store.operatingStatus !== "OPEN" && !store.scheduledDeliveryAvailable) || !canPurchaseVariant(product, variant) || adding || switchDialogLoading) return;
@@ -672,22 +676,22 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         <View style={commonStyles.container}>
           <View style={styles.storeHero}>
             {store.logoImageUrl ? <Image source={{ uri: store.logoImageUrl }} style={styles.storeHeroImage} /> : <PlaceholderImage name={store.name} style={styles.storeHeroImage} />}
-            <Pressable accessibilityLabel="Change supermarket" accessibilityRole="button" onPress={() => selectStore(null)} style={styles.heroBack}><Text style={styles.heroBackText}>‹</Text></Pressable>
+            <Pressable accessibilityLabel={t("Change supermarket")} accessibilityRole="button" onPress={() => selectStore(null)} style={styles.heroBack}><Text style={styles.heroBackText}>‹</Text></Pressable>
             <Text style={styles.heroName}>{store.name}</Text>
           </View>
           <View style={styles.storeHeading}>
             <View style={styles.storeAvatar}><Text style={styles.storeAvatarText}>{store.name.charAt(0).toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || `Delivery ₹${store.deliveryFee} · Min ₹${store.minimumOrderValue}`}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? "Open" : "Currently Closed"} · Serves {pincode}</Text></View>
+            <View style={{ flex: 1 }}><Text style={typography.title2}>{store.name}</Text><Text style={typography.caption}>{customerStoreLocation(store) || store.description || t("Delivery ₹{fee} · Min ₹{minimum}", { fee: store.deliveryFee, minimum: store.minimumOrderValue })}</Text><Text style={styles.openText}>{store.operatingStatus === "OPEN" ? t("Open") : t("Currently Closed")} · {t("Serves {pincode}", { pincode })}</Text></View>
           </View>
           {store.operatingStatus === "CLOSED" && <ClosedStoreNotice store={store} />}
           {productSearchField("Search products or stores")}
 
-          {!!categoryId && <View style={styles.categoryHeader}><Pressable onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? "Products"}</Text></View>}
+          {!!categoryId && <View style={styles.categoryHeader}><Pressable accessibilityRole="button" accessibilityLabel={t("Back")} onPress={() => void filterProducts("")}><Text style={styles.categoryHeaderText}>‹</Text></Pressable><Text style={styles.categoryHeaderTitle}>{categories.find(c => c.id === categoryId)?.name ?? t("Products")}</Text></View>}
 
           {(
             <View style={[styles.categoryChoices, { marginVertical: spacing.md }]}>
               <Pressable accessibilityRole="button" onPress={() => void filterProducts("")} style={[styles.chip, !categoryId && styles.chipActive]}>
-                <Text style={!categoryId ? styles.chipActiveText : styles.chipText}>All</Text>
+                <Text style={!categoryId ? styles.chipActiveText : styles.chipText}>{t("All")}</Text>
               </Pressable>
               {categories.map((category) => (
                 <Pressable accessibilityRole="button" key={category.id} onPress={() => void filterProducts(category.id)} style={[styles.chip, categoryId === category.id && styles.chipActive]}>
@@ -696,12 +700,12 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
               ))}
             </View>
           )}
-          <Text style={[typography.title3, { marginBottom: spacing.md }]}>{categoryId ? "Products" : "Popular Products"}</Text>
+          <Text style={[typography.title3, { marginBottom: spacing.md }]}>{categoryId ? t("Products") : t("Popular Products")}</Text>
 
-          {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => setStore({ ...store })} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Try again</Text></Pressable></View> : loadingCatalog ? <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} /> : products.length === 0 ? (
+          {error ? <View style={styles.emptyState}><Text accessibilityRole="alert" style={typography.body}>{localizeCustomerMessage(error, t)}</Text><Pressable accessibilityRole="button" onPress={() => setStore({ ...store })} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Try again")}</Text></Pressable></View> : loadingCatalog ? <ActivityIndicator accessibilityLabel={t("common.loading")} color={colors.accent} style={{ marginTop: spacing.xl }} /> : products.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={typography.title3}>No products found</Text>
-              <Text style={typography.body}>Try adjusting your search or category.</Text>
+              <Text style={typography.title3}>{t("No products found")}</Text>
+              <Text style={typography.body}>{t("Try adjusting your search or category.")}</Text>
             </View>
           ) : (
             <View style={[styles.productGrid, compactWidth && styles.productGridCompact]}>
@@ -709,7 +713,7 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
             </View>
           )}
           <PaginationControls pagination={storePagination} onPageChange={setStorePage} />
-          {!!error && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{error}</Text>}
+          {!!error && <Text style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{localizeCustomerMessage(error, t)}</Text>}
         </View>
       </ScrollView>
     );
@@ -720,13 +724,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       <ScrollView key="store-discovery" style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <View style={styles.header}>
-            <Text style={styles.greeting}>Hello,</Text>
-            <Text style={typography.title1}>{customerName || "Welcome back"}</Text>
-            <Text style={[typography.caption, { marginTop: spacing.sm }]}>⌖  Delivering to</Text>
+            <Text style={styles.greeting}>{t("Hello,")}</Text>
+            <Text style={typography.title1}>{customerName || t("Welcome back")}</Text>
+            <Text style={[typography.caption, { marginTop: spacing.sm }]}>⌖  {t("Delivering to")}</Text>
             <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.locationRow}>
               {loadingAddresses ? <Skeleton style={{ width: 150, height: 24, borderRadius: 6 }} /> : (
                 <>
-                  <Text style={[typography.title2, styles.locationText]} numberOfLines={1} ellipsizeMode="tail">{activeAddress ? deliveryLocationLabel(activeAddress) : 'Add Delivery Address'}</Text>
+                  <Text style={[typography.title2, styles.locationText]} numberOfLines={1} ellipsizeMode="tail">{activeAddress ? deliveryLocationLabel(activeAddress) : t("Add Delivery Address")}</Text>
                   <Text style={{ color: colors.accent, fontSize: 12 }}>▼</Text>
                 </>
               )}
@@ -734,10 +738,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
           </View>
 
           {productSearchField("Search products or stores")}
-          {!!shoppingIntentNotice && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{shoppingIntentNotice}</Text>}
-          {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>Category filters couldn't load. Search still works. Tap to retry.</Text></Pressable>}
+          {!!shoppingIntentNotice && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{localizeCustomerMessage(shoppingIntentNotice, t)}</Text>}
+          {categoryError && <Pressable accessibilityRole="button" onPress={() => setCategoryRetry(value => value + 1)}><Text style={typography.caption}>{t("Category filters couldn't load. Search still works. Tap to retry.")}</Text></Pressable>}
 
-          <Text style={[typography.caption, { marginTop: spacing.md }]}>Browse eligible supermarkets and their current grocery options.</Text>
+          <Text style={[typography.caption, { marginTop: spacing.md }]}>{t("Browse eligible supermarkets and their current grocery options.")}</Text>
           <HomeHistory key={`home-history-${!active || loadingAddresses ? "inactive" : `${activeAddress?.id ?? "none"}-${pincode}`}`}
             active={active && !loadingAddresses} addressId={activeAddress?.id ?? ""} stores={stores}
             storesReady={!loadingStores && !loadingAddresses && storeDirectoryPincode === pincode}
@@ -746,27 +750,27 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
               if (eligibleStore && storeDirectoryPincode === pincode && !loadingStores && currentStoreId !== eligibleStore.id) selectStore(eligibleStore);
             }}
             onOpenOrder={(id) => onOpenOrder?.(id)} onCart={openCart} />
-          <Text style={[typography.title3, { marginBottom: spacing.md }]}>Supermarkets Near You</Text>
+          <Text style={[typography.title3, { marginBottom: spacing.md }]}>{t("Supermarkets Near You")}</Text>
           
           {loadingAddresses || loadingStores ? (
             <View style={{ gap: spacing.lg }}><StoreSkeleton /><StoreSkeleton /></View>
           ) : error ? (
             <View style={styles.emptyState}>
-              <Text style={typography.title2}>Something went wrong</Text>
-              <Text style={typography.body}>{error}</Text>
-              <Pressable onPress={() => { if (!addresses.length) loadAddresses(); else loadStores(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Try Again</Text></Pressable>
+              <Text style={typography.title2}>{t("Something went wrong")}</Text>
+              <Text style={typography.body}>{localizeCustomerMessage(error, t)}</Text>
+              <Pressable accessibilityRole="button" onPress={() => { if (!addresses.length) loadAddresses(); else loadStores(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Try Again")}</Text></Pressable>
             </View>
           ) : addresses.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={typography.title2}>Where to?</Text>
-              <Text style={typography.body}>Add a delivery address to find trusted nearby supermarkets.</Text>
-              <Pressable onPress={openAddresses} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Add Address</Text></Pressable>
+              <Text style={typography.title2}>{t("Where to?")}</Text>
+              <Text style={typography.body}>{t("Add a delivery address to find trusted nearby supermarkets.")}</Text>
+              <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Add Address")}</Text></Pressable>
             </View>
           ) : filteredStores.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={typography.title2}>No supermarkets found</Text>
-              <Text style={typography.body}>We don't serve this area yet. Try another address.</Text>
-              <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Change Location</Text></Pressable>
+              <Text style={typography.title2}>{t("No supermarkets found")}</Text>
+              <Text style={typography.body}>{t("We don't serve this area yet. Try another address.")}</Text>
+              <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{t("Change Location")}</Text></Pressable>
             </View>
           ) : (
             <View style={{ gap: spacing.lg }}>
@@ -776,13 +780,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
                     {item.logoImageUrl ? <Image source={{ uri: item.logoImageUrl }} style={styles.storeLogo} /> : <PlaceholderImage name={item.name} style={styles.storeLogo} />}
                     <View style={styles.storeInfo}>
                   <Text style={typography.title3}>{item.name}</Text>
-                       <Text style={typography.caption}>Delivery ₹{item.deliveryFee} · Min ₹{item.minimumOrderValue}</Text>
+                        <Text style={typography.caption}>{t("Delivery ₹{fee} · Min ₹{minimum}", { fee: item.deliveryFee, minimum: item.minimumOrderValue })}</Text>
                        {!!customerStoreLocation(item) && <Text style={typography.caption} numberOfLines={2}>{customerStoreLocation(item)}</Text>}
-                       <Text style={typography.caption}>Serves {pincode}</Text>
-                       <Text style={styles.shopNowText}>{item.operatingStatus === "OPEN" ? "Open now" : "Closed"}  ·  View store ›</Text>
+                        <Text style={typography.caption}>{t("Serves {pincode}", { pincode })}</Text>
+                        <Text style={styles.shopNowText}>{item.operatingStatus === "OPEN" ? t("Open now") : t("Closed")}  ·  {t("View store")} ›</Text>
                     </View>
                     <View style={[styles.statusBadge, item.operatingStatus === "CLOSED" && styles.statusBadgeClosed]}>
-                      <Text style={[styles.statusBadgeText, item.operatingStatus === "CLOSED" && styles.statusBadgeTextClosed]}>{item.operatingStatus}</Text>
+                      <Text style={[styles.statusBadgeText, item.operatingStatus === "CLOSED" && styles.statusBadgeTextClosed]}>{item.operatingStatus === "OPEN" ? t("Open") : t("Closed")}</Text>
                     </View>
                   </View>
                 </Pressable>
@@ -798,20 +802,20 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     <>
       <View style={[{ flex: 1 }, commonStyles.viewport]}>
         {content}
-        {!!addedNotice && <View accessibilityRole="alert" style={styles.addedToast}><Text style={styles.addedToastText}>✓  {addedNotice}</Text></View>}
-        {cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel="Retry basket summary" onPress={() => void refreshCart()} style={styles.cartError}>
-          <Text style={styles.cartErrorText}>Basket details couldn’t load.</Text><Text style={styles.cartErrorLink}>Retry</Text>
+        {!!addedNotice && <View accessibilityRole="alert" style={styles.addedToast}><Text style={styles.addedToastText}>✓  {t("{name} · {variant} added to cart", { name: addedNotice.productName, variant: addedNotice.variantName })}</Text></View>}
+        {cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel={t("Retry basket summary")} onPress={() => void refreshCart()} style={styles.cartError}>
+          <Text style={styles.cartErrorText}>{t("Basket details couldn’t load.")}</Text><Text style={styles.cartErrorLink}>{t("Retry")}</Text>
         </Pressable>}
-        {cartUnits > 0 && !cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel={`Go to cart, ${cartUnits} items${cartStoreName ? ` from ${cartStoreName}` : ""}`} disabled={adding || switchDialogLoading} onPress={openCart} style={styles.stickyCart}>
-          <View style={{ flex: 1 }}><Text style={styles.stickyCartTitle}>Go to Cart</Text><Text style={styles.stickyStoreName} numberOfLines={1}>{cartStoreName || "Your supermarket basket"}</Text></View>
-          <Text style={styles.stickyCartCount}>{cartUnits} {cartUnits === 1 ? "Item" : "Items"}  →</Text>
+        {cartUnits > 0 && !cartSummaryError && <Pressable accessibilityRole="button" accessibilityLabel={t("Go to cart, {count} items{store}", { count: cartUnits, store: cartStoreName ? ` from ${cartStoreName}` : "" })} disabled={adding || switchDialogLoading} onPress={openCart} style={styles.stickyCart}>
+          <View style={{ flex: 1 }}><Text style={styles.stickyCartTitle}>{t("Go to Cart")}</Text><Text style={styles.stickyStoreName} numberOfLines={1}>{cartStoreName || t("Your supermarket basket")}</Text></View>
+          <Text style={styles.stickyCartCount}>{t(cartUnits === 1 ? "{count} item" : "{count} items", { count: cartUnits })}  →</Text>
         </Pressable>}
       </View>
       <ConfirmationDialog
         visible={switchDialogVisible}
-        title="Start a New Basket?"
-        message="Your basket contains items from another supermarket. Would you like to clear it and start a new basket here?"
-        confirmLabel="Start New Basket"
+        title={t("Start a New Basket?")}
+        message={t("Your basket contains items from another supermarket. Would you like to clear it and start a new basket here?")}
+        confirmLabel={t("Start New Basket")}
         isDestructive
         loading={switchDialogLoading}
         onConfirm={confirmSwitchCart}

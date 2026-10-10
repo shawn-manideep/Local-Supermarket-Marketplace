@@ -4,6 +4,7 @@ import { CustomerText as Text } from "./CustomerTypography";
 import type { CustomerProduct } from "../lib/api";
 import { colors, radius, spacing, typography } from "../theme";
 import { useSavedItems } from "../SavedItemsContext";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 export function FavoriteControl({ product, pincode, compact = false }: {
   product: CustomerProduct;
@@ -11,6 +12,7 @@ export function FavoriteControl({ product, pincode, compact = false }: {
   compact?: boolean;
 }) {
   const { isSaved, toggle } = useSavedItems();
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const saved = isSaved(product.id);
@@ -25,15 +27,15 @@ export function FavoriteControl({ product, pincode, compact = false }: {
   return <View style={styles.wrap}>
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={saved ? `Remove ${product.name} from saved items` : `Save ${product.name}`}
+      accessibilityLabel={saved ? `${t("Remove {name} from saved items", { name: product.name })}` : t("Save {name}", { name: product.name })}
       accessibilityState={{ selected: saved, disabled: busy, busy }}
       disabled={busy}
       onPress={event => { event.stopPropagation(); void onPress(); }}
       style={[styles.button, compact && styles.compact, saved && styles.saved, busy && styles.busy]}
     >
-      <Text style={[styles.label, saved && styles.savedLabel]}>{saved ? "♥ Saved" : "♡ Save"}</Text>
+      <Text style={[styles.label, saved && styles.savedLabel]}>{saved ? t("♥ Saved") : t("♡ Save")}</Text>
     </Pressable>
-    {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    {!!error && <Text accessibilityRole="alert" style={styles.error}>{localizeCustomerMessage(error, t)}</Text>}
   </View>;
 }
 

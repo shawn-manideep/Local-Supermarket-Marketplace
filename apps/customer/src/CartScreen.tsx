@@ -10,6 +10,7 @@ import { PlaceholderImage } from "./components/PlaceholderImage";
 import { shoppingError } from "./lib/shopping";
 import { addressStreetLines } from "./lib/address-format";
 import { createCartQuantityController, waitForCartQuantityWrites } from "./lib/cart-quantity";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 function BasketIcon() {
   return (
@@ -20,6 +21,7 @@ function BasketIcon() {
 }
 
 export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onCartChange }: { openAddresses: () => void; onOrderPlaced: (orderId: string) => void; continueShopping: (storeId?: string) => void; onCartChange?: (cart: CustomerCart | null) => void }) {
+  const { t, language } = useTranslation();
   const [cart, setCart] = useState<CustomerCart | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
@@ -226,18 +228,18 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
     finally { checkoutInFlight.current = false; setCheckoutBusy(false); }
   };
 
-  if (loading) return <View style={[commonStyles.page, styles.center]}><ActivityIndicator color={colors.accent}/></View>;
+  if (loading) return <View style={[commonStyles.page, styles.center]}><ActivityIndicator accessibilityLabel={t("common.loading")} color={colors.accent}/></View>;
   
   if (!cart) return (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={commonStyles.page}>
       <View style={[commonStyles.container, { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }]}>
-        <Text style={styles.emptyHeader}>My Cart</Text>
+        <Text style={styles.emptyHeader}>{t("My Cart")}</Text>
         {!loadFailed && <View style={styles.emptyBasket}><BasketIcon /></View>}
-        <Text style={typography.title1}>{loadFailed ? "Basket unavailable" : "Your basket is empty"}</Text>
-        {!loadFailed && <Text style={[typography.body, { textAlign: "center" }]}>Add fresh groceries from a local supermarket to get started.</Text>}
-        {!!message && <Text style={[typography.caption, { color: colors.danger }]}>{message}</Text>}
-        <Pressable accessibilityRole="button" onPress={() => continueShopping()} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Continue shopping</Text></Pressable>
-        {loadFailed && <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={typography.bodySemibold}>Try again</Text></Pressable>}
+        <Text style={typography.title1}>{loadFailed ? t("Basket unavailable") : t("Your basket is empty")}</Text>
+        {!loadFailed && <Text style={[typography.body, { textAlign: "center" }]}>{t("Add fresh groceries from a local supermarket to get started.")}</Text>}
+        {!!message && <Text style={[typography.caption, { color: colors.danger }]}>{localizeCustomerMessage(message, t)}</Text>}
+        <Pressable accessibilityRole="button" onPress={() => continueShopping()} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Continue shopping")}</Text></Pressable>
+        {loadFailed && <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={typography.bodySemibold}>{t("Try again")}</Text></Pressable>}
       </View>
     </ScrollView>
   );
@@ -246,9 +248,9 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
     <>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
-          <Pressable accessibilityRole="button" onPress={() => continueShopping(cart.storeId)} style={{ marginBottom: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.accent }]}>← Continue shopping</Text></Pressable>
-          <View style={styles.cartHeader}><Text style={styles.cartHeaderText}>My Cart</Text><Pressable accessibilityRole="button" onPress={clear}><Text style={styles.clearText}>Clear</Text></Pressable></View>
-          <Text style={[typography.caption, { marginBottom: spacing.md }]}>{cart.items.length} {cart.items.length === 1 ? "item" : "items"} · {cart.storeName}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("Continue shopping")} onPress={() => continueShopping(cart.storeId)} style={{ marginBottom: spacing.md }}><Text style={[typography.bodySemibold, { color: colors.accent }]}>{t("← Continue shopping")}</Text></Pressable>
+          <View style={styles.cartHeader}><Text style={styles.cartHeaderText}>{t("My Cart")}</Text><Pressable accessibilityRole="button" onPress={clear}><Text style={styles.clearText}>{t("Clear")}</Text></Pressable></View>
+          <Text style={[typography.caption, { marginBottom: spacing.md }]}>{t(cart.items.length === 1 ? "{count} item" : "{count} items", { count: cart.items.length })} · {cart.storeName}</Text>
           
           <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
             {cart.items.map((item) => (
@@ -257,30 +259,30 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
                 <View style={{ flex: 1, gap: spacing.xs }}>
                   <Text style={typography.bodySemibold}>{item.name}</Text>
                   <Text style={[typography.caption, { color: colors.accent, fontWeight: "700" }]}>{formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
-                  <Text style={typography.caption}>₹{formatPrice(item.unitPrice)} each</Text>
-                  <Text style={typography.caption}>Qty: {item.quantity} × {formatVariantName(item.quantityValue, item.quantityUnit)}</Text>
+                  <Text style={typography.caption}>₹{formatPrice(item.unitPrice)} {t("each")}</Text>
+                  <Text style={typography.caption}>{t("Qty: {quantity} × {variant}", { quantity: item.quantity, variant: formatVariantName(item.quantityValue, item.quantityUnit) })}</Text>
                   <QuantitySelector quantity={item.quantity} onDecrease={() => quantity(item.id, -1)} onIncrease={() => quantity(item.id, 1)} min={0} disabled={checkoutBusy || clearLoading} />
-                  {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{item.unavailableReason === "OUT_OF_STOCK" ? "Out of stock" : item.unavailableReason === "INSUFFICIENT_STOCK" ? "No longer available in the selected quantity. Please reduce the quantity." : "This item is no longer available."}</Text>}
+                  {!item.purchasable && <Text style={[typography.caption, { color: colors.danger }]}>{item.unavailableReason === "OUT_OF_STOCK" ? t("Out of stock") : item.unavailableReason === "INSUFFICIENT_STOCK" ? t("No longer available in the selected quantity. Please reduce the quantity.") : t("This item is no longer available.")}</Text>}
                 </View>
                 <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
                   <Text style={typography.title3}>₹{formatPrice(item.lineSubtotal)}</Text>
-                  <Pressable disabled={checkoutBusy || clearLoading} onPress={() => quantityController.current!.remove(item.id)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>Remove</Text></Pressable>
+                   <Pressable accessibilityRole="button" accessibilityLabel={t("Remove")} disabled={checkoutBusy || clearLoading} onPress={() => quantityController.current!.remove(item.id)} hitSlop={10}><Text style={[typography.caption, { color: colors.danger, fontWeight: "600" }]}>{t("Remove")}</Text></Pressable>
                 </View>
               </View>
             ))}
           </View>
 
           <View style={commonStyles.card}>
-            <Line label="Subtotal" value={cart.subtotal} />
-            <Line label="Delivery fee" value={cart.deliveryFee} />
-            <Text style={[typography.caption, { marginVertical: 4 }]}>Minimum order ₹{cart.minimumOrderValue}</Text>
+            <Line label={t("Subtotal")} value={cart.subtotal} />
+            <Line label={t("Delivery fee")} value={cart.deliveryFee} />
+            <Text style={[typography.caption, { marginVertical: 4 }]}>{t("Minimum order ₹{minimum}", { minimum: cart.minimumOrderValue })}</Text>
             <View style={styles.divider} />
-            <Line label="Total" value={cart.total} strong />
+            <Line label={t("Total")} value={cart.total} strong />
           </View>
 
-          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Delivery Address</Text>
+           <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>{t("Delivery Address")}</Text>
           {addresses.length === 0 ? (
-            <Pressable onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Add Delivery Address</Text></Pressable>
+             <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{t("Add Delivery Address")}</Text></Pressable>
           ) : (
             <View style={{ gap: spacing.sm }}>
               {addresses.map((address) => (
@@ -307,7 +309,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
             </View>
           )}
 
-          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Delivery Option</Text>
+          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>{t("Delivery Option")}</Text>
           <View style={{ gap: spacing.sm }}>
             <Pressable accessibilityRole="radio" accessibilityState={{ selected: deliveryMode === "INSTANT", disabled: !instantAvailable }} disabled={!instantAvailable} onPress={() => {
               if (deliveryMode !== "INSTANT") {
@@ -315,7 +317,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
               }
             }} style={[styles.deliveryChoice, deliveryMode === "INSTANT" && styles.deliveryChoiceActive, !instantAvailable && styles.disabled]}>
               <View style={[styles.radio, deliveryMode === "INSTANT" && styles.radioActive]}>{deliveryMode === "INSTANT" && <View style={styles.radioInner} />}</View>
-              <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>Instant Delivery</Text><Text style={typography.caption}>{instantAvailable ? "Deliver as soon as possible" : "Unavailable while the store is closed"}</Text></View>
+               <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>{t("Instant Delivery")}</Text><Text style={typography.caption}>{instantAvailable ? t("Deliver as soon as possible") : t("Unavailable while the store is closed")}</Text></View>
             </Pressable>
             <Pressable accessibilityRole="radio" accessibilityState={{ selected: deliveryMode === "SCHEDULED", disabled: cart.scheduledDeliveryAvailable === false }} disabled={cart.scheduledDeliveryAvailable === false} onPress={() => {
               if (deliveryMode !== "SCHEDULED") {
@@ -323,30 +325,30 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
               }
             }} style={[styles.deliveryChoice, deliveryMode === "SCHEDULED" && styles.deliveryChoiceActive, cart.scheduledDeliveryAvailable === false && styles.disabled]}>
               <View style={[styles.radio, deliveryMode === "SCHEDULED" && styles.radioActive]}>{deliveryMode === "SCHEDULED" && <View style={styles.radioInner} />}</View>
-              <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>Scheduled Delivery</Text><Text style={typography.caption}>{cart.scheduledDeliveryAvailable === false ? "No future delivery times are available" : "Choose an available time"}</Text></View>
+               <View style={{ flex: 1 }}><Text style={typography.bodySemibold}>{t("Scheduled Delivery")}</Text><Text style={typography.caption}>{cart.scheduledDeliveryAvailable === false ? t("No future delivery times are available") : t("Choose an available time")}</Text></View>
             </Pressable>
           </View>
           {deliveryMode === "SCHEDULED" && (
             <View style={[commonStyles.card, { marginTop: spacing.md, gap: spacing.md }]}>
               <View style={styles.between}>
-                <Text style={typography.bodySemibold}>Available delivery times</Text>
+                 <Text style={typography.bodySemibold}>{t("Available delivery times")}</Text>
                 <Pressable accessibilityRole="button" disabled={slotsLoading} onPress={() => {
                   setSlotsError("");
                   setSlotRefresh(value => value + 1);
                 }} style={slotsLoading && styles.disabled}>
-                  <Text style={[typography.caption, { color: colors.accent, fontWeight: fontWeights.semibold }]}>Refresh</Text>
+                  <Text style={[typography.caption, { color: colors.accent, fontWeight: fontWeights.semibold }]}>{t("Refresh")}</Text>
                 </Pressable>
               </View>
-              {slotsLoading ? <View style={styles.slotLoading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>Checking store availability…</Text></View> : null}
+              {slotsLoading ? <View style={styles.slotLoading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>{t("Checking store availability…")}</Text></View> : null}
               {!!slotsError && !slotsLoading && <View style={{ gap: spacing.sm }}>
-                <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger }]}>{slotsError}</Text>
+                <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger }]}>{localizeCustomerMessage(slotsError, t)}</Text>
                 <Pressable accessibilityRole="button" onPress={() => {
                   setSlotRefresh(value => value + 1);
-                }} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Try again</Text></Pressable>
+                 }} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{t("Try again")}</Text></Pressable>
               </View>}
-              {!slotsError && slotResponse?.operatingStatus === "CLOSED" && <Text style={[typography.body, { color: colors.danger }]}>The store is closed for instant delivery. Choose a future scheduled time to place this order.</Text>}
-              {!slotsLoading && !slotsError && !scheduledAvailable && <Text style={typography.caption}>No future delivery times are available right now. Your cart is safe; try again later.</Text>}
-              {!slotsLoading && !slotsError && scheduledAvailable && validSlots.length === 0 && <Text style={typography.caption}>No full delivery windows remain available. Refresh to check again.</Text>}
+              {!slotsError && slotResponse?.operatingStatus === "CLOSED" && <Text style={[typography.body, { color: colors.danger }]}>{t("The store is closed for instant delivery. Choose a future scheduled time to place this order.")}</Text>}
+              {!slotsLoading && !slotsError && !scheduledAvailable && <Text style={typography.caption}>{t("No future delivery times are available right now. Your cart is safe; try again later.")}</Text>}
+              {!slotsLoading && !slotsError && scheduledAvailable && validSlots.length === 0 && <Text style={typography.caption}>{t("No full delivery windows remain available. Refresh to check again.")}</Text>}
               {!slotsError && scheduledAvailable && validSlots.length > 0 && <>
                 <View style={styles.slotDays}>
                   {availableDays(validSlots).map(day => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: selectedDay === day }} onPress={() => {
@@ -359,7 +361,7 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
                       setSlotRefresh(value => value + 1);
                     }
                   }} style={[styles.dayChip, selectedDay === day && styles.dayChipActive]}>
-                    <Text style={[styles.dayChipText, selectedDay === day && styles.dayChipTextActive]}>{dayLabel(day)}</Text>
+                    <Text style={[styles.dayChipText, selectedDay === day && styles.dayChipTextActive]}>{dayLabel(day, language, t)}</Text>
                   </Pressable>)}
                 </View>
                 <View style={styles.slotTimes}>
@@ -370,42 +372,42 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
                         selectedSlotRef.current = slot; setSelectedSlot(slot); checkoutIntent.current = null; checkoutChoiceChanged.current = true; setMessage("");
                       }
                     }} style={[styles.timeChip, chosen && styles.timeChipActive]}>
-                      <Text style={[styles.timeChipText, chosen && styles.timeChipTextActive]}>{indiaTime(slot.startAt)} – {indiaTime(slot.endAt)}</Text>
+                      <Text style={[styles.timeChipText, chosen && styles.timeChipTextActive]}>{indiaTime(slot.startAt, language)} – {indiaTime(slot.endAt, language)}</Text>
                     </Pressable>;
                   })}
                 </View>
-                <Text style={typography.caption}>Times shown in India Standard Time (IST).</Text>
+                <Text style={typography.caption}>{t("Times shown in India Standard Time (IST).")}</Text>
               </>}
             </View>
           )}
 
-          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Payment Method</Text>
+          <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>{t("Payment Method")}</Text>
           <View style={[commonStyles.card, { flexDirection: "row", alignItems: "center", gap: spacing.sm }]}>
             <View style={styles.radioActive}><View style={styles.radioInner} /></View>
-            <Text style={typography.bodySemibold}>Cash on Delivery (COD)</Text>
+            <Text style={typography.bodySemibold}>{t("Cash on Delivery (COD)")}</Text>
           </View>
 
           <View style={{ marginTop: spacing.xxl, gap: spacing.md }}>
             {cart.operatingStatus === "CLOSED" && <View accessibilityRole="alert" style={styles.closedNotice}>
-              <Text style={styles.closedNoticeTitle}>Store closed for instant delivery</Text>
-              <Text style={typography.body}>Your cart is safe. Select Scheduled Delivery if a valid future time is available.</Text>
+              <Text style={styles.closedNoticeTitle}>{t("Store closed for instant delivery")}</Text>
+              <Text style={typography.body}>{t("Your cart is safe. Select Scheduled Delivery if a valid future time is available.")}</Text>
             </View>}
             {!cart.checkoutReady && cart.operatingStatus === "CLOSED" && !scheduledAvailable
-              ? <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>This store has no currently available delivery option. Your cart is safe; try again when delivery becomes available.</Text>
-              : !cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>Resolve unavailable items or meet the minimum order value to checkout.</Text>}
-            {!!message && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{message}</Text>}
+              ? <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{t("This store has no currently available delivery option. Your cart is safe; try again when delivery becomes available.")}</Text>
+              : !cart.checkoutReady && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{t("Resolve unavailable items or meet the minimum order value to checkout.")}</Text>}
+            {!!message && <Text style={[typography.caption, { color: colors.danger, textAlign: "center" }]}>{localizeCustomerMessage(message, t)}</Text>}
             
             <Pressable accessibilityRole="button" disabled={quantityBusy || !cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))} onPress={validate} style={[styles.primaryBtn, (quantityBusy || !cart.checkoutReady || !addressId || checkoutBusy || (deliveryMode === "INSTANT" && !instantAvailable) || (deliveryMode === "SCHEDULED" && (!scheduledAvailable || !selectedSlot || !isFullFutureSlot(selectedSlot, freshnessNow) || slotsLoading || !!slotsError))) && styles.disabled]}>
-              {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>Place Order • ₹{cart.total}</Text>}
+              {checkoutBusy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{t("Place Order • ₹{total}", { total: cart.total })}</Text>}
             </Pressable>
           </View>
         </View>
       </ScrollView>
       <ConfirmationDialog
         visible={clearDialogVisible}
-        title="Clear Basket?"
-        message="The basket record will be preserved as abandoned. Are you sure?"
-        confirmLabel="Clear"
+        title={t("Clear Basket?")}
+        message={t("The basket record will be preserved as abandoned. Are you sure?")}
+        confirmLabel={t("Clear")}
         isDestructive
         loading={clearLoading}
         onConfirm={confirmClear}
@@ -432,8 +434,8 @@ function indiaDayKey(value: string) {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function indiaTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
+function indiaTime(value: string, language: "en" | "te") {
+  return new Intl.DateTimeFormat(language === "te" ? "te-IN" : "en-IN", {
     timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true,
   }).format(new Date(value));
 }
@@ -464,13 +466,13 @@ function stableCheckoutKey(cartId: string, addressId: string, mode: CustomerDeli
   return uuid;
 }
 
-function dayLabel(day: string) {
+function dayLabel(day: string, language: "en" | "te", t: ReturnType<typeof useTranslation>["t"]) {
   const today = indiaDayKey(new Date().toISOString());
   const tomorrow = indiaDayKey(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
-  if (day === today) return "Today";
-  if (day === tomorrow) return "Tomorrow";
+  if (day === today) return t("Today");
+  if (day === tomorrow) return t("Tomorrow");
   const date = new Date(`${day}T12:00:00+05:30`);
-  return new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" }).format(date);
+  return new Intl.DateTimeFormat(language === "te" ? "te-IN" : "en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" }).format(date);
 }
 
 const styles = StyleSheet.create({

@@ -193,14 +193,14 @@ test("details make single selection visible, separate order quantity, and reserv
   const details = await readFile(new URL("../components/ShoppingProductDetails.tsx", import.meta.url), "utf8");
   assert.match(details, /variants\.map\(variant/);
   assert.match(details, /Selected:/);
-  assert.match(details, / · Selected/);
+  assert.match(details, /t\("Selected"\)/);
   assert.match(details, /Order quantity/);
   assert.match(details, /disabled=\{!purchasable \|\| busy\}/);
   assert.match(details, /flexWrap: "wrap"/);
   assert.match(details, /cartClearance: \{ paddingBottom: 192 \}/);
   const cart = await readFile(new URL("../CartScreen.tsx", import.meta.url), "utf8");
   assert.match(cart, /formatVariantName\(item\.quantityValue, item\.quantityUnit\)/);
-  assert.match(cart, /Qty: \{item\.quantity\}/);
+  assert.match(cart, /t\("Qty: \{quantity\} × \{variant\}", \{ quantity: item\.quantity, variant: formatVariantName\(item\.quantityValue, item\.quantityUnit\)/);
   assert.match(cart, /formatPrice\(item\.unitPrice\)/);
   assert.match(cart, /formatPrice\(item\.lineSubtotal\)/);
 });

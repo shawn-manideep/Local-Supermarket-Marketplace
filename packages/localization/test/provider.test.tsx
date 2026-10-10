@@ -4,6 +4,8 @@ import { createElement, useEffect, useState } from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { LanguageProvider, useLanguageScope, useTranslation } from "../src/provider";
 import type { LanguageStorage } from "../src/preference";
+import { localizeCustomerMessage } from "../src/customer-message";
+import { translate } from "../src/translation";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -22,9 +24,13 @@ test("live language and account changes rerender text without remounting or rese
     const [draft, setDraft] = useState("unsaved form");
     const [cartCount] = useState(3);
     const [destination] = useState("cart");
+    const [selectedAddress] = useState("original-address");
+    const [orderStatus] = useState("PLACED");
+    const [message] = useState("Use a valid six-digit Indian pincode");
     useEffect(() => { mounts++; return () => { unmounts++; }; }, []);
-    return createElement("section", { "data-cart-count": cartCount, "data-destination": destination },
+    return createElement("section", { "data-cart-count": cartCount, "data-destination": destination, "data-address": selectedAddress, "data-order-status": orderStatus },
       createElement("p", null, t("customer.language")),
+      createElement("output", null, localizeCustomerMessage(message, t)),
       createElement("input", { value: draft, onChange: (value: string) => setDraft(value) }));
   }
   const tree = (account: string | null) => createElement(LanguageProvider,
@@ -37,6 +43,9 @@ test("live language and account changes rerender text without remounting or rese
   assert.equal(renderer.root.findByType("input").props.value, "edited draft");
   assert.equal(renderer.root.findByType("section").props["data-cart-count"], 3);
   assert.equal(renderer.root.findByType("section").props["data-destination"], "cart");
+  assert.equal(renderer.root.findByType("section").props["data-address"], "original-address");
+  assert.equal(renderer.root.findByType("section").props["data-order-status"], "PLACED");
+  assert.equal(renderer.root.findByType("output").children.join(""), translate("te", "service.pincode"));
   assert.equal(mounts, 1); assert.equal(unmounts, 0);
   await act(async () => { renderer.update(tree("a")); });
   assert.equal(renderer.root.findByType("p").children.join(""), "Preferred language");

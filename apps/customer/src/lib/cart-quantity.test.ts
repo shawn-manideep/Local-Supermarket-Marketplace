@@ -113,5 +113,5 @@ test("Home category tiles are removed while category filters and Customer naviga
   assert.doesNotMatch(home, /Shop by Categor/);
   assert.match(home, /categories\.map/); assert.match(home, /setCategoryId/);
   assert.match(screen, /min=\{0\}/); assert.match(screen, /quantity\(item\.id, -1\)/);
-  assert.match(app, /item === "orders" \? "Reorder"/);
+  assert.match(app, /orders: t\("Reorder"\)/);
 });

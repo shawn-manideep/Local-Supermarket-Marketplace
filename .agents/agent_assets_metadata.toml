@@ -238,3 +238,17 @@ mtime_ms = 1791643797000
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/a5298691-1379-4357-9ca3-b0868e3cf2cc/f58ca773-b180-40d9-ae2d-f4baec0a19b9"
 storage_version_token = "1791643807636697"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "Qj4XE1NJNH-wdTrYEHVW7"
+uri = "file://docs/CUSTOMER_PHASE2_LOCALIZATION_REPORT.md"
+type = "text"
+title = "Customer Phase 2 localization report"
+description = "Exact changed files, screen coverage, intentional exceptions, passing tests/build results, limitations and manual acceptance checklist."
+logical_id = "37b426c5-f6e9-4ceb-af34-2bab1873a828"
+content_hash = "sha256:b9f358af53dfa37cfd4690bc1d4574a1b055b2921665fb3de75badeeecacbdc2"
+size = 9484
+mtime_ms = 1791646805974
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/37b426c5-f6e9-4ceb-af34-2bab1873a828/0b77479d-f758-4905-a873-e23d2cfa62d8"
+storage_version_token = "1791646839867196"
+content_type = "text/markdown"

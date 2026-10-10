@@ -8,6 +8,7 @@ import { PlaceholderImage } from "./PlaceholderImage";
 import { QuantitySelector } from "./QuantitySelector";
 import { customerImageUri } from "../lib/api";
 import { FavoriteControl } from "./FavoriteControl";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 interface Props {
   product: CustomerProduct;
@@ -31,15 +32,20 @@ export function ShoppingProductDetails({
   product, store, pincode, selectedVariantId, quantity, busy, hasCart, error, backLabel,
   onBack, onSelect, onQuantityChange, onAdd, favoriteControl, closedStoreNotice,
 }: Props) {
+  const { t } = useTranslation();
   const variants = activeVariants(product);
   const selected = variants.find(variant => variant.id === selectedVariantId);
   const storeOpen = store.operatingStatus === "OPEN";
   const orderingAvailable = storeOpen || store.scheduledDeliveryAvailable === true;
   const purchasable = orderingAvailable && !!selected && canPurchaseVariant(product, selected);
   const status = productAvailabilityLabel(product);
+  const priceLabel = productPriceLabel(product, selected);
+  const translatedPrice = priceLabel === "No selling options" ? t("No selling options")
+    : priceLabel === "Price unavailable" ? t("Price unavailable")
+    : priceLabel.startsWith("From ") ? t("From {price}", { price: priceLabel.slice(5) }) : priceLabel;
   const needsChoice = !selected && variants.some(variant => canPurchaseVariant(product, variant));
-  const addLabel = !orderingAvailable ? "Currently Closed" : purchasable ? `Add ${quantity} to Cart`
-    : needsChoice ? "Choose an option first" : selected ? variantAvailabilityLabel(product, selected) : status;
+  const addLabel = !orderingAvailable ? t("Currently Closed") : purchasable ? t("Add {quantity} to Cart", { quantity })
+    : needsChoice ? t("Choose an option first") : selected ? localizeCustomerMessage(variantAvailabilityLabel(product, selected), t) : localizeCustomerMessage(status, t);
   return (
     <ScrollView style={commonStyles.viewport} contentContainerStyle={[commonStyles.page, hasCart && styles.cartClearance]}>
       <View style={commonStyles.container}>
@@ -52,29 +58,29 @@ export function ShoppingProductDetails({
         </View>
         <Text style={typography.hero}>{product.name}</Text>
         {!!product.brand && <Text style={typography.bodySemibold}>{product.brand}</Text>}
-        <Text style={[typography.bodySemibold, styles.store]}>Sold by {store.name}</Text>
+          <Text style={[typography.bodySemibold, styles.store]}>{t("Sold by {store}", { store: store.name })}</Text>
         {!storeOpen && (closedStoreNotice ?? <View accessibilityRole="alert" style={styles.closedNotice}>
-          <Text style={styles.closedTitle}>Currently Closed</Text>
-          <Text style={styles.closedCopy}>{store.scheduledDeliveryAvailable ? "Instant delivery is paused. Add items now and choose an available future delivery time at checkout." : "You can browse this store, but no delivery option is available right now."}</Text>
+          <Text style={styles.closedTitle}>{t("Currently Closed")}</Text>
+          <Text style={styles.closedCopy}>{store.scheduledDeliveryAvailable ? t("Instant delivery is paused. Add items now and choose an available future delivery time at checkout.") : t("You can browse this store, but no delivery option is available right now.")}</Text>
         </View>)}
         {favoriteControl ?? <FavoriteControl product={product} pincode={pincode} />}
         {!![store.locality, store.city, store.state, store.pincode].filter(Boolean).length && <Text style={typography.caption}>{[store.locality, store.city, store.state, store.pincode].filter(Boolean).join(", ")}</Text>}
-        <Text style={typography.caption}>Delivers to {pincode}</Text>
-        <Text style={[typography.title1, styles.price]}>{productPriceLabel(product, selected)}</Text>
-        <Text style={[typography.caption, !product.purchasable && styles.unavailable]}>{status}</Text>
+        <Text style={typography.caption}>{t("Delivers to {pincode}", { pincode })}</Text>
+        <Text style={[typography.title1, styles.price]}>{translatedPrice}</Text>
+        <Text style={[typography.caption, !product.purchasable && styles.unavailable]}>{localizeCustomerMessage(status, t)}</Text>
         {!!product.description && <Text style={[typography.body, styles.description]}>{product.description}</Text>}
 
         <View style={styles.options}>
-          <Text style={typography.title3}>{variants.length > 1 ? "Choose an option" : "Selling option"}</Text>
-          {variants.length === 0 && <Text style={typography.body}>No selling options are currently available.</Text>}
+          <Text style={typography.title3}>{variants.length > 1 ? t("Choose an option") : t("Selling option")}</Text>
+          {variants.length === 0 && <Text style={typography.body}>{t("No selling options are currently available.")}</Text>}
           {variants.map(variant => {
             const available = orderingAvailable && canPurchaseVariant(product, variant);
             const checked = selected?.id === variant.id;
             const label = formatVariantName(variant.quantityValue, variant.quantityUnit);
-            const availability = variantAvailabilityLabel(product, variant);
+            const availability = localizeCustomerMessage(variantAvailabilityLabel(product, variant), t);
             return (
               <Pressable key={variant.id} accessibilityRole="radio"
-                accessibilityLabel={`${label} · ₹${formatPrice(variant.price)} · ${orderingAvailable ? availability : "Store currently closed"}${checked ? " · Selected" : ""}`}
+                accessibilityLabel={t("{variant} · ₹{price} · {availability}{selected}", { variant: label, price: formatPrice(variant.price), availability: orderingAvailable ? availability : t("Store currently closed"), selected: checked ? ` · ${t("Selected")}` : "" })}
                 accessibilityState={{ checked, disabled: !available || busy }}
                 disabled={!available || busy} onPress={() => onSelect(variant)}
                 style={[styles.option, checked && styles.selectedOption, !available && styles.disabledOption]}>
@@ -84,7 +90,7 @@ export function ShoppingProductDetails({
                     <Text style={[typography.bodySemibold, styles.optionName]}>{label}</Text>
                     <Text style={[typography.bodySemibold, styles.optionPrice]}>₹{formatPrice(variant.price)}</Text>
                   </View>
-                   <Text style={[typography.caption, !orderingAvailable && styles.unavailable]}>{!orderingAvailable ? "Store currently closed" : availability}{checked ? " · Selected" : ""}</Text>
+                   <Text style={[typography.caption, !orderingAvailable && styles.unavailable]}>{!orderingAvailable ? t("Store currently closed") : availability}{checked ? ` · ${t("Selected")}` : ""}</Text>
                 </View>
               </Pressable>
             );
@@ -92,10 +98,10 @@ export function ShoppingProductDetails({
         </View>
         {purchasable && selected && (
           <View style={styles.selection}>
-            <Text style={typography.bodySemibold}>Selected: {formatVariantName(selected.quantityValue, selected.quantityUnit)} — ₹{formatPrice(selected.price)}</Text>
+            <Text style={typography.bodySemibold}>{t("Selected: {variant} — ₹{price}", { variant: formatVariantName(selected.quantityValue, selected.quantityUnit), price: formatPrice(selected.price) })}</Text>
             <View style={styles.quantity}>
               <View style={styles.quantityLabel}>
-                <Text style={typography.title3}>Order quantity</Text>
+                <Text style={typography.title3}>{t("Order quantity")}</Text>
                 <Text style={typography.caption}>{quantity} × {formatVariantName(selected.quantityValue, selected.quantityUnit)}</Text>
               </View>
               <QuantitySelector quantity={quantity} min={1} disabled={busy}
@@ -104,15 +110,15 @@ export function ShoppingProductDetails({
             </View>
           </View>
         )}
-        {!!error && <Text accessibilityRole="alert" style={[typography.body, styles.unavailable, styles.error]}>{error}</Text>}
-        <Pressable accessibilityRole="button" accessibilityLabel={busy ? "Adding to cart" : addLabel}
+        {!!error && <Text accessibilityRole="alert" style={[typography.body, styles.unavailable, styles.error]}>{localizeCustomerMessage(error, t)}</Text>}
+        <Pressable accessibilityRole="button" accessibilityLabel={busy ? t("Adding to cart") : addLabel}
           accessibilityState={{ disabled: !purchasable || busy, busy }}
           disabled={!purchasable || busy} onPress={() => selected && onAdd(selected)}
           style={[styles.addButton, (!purchasable || busy) && styles.disabledOption]}>
           {busy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.addText}>{addLabel}</Text>}
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onBack} style={styles.navigation}>
-          <Text style={styles.link}>Continue shopping</Text>
+          <Text style={styles.link}>{t("Continue shopping")}</Text>
         </Pressable>
       </View>
     </ScrollView>

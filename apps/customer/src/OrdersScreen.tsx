@@ -7,20 +7,25 @@ import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { reorderInput, reorderItemLabel, reorderPreviewQuery, reorderSummary } from "./lib/reorder";
 import { addressStreetLines } from "./lib/address-format";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 const money = (value: string) => `₹${Number(value).toFixed(2)}`;
-const date = (value: string) => new Date(value).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
-const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor Delivery" : "Platform Delivery";
-const deliverySchedule = (order: Pick<CustomerOrderSummary, "deliveryMode" | "scheduledStartAt" | "scheduledEndAt">) => {
-  if (order.deliveryMode !== "SCHEDULED") return "Instant delivery";
-  if (!order.scheduledStartAt || !order.scheduledEndAt) return "Scheduled delivery";
-  const day = new Intl.DateTimeFormat("en-IN", {
+const orderStatusLabel = (status: CustomerOrderSummary["status"], t: ReturnType<typeof useTranslation>["t"]) => {
+  const labels = { PLACED: "Placed", ACCEPTED: "Accepted", PREPARING: "Preparing", READY: "Ready", OUT_FOR_DELIVERY: "Out for delivery", DELIVERED: "Delivered", REJECTED: "Rejected", CANCELLED: "Cancelled" } as const;
+  return t(labels[status]);
+};
+const date = (value: string, language: "en" | "te") => new Date(value).toLocaleString(language === "te" ? "te-IN" : "en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+const deliveryLabel = (value: string, t: ReturnType<typeof useTranslation>["t"]) => value === "vendor_staff" ? t("Vendor Delivery") : t("Platform Delivery");
+const deliverySchedule = (order: Pick<CustomerOrderSummary, "deliveryMode" | "scheduledStartAt" | "scheduledEndAt">, language: "en" | "te", t: ReturnType<typeof useTranslation>["t"]) => {
+  if (order.deliveryMode !== "SCHEDULED") return t("Instant delivery");
+  if (!order.scheduledStartAt || !order.scheduledEndAt) return t("Scheduled delivery");
+  const displayDay = new Intl.DateTimeFormat(language === "te" ? "te-IN" : "en-IN", {
     timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", year: "numeric",
   }).format(new Date(order.scheduledStartAt));
-  const time = new Intl.DateTimeFormat("en-IN", {
+  const time = new Intl.DateTimeFormat(language === "te" ? "te-IN" : "en-IN", {
     timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true,
   });
-  return `Scheduled · ${day} · ${time.format(new Date(order.scheduledStartAt))} – ${time.format(new Date(order.scheduledEndAt))} IST`;
+  return t("Scheduled · {day} · {start} – {end} IST", { day: displayDay, start: time.format(new Date(order.scheduledStartAt)), end: time.format(new Date(order.scheduledEndAt)) });
 };
 
 function createSecureUuid(): string {
@@ -28,6 +33,7 @@ function createSecureUuid(): string {
 }
 
 export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping }: { initialOrderId?: string; onRepeatAdded?: () => void; onContinueShopping?: () => void } = {}) {
+  const { t, language } = useTranslation();
   const [orders, setOrders] = useState<CustomerOrderSummary[]>([]);
   const [selected, setSelected] = useState<CustomerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,43 +79,43 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping
   return (
     <ScrollView contentContainerStyle={commonStyles.page}>
       <View style={commonStyles.container}>
-        <Text style={styles.listHeader}>My Orders</Text>
-        <View style={styles.filters}>{(["All", "Processing", "Delivered", "Cancelled"] as const).map(item => <Pressable accessibilityRole="button" accessibilityState={{ selected: filter === item }} key={item} onPress={() => setFilter(item)} style={[styles.filter, filter === item && styles.filterActive]}><Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{item}</Text></Pressable>)}</View>
+        <Text style={styles.listHeader}>{t("My Orders")}</Text>
+        <View style={styles.filters}>{(["All", "Processing", "Delivered", "Cancelled"] as const).map(item => <Pressable accessibilityRole="button" accessibilityState={{ selected: filter === item }} key={item} onPress={() => setFilter(item)} style={[styles.filter, filter === item && styles.filterActive]}><Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{t(item)}</Text></Pressable>)}</View>
         
         {!!error && (
           <View style={styles.errorBox}>
-            <Text style={[typography.bodySemibold, { color: colors.danger }]}>{error}</Text>
-            <Pressable onPress={() => void load()}><Text style={[typography.bodySemibold, { color: colors.ink, textDecorationLine: "underline" }]}>Try again</Text></Pressable>
+            <Text style={[typography.bodySemibold, { color: colors.danger }]}>{localizeCustomerMessage(error, t)}</Text>
+            <Pressable onPress={() => void load()}><Text style={[typography.bodySemibold, { color: colors.ink, textDecorationLine: "underline" }]}>{t("Try again")}</Text></Pressable>
           </View>
         )}
         
         {orders.length === 0 && !error ? (
           <View style={styles.emptyState}>
-            <Text style={typography.title2}>No orders yet</Text>
-            <Text style={typography.body}>Your first supermarket order will appear here.</Text>
+            <Text style={typography.title2}>{t("No orders yet")}</Text>
+            <Text style={typography.body}>{t("Your first supermarket order will appear here.")}</Text>
           </View>
         ) : orders.length > 0 && !orders.some(order => filter === "All" || (filter === "Processing" ? !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) : filter === "Delivered" ? order.status === "DELIVERED" : ["CANCELLED", "REJECTED"].includes(order.status))) ? (
-          <View style={styles.emptyState}><Text style={typography.title2}>No {filter.toLowerCase()} orders</Text></View>
+          <View style={styles.emptyState}><Text style={typography.title2}>{t("No {filter} orders", { filter: t(filter).toLocaleLowerCase(language === "te" ? "te-IN" : "en-IN") })}</Text></View>
         ) : (
           <View style={{ gap: spacing.md }}>
               {orders.filter(order => filter === "All" || (filter === "Processing" ? !["DELIVERED", "CANCELLED", "REJECTED"].includes(order.status) : filter === "Delivered" ? order.status === "DELIVERED" : ["CANCELLED", "REJECTED"].includes(order.status))).map((order) => (
                <View key={order.id} style={styles.orderCard}>
                 <View style={styles.between}>
                   <Text style={typography.title3}>#{order.id.slice(0, 8).toUpperCase()}</Text>
-                  <Text style={typography.body}>{date(order.createdAt)}</Text>
+                  <Text style={typography.body}>{date(order.createdAt, language)}</Text>
                 </View>
-                 <Text style={typography.caption}>{deliverySchedule(order)}</Text>
+                 <Text style={typography.caption}>{deliverySchedule(order, language, t)}</Text>
                 <View style={styles.between}>
                    <Text style={[typography.bodySemibold, { flex: 1, paddingRight: spacing.sm }]}>{order.storeName}</Text>
-                  <Text style={typography.bodySemibold}>Total: {money(order.totalAmount)}</Text>
+                  <Text style={typography.bodySemibold}>{t("Total: {total}", { total: money(order.totalAmount) })}</Text>
                 </View>
                 <View style={[styles.statusBadge, order.status === "CANCELLED" ? styles.statusBadgeCancelled : null]}>
-                  <Text style={[styles.statusBadgeText, order.status === "CANCELLED" ? styles.statusBadgeTextCancelled : null]}>{order.status.replaceAll("_", " ")}</Text>
+                  <Text style={[styles.statusBadgeText, order.status === "CANCELLED" ? styles.statusBadgeTextCancelled : null]}>{orderStatusLabel(order.status, t)}</Text>
                 </View>
                  {!!order.itemSummary?.length && <Text numberOfLines={2} style={typography.caption}>{order.itemSummary.map(item => `${item.productNameSnapshot}${item.variantNameSnapshot ? ` · ${item.variantNameSnapshot}` : ""} × ${item.quantity}`).join("  ·  ")}</Text>}
                  <View style={styles.orderActions}>
-                   <Pressable accessibilityRole="button" onPress={() => void open(order.id)} style={styles.viewOrderButton}><Text style={styles.viewOrderText}>View Order</Text></Pressable>
-                    {!!order.itemSummary?.length && <Pressable accessibilityRole="button" onPress={() => startReorder(order.id)} style={styles.repeatButton}><Text style={styles.repeatText}>Reorder</Text></Pressable>}
+                   <Pressable accessibilityRole="button" onPress={() => void open(order.id)} style={styles.viewOrderButton}><Text style={styles.viewOrderText}>{t("View Order")}</Text></Pressable>
+                    {!!order.itemSummary?.length && <Pressable accessibilityRole="button" onPress={() => startReorder(order.id)} style={styles.repeatButton}><Text style={styles.repeatText}>{t("Reorder")}</Text></Pressable>}
                  </View>
                </View>
             ))}
@@ -122,6 +128,7 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping
 }
 
 export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onClose, onAdded, onContinueShopping }: { orderId: string | null; orderItemId?: string; initialAddressId?: string; onClose: () => void; onAdded: () => void; onContinueShopping: () => void }) {
+  const { t } = useTranslation();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
   const [preview, setPreview] = useState<RepeatOrderPreview | null>(null);
@@ -215,32 +222,32 @@ export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onCl
   return <><Modal transparent animationType="fade" visible={!!orderId && !confirmSwitch} onRequestClose={() => !submissionInFlight.current && onClose()}>
     <View style={styles.modalShade}>
       <ScrollView keyboardShouldPersistTaps="handled" style={styles.repeatModal} contentContainerStyle={styles.repeatModalContent}>
-        <Text style={typography.eyebrow}>REVIEW BEFORE ADDING</Text>
-        <Text style={[typography.title1, { marginTop: spacing.xs }]}>{orderItemId ? "Buy Again" : "Reorder"}</Text>
+        <Text style={typography.eyebrow}>{t("REVIEW BEFORE ADDING")}</Text>
+        <Text style={[typography.title1, { marginTop: spacing.xs }]}>{orderItemId ? t("Buy Again") : t("Reorder")}</Text>
         {result ? <>
-          <Text accessibilityRole="alert" style={[typography.title3, { marginVertical: spacing.md }]}>{reorderSummary(result)}</Text>
-          {result.addedCount > 0 && <Text style={typography.body}>Items added to your cart. Review current prices and quantities before checkout.</Text>}
-          {result.unavailable.length > 0 && <Text style={[typography.body, { marginTop: spacing.sm }]}>{result.unavailable.some(item => item.reason === "Original product variant is no longer available") ? "Some items are no longer available." : "Some items are currently unavailable."}</Text>}
+          <Text accessibilityRole="alert" style={[typography.title3, { marginVertical: spacing.md }]}>{localizeCustomerMessage(reorderSummary(result), t)}</Text>
+          {result.addedCount > 0 && <Text style={typography.body}>{t("Items added to your cart. Review current prices and quantities before checkout.")}</Text>}
+          {result.unavailable.length > 0 && <Text style={[typography.body, { marginTop: spacing.sm }]}>{result.unavailable.some(item => item.reason === "Original product variant is no longer available") ? t("Some items are no longer available.") : t("Some items are currently unavailable.")}</Text>}
           <ScrollView style={styles.previewList} contentContainerStyle={{ gap: spacing.sm }}>
             {result.added.map(item => <View key={item.orderItemId} style={styles.previewItem}><View style={{ flex: 1 }}>
-              <Text style={typography.bodySemibold}>{reorderItemLabel(item)} — Added</Text>
-              <Text style={typography.caption}>Quantity {item.quantity} · Current price {item.currentUnitPrice !== null ? money(item.currentUnitPrice) : "available in cart"} each</Text>
+              <Text style={typography.bodySemibold}>{reorderItemLabel(item)} {t("— Added")}</Text>
+              <Text style={typography.caption}>{t("Quantity {quantity} · Current price {price} each", { quantity: item.quantity, price: item.currentUnitPrice !== null ? money(item.currentUnitPrice) : t("available in cart") })}</Text>
             </View></View>)}
             {result.unavailable.map(item => <View key={item.orderItemId} style={styles.previewItem}><View style={{ flex: 1 }}>
-              <Text style={typography.bodySemibold}>{reorderItemLabel(item)} — Unavailable</Text>
-              <Text style={[typography.caption, { color: colors.danger }]}>{item.reason || "Currently unavailable"}</Text>
+              <Text style={typography.bodySemibold}>{reorderItemLabel(item)} {t("— Unavailable")}</Text>
+              <Text style={[typography.caption, { color: colors.danger }]}>{localizeCustomerMessage(item.reason || "Currently unavailable", t)}</Text>
             </View></View>)}
           </ScrollView>
-          {result.addedCount === 0 && <Text style={typography.caption}>Your existing cart has not been changed.</Text>}
+          {result.addedCount === 0 && <Text style={typography.caption}>{t("Your existing cart has not been changed.")}</Text>}
           <View style={styles.modalActions}>
-            <Pressable accessibilityRole="button" onPress={onContinueShopping} style={styles.modalCancel}><Text style={styles.modalCancelText}>Continue Shopping</Text></Pressable>
-            {result.addedCount > 0 && <Pressable accessibilityRole="button" onPress={onAdded} style={styles.modalAdd}><Text style={styles.modalAddText}>View Cart</Text></Pressable>}
+            <Pressable accessibilityRole="button" onPress={onContinueShopping} style={styles.modalCancel}><Text style={styles.modalCancelText}>{t("Continue Shopping")}</Text></Pressable>
+            {result.addedCount > 0 && <Pressable accessibilityRole="button" onPress={onAdded} style={styles.modalAdd}><Text style={styles.modalAddText}>{t("View Cart")}</Text></Pressable>}
           </View>
-          <Pressable accessibilityRole="button" onPress={onClose} style={{ paddingTop: spacing.md, alignSelf: "center" }}><Text style={styles.repeatText}>Back to Orders</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={onClose} style={{ paddingTop: spacing.md, alignSelf: "center" }}><Text style={styles.repeatText}>{t("Back to Orders")}</Text></Pressable>
         </> : <>
-        <Text style={[typography.caption, { marginTop: spacing.xs, marginBottom: spacing.md }]}>We’ll check current availability and prices. This will not place an order.</Text>
+        <Text style={[typography.caption, { marginTop: spacing.xs, marginBottom: spacing.md }]}>{t("We’ll check current availability and prices. This will not place an order.")}</Text>
         {loadingAddresses ? <ActivityIndicator color={colors.accent} /> : addresses.length > 0 ? <>
-          <Text style={[typography.bodySemibold, { marginBottom: spacing.xs }]}>Delivery address</Text>
+          <Text style={[typography.bodySemibold, { marginBottom: spacing.xs }]}>{t("Delivery address")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.sm }}>
             {addresses.map(address => <Pressable key={address.id} disabled={submitting} onPress={() => {
               if (address.id !== addressId) {
@@ -248,48 +255,49 @@ export function RepeatOrderDialog({ orderId, orderItemId, initialAddressId, onCl
                 setAddressId(address.id);
               }
             }} style={[styles.addressChip, addressId === address.id && styles.addressChipActive]}>
-              <Text style={[styles.addressChipText, addressId === address.id && styles.addressChipTextActive]}>{address.label || address.city}{address.isDefault ? " · Default" : ""}</Text>
+              <Text style={[styles.addressChipText, addressId === address.id && styles.addressChipTextActive]}>{address.label || address.city}{address.isDefault ? t(" · Default") : ""}</Text>
               <Text style={[typography.caption, { maxWidth: 220 }]} numberOfLines={2}>{addressStreetLines(address).join(", ")}</Text>
             </Pressable>)}
           </ScrollView>
-        </> : !message && <Text style={styles.noticeText}>Add a delivery address before reordering.</Text>}
-        {loadingPreview && <View style={styles.previewLoading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>Checking store, variants and current prices…</Text></View>}
+        </> : !message && <Text style={styles.noticeText}>{t("Add a delivery address before reordering.")}</Text>}
+        {loadingPreview && <View style={styles.previewLoading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>{t("Checking store, variants and current prices…")}</Text></View>}
         {preview && <>
-          {!preview.storeAvailable && <View style={styles.warningBox}><Text style={styles.warningText}>This supermarket is currently unavailable for the selected address. No items can be added.</Text></View>}
-          {preview.storeSwitchRequired && preview.storeAvailable && <Text style={typography.caption}>Your cart contains items from {preview.existingStoreName}. This reorder is from {preview.storeName}. You will be asked before replacing your cart.</Text>}
+          {!preview.storeAvailable && <View style={styles.warningBox}><Text style={styles.warningText}>{t("This supermarket is currently unavailable for the selected address. No items can be added.")}</Text></View>}
+          {preview.storeSwitchRequired && preview.storeAvailable && <Text style={typography.caption}>{t("Your cart contains items from {existingStore}. This reorder is from {store}. You will be asked before replacing your cart.", { existingStore: preview.existingStoreName ?? "", store: preview.storeName })}</Text>}
           <ScrollView style={styles.previewList} contentContainerStyle={{ gap: spacing.sm }}>
             {preview.items.map(item => <View key={item.orderItemId} style={styles.previewItem}>
               <View style={[styles.availabilityMark, item.available && preview.storeAvailable ? styles.markAvailable : styles.markUnavailable]}><Text style={styles.availabilityMarkText}>{item.available && preview.storeAvailable ? "✓" : "!"}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodySemibold}>{reorderItemLabel(item)}</Text>
-                <Text style={typography.caption}>Quantity {item.quantity}{item.currentUnitPrice != null ? ` · Current price ${money(item.currentUnitPrice)} each` : ""}</Text>
-                {(!item.available || !preview.storeAvailable) && <Text style={[typography.caption, { color: colors.danger }]}>{item.reason || (preview.storeAvailable ? "Currently unavailable" : "Store unavailable")}</Text>}
+                <Text style={typography.caption}>{t("Quantity {quantity}", { quantity: item.quantity })}{item.currentUnitPrice != null ? ` · ${t("Current price {price} each", { price: money(item.currentUnitPrice) })}` : ""}</Text>
+                {(!item.available || !preview.storeAvailable) && <Text style={[typography.caption, { color: colors.danger }]}>{localizeCustomerMessage(item.reason || (preview.storeAvailable ? "Currently unavailable" : "Store unavailable"), t)}</Text>}
               </View>
             </View>)}
           </ScrollView>
-          <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{preview.canAddCount > 0 ? `${preview.canAddCount} ${preview.canAddCount === 1 ? "item" : "items"} can be added to your cart.${preview.canAddCount < preview.items.length ? " Partially available." : ""}` : "None of these items are currently available."}</Text>
+          <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{preview.canAddCount > 0 ? `${t(preview.canAddCount === 1 ? "{count} item can be added to your cart." : "{count} items can be added to your cart.", { count: preview.canAddCount })}${preview.canAddCount < preview.items.length ? t(" Partially available.") : ""}` : t("None of these items are currently available.")}</Text>
         </>}
-        {!!message && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{message}</Text>}
-        {!!message && !loadingPreview && addressId && !preview && <Pressable onPress={() => setRetry(value => value + 1)} style={{ alignSelf: "flex-start", marginTop: spacing.xs }}><Text style={styles.repeatText}>Try availability check again</Text></Pressable>}
+        {!!message && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.sm }]}>{localizeCustomerMessage(message, t)}</Text>}
+        {!!message && !loadingPreview && addressId && !preview && <Pressable accessibilityRole="button" onPress={() => setRetry(value => value + 1)} style={{ alignSelf: "flex-start", marginTop: spacing.xs }}><Text style={styles.repeatText}>{t("Try availability check again")}</Text></Pressable>}
         <View style={styles.modalActions}>
-          <Pressable accessibilityRole="button" onPress={onClose} disabled={submitting} style={styles.modalCancel}><Text style={styles.modalCancelText}>Cancel</Text></Pressable>
-          {preview && preview.canAddCount === 0 ? <Pressable accessibilityRole="button" onPress={onContinueShopping} style={styles.modalAdd}><Text style={styles.modalAddText}>Continue Shopping</Text></Pressable> :
+          <Pressable accessibilityRole="button" onPress={onClose} disabled={submitting} style={styles.modalCancel}><Text style={styles.modalCancelText}>{t("Cancel")}</Text></Pressable>
+          {preview && preview.canAddCount === 0 ? <Pressable accessibilityRole="button" onPress={onContinueShopping} style={styles.modalAdd}><Text style={styles.modalAddText}>{t("Continue Shopping")}</Text></Pressable> :
             <Pressable accessibilityRole="button" onPress={() => void addAvailableItems()} disabled={!preview || !preview.storeAvailable || loadingPreview || submitting} style={[styles.modalAdd, (!preview || !preview.storeAvailable || loadingPreview || submitting) && styles.buttonDisabled]}>
-              {submitting ? <><ActivityIndicator color={colors.card} /><Text style={styles.modalAddText}>Checking availability...</Text></> : <Text style={styles.modalAddText}>Add Available Items</Text>}
+              {submitting ? <><ActivityIndicator color={colors.card} /><Text style={styles.modalAddText}>{t("Checking availability...")}</Text></> : <Text style={styles.modalAddText}>{t("Add Available Items")}</Text>}
             </Pressable>}
         </View>
         </>}
       </ScrollView>
     </View>
   </Modal>
-    <ConfirmationDialog visible={!!orderId && confirmSwitch} title="Replace your current cart?"
-      message={`Your cart contains items from ${preview?.existingStoreName ?? "another store"}. This reorder is from ${preview?.storeName ?? "the original store"}. Replace your current cart?`}
-      confirmLabel="Clear Cart & Continue" cancelLabel="Cancel" isDestructive loading={submitting}
+    <ConfirmationDialog visible={!!orderId && confirmSwitch} title={t("Replace your current cart?")}
+      message={t("Your cart contains items from {existingStore}. This reorder is from {store}. Replace your current cart?", { existingStore: preview?.existingStoreName ?? t("another store"), store: preview?.storeName ?? t("the original store") })}
+      confirmLabel={t("Clear Cart & Continue")} cancelLabel={t("Cancel")} isDestructive loading={submitting}
       onConfirm={() => void addAvailableItems(true)} onCancel={() => !submissionInFlight.current && setConfirmSwitch(false)} />
   </>;
 }
 
 function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderDetail; back: () => void; refresh: () => void; onRepeat: (itemId?: string) => void }) {
+  const { t, language } = useTranslation();
   const [cancelVisible, setCancelVisible] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const cancelInFlight = useRef(false);
@@ -345,25 +353,25 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
       <ScrollView contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <Pressable onPress={back} style={{ paddingVertical: spacing.sm, alignSelf: "flex-start", marginBottom: spacing.sm }}>
-            <Text style={[typography.bodySemibold, { color: colors.accent }]}>← All Orders</Text>
+            <Text style={[typography.bodySemibold, { color: colors.accent }]}>{t("← All Orders")}</Text>
           </Pressable>
           
-          <Text style={typography.eyebrow}>ORDER SUMMARY</Text>
+          <Text style={typography.eyebrow}>{t("ORDER SUMMARY")}</Text>
           <Text style={[typography.hero, { marginBottom: spacing.lg }]}>{localOrder.storeName}</Text>
-          <Text style={[typography.caption, { marginTop: -spacing.md, marginBottom: spacing.md }]}>{date(localOrder.createdAt)}</Text>
+          <Text style={[typography.caption, { marginTop: -spacing.md, marginBottom: spacing.md }]}>{date(localOrder.createdAt, language)}</Text>
           
           <View style={styles.confirmBox}>
             <View>
-              <Text style={{ fontSize: 11, fontWeight: fontWeights.medium, color: "rgba(255,255,255,0.8)", letterSpacing: 1.2 }}>REFERENCE</Text>
+              <Text style={{ fontSize: 11, fontWeight: fontWeights.medium, color: "rgba(255,255,255,0.8)", letterSpacing: 1.2 }}>{t("REFERENCE")}</Text>
               <Text style={{ fontSize: 28, fontWeight: fontWeights.bold, color: colors.card }}>#{localOrder.id.slice(0, 8).toUpperCase()}</Text>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-              <Text style={[styles.statusBadgeText, { color: colors.card }]}>{localOrder.status.replaceAll("_", " ")}</Text>
+              <Text style={[styles.statusBadgeText, { color: colors.card }]}>{localizeCustomerMessage(localOrder.status.replaceAll("_", " "), t)}</Text>
             </View>
           </View>
           
           <View style={[commonStyles.card, { marginTop: spacing.xl }]}>
-            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Status Timeline</Text>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>{t("Status Timeline")}</Text>
             <View style={{ gap: spacing.lg }}>
               {localOrder.statusHistory.map((entry, index) => {
                 const isLast = index === localOrder.statusHistory.length - 1;
@@ -374,8 +382,8 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
                       {!isLast && <View style={styles.timelineLine} />}
                     </View>
                     <View style={{ flex: 1, paddingBottom: isLast ? 0 : spacing.sm }}>
-                      <Text style={typography.bodySemibold}>{entry.status.replaceAll("_", " ")}</Text>
-                      <Text style={typography.caption}>{entry.note ?? "Status updated"} • {date(entry.createdAt)}</Text>
+                      <Text style={typography.bodySemibold}>{orderStatusLabel(entry.status, t)}</Text>
+                      <Text style={typography.caption}>{entry.note ?? t("Status updated")} • {date(entry.createdAt, language)}</Text>
                     </View>
                   </View>
                 );
@@ -384,41 +392,41 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
           </View>
 
           <View style={[commonStyles.card, { marginTop: spacing.xl }]}>
-            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Items</Text>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>{t("Items")}</Text>
             <View style={{ gap: spacing.md }}>
               {localOrder.items.map((item) => (
                 <View key={item.id} style={styles.between}>
                   <View style={{ flex: 1, paddingRight: spacing.sm }}>
                     <Text style={typography.bodySemibold}>{item.productNameSnapshot}</Text>
-                    <Text style={typography.caption}>{item.variantNameSnapshot ?? (item.variantQuantityValueSnapshot && item.variantQuantityUnitSnapshot ? `${item.variantQuantityValueSnapshot} ${item.variantQuantityUnitSnapshot}` : "Standard")} · {money(item.productPriceSnapshot)} × {item.quantity}</Text>
-                     <Pressable accessibilityRole="button" accessibilityLabel={`Buy ${item.productNameSnapshot} again`} onPress={() => onRepeat(item.id)} style={{ paddingVertical: spacing.sm, alignSelf: "flex-start" }}><Text style={styles.repeatText}>Buy Again</Text></Pressable>
+                    <Text style={typography.caption}>{item.variantNameSnapshot ?? (item.variantQuantityValueSnapshot && item.variantQuantityUnitSnapshot ? `${item.variantQuantityValueSnapshot} ${item.variantQuantityUnitSnapshot}` : t("Standard"))} · {money(item.productPriceSnapshot)} × {item.quantity}</Text>
+                     <Pressable accessibilityRole="button" accessibilityLabel={t("Buy {name} again", { name: item.productNameSnapshot })} onPress={() => onRepeat(item.id)} style={{ paddingVertical: spacing.sm, alignSelf: "flex-start" }}><Text style={styles.repeatText}>{t("Buy Again")}</Text></Pressable>
                   </View>
                   <Text style={typography.bodySemibold}>{money(item.subtotal)}</Text>
                 </View>
               ))}
             </View>
             <View style={styles.divider} />
-            <Line label="Subtotal" value={localOrder.subtotal} />
-            <Line label="Delivery fee" value={localOrder.deliveryFeeSnapshot} />
+            <Line label={t("Subtotal")} value={localOrder.subtotal} />
+            <Line label={t("Delivery fee")} value={localOrder.deliveryFeeSnapshot} />
             <View style={styles.divider} />
-            <Line label="Total Paid (COD)" value={localOrder.totalAmount} strong />
+            <Line label={t("Total Paid (COD)")} value={localOrder.totalAmount} strong />
           </View>
 
           <View style={[commonStyles.card, { marginTop: spacing.xl, marginBottom: spacing.xl }]}>
-            <Text style={[typography.title3, { marginBottom: spacing.md }]}>Delivery details</Text>
+            <Text style={[typography.title3, { marginBottom: spacing.md }]}>{t("Delivery details")}</Text>
             <Text style={typography.body}>{localOrder.deliveryContactName} • {localOrder.deliveryContactPhone}</Text>
             {addressStreetLines(localOrder.deliveryAddressSnapshot).map((line, index) => <Text key={`order-address-${localOrder.id}-${index}`} style={typography.body}>{line}</Text>)}
-            <Text style={[typography.caption, { marginTop: spacing.sm }]}>{deliveryLabel(localOrder.deliveryType)}</Text>
-            <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{deliverySchedule(localOrder)}</Text>
-            {localOrder.deliveryMode === "SCHEDULED" && <Text style={typography.caption}>Delivery window shown in India Standard Time (IST).</Text>}
+            <Text style={[typography.caption, { marginTop: spacing.sm }]}>{deliveryLabel(localOrder.deliveryType, t)}</Text>
+            <Text style={[typography.bodySemibold, { marginTop: spacing.sm }]}>{deliverySchedule(localOrder, language, t)}</Text>
+            {localOrder.deliveryMode === "SCHEDULED" && <Text style={typography.caption}>{t("Delivery window shown in India Standard Time (IST).")}</Text>}
           </View>
 
-          {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md, textAlign: "center" }]}>{error}</Text>}
+          {!!error && <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md, textAlign: "center" }]}>{localizeCustomerMessage(error, t)}</Text>}
 
-          {localOrder.items.length > 0 && <Pressable accessibilityRole="button" onPress={() => onRepeat()} style={[styles.repeatButton, { marginBottom: spacing.md }]}><Text style={styles.repeatText}>Reorder</Text></Pressable>}
+          {localOrder.items.length > 0 && <Pressable accessibilityRole="button" onPress={() => onRepeat()} style={[styles.repeatButton, { marginBottom: spacing.md }]}><Text style={styles.repeatText}>{t("Reorder")}</Text></Pressable>}
           {localOrder.status === "PLACED" && (
             <Pressable accessibilityRole="button" onPress={() => setCancelVisible(true)} style={styles.cancelBtn}>
-              <Text style={styles.cancelBtnText}>Cancel Order</Text>
+              <Text style={styles.cancelBtnText}>{t("Cancel Order")}</Text>
             </Pressable>
           )}
         </View>
@@ -426,10 +434,10 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
       
       <ConfirmationDialog
         visible={cancelVisible}
-        title="Cancel Order?"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmLabel="Yes, Cancel"
-        cancelLabel="Keep Order"
+        title={t("Cancel Order?")}
+        message={t("Are you sure you want to cancel this order? This action cannot be undone.")}
+        confirmLabel={t("Yes, Cancel")}
+        cancelLabel={t("Keep Order")}
         isDestructive
         loading={cancelLoading}
         onConfirm={handleCancel}

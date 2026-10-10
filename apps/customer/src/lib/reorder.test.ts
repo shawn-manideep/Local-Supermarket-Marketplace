@@ -46,7 +46,7 @@ test("success remains in summary until View Cart or Continue Shopping is chosen"
 test("store switch requires named destructive confirmation and blocks duplicate submissions", async () => {
   const screen = await readFile(new URL("../OrdersScreen.tsx", import.meta.url), "utf8");
   assert.match(screen, /preview\.storeSwitchRequired && !confirmedStoreSwitch/);
-  assert.match(screen, /confirmLabel="Clear Cart & Continue" cancelLabel="Cancel"/);
+  assert.match(screen, /confirmLabel=\{t\("Clear Cart & Continue"\)\} cancelLabel=\{t\("Cancel"\)\}/);
   assert.match(screen, /preview\?\.existingStoreName/);
   assert.match(screen, /submissionInFlight\.current = true/);
   assert.match(screen, /disabled=\{submitting\}/);

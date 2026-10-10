@@ -29,7 +29,7 @@ test("shared House/Flat field preserves explicit labels and never guesses a labe
 test("Home delivery header keeps selection and arrow while bounding long location text", async () => {
   const screen = await readFile(new URL("../MarketplaceScreen.tsx", import.meta.url), "utf8");
   assert.match(screen, /onPress=\{openAddresses\} style=\{styles\.locationRow\}/);
-  assert.match(screen, /⌖  Delivering to/);
+  assert.match(screen, /t\("Delivering to"\)/);
   assert.match(screen, /numberOfLines=\{1\} ellipsizeMode="tail">\{activeAddress \? deliveryLocationLabel\(activeAddress\)/);
   assert.match(screen, /locationText: \{ flexShrink: 1, minWidth: 0 \}/);
   assert.match(screen, /<Text style=\{\{ color: colors\.accent, fontSize: 12 \}\}>▼<\/Text>/);
@@ -61,6 +61,7 @@ test("null locality on a structured address never falls back to duplicated legac
 test("bottom navigation labels Reorder while retaining its existing orders screen key", async () => {
   const app = await readFile(new URL("../../App.tsx", import.meta.url), "utf8");
   assert.match(app, /const navItems: Array<"home" \| "orders" \| "account"> = \[\s*"home",\s*"orders",\s*"account",\s*\]/);
-  assert.match(app, /item === "orders" \? "Reorder"/);
+  assert.match(app, /orders: t\("Reorder"\)/);
+  assert.match(app, /navLabels\[item\]/);
   assert.match(app, /setScreen\(item\)/);
 });

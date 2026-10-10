@@ -7,15 +7,18 @@ import { colors, radius, spacing, typography, commonStyles } from "../theme";
 import { supabase } from "../lib/supabase";
 import { passwordVisibility } from "@workspace/constants";
 import { CustomerLanguageSelector } from "./LanguageSelector";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 export function PasswordField({ label = "Password", ...props }: React.ComponentProps<typeof TextInput> & { label?: string }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const visibility = passwordVisibility(visible);
+  const translatedVisibilityLabel = t(visibility.label === "Hide password" ? "Hide password" : "Show password");
   return <View style={styles.field}>
-    <Text style={typography.bodySemibold}>{label}</Text>
+    <Text style={typography.bodySemibold}>{(["Password", "New password", "Confirm password", "Confirm new password", "Current password"] as const).includes(label as "Password") ? t(label as "Password") : label}</Text>
     <View style={styles.passwordRow}>
       <TextInput {...props} accessibilityLabel={label} autoCapitalize="none" secureTextEntry={visibility.secureTextEntry} style={styles.passwordInput} maxLength={128} />
-      <Pressable accessibilityRole="button" accessibilityLabel={visibility.label} accessibilityState={{ selected: visible }} onPress={() => setVisible(value => !value)} style={styles.eyeButton}>
+      <Pressable accessibilityRole="button" accessibilityLabel={translatedVisibilityLabel} accessibilityState={{ selected: visible }} onPress={() => setVisible(value => !value)} style={styles.eyeButton}>
         <View style={styles.eye}><View style={styles.pupil} />{visible && <View style={styles.slash} />}</View>
       </Pressable>
     </View>
@@ -23,6 +26,7 @@ export function PasswordField({ label = "Password", ...props }: React.ComponentP
 }
 
 export function CustomerRecoveryForm({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,18 +42,19 @@ export function CustomerRecoveryForm({ onBack }: { onBack: () => void }) {
     finally { setBusy(false); }
   };
   return <View style={styles.form}>
-    <Text style={typography.title2}>Forgot Password?</Text>
-    <Text style={typography.body}>Enter your username. Instructions will go to your registered recovery contact.</Text>
-    <Text style={typography.bodySemibold}>Username</Text>
-    <TextInput accessibilityLabel="Recovery username" value={username} autoCapitalize="none" autoComplete="username" maxLength={30} onChangeText={value => { setUsername(value); setMessage(""); setError(""); }} style={styles.input} />
-    {!!message && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[typography.body, { color: colors.success }]}>{message}</Text>}
-    {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{error}</Text>}
-    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}>{busy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryButtonText}>Send Reset Instructions</Text>}</Pressable>
-    <Pressable accessibilityRole="button" disabled={busy} onPress={onBack}><Text style={styles.link}>Back to sign in</Text></Pressable>
+    <Text style={typography.title2}>{t("Forgot Password?")}</Text>
+    <Text style={typography.body}>{t("Enter your username. Instructions will go to your registered recovery contact.")}</Text>
+    <Text style={typography.bodySemibold}>{t("Username")}</Text>
+    <TextInput accessibilityLabel={t("Recovery username")} placeholder={t("Enter your username")} value={username} autoCapitalize="none" autoComplete="username" maxLength={30} onChangeText={value => { setUsername(value); setMessage(""); setError(""); }} style={styles.input} />
+    {!!message && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[typography.body, { color: colors.success }]}>{localizeCustomerMessage(message, t)}</Text>}
+    {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{localizeCustomerMessage(error, t)}</Text>}
+    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}>{busy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryButtonText}>{t("Send Reset Instructions")}</Text>}</Pressable>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={onBack}><Text style={styles.link}>{t("Back to sign in")}</Text></Pressable>
   </View>;
 }
 
 export function CustomerResetForm({ onComplete }: { onComplete: (success: boolean) => void }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
@@ -72,13 +77,13 @@ export function CustomerResetForm({ onComplete }: { onComplete: (success: boolea
   };
   return <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.resetPage}><View style={[commonStyles.card, styles.form]}>
     <CustomerLanguageSelector />
-    <Text style={typography.title1}>Choose a new password</Text>
-    <Text style={typography.body}>Use at least 8 characters.</Text>
-    <PasswordField label="New password" autoComplete="new-password" value={password} onChangeText={setPassword} />
-    <PasswordField label="Confirm password" autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
-    {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{error}</Text>}
-    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{busy ? "Updating…" : "Update password"}</Text></Pressable>
-    <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void finish(false); }}><Text style={styles.link}>Cancel reset</Text></Pressable>
+    <Text style={typography.title1}>{t("Choose a new password")}</Text>
+    <Text style={typography.body}>{t("Use at least 8 characters.")}</Text>
+    <PasswordField label={t("New password")} autoComplete="new-password" value={password} onChangeText={setPassword} />
+    <PasswordField label={t("Confirm password")} autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
+    {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{localizeCustomerMessage(error, t)}</Text>}
+    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{busy ? t("Updating…") : t("Update password")}</Text></Pressable>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void finish(false); }}><Text style={styles.link}>{t("Cancel reset")}</Text></Pressable>
   </View></ScrollView>;
 }
 

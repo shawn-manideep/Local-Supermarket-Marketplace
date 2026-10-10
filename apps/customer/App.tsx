@@ -39,7 +39,7 @@ import { SavedItemsProvider } from "./src/SavedItemsContext";
 import { SavedItemsScreen } from "./src/SavedItemsScreen";
 import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
 import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
-import { useLanguageScope } from "@workspace/localization";
+import { useLanguageScope, useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings";
@@ -137,6 +137,7 @@ function BasketBrand() {
 }
 
 function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"signin" | "signup" | "recovery">("signin");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -173,10 +174,9 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
   if (!supabaseConfigured)
     return (
       <View style={styles.center}>
-        <Text style={typography.title1}>Configuration required</Text>
+        <Text style={typography.title1}>{t("Configuration required")}</Text>
         <Text style={typography.body}>
-          Add the public Expo Supabase environment variables to use customer
-          authentication.
+          {t("Add the public Expo Supabase environment variables to use customer authentication.")}
         </Text>
       </View>
     );
@@ -186,21 +186,22 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
       <View style={styles.authContainer}>
         <View style={styles.authBrand}>
           <BasketBrand />
-          <Text style={styles.brandName}>LOCAL BASKET</Text>
-          <Text style={styles.brandSub}>Fresh Groceries · Local Stores</Text>
+          <Text style={styles.brandName}>{t("LOCAL BASKET")}</Text>
+          <Text style={styles.brandSub}>{t("Fresh Groceries · Local Stores")}</Text>
         </View>
         <CustomerLanguageSelector />
         <Text style={typography.hero}>
-          {mode === "signup" ? "Create an account" : mode === "recovery" ? "Recover your account" : "Welcome back!"}
+          {mode === "signup" ? t("Create an account") : mode === "recovery" ? t("Recover your account") : t("Welcome back!")}
         </Text>
         <Text style={[typography.body, { marginBottom: spacing.xl }]}>
-          Shop fresh. Shop local.
+          {t("Shop fresh. Shop local.")}
         </Text>
         <View style={styles.authForm}>
           {mode === "recovery" ? <CustomerRecoveryForm onBack={() => setMode("signin")} /> : <>
           <Field
-            label="Username"
-            placeholder="Enter your username"
+            label={t("Username")}
+            placeholder={t("Enter your username")}
+            accessibilityLabel={t("Username")}
             autoComplete="username"
             autoCapitalize="none"
             maxLength={30}
@@ -208,21 +209,21 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
             value={username}
           />
           {mode === "signup" && <Field
-            label="Recovery email address"
-            placeholder="Enter your email"
+            label={t("Recovery email address")}
+            placeholder={t("Enter your email")}
             autoCapitalize="none"
             keyboardType="email-address"
             onChangeText={setEmail}
             value={email}
           />}
           <PasswordField
-            label="Password"
-            placeholder="Enter your password"
+            label={t("Password")}
+            placeholder={t("Enter your password")}
             onChangeText={setPassword}
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
           />
-          {!!message && <Text style={styles.errorText}>{message}</Text>}
+          {!!message && <Text style={styles.errorText}>{localizeCustomerMessage(message, t)}</Text>}
           <Pressable
             accessibilityRole="button"
             disabled={busy}
@@ -233,12 +234,12 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
               <ActivityIndicator color={colors.card} />
             ) : (
               <Text style={styles.primaryBtnText}>
-                {mode === "signin" ? "Sign in" : "Sign up"}
+                {mode === "signin" ? t("Sign in") : t("Sign up")}
               </Text>
             )}
           </Pressable>
-          {mode === "signin" && <Pressable accessibilityRole="button" onPress={() => { setPassword(""); setMessage(""); setMode("recovery"); }}><Text style={styles.linkText}>Forgot Password?</Text></Pressable>}
-          <Text style={styles.authDivider}>OR</Text>
+          {mode === "signin" && <Pressable accessibilityRole="button" onPress={() => { setPassword(""); setMessage(""); setMode("recovery"); }}><Text style={styles.linkText}>{t("Forgot Password?")}</Text></Pressable>}
+          <Text style={styles.authDivider}>{t("OR")}</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => {
@@ -249,7 +250,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
             style={styles.authOutline}
           >
             <Text style={styles.authOutlineText}>
-              {mode === "signin" ? "Create an account" : "Back to sign in"}
+              {mode === "signin" ? t("Create an account") : t("Back to sign in")}
             </Text>
           </Pressable>
           </>}
@@ -271,6 +272,7 @@ function AccountScreen({
   navigate: (s: Screen) => void;
   editProfile?: boolean;
 }) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -327,15 +329,15 @@ function AccountScreen({
             onPress={() => navigate("account")}
             style={styles.profileHeader}
           >
-            <Text style={styles.profileHeaderText}>‹ Personal Information</Text>
+             <Text style={styles.profileHeaderText}>{t("‹ Personal Information")}</Text>
           </Pressable>
         ) : (
-          <Text style={styles.pageBar}>My Account</Text>
+          <Text style={styles.pageBar}>{t("My Account")}</Text>
         )}
 
         {!profile && !message ? (
           <ActivityIndicator
-            accessibilityLabel="Loading account"
+            accessibilityLabel={t("Loading account")}
             color={colors.accent}
             style={{ marginTop: spacing.xl }}
           />
@@ -350,18 +352,18 @@ function AccountScreen({
                 </View>
                 <View style={{ gap: spacing.md }}>
                   <Field
-                    label="Full Name"
+                    label={t("Full Name")}
                     onChangeText={setName}
                     value={name}
                   />
                   <Field
-                    label="Email"
+                    label={t("Email")}
                     value={email}
                     editable={false}
                     style={{ backgroundColor: colors.bg, color: colors.muted }}
                   />
                   <PhoneInput
-                    label="Mobile Number"
+                    label={t("Mobile Number")}
                     value={phone}
                     onChangeText={setPhone}
                   />
@@ -374,7 +376,7 @@ function AccountScreen({
                           : styles.errorText
                       }
                     >
-                      {message}
+                      {localizeCustomerMessage(message, t)}
                     </Text>
                   )}
                   <Pressable
@@ -386,7 +388,7 @@ function AccountScreen({
                     {saving ? (
                       <ActivityIndicator color={colors.card} />
                     ) : (
-                      <Text style={styles.primaryBtnText}>Save Changes</Text>
+                      <Text style={styles.primaryBtnText}>{t("Save Changes")}</Text>
                     )}
                   </Pressable>
                 </View>
@@ -401,7 +403,7 @@ function AccountScreen({
                   </View>
                    <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.accountName}>
-                      {name || "Your account"}
+                       {name || t("Your account")}
                     </Text>
                     <Text style={styles.accountEmail}>{email}</Text>
                   </View>
@@ -412,7 +414,7 @@ function AccountScreen({
                     onPress={() => navigate("profile")}
                   >
                     <Text style={styles.menuIcon}>♙</Text>
-                    <Text style={styles.menuLabel}>Personal Information</Text>
+                    <Text style={styles.menuLabel}>{t("Personal Information")}</Text>
                     <Text style={styles.menuArrow}>›</Text>
                   </Pressable>
                   <Pressable
@@ -420,7 +422,7 @@ function AccountScreen({
                     onPress={() => navigate("addresses")}
                   >
                     <Text style={styles.menuIcon}>⌖</Text>
-                    <Text style={styles.menuLabel}>Delivery Addresses</Text>
+                    <Text style={styles.menuLabel}>{t("Delivery Addresses")}</Text>
                     <Text style={styles.menuArrow}>›</Text>
                   </Pressable>
                   <Pressable
@@ -428,17 +430,17 @@ function AccountScreen({
                     onPress={() => navigate("orders")}
                   >
                     <Text style={styles.menuIcon}>▤</Text>
-                    <Text style={styles.menuLabel}>My Orders</Text>
+                    <Text style={styles.menuLabel}>{t("My Orders")}</Text>
                     <Text style={styles.menuArrow}>›</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" style={styles.menuRow} onPress={() => navigate("saved")}>
                     <Text style={styles.menuIcon}>♡</Text>
-                    <Text style={styles.menuLabel}>Saved Items</Text>
+                    <Text style={styles.menuLabel}>{t("Saved Items")}</Text>
                     <Text style={styles.menuArrow}>›</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" style={styles.menuRow} onPress={() => navigate("settings")}>
                     <Text style={styles.menuIcon}>⚙</Text>
-                    <Text style={styles.menuLabel}>Settings</Text>
+                    <Text style={styles.menuLabel}>{t("Settings")}</Text>
                     <Text style={styles.menuArrow}>›</Text>
                   </Pressable>
                 </View>
@@ -447,7 +449,7 @@ function AccountScreen({
                   onPress={() => supabase.auth.signOut()}
                   style={styles.signOut}
                 >
-                  <Text style={styles.signOutText}>Sign Out</Text>
+                  <Text style={styles.signOutText}>{t("Sign Out")}</Text>
                 </Pressable>
               </>
             )}
@@ -497,6 +499,7 @@ function editableAddress(
 }
 
 function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<CustomerAddress[]>([]);
   const [draft, setDraft] = useState<AddressInput>(blankAddress);
   const [editId, setEditId] = useState<string | null>(null);
@@ -584,30 +587,30 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
             onPress={() => navigate("account")}
             style={{ marginBottom: spacing.md, alignSelf: "flex-start" }}
           >
-            <Text style={styles.linkText}>← Back to Account</Text>
+            <Text style={styles.linkText}>{t("← Back to Account")}</Text>
           </Pressable>
-          <Text style={typography.eyebrow}>ADDRESSES</Text>
+          <Text style={typography.eyebrow}>{t("ADDRESSES")}</Text>
           <Text style={[typography.hero, { marginBottom: spacing.xl }]}>
-            Delivery Details
+            {t("Delivery Details")}
           </Text>
 
           <View style={commonStyles.card}>
             <Text style={[typography.title3, { marginBottom: spacing.md }]}>
-              {editId ? "Edit Address" : "Add New Address"}
+              {editId ? t("Edit Address") : t("Add New Address")}
             </Text>
             <View style={{ gap: spacing.md }}>
               <Field
-                label="Label (e.g. Home, Work)"
+                label={t("Label (e.g. Home, Work)")}
                 onChangeText={(v) => setDraft({ ...draft, label: v || null })}
                 value={draft.label ?? ""}
               />
               <Field
-                label="Recipient Name"
+                label={t("Recipient Name")}
                 onChangeText={(v) => setDraft({ ...draft, recipientName: v })}
                 value={draft.recipientName}
               />
               <PhoneInput
-                label="Phone Number"
+                label={t("Phone Number")}
                 value={draft.phone}
                 onChangeText={(v) => setDraft({ ...draft, phone: v })}
               />
@@ -615,52 +618,52 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 const editing = items.find((item) => item.id === editId);
                 return editing && !editing.houseNumber
                   ? <Text style={[typography.caption, { marginBottom: spacing.xs }]}>
-                    This saved address predates structured fields. Its existing address text is retained in House Number / Flat Number and Locality; no address history has been changed.
+                    {t("This saved address predates structured fields. Its existing address text is retained in House Number / Flat Number and Locality; no address history has been changed.")}
                   </Text>
                   : null;
               })()}
               <Field
-                label="House Number / Flat Number *"
-                placeholder="e.g. Flat 302"
+                label={t("House Number / Flat Number *")}
+                placeholder={t("e.g. Flat 302")}
                 onChangeText={(v) => setDraft({ ...draft, houseNumber: v, line1: v })}
                 value={draft.houseNumber ?? ""}
               />
               <Field
-                label="Building Name / Apartment Name (Optional)"
-                placeholder="e.g. Green Heights Apartments"
+                label={t("Building Name / Apartment Name (Optional)")}
+                placeholder={t("e.g. Green Heights Apartments")}
                 onChangeText={(v) => setDraft({ ...draft, buildingName: v || null })}
                 value={draft.buildingName ?? ""}
               />
               <Field
-                label="Landmark (Optional)"
-                placeholder="e.g. Near ABC School"
+                label={t("Landmark (Optional)")}
+                placeholder={t("e.g. Near ABC School")}
                 onChangeText={(v) => setDraft({ ...draft, landmark: v || null })}
                 value={draft.landmark ?? ""}
               />
               <Field
-                label="Locality"
-                placeholder="e.g. Pragathi Nagar"
+                label={t("Locality")}
+                placeholder={t("e.g. Pragathi Nagar")}
                 onChangeText={(v) => setDraft({ ...draft, locality: v || null, line2: v || null })}
                 value={draft.locality ?? ""}
               />
               <View style={{ gap: spacing.md }}>
                 <View style={{ flex: 1 }}>
                   <Field
-                    label="City"
+                    label={t("City")}
                     onChangeText={(v) => setDraft({ ...draft, city: v })}
                     value={draft.city}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Field
-                    label="State"
+                    label={t("State")}
                     onChangeText={(v) => setDraft({ ...draft, state: v })}
                     value={draft.state}
                   />
                 </View>
               </View>
               <Field
-                label="Pincode"
+                label={t("Pincode")}
                 keyboardType="number-pad"
                 onChangeText={(v) =>
                   setDraft({ ...draft, pincode: v.replace(/\D/g, "") })
@@ -685,7 +688,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   {draft.isDefault && <View style={styles.checkboxInner} />}
                 </View>
                 <Text style={typography.bodySemibold}>
-                  Make this my default address
+                  {t("Make this my default address")}
                 </Text>
               </Pressable>
 
@@ -698,7 +701,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                       : styles.errorText
                   }
                 >
-                  {message}
+                  {localizeCustomerMessage(message, t)}
                 </Text>
               )}
 
@@ -712,7 +715,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                       setMessage("");
                     }}
                   >
-                    <Text style={styles.secondaryBtnText}>Cancel</Text>
+                    <Text style={styles.secondaryBtnText}>{t("Cancel")}</Text>
                   </Pressable>
                 )}
                 <Pressable
@@ -721,7 +724,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   style={[styles.primaryBtn, { flex: 2 }]}
                 >
                   <Text style={styles.primaryBtnText}>
-                    {editId ? "Update address" : "Save address"}
+                    {editId ? t("Update address") : t("Save address")}
                   </Text>
                 </Pressable>
               </View>
@@ -734,12 +737,12 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
               { marginTop: spacing.xl, marginBottom: spacing.md },
             ]}
           >
-            Saved Addresses
+            {t("Saved Addresses")}
           </Text>
           {loading && items.length === 0 ? (
             <ActivityIndicator color={colors.accent} />
           ) : items.length === 0 ? (
-            <Text style={typography.body}>No addresses saved yet.</Text>
+            <Text style={typography.body}>{t("No addresses saved yet.")}</Text>
           ) : (
             <View style={{ gap: spacing.md }}>
               {items.map((item) => (
@@ -756,7 +759,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                       {item.label || item.recipientName}{" "}
                       {item.isDefault ? (
                         <Text style={{ color: colors.accent, fontSize: 13 }}>
-                          • Default
+                          {t("• Default")}
                         </Text>
                       ) : (
                         ""
@@ -785,7 +788,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                       <Text
                         style={[typography.bodySemibold, { color: colors.ink }]}
                       >
-                        Edit
+                        {t("Edit")}
                       </Text>
                     </Pressable>
                     <Pressable onPress={() => setDeleteId(item.id)}>
@@ -795,7 +798,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
                           { color: colors.danger },
                         ]}
                       >
-                        Delete
+                        {t("Delete")}
                       </Text>
                     </Pressable>
                   </View>
@@ -807,9 +810,9 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
       </ScrollView>
       <ConfirmationDialog
         visible={!!deleteId}
-        title="Delete Address?"
-        message="Are you sure you want to remove this address? This won't affect past orders."
-        confirmLabel="Delete"
+        title={t("Delete Address?")}
+        message={t("Are you sure you want to remove this address? This won't affect past orders.")}
+        confirmLabel={t("Delete")}
         isDestructive
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
@@ -819,6 +822,7 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
 }
 
 function CustomerApp() {
+  const { t } = useTranslation();
   const { height: viewportHeight } = useWindowDimensions();
   const [screen, setScreen] = useState<Screen>("home");
   const [activePincode, setActivePincode] = useState("");
@@ -833,6 +837,7 @@ function CustomerApp() {
     "orders",
     "account",
   ];
+  const navLabels = { home: t("Home"), orders: t("Reorder"), account: t("Account") };
   return (
     <View style={[styles.shell, Platform.OS === "web" && customerWebShellBounds(viewportHeight)]}>
       <View style={[styles.content, commonStyles.viewport]}>
@@ -896,11 +901,11 @@ function CustomerApp() {
           <AddressesScreen navigate={setScreen} />
         )}
       </View>
-      <View accessibilityLabel="Primary navigation" style={styles.nav}>
+      <View accessibilityLabel={t("Primary navigation")} style={styles.nav}>
         {navItems.map((item) => (
           <Pressable
             accessibilityRole="tab"
-            accessibilityLabel={`${item === "orders" ? "Reorder" : item} tab`}
+            accessibilityLabel={t("{name} tab", { name: navLabels[item] })}
             accessibilityState={{
               selected:
                 screen === item ||
@@ -935,7 +940,7 @@ function CustomerApp() {
                   styles.navActive,
               ]}
             >
-              {item === "orders" ? "Reorder" : item[0].toUpperCase() + item.slice(1)}
+              {navLabels[item]}
             </Text>
           </Pressable>
         ))}
@@ -945,6 +950,7 @@ function CustomerApp() {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [recoveryMode, setRecoveryMode] = useState(() => Platform.OS === "web" && new URLSearchParams(window.location.search).get("recovery") === "1");
   const [authNotice, setAuthNotice] = useState("");
@@ -988,7 +994,7 @@ export default function App() {
       <CustomerTypographyProvider>
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={typography.body}>Restoring session…</Text>
+          <Text style={typography.body}>{t("Restoring session…")}</Text>
         </View>
       </CustomerTypographyProvider>
     );
@@ -996,11 +1002,11 @@ export default function App() {
     <CustomerTypographyProvider>
       {session && recoveryMode ? <CustomerResetForm onComplete={success => {
         setRecoveryMode(false); setSession(null);
-        setAuthNotice(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
+         setAuthNotice(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
         if (Platform.OS === "web") window.history.replaceState(null, "", window.location.pathname);
         }} /> : session ? customerAccess === "allowed" && verifiedCustomer.current === session.user.id ? <SavedItemsProvider key={session.user.id}><CustomerApp /></SavedItemsProvider> :
-        <View style={styles.center}>{customerAccess !== "denied" ? <><ActivityIndicator color={colors.accent} /><Text style={typography.body}>Checking Customer access…</Text></> :
-          <><Text accessibilityRole="alert" style={typography.body}>{accessError}</Text><Pressable accessibilityRole="button" onPress={() => { void supabase.auth.signOut(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Sign out</Text></Pressable></>}</View>
+        <View style={styles.center}>{customerAccess !== "denied" ? <><ActivityIndicator color={colors.accent} /><Text style={typography.body}>{t("Checking Customer access…")}</Text></> :
+          <><Text accessibilityRole="alert" style={typography.body}>{localizeCustomerMessage(accessError, t)}</Text><Pressable accessibilityRole="button" onPress={() => { void supabase.auth.signOut(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Sign out")}</Text></Pressable></>}</View>
         : <AuthScreen initialMessage={authNotice || (recoveryMode ? "Your reset link is invalid or expired. Request new instructions." : "")} />}
     </CustomerTypographyProvider>
   );

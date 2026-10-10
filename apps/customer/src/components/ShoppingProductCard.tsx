@@ -6,6 +6,7 @@ import { colors, radius, spacing, typography } from "../theme";
 import { PlaceholderImage } from "./PlaceholderImage";
 import { FavoriteControl } from "./FavoriteControl";
 import { customerImageUri } from "../lib/api";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, singleColumn = false, quickAddEnabled = true, storeOperatingStatus, canScheduleWhileClosed = false }: {
   product: CustomerProduct;
@@ -18,16 +19,21 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, sin
   storeOperatingStatus?: "OPEN" | "CLOSED";
   canScheduleWhileClosed?: boolean;
 }) {
+  const { t } = useTranslation();
   const variants = activeVariants(product);
   const single = variants.length === 1 ? variants[0] : undefined;
   const quickAdd = single && canPurchaseVariant(product, single);
   const hasPurchasableVariant = variants.some(variant => canPurchaseVariant(product, variant));
   const storeUnavailable = storeOperatingStatus === "CLOSED" && !canScheduleWhileClosed;
-  const actionLabel = busy ? "Adding…" : storeUnavailable ? "Currently Closed" : quickAdd && quickAddEnabled ? "Add to Cart"
-    : hasPurchasableVariant ? "View details"
-    : "Unavailable";
+  const priceLabel = productPriceLabel(product);
+  const translatedPrice = priceLabel === "No selling options" ? t("No selling options")
+    : priceLabel === "Price unavailable" ? t("Price unavailable")
+    : priceLabel.startsWith("From ") ? t("From {price}", { price: priceLabel.slice(5) }) : priceLabel;
+  const actionLabel = busy ? t("Adding…") : storeUnavailable ? t("Currently Closed") : quickAdd && quickAddEnabled ? t("Add to Cart")
+    : hasPurchasableVariant ? t("View details")
+    : t("Unavailable");
   return <View style={[styles.card, singleColumn && styles.singleColumn]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`View ${product.name}${product.storeName ? ` at ${product.storeName}` : ""}`} onPress={onOpen}>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("View {product}{store}", { product: product.name, store: product.storeName ? ` at ${product.storeName}` : "" })} onPress={onOpen}>
       {customerImageUri(product.imageUrl)
         ? <Image source={{ uri: customerImageUri(product.imageUrl) }} resizeMode="contain" style={styles.image} />
         : <PlaceholderImage name={product.name} style={styles.image} />}
@@ -35,8 +41,8 @@ export function ShoppingProductCard({ product, onOpen, onAdd, busy, pincode, sin
         <Text style={[typography.bodySemibold, styles.productName]} numberOfLines={2}>{product.name}</Text>
         {!!product.brand && <Text style={typography.caption} numberOfLines={1}>{product.brand}</Text>}
         {!!product.storeName && <Text style={typography.caption} numberOfLines={1}>{product.storeName}</Text>}
-        <Text style={[typography.title3, styles.price]} numberOfLines={2}>{productPriceLabel(product)}</Text>
-        <Text style={[typography.caption, !product.purchasable && styles.unavailable]} numberOfLines={1}>{productAvailabilityLabel(product)}</Text>
+        <Text style={[typography.title3, styles.price]} numberOfLines={2}>{translatedPrice}</Text>
+        <Text style={[typography.caption, !product.purchasable && styles.unavailable]} numberOfLines={1}>{localizeCustomerMessage(productAvailabilityLabel(product), t)}</Text>
       </View>
     </Pressable>
     <FavoriteControl product={product} pincode={pincode} compact />

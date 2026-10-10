@@ -46,8 +46,8 @@ test("Cart summary identifies its store and errors do not render a false empty b
   const cart = await read("./CartScreen.tsx");
   assert.match(marketplace, /setCartStoreName\(result\.cart\?\.storeName/);
   assert.match(marketplace, /cartSummaryError &&/);
-  assert.match(marketplace, /cartStoreName \|\| "Your supermarket basket"/);
-  assert.match(cart, /loadFailed \? "Basket unavailable" : "Your basket is empty"/);
+  assert.match(marketplace, /cartStoreName \|\| t\("Your supermarket basket"\)/);
+  assert.match(cart, /loadFailed \? t\("Basket unavailable"\) : t\("Your basket is empty"\)/);
 });
 
 test("Product card price and action occupy independent, shrink-safe layout regions", async () => {

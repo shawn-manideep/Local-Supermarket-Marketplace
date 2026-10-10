@@ -27,3 +27,16 @@ without changes to session handling, backend contracts or business rules.
 labels around entered/catalog data, never automatically translate product/store
 names, customer addresses or other user content. Retain enum identifiers,
 request values and historical snapshots exactly.
+
+Known interface/service feedback may be translated only through an explicit
+allowlist or fixed template that preserves inserted customer/catalog content.
+Keep active feedback canonical and translate at display time. Locale-specific
+display dates must never become scheduling keys or alter accepted windows.
+
+**Why:** The Customer translation requirements forbid automatic translation of
+entered/catalog data and require live switching without resetting active
+forms, checkout state or delivery rules.
+
+**How to apply:** Review error/notice translations and date presentation
+separately from business values. Preserve opaque messages outside the known
+catalog rather than attempting general text replacement.

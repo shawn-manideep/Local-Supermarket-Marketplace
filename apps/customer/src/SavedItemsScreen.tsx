@@ -7,12 +7,14 @@ import { colors, commonStyles, radius, spacing, typography } from "./theme";
 import { PlaceholderImage } from "./components/PlaceholderImage";
 import { productPriceLabel } from "./lib/shopping";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 export function SavedItemsScreen({ pincode, onBack, onOpenItem }: {
   pincode?: string;
   onBack: () => void;
   onOpenItem: (productId: string, storeId: string) => void;
 }) {
+  const { t } = useTranslation();
   const { items, loading, error, load, remove } = useSavedItems();
   const [actionError, setActionError] = useState("");
   useEffect(() => { void load(pincode); }, [load, pincode]);
@@ -25,20 +27,20 @@ export function SavedItemsScreen({ pincode, onBack, onOpenItem }: {
 
   return <ScrollView style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>
     <View style={commonStyles.container}>
-      <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ My Account</Text></Pressable>
-      <Text style={typography.eyebrow}>YOUR LIST</Text>
-      <Text style={typography.hero}>Saved Items</Text>
-      <Text style={[typography.body, styles.intro]}>Keep the groceries you’re considering close. Nothing here is reserved or added to your basket.</Text>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.backText}>{t("‹ My Account")}</Text></Pressable>
+      <Text style={typography.eyebrow}>{t("YOUR LIST")}</Text>
+      <Text style={typography.hero}>{t("Saved Items")}</Text>
+      <Text style={[typography.body, styles.intro]}>{t("Keep the groceries you’re considering close. Nothing here is reserved or added to your basket.")}</Text>
       {(error || actionError) ? <View style={styles.errorBox}>
-        <Text accessibilityRole="alert" style={styles.errorText}>{actionError || error}</Text>
-        <Pressable accessibilityRole="button" onPress={() => void load(pincode)}><Text style={styles.backText}>Try again</Text></Pressable>
+        <Text accessibilityRole="alert" style={styles.errorText}>{localizeCustomerMessage(actionError || error, t)}</Text>
+        <Pressable accessibilityRole="button" onPress={() => void load(pincode)}><Text style={styles.backText}>{t("Try again")}</Text></Pressable>
       </View> : null}
-      {loading && items.length === 0 ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>Loading your list…</Text></View> :
+      {loading && items.length === 0 ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>{t("Loading your list…")}</Text></View> :
         items.length === 0 ? <View style={styles.empty}>
           <Text style={styles.emptyMark}>♡</Text>
-          <Text style={typography.title2}>Your list starts here</Text>
-          <Text style={[typography.body, styles.center]}>Save a product while browsing and it’ll be waiting here next time.</Text>
-          <Pressable accessibilityRole="button" onPress={onBack} style={styles.primary}><Text style={styles.primaryText}>Back to shopping</Text></Pressable>
+          <Text style={typography.title2}>{t("Your list starts here")}</Text>
+          <Text style={[typography.body, styles.center]}>{t("Save a product while browsing and it’ll be waiting here next time.")}</Text>
+          <Pressable accessibilityRole="button" onPress={onBack} style={styles.primary}><Text style={styles.primaryText}>{t("Back to shopping")}</Text></Pressable>
         </View> :
         <View style={styles.list}>
           {items.map(item => {
@@ -52,15 +54,15 @@ export function SavedItemsScreen({ pincode, onBack, onOpenItem }: {
                 {!!item.product.brand && <Text style={typography.caption}>{item.product.brand}</Text>}
                 <Text style={typography.caption}>{item.storeName}</Text>
                 <Text style={styles.price}>{productPriceLabel(item.product)}</Text>
-                {!!sellingOptions.length && <Text style={typography.caption}>Options: {sellingOptions.join(" · ")}</Text>}
-                <Text style={[typography.caption, !available && styles.unavailable]}>{available ? "Available to shop" : item.unavailableReason || "Currently unavailable"}</Text>
+                {!!sellingOptions.length && <Text style={typography.caption}>{t("Options: {options}", { options: sellingOptions.join(" · ") })}</Text>}
+                <Text style={[typography.caption, !available && styles.unavailable]}>{available ? t("Available to shop") : item.unavailableReason ? localizeCustomerMessage(item.unavailableReason, t) : t("Currently unavailable")}</Text>
               </View>
               <View style={styles.actions}>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.product.name}`} onPress={() => void removeItem(item)} style={styles.remove}>
-                  <Text style={styles.removeText}>Remove</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("Remove {name}", { name: item.product.name })} onPress={() => void removeItem(item)} style={styles.remove}>
+                  <Text style={styles.removeText}>{t("Remove")}</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button" disabled={!available || loading || Boolean(error)} onPress={() => onOpenItem(item.productId, item.storeId)} style={[styles.shop, (!available || loading || Boolean(error)) && styles.disabled]}>
-                  <Text style={styles.shopText}>{available ? "View item" : "Unavailable"}</Text>
+                  <Text style={styles.shopText}>{available ? t("View item") : t("Unavailable")}</Text>
                 </Pressable>
               </View>
             </View>;

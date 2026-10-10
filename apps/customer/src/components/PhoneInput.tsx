@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./CustomerTypography";
 import { colors, radius, typography, spacing } from "../theme";
+import { useTranslation } from "@workspace/localization";
 
 interface PhoneInputProps {
   value: string;
@@ -11,6 +12,7 @@ interface PhoneInputProps {
 }
 
 export function PhoneInput({ value, onChangeText, label, error: externalError }: PhoneInputProps) {
+  const { t } = useTranslation();
   const [touched, setTouched] = useState(false);
 
   const handleTextChange = (text: string) => {
@@ -21,8 +23,8 @@ export function PhoneInput({ value, onChangeText, label, error: externalError }:
   const getError = () => {
     if (externalError) return externalError;
     if (!touched || !value) return undefined;
-    if (value.length < 10) return "Phone number must be exactly 10 digits";
-    if (!/^[6-9]/.test(value)) return "Mobile number must start with 6, 7, 8, or 9";
+    if (value.length < 10) return t("Phone number must be exactly 10 digits");
+    if (!/^[6-9]/.test(value)) return t("Mobile number must start with 6, 7, 8, or 9");
     return undefined;
   };
 
@@ -30,7 +32,7 @@ export function PhoneInput({ value, onChangeText, label, error: externalError }:
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{label === "Phone Number" || label === "Mobile Number" || label === "Mobile number" ? t(label) : label}</Text>
       <View style={[styles.inputWrapper, error ? styles.inputError : null]}>
         <Text style={styles.prefix}>+91</Text>
         <View style={styles.divider} />
@@ -41,6 +43,7 @@ export function PhoneInput({ value, onChangeText, label, error: externalError }:
           keyboardType="phone-pad"
           maxLength={10}
           onBlur={() => setTouched(true)}
+          accessibilityLabel={label === "Phone Number" || label === "Mobile Number" || label === "Mobile number" ? t(label) : label}
           placeholder="9999999999"
           placeholderTextColor={colors.muted}
         />

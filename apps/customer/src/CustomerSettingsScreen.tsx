@@ -8,8 +8,10 @@ import { PasswordField } from "./components/AuthControls";
 import { PhoneInput } from "./components/PhoneInput";
 import { colors, commonStyles, radius, spacing, typography } from "./theme";
 import { CustomerLanguageSelector } from "./components/LanguageSelector";
+import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 
 export function CustomerSettingsScreen({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const [account, setAccount] = useState<GetCustomerAccountSettings200Account | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,46 +80,46 @@ export function CustomerSettingsScreen({ onBack }: { onBack: () => void }) {
 
   return <ScrollView style={commonStyles.viewport} contentContainerStyle={commonStyles.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
     <View style={commonStyles.container}>
-      <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ My Account</Text></Pressable>
-      <Text style={typography.eyebrow}>PREFERENCES & SECURITY</Text>
-      <Text style={typography.hero}>Settings</Text>
-      <Text style={[typography.body, styles.intro]}>Your account details and sign-in security.</Text>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.back}><Text style={styles.backText}>{t("‹ My Account")}</Text></Pressable>
+      <Text style={typography.eyebrow}>{t("PREFERENCES & SECURITY")}</Text>
+      <Text style={typography.hero}>{t("Settings")}</Text>
+      <Text style={[typography.body, styles.intro]}>{t("Your account details and sign-in security.")}</Text>
       <View style={styles.languageCard}>
         <CustomerLanguageSelector labelKey="customer.language" />
       </View>
       {!!profileError && !loading && <View style={styles.errorBox}>
-        <Text accessibilityRole="alert" style={styles.error}>{profileError}</Text>
-        <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={styles.backText}>Retry loading account details</Text></Pressable>
+        <Text accessibilityRole="alert" style={styles.error}>{localizeCustomerMessage(profileError, t)}</Text>
+        <Pressable accessibilityRole="button" onPress={() => void load()}><Text style={styles.backText}>{t("Retry loading account details")}</Text></Pressable>
       </View>}
-      {loading ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>Loading account settings…</Text></View> :
+      {loading ? <View style={styles.loading}><ActivityIndicator color={colors.accent} /><Text style={typography.caption}>{t("Loading account settings…")}</Text></View> :
         <>
           <View style={styles.card}>
-            <Text style={typography.title2}>Account</Text>
-            <Text style={styles.help}>Your username and registered recovery contact are shown for reference.</Text>
-            <View style={styles.staticField}><Text style={styles.label}>Username</Text><Text style={styles.value}>{account?.username || "Not set"}</Text></View>
-            <View style={styles.staticField}><Text style={styles.label}>Registered email</Text><Text style={styles.value}>{account?.registeredEmail || "Not available"}</Text></View>
+            <Text style={typography.title2}>{t("Account")}</Text>
+            <Text style={styles.help}>{t("Your username and registered recovery contact are shown for reference.")}</Text>
+            <View style={styles.staticField}><Text style={styles.label}>{t("Username")}</Text><Text style={styles.value}>{account?.username || t("Not set")}</Text></View>
+            <View style={styles.staticField}><Text style={styles.label}>{t("Registered email")}</Text><Text style={styles.value}>{account?.registeredEmail || t("Not available")}</Text></View>
           </View>
           <View style={styles.card}>
-            <Text style={typography.title2}>Profile</Text>
-            <Text style={styles.help}>These details are also used on your customer profile.</Text>
-            <View style={styles.field}><Text style={styles.label}>Full name</Text><TextInput accessibilityLabel="Full name" value={name} onChangeText={setName} placeholder="Your name" style={styles.input} /></View>
-            <PhoneInput label="Mobile number" value={phone} onChangeText={setPhone} />
-            {!!profileError && <Text accessibilityRole="alert" style={styles.error}>{profileError}</Text>}
-            {!!profileMessage && <Text accessibilityRole="alert" style={styles.success}>{profileMessage}</Text>}
+            <Text style={typography.title2}>{t("Profile")}</Text>
+            <Text style={styles.help}>{t("These details are also used on your customer profile.")}</Text>
+            <View style={styles.field}><Text style={styles.label}>{t("Full name")}</Text><TextInput accessibilityLabel={t("Full name")} value={name} onChangeText={setName} placeholder={t("Your name")} style={styles.input} /></View>
+            <PhoneInput label={t("Mobile number")} value={phone} onChangeText={setPhone} />
+            {!!profileError && <Text accessibilityRole="alert" style={styles.error}>{localizeCustomerMessage(profileError, t)}</Text>}
+            {!!profileMessage && <Text accessibilityLiveRegion="polite" style={styles.success}>{localizeCustomerMessage(profileMessage, t)}</Text>}
             <Pressable accessibilityRole="button" disabled={profileBusy} onPress={() => void saveProfile()} style={[styles.primary, profileBusy && styles.disabled]}>
-              <Text style={styles.primaryText}>{profileBusy ? "Saving…" : "Save profile"}</Text>
+              <Text style={styles.primaryText}>{profileBusy ? t("Saving…") : t("Save profile")}</Text>
             </Pressable>
           </View>
           <View style={styles.card}>
-            <Text style={typography.title2}>Change password</Text>
-            <Text style={styles.help}>Use at least 8 characters. Your current password is verified securely before the update.</Text>
-            <PasswordField label="Current password" autoComplete="current-password" value={currentPassword} onChangeText={setCurrentPassword} />
-            <PasswordField label="New password" autoComplete="new-password" value={newPassword} onChangeText={setNewPassword} />
-            <PasswordField label="Confirm new password" autoComplete="new-password" value={confirmPassword} onChangeText={setConfirmPassword} />
-            {!!passwordError && <Text accessibilityRole="alert" style={styles.error}>{passwordError}</Text>}
-            {!!passwordMessage && <Text accessibilityRole="alert" style={styles.success}>{passwordMessage}</Text>}
+            <Text style={typography.title2}>{t("Change password")}</Text>
+            <Text style={styles.help}>{t("Use at least 8 characters. Your current password is verified securely before the update.")}</Text>
+            <PasswordField label={t("Current password")} autoComplete="current-password" value={currentPassword} onChangeText={setCurrentPassword} />
+            <PasswordField label={t("New password")} autoComplete="new-password" value={newPassword} onChangeText={setNewPassword} />
+            <PasswordField label={t("Confirm new password")} autoComplete="new-password" value={confirmPassword} onChangeText={setConfirmPassword} />
+            {!!passwordError && <Text accessibilityRole="alert" style={styles.error}>{localizeCustomerMessage(passwordError, t)}</Text>}
+            {!!passwordMessage && <Text accessibilityLiveRegion="polite" style={styles.success}>{localizeCustomerMessage(passwordMessage, t)}</Text>}
             <Pressable accessibilityRole="button" disabled={passwordBusy} onPress={() => void changePassword()} style={[styles.primary, passwordBusy && styles.disabled]}>
-              <Text style={styles.primaryText}>{passwordBusy ? "Updating…" : "Change password"}</Text>
+              <Text style={styles.primaryText}>{passwordBusy ? t("Updating…") : t("Change password")}</Text>
             </Pressable>
           </View>
         </>}

@@ -1,0 +1,78 @@
+# Phase 2 — Complete Telugu and English Translation of the Customer Portal
+
+The Customer-only localization foundation is complete. Extend it to translate the entire Customer Portal using the existing dictionaries, provider, typed translation keys, language selector, AsyncStorage preference mechanism, and bundled Telugu fonts.
+
+## 1. Strict Scope
+
+Modify the Customer Portal only.
+
+Do not modify or localize the Vendor, Delivery Partner, or Admin portals. Do not modify shared dashboard files, dashboard CSS, or dashboard dependencies.
+
+Do not rebuild the localization foundation or introduce a second translation mechanism.
+
+## 2. Translate All Customer Screens
+
+Inspect the Customer Portal and replace hardcoded user-facing English interface strings with existing or newly added translation keys.
+
+Include:
+
+- Authentication: login, registration, forgot password, password recovery, reset password and validation messages.
+- Home: greeting, delivery location, search, store availability, closed-store notices and product-section headings.
+- Store selection, product browsing, categories, product details, favorites and saved items.
+- Cart: quantity controls, remove actions, subtotal, totals, empty-cart messages and validation.
+- Checkout: address selection, address forms, delivery modes, scheduled dates and slots, order confirmation and relevant errors.
+- Orders and Reorder: history, statuses, delivery information and reorder feedback.
+- Customer Settings, saved addresses and account-related screens.
+- Shared components: buttons, dialogs, confirmations, loading states, empty states, error messages and accessibility labels.
+
+Inspect frontend-generated messages and any server messages displayed directly. Translate known interface messages through stable mappings where safe. Do not modify API contracts or translate arbitrary text containing customer-entered data.
+
+## 3. Translation Requirements
+
+- Use English (`en`) and Telugu (`te`) dictionaries with typed translation keys.
+- Provide accurate, natural Telugu translations rather than literal or awkward machine-like phrasing.
+- Keep English as the default for users who have not selected a language.
+- Use the existing English fallback for missing translations.
+- Support dynamic values, including quantities, prices, delivery dates and order statuses.
+- Changing language must update visible interface text immediately without resetting forms, carts, navigation, selected addresses or current orders.
+- Preserve the existing account-isolated language preference behavior.
+- Ensure Telugu strings render correctly using the existing bundled font configuration.
+
+Do not translate vendor-entered product names, store names, customer names, saved addresses, or other user-generated content automatically.
+
+Keep ₹ amounts, PIN codes, IDs, API enum values, stored database values and existing business identifiers intact. Localize only their user-facing presentation when appropriate.
+
+## 4. Preserve Existing Functionality and UI
+
+Keep the current colors, branding, navigation, responsive layouts and existing Customer Portal functionality.
+
+Do not change authentication, authorization, cart arithmetic, stock handling, pricing, order placement, delivery scheduling, store-closure rules, or database schemas.
+
+Only make small layout adjustments where Telugu text requires additional height or wrapping. Do not redesign screens.
+
+## 5. Quality and Completeness Checks
+
+- Search the Customer source code for remaining hardcoded user-facing English strings.
+- Document intentional exceptions, such as product data, user-entered text, technical identifiers and non-user-facing logs.
+- Ensure no translation keys are displayed literally when a translation is missing.
+- Check long Telugu strings for clipping, overlapping buttons, broken product cards and bottom-navigation issues.
+- Add focused tests for representative translations across every major screen and for language switching while a screen contains unsaved or active state.
+- Retain all existing Customer regression tests.
+
+Run the existing Customer tests, Customer typecheck and Customer web export. Run other relevant checks only when needed.
+
+Do not run automated browser tests. I will perform manual preview testing.
+
+Do not deploy or publish the application.
+
+## 6. Final Report
+
+Report:
+1. All Customer files changed.
+2. Screen-by-screen translation coverage.
+3. Any remaining untranslated interface strings and why they remain.
+4. Test, typecheck and build results.
+5. Any Telugu font or mobile-layout limitations.
+6. A concise manual acceptance checklist.
+
+Stop after Phase 2. Do not modify any other portal or proceed to deployment.
