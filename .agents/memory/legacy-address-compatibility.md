@@ -19,3 +19,18 @@ boundaries, so guessing risks silent information loss.
 support legacy API input, and apply structured formatting only where structured
 data exists. Snapshot new structured details when creating an order; never
 rebuild historical addresses from the latest saved address.
+
+## Customer delivery header labels
+
+Keep unlabeled values in the shared House Number / Flat Number input unlabeled.
+Preserve explicit saved `Flat` or `House` text; do not guess the type from a
+numeric value, punctuation or the presence of a building name.
+
+**Why:** The user explicitly chose “Keep unlabeled numbers unchanged” and
+confirmed “keep as unlabeled” after learning that the existing data does not
+distinguish flats from houses.
+
+**How to apply:** For the Customer Home delivery header, prefer the existing
+number text, then building name, then PIN. Do not introduce a flat value derived
+from house data or change saving, checkout formatting or historical addresses
+to manufacture a distinction.

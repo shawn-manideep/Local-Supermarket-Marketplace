@@ -15,6 +15,17 @@ test("delivery header prefers house/flat, then building, then PIN without guessi
   assert.equal(deliveryLocationLabel({ ...address, label: null, buildingName: "Green Heights" }), "Hyderabad • Green Heights");
 });
 
+test("shared House/Flat field preserves explicit labels and never guesses a label for bare numbers", () => {
+  const address = { label: "Home", city: "Hyderabad", pincode: "505327", buildingName: "Green Heights" };
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "501" }), "Home • 501");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "  501  " }), "Home • 501");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "12-4" }), "Home • 12-4");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "Flat 501" }), "Home • Flat 501");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "House 12-4" }), "Home • House 12-4");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: "" }), "Home • Green Heights");
+  assert.equal(deliveryLocationLabel({ ...address, houseNumber: null, buildingName: null }), "Home • 505327");
+});
+
 test("Home delivery header keeps selection and arrow while bounding long location text", async () => {
   const screen = await readFile(new URL("../MarketplaceScreen.tsx", import.meta.url), "utf8");
   assert.match(screen, /onPress=\{openAddresses\} style=\{styles\.locationRow\}/);
