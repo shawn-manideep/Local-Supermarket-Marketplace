@@ -1,0 +1,130 @@
+# Customer Portal — Privacy Policy, Account Privacy and Terms & Conditions
+
+Implement three new sections exclusively in the existing Local Supermarket Marketplace Customer Portal:
+
+1. Privacy Policy
+2. Account Privacy
+3. Terms & Conditions
+
+Use the attached `TERMS.docx` as the source document for the Customer Terms & Conditions. Inspect the existing Account & Settings screen, Customer navigation, localization dictionaries, authentication and account capabilities before making changes.
+
+## 1. Account & Settings Integration
+
+Add three clearly labeled, accessible entries under the existing Customer Account & Settings section:
+- Privacy Policy
+- Account Privacy
+- Terms & Conditions
+
+Use suitable icons and follow the existing Customer Portal theme, typography, spacing, colors and mobile-responsive design.
+
+Each entry must open its own dedicated screen with a clear title and back navigation. Do not modify unrelated screens or create duplicate navigation destinations.
+
+## 2. Terms & Conditions
+
+Use the attached `TERMS.docx` as the primary source for the Terms & Conditions content.
+
+Preserve its substantive topics and intended meaning, including:
+- Platform role and acceptance of terms.
+- Customer accounts and login responsibilities.
+- Product listings, pack sizes, prices and availability.
+- Order placement and vendor acceptance.
+- Delivery, addresses and verification.
+- Payments, charges, invoices and refunds.
+- Cancellations, returns and perishable goods.
+- Customer conduct, platform availability and intellectual property.
+- Complaints, suspension, liability, force majeure, changes to terms and governing law.
+
+Adapt the document carefully to the actual Local Supermarket Marketplace application.
+
+Required corrections and safeguards:
+- Replace incorrect references to Blinkit with the correct platform name.
+- Use the actual registered business name and platform role only after they are confirmed.
+- Do not invent a registered address, grievance officer, email, refund timeline, cancellation deadline, dispute location or other missing business details.
+- Identify unfinished placeholders and missing policy decisions.
+- Preserve the supplied support contact only if it is confirmed as the current official customer-support contact.
+- Confirm that all descriptions of payments, delivery, OTPs, pickup, cancellation and refunds match the features actually implemented.
+- Do not promise features or customer rights processes that are not configured.
+- Do not remove mandatory consumer protections or make unsupported liability exclusions.
+- Do not silently rewrite uncertain legal terms as though they have been approved.
+
+Display a clearly readable Terms & Conditions page with appropriate section headings, spacing and scrolling. Include a last-updated/effective date only when a real date has been approved.
+
+## 3. Privacy Policy
+
+Create a separate Privacy Policy screen.
+
+First inspect the existing application and identify actual customer-data practices, including:
+- Account and profile information.
+- Contact details and saved delivery addresses.
+- Orders, cart and transaction-related records.
+- Delivery information shared with the relevant vendor and assigned delivery partner.
+- Device location, only where the app requests or uses it.
+- Authentication, security and operational logs.
+- Third-party services actually used by the application.
+- Data retention, deletion, support requests and any applicable legal obligations.
+
+Draft the policy based on verified implementation details and confirmed business practices. Clearly identify any information that the project does not establish and requires the business owner to confirm.
+
+Do not invent third-party processors, advertising practices, retention periods, data-sale practices, encryption claims or guarantees of complete deletion.
+
+Explain, where applicable, why information is used, who receives it, how it is protected, how long it is retained, and how customers can exercise applicable privacy rights or contact the appropriate privacy representative.
+
+Do not represent the policy as legally approved. Flag unresolved business and legal details for review before publication.
+
+## 4. Account Privacy
+
+Create a distinct Account Privacy screen focused on available customer actions.
+
+Inspect the current Customer Portal capabilities before deciding which actions to expose.
+
+Where supported, provide:
+- A clear summary of account information and its use.
+- Information about saved addresses and order-history data.
+- Guidance on device-location permissions and how to change them.
+- A privacy or data-request contact route.
+- An account deletion or deactivation request option only if a safe, supported workflow exists.
+
+Important:
+- Do not claim that customers can delete their data if no functional deletion/request workflow exists.
+- Do not introduce destructive account deletion without a defined process for authentication, confirmation, order-history retention, legal obligations and related records.
+- Do not delete or modify customer accounts, addresses, orders or other records simply by opening this screen.
+- If a requested privacy action is not supported, explain the limitation honestly and provide the configured support route if available.
+
+Keep Account Privacy separate from the full Privacy Policy. Do not duplicate the Terms & Conditions as its content.
+
+## 5. English and Telugu
+
+The Customer Portal already has English and Telugu localization.
+
+- Add translation entries for all three screens, including titles, section headings, action labels, validation messages and supported privacy actions.
+- Provide natural Telugu translations.
+- Respect the saved language preference and update text immediately when the language changes.
+- Preserve the existing localization provider, dictionaries, fonts and preference mechanism.
+- Do not modify the Vendor, Delivery Partner or Admin portals.
+
+## 6. UI and Data Safety
+
+- Reuse existing Customer Portal components and navigation patterns.
+- Ensure long policy content is readable on mobile and desktop.
+- Keep the existing color palette and branding.
+- Do not change authentication, authorization, cart, stock, pricing, order processing or delivery behavior.
+- Avoid database migrations unless a genuinely necessary, explicitly justified capability requires one.
+- Do not add fabricated contact information or unsupported privacy controls.
+- Do not deploy or publish.
+
+## 7. Verification and Final Report
+
+Run relevant Customer regression tests, localization tests, typecheck and Customer web export.
+
+Report:
+1. Files and components changed.
+2. How the three screens are accessed.
+3. Which sections of the attached Terms & Conditions were incorporated.
+4. Unresolved placeholders or legal/business decisions.
+5. How the Privacy Policy was grounded in actual data practices.
+6. Which Account Privacy actions are genuinely functional.
+7. English and Telugu coverage.
+8. Test and build results.
+9. Manual acceptance checks.
+
+Stop after implementation. Do not claim the legal documents are publication-ready until unresolved details have been confirmed and reviewed.
