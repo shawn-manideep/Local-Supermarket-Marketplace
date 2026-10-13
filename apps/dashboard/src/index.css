@@ -1594,6 +1594,9 @@ a:focus-visible {
 .vendor-sidebar { width: 260px; background: var(--bg-sidebar); color: var(--text-sidebar); display: flex; flex-direction: column; flex-shrink: 0; }
 .vendor-brand { padding: 32px 24px; display: flex; align-items: center; gap: 16px; }
 .vendor-brand-logo { width: 40px; height: 40px; background: var(--accent); color: var(--accent-text); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
+.vendor-application-brand { display: flex; align-items: center; gap: 10px; padding: 20px 24px 0; color: var(--text-sidebar); font-size: 12px; font-weight: 750; letter-spacing: .02em; }
+.vendor-application-mark { width: 30px; height: 30px; border-radius: 9px 9px 9px 3px; font-size: 11px; }
+.vendor-application-mark img { max-width: 78%; max-height: 78%; }
 .vendor-brand strong { color: #fff; display: block; font-size: 16px; }
 .vendor-brand span { font-size: 12px; color: var(--text-sidebar); text-transform: uppercase; letter-spacing: 0.04em; }
 
@@ -2377,6 +2380,17 @@ a:focus-visible {
   .vendor-selling-variant-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.lb-branding-logo { align-items: center; background: #e5f0e5; border-radius: 10px; color: #25523a; display: inline-flex; flex: 0 0 auto; font-size: 13px; font-weight: 850; justify-content: center; letter-spacing: -.07em; overflow: hidden; }
+.lb-branding-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.lb-branding-logo-large { width: 48px; height: 48px; }
+.auth-mark.lb-branding-logo { width: 42px; height: 42px; margin-bottom: 30px; border-radius: 12px; background: #e3efe3; color: #25523a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.auth-mark.lb-branding-logo img { max-width: 88%; max-height: 88%; }
+.vendor-application-brand .lb-branding-logo { background: color-mix(in srgb, var(--accent) 30%, #fff); color: var(--text-sidebar-active); }
+.vendor-application-brand .lb-branding-logo img { max-width: 82%; max-height: 82%; }
+@media (max-width: 800px) {
+  .vendor-application-brand { padding: 18px 20px 0; }
 }
 
 @media (max-width: 600px) {

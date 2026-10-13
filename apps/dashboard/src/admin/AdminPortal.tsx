@@ -3,6 +3,8 @@ import type { Session } from "@supabase/supabase-js";
 import { ApiRequestError } from "../api";
 import { AdminMasterCatalogPanel } from "../AdminMasterCatalogPanel";
 import { AdminVendorDocuments } from "./AdminVendorDocuments";
+import { AdminBranding } from "./AdminBranding";
+import { BrandingLogo } from "../BrandingLogo";
 import {
   changeAdminStatus,
   createAdminVendor,
@@ -23,7 +25,7 @@ import { StoreProfileFields } from "../StoreProfileFields";
 import { readWeeklyHours, WeeklyHoursFields } from "../WeeklyHoursFields";
 import "./admin.css";
 
-type Section = "dashboard" | AdminKind | "profile" | "master-catalog";
+type Section = "dashboard" | AdminKind | "profile" | "master-catalog" | "branding";
 type Props = { token: string; session: Session; userId: string; onLogout: () => void };
 type Message = { text: string; kind: "error" | "success" | "notice" };
 
@@ -34,6 +36,7 @@ const nav: Array<{ key: Section; label: string; number: string }> = [
   { key: "delivery-partners", label: "Delivery Partners", number: "04" },
   { key: "profile", label: "Profile", number: "05" },
   { key: "master-catalog", label: "Master Catalog", number: "06" },
+  { key: "branding", label: "Application Branding", number: "07" },
 ];
 const kindLabel: Record<AdminKind, string> = {
   vendors: "Vendors",
@@ -88,7 +91,7 @@ const statusOptions: Record<AdminKind, Array<{ value: string; label: string }>> 
 function sectionFromPath(): Section {
   const path = window.location.pathname.replace(/\/+$/, "");
   const last = path.split("/").pop() || "";
-  if (last === "vendors" || last === "customers" || last === "delivery-partners" || last === "profile" || last === "master-catalog") return last;
+  if (last === "vendors" || last === "customers" || last === "delivery-partners" || last === "profile" || last === "master-catalog" || last === "branding") return last;
   return "dashboard";
 }
 function sectionPath(section: Section) {
@@ -99,6 +102,7 @@ function headingFor(section: Section) {
   if (section === "dashboard") return ["Platform overview", "A clear view of the neighborhood marketplace."];
   if (section === "profile") return ["Admin profile", "Your verified platform identity. Profile details are read-only here."];
   if (section === "master-catalog") return ["Master Catalog", "Manage canonical grocery identities without changing store-owned prices or inventory."];
+  if (section === "branding") return ["Application Branding", "Set the shared Local Basket identity across customer and operations portals."];
   return [kindLabel[section], section === "vendors" ? "Review neighborhood shops and manage their storefront access." : section === "customers" ? "Look up customer accounts and safely manage access." : "Provision and maintain delivery partner portal access."];
 }
 
@@ -303,7 +307,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
       <div className="lb-admin-layout">
         {mobileMenuOpen && <button className="lb-admin-backdrop" type="button" aria-label="Close admin navigation" onClick={() => { setMobileMenuOpen(false); window.requestAnimationFrame(() => mobileMenuButton.current?.focus()); }} />}
         <aside className={`lb-admin-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`} ref={mobileSidebar} id="admin-primary-navigation" aria-label="Admin navigation">
-          <div className="lb-admin-brand"><div className="lb-admin-mark">LB</div><div><strong>Local Basket</strong><span>Platform office</span></div></div>
+          <div className="lb-admin-brand"><BrandingLogo className="lb-admin-mark" /><div><strong>Local Basket</strong><span>Platform office</span></div></div>
           <div className="lb-admin-nav-label">OPERATIONS</div>
           <nav className="lb-admin-nav" aria-label="Admin navigation">
             {nav.map((item) => <button key={item.key} type="button" aria-current={section === item.key ? "page" : undefined} onClick={() => navigate(item.key)}><span className="nav-index">{item.number}</span>{item.label}</button>)}
@@ -314,16 +318,17 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           </div>
         </aside>
         <main className="lb-admin-main">
-          <div className="lb-admin-mobile-head"><button ref={mobileMenuButton} className="lb-admin-menu-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="admin-primary-navigation" onClick={() => setMobileMenuOpen(true)}>Admin menu</button><strong>Local Basket · Admin</strong><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
+          <div className="lb-admin-mobile-head"><button ref={mobileMenuButton} className="lb-admin-menu-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="admin-primary-navigation" onClick={() => setMobileMenuOpen(true)}>Admin menu</button><span className="lb-admin-mobile-brand"><BrandingLogo /> <strong>Local Basket · Admin</strong></span><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
           <div className="lb-admin-top"><div className="lb-admin-breadcrumb">LOCAL BASKET <span aria-hidden="true">/</span> ADMIN / {heading[0].toUpperCase()}</div><div className="lb-admin-top-status"><i className="lb-admin-live-dot" /> Admin access verified</div></div>
           {message && <div className={`lb-admin-message ${message.kind}`} role={message.kind === "error" ? "alert" : "status"}>{message.text}</div>}
           <section className="lb-admin-content" key={section}>
             <header className="lb-admin-heading"><div><p className="lb-admin-eyebrow">Platform administration</p><h1>{heading[0]}</h1><p className="lb-admin-subtitle">{heading[1]}</p></div>
-              {section !== "profile" && <button className="lb-admin-button" type="button" onClick={reload} disabled={section === "dashboard" && dashboardLoading}>{section === "dashboard" && dashboardLoading ? "Refreshing…" : "Refresh data"}</button>}
+              {section !== "profile" && section !== "branding" && <button className="lb-admin-button" type="button" onClick={reload} disabled={section === "dashboard" && dashboardLoading}>{section === "dashboard" && dashboardLoading ? "Refreshing…" : "Refresh data"}</button>}
             </header>
             {section === "dashboard" && <Dashboard data={dashboard} loading={dashboardLoading} error={dashboardError} retry={reload} go={navigate} />}
             {section === "master-catalog" && <AdminMasterCatalogPanel token={token} onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
-            {section !== "dashboard" && section !== "profile" && section !== "master-catalog" && <AccountDirectory key={section} kind={section} token={token} revision={revision} onOpen={openDetail} onProvisioned={(text) => { setMessage({ text, kind: "success" }); reload(); }} />}
+            {section === "branding" && <AdminBranding token={token} />}
+            {(section === "vendors" || section === "customers" || section === "delivery-partners") && <AccountDirectory key={section} kind={section} token={token} revision={revision} onOpen={openDetail} onProvisioned={(text) => { setMessage({ text, kind: "success" }); reload(); }} />}
             {section === "profile" && <ProfileCard email={email} userId={userId} />}
           </section>
         </main>
@@ -333,7 +338,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           <div className="lb-admin-detail-head"><div><p className="lb-admin-eyebrow">Account record</p><h2>{detail?.displayName || "Account details"}</h2></div><button className="lb-admin-close" type="button" onClick={closeDetail} aria-label="Close details">×</button></div>
           {detailLoading && <div className="lb-admin-loading" aria-label="Loading account details"><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div>}
           {detailError && <div className="lb-admin-message error" role="alert">{detailError}{detailTarget && <button className="lb-admin-row-action" type="button" onClick={() => openDetail(detailTarget.kind, detailTarget.id)}>Try again</button>}</div>}
-          {detail && section !== "dashboard" && section !== "profile" && section !== "master-catalog" && <AccountDetail kind={section} account={detail} token={token} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} onSaved={async () => { await refreshDetail(section, detail.id); reload(); setMessage({ text: "Vendor store profile saved.", kind: "success" }); }} />}
+          {detail && (section === "vendors" || section === "customers" || section === "delivery-partners") && <AccountDetail kind={section} account={detail} token={token} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} onSaved={async () => { await refreshDetail(section, detail.id); reload(); setMessage({ text: "Vendor store profile saved.", kind: "success" }); }} />}
         </aside>
       </div>}
     </div>

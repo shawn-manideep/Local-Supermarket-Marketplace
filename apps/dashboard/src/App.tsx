@@ -11,6 +11,7 @@ import { usernameSchema } from "@workspace/validation";
 import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
 import { VendorSignup } from "./VendorSignup";
 import { isCurrentSessionFailure, keepVendorProfile } from "./vendor-session";
+import { BrandingLogo } from "./BrandingLogo";
 
 type Role = "customer" | "vendor" | "admin" | "delivery_partner";
 type AuthProfile = { auth: { userId: string; role: Role; storeId: string | null } };
@@ -222,7 +223,7 @@ export default function App() {
   }
 
   if (recoveryMode && session) {
-    return <main className="page"><div className="dashboard-shell"><AuthFrame><ResetPassword onComplete={success => {
+    return <main className="page"><div className="dashboard-shell"><AuthFrame><ResetPassword role={adminMode ? "admin" : partnerMode ? "delivery_partner" : "vendor"} onComplete={success => {
       setRecoveryMode(false); setSession(null); setProfile(null); setPassword("");
       window.history.replaceState(null, "", window.location.pathname);
       setAuthError("");
@@ -249,7 +250,7 @@ export default function App() {
           <label>{adminMode ? "Email address" : "Email or vendor username"}<input data-testid="input-email" autoComplete={adminMode || email.includes("@") ? "email" : "username"} onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type={adminMode ? "email" : "text"} value={email} required /></label>
           <label>Password<PasswordInput data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} value={password} required /></label>
           <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
-          {!adminMode && <button className="text-button" type="button" onClick={() => setVendorSignup(true)}>Create Vendor Account / Sign Up</button>}
+          {!adminMode && <button className="text-button" type="button" onClick={() => setVendorSignup(true)}>Sign Up as Vendor</button>}
           {!adminMode && <button className="text-button" onClick={() => selectPortal(true)} type="button">Delivery Partner sign in</button>}
         </form>
         <ForgotPassword key={adminMode ? "admin" : "vendor"} role={adminMode ? "admin" : "vendor"} initialIdentity={email} />
@@ -334,7 +335,7 @@ function isAdminPath(pathname: string) {
 }
 
 function AuthFrame({ children }: { children: ReactNode }) {
-  return <div className="auth-frame"><div className="auth-mark">LS</div>{children}</div>;
+  return <div className="auth-frame"><BrandingLogo className="auth-mark" />{children}</div>;
 }
 
 function AuthState({ title, message, action, actionLabel = "Return to sign in" }: { title: string; message: string; action?: () => void; actionLabel?: string }) {

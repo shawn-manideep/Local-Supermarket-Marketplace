@@ -1,0 +1,21 @@
+.lb-branding-settings { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 18px; align-items: start; }
+.lb-branding-preview-panel, .lb-branding-upload-panel { min-width: 0; border: 1px solid #dce6de; border-radius: 14px; background: #fff; padding: 20px; }
+.lb-branding-panel-label { color: #607568; font-size: 10px; font-weight: 800; letter-spacing: .14em; margin-bottom: 16px; }
+.lb-branding-current { display: flex; align-items: center; gap: 12px; }
+.lb-branding-current > div:last-child { display: grid; gap: 4px; min-width: 0; }
+.lb-branding-current strong { color: #183c2e; font-size: 14px; }
+.lb-branding-current span:not(.lb-branding-logo) { color: #6f8176; font-size: 12px; }
+.lb-branding-current-image { display: block; max-width: 100%; max-height: 110px; object-fit: contain; margin: 18px auto 0; }
+.lb-branding-preview-panel p, .lb-branding-upload-panel > p { color: #607568; font-size: 13px; line-height: 1.55; margin: 16px 0 0; }
+.lb-branding-upload-panel > p { margin: -5px 0 16px; }
+.lb-branding-file { align-items: center; display: flex; justify-content: center; min-height: 46px; border: 1px dashed #9ab4a3; border-radius: 10px; color: #234e39; background: #f5f9f5; cursor: pointer; font-size: 13px; font-weight: 700; position: relative; }
+.lb-branding-file input { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
+.lb-branding-selected-preview { align-items: center; display: flex; justify-content: space-between; gap: 14px; margin-top: 14px; padding: 10px; background: #f7faf7; border: 1px solid #e1eae2; border-radius: 10px; }
+.lb-branding-selected-preview > div { display: grid; gap: 5px; min-width: 0; }
+.lb-branding-selected-preview span { color: #738479; font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+.lb-branding-selected-preview strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.lb-branding-selected-preview img { width: 70px; height: 52px; object-fit: contain; flex: 0 0 auto; }
+.lb-branding-feedback { color: #2d6848; font-size: 12px; margin-top: 12px; }
+.lb-branding-feedback.is-error { color: #a34838; }
+.lb-branding-save { margin-top: 16px; }
+@media (max-width: 760px) { .lb-branding-settings { grid-template-columns: 1fr; } }

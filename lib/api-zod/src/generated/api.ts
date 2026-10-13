@@ -8,6 +8,29 @@
 import * as zod from 'zod';
 
 
+export const GetApplicationBrandingResponse = zod.object({
+  "logoUrl": zod.string().nullable(),
+  "revision": zod.string().nullable()
+})
+
+
+export const GetApplicationLogoResponse = zod.unknown()
+
+
+export const saveApplicationLogoQueryFileNameMax = 200;
+
+
+
+export const SaveApplicationLogoQueryParams = zod.object({
+  "fileName": zod.coerce.string().max(saveApplicationLogoQueryFileNameMax)
+})
+
+export const SaveApplicationLogoResponse = zod.object({
+  "logoUrl": zod.string().nullable(),
+  "revision": zod.string().nullable()
+})
+
+
 export const ListManagedCustomerAddressesResponse = zod.object({
   "addresses": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -1416,7 +1439,7 @@ export const CompleteVendorRegistrationBody = zod.object({
 
 export const CompleteVendorRegistrationResponse = zod.object({
   "storeId": zod.string().uuid(),
-  "status": zod.enum(['PENDING_APPROVAL'])
+  "status": zod.enum(['PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED'])
 })
 
 

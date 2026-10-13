@@ -11,4 +11,7 @@ export type VendorRegistrationOutcomeStatus = typeof VendorRegistrationOutcomeSt
 
 export const VendorRegistrationOutcomeStatus = {
   PENDING_APPROVAL: 'PENDING_APPROVAL',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  REJECTED: 'REJECTED',
 } as const;

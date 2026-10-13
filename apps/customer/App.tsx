@@ -35,6 +35,7 @@ import { fontWeights } from "./src/theme";
 import { usernameSchema } from "@workspace/validation";
 import { loginCustomerUsername } from "@workspace/api-client-react";
 import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/components/AuthControls";
+import { CustomerBrandingLogo } from "./src/components/CustomerBrandingLogo";
 import { SavedItemsProvider } from "./src/SavedItemsContext";
 import { SavedItemsScreen } from "./src/SavedItemsScreen";
 import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
@@ -121,6 +122,7 @@ function Field(
 
 function BasketBrand() {
   return (
+    <CustomerBrandingLogo size={76} fallback={
     <View style={styles.brandDrawing}>
       <View style={styles.brandHandle} />
       <View style={styles.brandBasket}>
@@ -136,6 +138,7 @@ function BasketBrand() {
       </View>
       <View style={styles.brandLeaf} />
     </View>
+    } />
   );
 }
 
@@ -200,7 +203,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
           {t("Shop fresh. Shop local.")}
         </Text>
         <View style={styles.authForm}>
-          {mode === "recovery" ? <CustomerRecoveryForm onBack={() => setMode("signin")} /> : <>
+          {mode === "recovery" ? <CustomerRecoveryForm initialIdentity={username} onBack={() => setMode("signin")} /> : <>
           <Field
             label={t("Username")}
             placeholder={t("Enter your username")}

@@ -12,7 +12,7 @@ import { isUnusedSignupShell, isVerifiedVendorSignup } from "./vendor-registrati
 export async function registerVendor(request: AuthenticatedRequest) {
   const input = vendorRegistrationSchema.safeParse(request.body);
   if (!input.success) throw new HttpError(400, "Check the vendor registration details.", validationDetails(input.error));
-  if (request.auth?.role !== "customer") throw new HttpError(403, "This account cannot be registered as a new vendor.");
+  if (!request.auth || !["customer", "vendor"].includes(request.auth.role)) throw new HttpError(403, "This account cannot be registered as a new vendor.");
   const token = request.header("authorization")?.slice("Bearer ".length).trim();
   const config = getSupabasePublicConfig();
   const verifier = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
@@ -25,7 +25,19 @@ export async function registerVendor(request: AuthenticatedRequest) {
   const db = getDb();
   try {
     return await db.transaction(async tx => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${id},0))`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${id}:addresses`},0))`);
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${"username:" + input.data.username},0))`);
+      const retry = await tx.execute<{ storeId: string; status: "PENDING_APPROVAL" | "ACTIVE" | "SUSPENDED" | "REJECTED"; username: string }>(sql`
+        SELECT s.id AS "storeId",s.status::text AS status,n.normalized_username AS username
+        FROM stores s JOIN user_profiles p ON p.id=s.owner_user_id
+        JOIN identity_usernames n ON n.user_id=p.id
+        WHERE p.id=${id} AND p.role='vendor' LIMIT 1`);
+      if (retry.rows[0]) {
+        if (retry.rows[0].username !== input.data.username) throw new HttpError(409, "Registration is already complete under a different username.");
+        return { storeId: retry.rows[0].storeId, status: retry.rows[0].status };
+      }
+      if (request.auth!.role !== "customer") throw new HttpError(403, "This account cannot be registered as a new vendor.");
       const existing = await tx.execute(sql`SELECT user_id FROM identity_usernames WHERE normalized_username=${input.data.username}`);
       if (existing.rows.length) throw new HttpError(409, "This username is already in use.", undefined, "USERNAME_TAKEN");
       const shell = await tx.execute(sql`SELECT p.role::text AS role, c.status, n.user_id AS username_id

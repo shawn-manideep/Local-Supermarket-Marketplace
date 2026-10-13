@@ -16,6 +16,7 @@ import { HomeHistory } from "./HomeHistory";
 import { FavoriteControl } from "./components/FavoriteControl";
 import { useSavedItems } from "./SavedItemsContext";
 import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
+import { CustomerBrandingLogo } from "./components/CustomerBrandingLogo";
 
 function Skeleton({ style }: { style?: any }) {
   const anim = useRef(new Animated.Value(0.5)).current;
@@ -724,8 +725,13 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       <ScrollView key="store-discovery" style={commonStyles.viewport} contentContainerStyle={commonStyles.page}>
         <View style={commonStyles.container}>
           <View style={styles.header}>
-            <Text style={styles.greeting}>{t("Hello,")}</Text>
-            <Text style={typography.title1}>{customerName || t("Welcome back")}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.greeting}>{t("Hello,")}</Text>
+                <Text style={typography.title1}>{customerName || t("Welcome back")}</Text>
+              </View>
+              <CustomerBrandingLogo size={48} />
+            </View>
             <Text style={[typography.caption, { marginTop: spacing.sm }]}>⌖  {t("Delivering to")}</Text>
             <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.locationRow}>
               {loadingAddresses ? <Skeleton style={{ width: 150, height: 24, borderRadius: 6 }} /> : (

@@ -11,6 +11,57 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /api/branding:
+    get:
+      operationId: getApplicationBranding
+      tags: [Branding]
+      responses:
+        '200':
+          description: Shared public branding configuration; null uses the fallback logo
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApplicationBranding'}
+        '503': {description: Storage unavailable}
+  /api/branding/logo:
+    get:
+      operationId: getApplicationLogo
+      tags: [Branding]
+      responses:
+        '200':
+          description: Active application logo, with no-store caching
+          content:
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+        '404': {description: No custom logo}
+  /api/admin/branding/logo:
+    post:
+      operationId: saveApplicationLogo
+      tags: [Branding]
+      parameters:
+        - name: fileName
+          in: query
+          required: true
+          schema: {type: string, maxLength: 200}
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema: {type: string, format: binary}
+          image/jpeg:
+            schema: {type: string, format: binary}
+      responses:
+        '200':
+          description: Admin-authorized atomic logo replacement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApplicationBranding'}
+        '400': {description: "Invalid image content, filename or type"}
+        '401': {description: Authentication required}
+        '403': {description: Server-verified Admin role required}
+        '413': {description: Logo exceeds 2 MiB}
+        '503': {description: Storage unavailable; old logo retained}
   /api/customer/addresses:
     get:
       operationId: listManagedCustomerAddresses
@@ -1612,7 +1663,7 @@ components:
       required: [storeId, status]
       properties:
         storeId: { type: string, format: uuid }
-        status: { type: string, enum: [PENDING_APPROVAL] }
+        status: { type: string, enum: [PENDING_APPROVAL, ACTIVE, SUSPENDED, REJECTED] }
     VendorProvisionInput:
       type: object
       additionalProperties: false
@@ -1928,4 +1979,10 @@ components:
           type: string
       required:
         - status
+    ApplicationBranding:
+      type: object
+      required: [logoUrl, revision]
+      properties:
+        logoUrl: {type: [string, 'null']}
+        revision: {type: [string, 'null']}
 

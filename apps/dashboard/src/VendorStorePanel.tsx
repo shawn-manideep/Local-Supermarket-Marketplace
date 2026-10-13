@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { BrandingLogo } from "./BrandingLogo";
 import {
   apiRequest,
   timeInputValue,
@@ -193,6 +194,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
       >Menu</button>
       {mobileMenuOpen && <button className="vendor-mobile-backdrop" type="button" aria-label="Close vendor navigation" onClick={() => { setMobileMenuOpen(false); window.requestAnimationFrame(() => mobileMenuButton.current?.focus()); }} />}
       <aside className={`vendor-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`} id="vendor-primary-navigation" ref={mobileSidebar} aria-label="Vendor navigation">
+        <div className="vendor-application-brand"><BrandingLogo className="vendor-application-mark" /><span>Local Basket</span></div>
         <div className="vendor-brand">
           <div className="vendor-brand-logo">{store.name.slice(0,1).toUpperCase()}</div>
           <div>

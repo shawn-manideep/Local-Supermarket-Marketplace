@@ -31,8 +31,8 @@ test("Vendor, Partner and Admin reuse password/recovery controls without nested 
 
 test("recovery preserves role identities and displays only generic confirmation/errors", async () => {
   const controls = await source("./AuthControls.tsx");
-  assert.match(controls, /role === "admin" \? "Email address"/);
-  assert.match(controls, /role === "vendor" \? "Email or vendor username" : "Username"/);
+  assert.match(controls, /Re-enter New Password/);
+  assert.doesNotMatch(controls, /value=\{identity\}/);
   assert.match(controls, /JSON\.stringify\(\{ role, identity \}\)/);
   assert.match(controls, /setMessage\(RECOVERY_CONFIRMATION\)/);
   assert.doesNotMatch(controls, /data\.user|recoveryEmail|reset_token|error\.message|console\./);

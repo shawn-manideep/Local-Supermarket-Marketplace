@@ -935,6 +935,9 @@ export type VendorRegistrationOutcomeStatus = typeof VendorRegistrationOutcomeSt
 
 export const VendorRegistrationOutcomeStatus = {
   PENDING_APPROVAL: 'PENDING_APPROVAL',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  REJECTED: 'REJECTED',
 } as const;
 
 export interface VendorRegistrationOutcome {
@@ -1424,6 +1427,13 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface ApplicationBranding {
+  /** @nullable */
+  logoUrl: string | null;
+  /** @nullable */
+  revision: string | null;
+}
+
 export type ManagementPageParameter = number;
 
 export type ManagementPageSizeParameter = number;
@@ -1440,6 +1450,13 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type SaveApplicationLogoParams = {
+/**
+ * @maxLength 200
+ */
+fileName: string;
+};
 
 export type ListManagedCustomerAddresses200 = {
   addresses: ManagedCustomerAddress[];

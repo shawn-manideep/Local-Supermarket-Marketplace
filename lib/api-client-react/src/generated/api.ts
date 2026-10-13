@@ -27,6 +27,7 @@ import type {
   AdminDetailOutcome,
   AdminManagementPage,
   AdminVendorStatusInput,
+  ApplicationBranding,
   ApplyMasterCatalogExcelParams,
   CatalogExcelApplied,
   CatalogExcelHistory,
@@ -72,6 +73,7 @@ import type {
   ReorderOutcome,
   ReorderPreview,
   ReorderSubmission,
+  SaveApplicationLogoParams,
   SaveCustomerItem201,
   SaveCustomerItemBody,
   StockFailure,
@@ -118,6 +120,238 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetApplicationBrandingUrl = () => {
+
+
+
+
+  return `/api/api/branding`
+}
+
+export const getApplicationBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicationBranding> => {
+
+  return customFetch<ApplicationBranding>(getGetApplicationBrandingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicationBrandingQueryKey = () => {
+    return [
+    `/api/api/branding`
+    ] as const;
+    }
+
+
+export const getGetApplicationBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getApplicationBranding>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicationBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicationBrandingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicationBranding>>> = ({ signal }) => getApplicationBranding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicationBranding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicationBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicationBranding>>>
+export type GetApplicationBrandingQueryError = ErrorType<void>
+
+
+
+export function useGetApplicationBranding<TData = Awaited<ReturnType<typeof getApplicationBranding>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicationBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicationBrandingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetApplicationLogoUrl = () => {
+
+
+
+
+  return `/api/api/branding/logo`
+}
+
+export const getApplicationLogo = async ( options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetApplicationLogoUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicationLogoQueryKey = () => {
+    return [
+    `/api/api/branding/logo`
+    ] as const;
+    }
+
+
+export const getGetApplicationLogoQueryOptions = <TData = Awaited<ReturnType<typeof getApplicationLogo>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicationLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicationLogoQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicationLogo>>> = ({ signal }) => getApplicationLogo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicationLogo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicationLogoQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicationLogo>>>
+export type GetApplicationLogoQueryError = ErrorType<void>
+
+
+
+export function useGetApplicationLogo<TData = Awaited<ReturnType<typeof getApplicationLogo>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicationLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicationLogoQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveApplicationLogoUrl = (params: SaveApplicationLogoParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/api/admin/branding/logo?${stringifiedParams}` : `/api/api/admin/branding/logo`
+}
+
+export const saveApplicationLogo = async (saveApplicationLogoBody: Blob,
+    params: SaveApplicationLogoParams, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationBranding> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicationBranding>(getSaveApplicationLogoUrl(params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'image/png', ...getHeaders(options?.headers) },
+    body: saveApplicationLogoBody
+  }
+);}
+
+
+
+
+
+export const getSaveApplicationLogoMutationKey = () => ['saveApplicationLogo'] as const;
+
+export const getSaveApplicationLogoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveApplicationLogo>>, TError,SaveApplicationLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveApplicationLogo>>, TError,SaveApplicationLogoMutationVariables, TContext> => {
+
+const mutationKey = getSaveApplicationLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveApplicationLogo>>, SaveApplicationLogoMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  saveApplicationLogo(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveApplicationLogoMutationResult = NonNullable<Awaited<ReturnType<typeof saveApplicationLogo>>>
+    export type SaveApplicationLogoMutationBody = BodyType<Blob>
+    export type SaveApplicationLogoMutationError = ErrorType<void>
+    export type SaveApplicationLogoMutationVariables = {data: BodyType<Blob>;params: SaveApplicationLogoParams}
+
+    export const useSaveApplicationLogo = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveApplicationLogo>>, TError,SaveApplicationLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveApplicationLogo>>,
+        TError,
+        SaveApplicationLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveApplicationLogoMutationOptions(options));
+    }
 
 export const getListManagedCustomerAddressesUrl = () => {
 

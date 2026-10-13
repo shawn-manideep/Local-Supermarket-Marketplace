@@ -26,6 +26,11 @@
 }
 .lb-admin-brand { display: flex; align-items: center; gap: 12px; padding: 1px 10px 31px; }
 .lb-admin-mark { width: 38px; height: 38px; border-radius: 12px 12px 12px 3px; display: grid; place-items: center; color: var(--pine-deep); background: var(--lime); font-weight: 800; letter-spacing: -.07em; }
+.lb-admin-mark.lb-branding-logo { overflow: hidden; }
+.lb-admin-mark.lb-branding-logo img { width: 100%; height: 100%; object-fit: contain; }
+.lb-admin-mobile-brand { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; }
+.lb-admin-mobile-brand > .lb-branding-logo { width: 26px; height: 26px; border-radius: 7px 7px 7px 2px; flex: 0 0 auto; font-size: 9px; }
+.lb-admin-mobile-brand strong { white-space: nowrap; }
 .lb-admin-brand strong { display: block; font-size: 14px; letter-spacing: -.03em; }
 .lb-admin-brand span { display: block; margin-top: 3px; color: #b6d0c2; font-size: 10px; text-transform: uppercase; letter-spacing: .14em; }
 .lb-admin-nav-label { padding: 0 12px 9px; color: #a9bff3; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
@@ -239,6 +244,7 @@
   }
   .lb-admin-mobile-head { gap: 9px; min-height: 58px; }
   .lb-admin-mobile-head strong { flex: 1; text-align: center; }
+  .lb-admin-mobile-brand { flex: 1; }
   .lb-admin-mobile-head button { min-height: 44px; }
   .lb-admin-mobile-head .lb-admin-menu-toggle { display: inline-flex; align-items: center; }
   .lb-admin-mobile-nav { display: none; }

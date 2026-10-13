@@ -4,6 +4,7 @@ import type { PartnerCredentials, PartnerSessionOutcome } from "../../../lib/api
 import { ApiRequestError, apiRequest } from "./api";
 import "./partner.css";
 import { PasswordInput, ForgotPassword } from "./AuthControls";
+import { BrandingLogo } from "./BrandingLogo";
 
 type Props = {
   onAuthenticated: (session: { access_token: string; refresh_token: string }) => Promise<void>;
@@ -48,7 +49,7 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
         <div className="lbp-login-shell">
           <section className="lbp-login-intro" aria-label="Delivery partner access">
             <div className="lbp-brand">
-              <span className="lbp-mark" aria-hidden="true">LB</span>
+              <BrandingLogo className="lbp-mark" />
               <div className="lbp-brand-copy"><strong>Local Basket</strong><span>Partner operations</span></div>
             </div>
             <div>

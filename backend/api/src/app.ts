@@ -16,6 +16,7 @@ import { createApiRateLimit } from "./security.js";
 import { adminManagementRouter } from "./admin-management/routes.js";
 import { catalogExcelRouter } from "./master-catalog/excel-routes.js";
 import { vendorDocumentsRouter } from "./vendor-documents/routes.js";
+import { brandingRouter } from "./branding/routes.js";
 
 export type IntegrationErrorDiagnostic = {
   causeCode?: string;
@@ -111,6 +112,7 @@ export function createApp() {
   });
 
   app.use(authRouter);
+  app.use(brandingRouter);
   app.use(catalogExcelRouter);
   app.use(adminManagementRouter);
   app.use(deliveryPartnerRouter);

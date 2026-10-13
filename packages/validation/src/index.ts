@@ -8,6 +8,13 @@ export const usernameSchema = z.string().min(3).max(30)
   .transform(value => value.toLowerCase());
 export const partnerLoginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
 export const resetPasswordSchema = z.string().min(8, "Use at least 8 characters").max(128);
+export function isPasswordOwner(
+  auth: { userId?: string; role?: string } | undefined,
+  userId: string | undefined,
+  role: "customer" | "vendor" | "delivery_partner" | "admin",
+) {
+  return Boolean(userId && auth?.userId === userId && auth.role === role);
+}
 export const RECOVERY_CONFIRMATION = "If an account exists for this identity, password reset instructions have been sent to the registered recovery contact.";
 export const partnerProvisionSchema = z.object({
   username: usernameSchema,

@@ -25,6 +25,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
   const [confirmation, setConfirmation] = useState("");
   const [fields, setFields] = useState<Registration>(() => ({
     ...empty, username: session?.user.user_metadata?.username ?? "",
+    name: session?.user.user_metadata?.shop_name ?? "",
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -34,6 +35,10 @@ export function VendorSignup({ session, onBack, onCompleted }: {
     event.preventDefault();
     const checked = resetPasswordSchema.safeParse(password);
     const name = usernameSchema.safeParse(fields.username);
+    const shop = vendorRegistrationSchema.shape.name.safeParse(fields.name);
+    if (!shop.success) {
+      setError(shop.error.issues[0]?.message ?? "Enter a valid shop name."); return;
+    }
     if (!checked.success || !name.success || password !== confirmation) {
       setError(!checked.success ? checked.error.issues[0]?.message ?? "Invalid password." :
         !name.success ? name.error.issues[0]?.message ?? "Invalid username." : "Passwords must match.");
@@ -45,7 +50,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(), password,
         options: {
-          data: { vendor_signup: true, username: name.data },
+          data: { vendor_signup: true, username: name.data, shop_name: fields.name.trim() },
           emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
         },
       });
@@ -90,13 +95,13 @@ export function VendorSignup({ session, onBack, onCompleted }: {
         : "Verify your email before setting up your store. Existing customer accounts cannot be converted."}</p>
       {error && <p className="auth-error" role="alert">{error}</p>}
       {message && <p className="auth-success" role="status">{message}</p>}
+      {input("name", "Shop Name", "organization")}
       {input("username", "Vendor username", "username")}
       {!session ? <>
         <label>Email address<input type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} /></label>
         <label>Password<PasswordInput autoComplete="new-password" required maxLength={128} value={password} onChange={event => setPassword(event.target.value)} /></label>
         <label>Confirm password<PasswordInput autoComplete="new-password" required maxLength={128} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label>
       </> : <>
-        {input("name", "Store name", "organization")}
         {input("ownerName", "Owner name", "name")}
         {input("phone", "Contact number", "tel")}
         {input("addressLine1", "Store street address", "street-address")}
