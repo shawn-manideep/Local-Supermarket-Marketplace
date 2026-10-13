@@ -115,16 +115,17 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
     };
   }, [mobileMenuOpen]);
 
-  const loadStore = async () => {
-    setLoading(true);
+  const loadStore = async (currentToken = token, isCurrent: () => boolean = () => true) => {
+    if (!store) setLoading(true);
     setLoadError("");
     try {
       const [storeResponse, pincodeResponse, hoursResponse, documentResponse] = await Promise.all([
-        apiRequest<{ store: Store }>("/api/vendor/store", token),
-        apiRequest<{ pincodes: ServicePincode[] }>("/api/vendor/store/pincodes", token),
-        apiRequest<{ hours: OperatingHour[] }>("/api/vendor/store/hours", token),
-        apiRequest<VendorDocumentStatus>("/api/vendor/documents", token),
+        apiRequest<{ store: Store }>("/api/vendor/store", currentToken),
+        apiRequest<{ pincodes: ServicePincode[] }>("/api/vendor/store/pincodes", currentToken),
+        apiRequest<{ hours: OperatingHour[] }>("/api/vendor/store/hours", currentToken),
+        apiRequest<VendorDocumentStatus>("/api/vendor/documents", currentToken),
       ]);
+      if (!isCurrent()) return;
       const loadedHours = defaultHours();
       for (const hour of hoursResponse.hours) {
         loadedHours[hour.dayOfWeek] = toHourDraft(hour);
@@ -135,14 +136,17 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
       setPincodes(pincodeResponse.pincodes);
       setHours(loadedHours);
     } catch (error) {
+      if (!isCurrent()) return;
       setLoadError(error instanceof Error ? error.message : "Unable to load store data.");
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadStore();
+    let current = true;
+    void loadStore(token, () => current);
+    return () => { current = false; };
   }, [token]);
 
   if (loading) {
@@ -160,7 +164,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
         <div className="vendor-empty-state">
           <strong>Initialization failed</strong>
           <span className="vendor-text-muted">{loadError}</span>
-          <button className="vendor-secondary-button" onClick={loadStore} type="button" style={{ marginTop: "12px" }}>Retry loading</button>
+          <button className="vendor-secondary-button" onClick={() => void loadStore()} type="button" style={{ marginTop: "12px" }}>Retry loading</button>
         </div>
       </div>
     );
@@ -230,7 +234,11 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
               onMessage={onMessage} 
             />
           )}
-          {currentTab === "catalog" && documentStatus?.canManageCatalog && <CatalogManagementPanel token={token} storeId={store.id} onMessage={onMessage} />}
+          {documentStatus?.canManageCatalog && (
+            <div hidden={currentTab !== "catalog"}>
+              <CatalogManagementPanel token={token} storeId={store.id} onMessage={onMessage} />
+            </div>
+          )}
           {currentTab === "catalog" && !documentStatus?.canManageCatalog && <p role="alert">Complete your document verification before managing your catalog.</p>}
           {currentTab === "documents" && <VendorDocumentsPanel token={token} onMessage={onMessage} onChanged={setDocumentStatus} />}
           {currentTab === "orders" && <OrderOperations token={token} vendor vendorView="orders" storeId={store.id} onMessage={onMessage} />}

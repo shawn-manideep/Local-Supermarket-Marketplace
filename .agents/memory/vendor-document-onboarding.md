@@ -26,3 +26,16 @@ the earlier viewing-only policy while expressly retaining existing catalog acces
 and review. Optional uploads remain informational and are not automatically
 approved. Document review must not implicitly activate a store or change its
 administrative status.
+
+Self-registered Vendors must verify their email and complete a new store
+registration before entering the Vendor portal. Their store remains pending;
+document approval alone does not grant catalog access until Admin also activates
+the store. Existing Vendors without a document requirement retain their
+earlier access even if the store is not active.
+
+**Why:** Public signup must not become an alternate route around Admin store
+approval or the new-Vendor document gate, while preserving the explicit
+legacy-Vendor exemption.
+
+**How to apply:** Treat email confirmation, account provisioning, document
+review and store activation as separate checks; never infer one from another.

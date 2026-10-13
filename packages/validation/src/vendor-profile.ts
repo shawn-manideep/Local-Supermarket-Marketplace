@@ -26,3 +26,16 @@ export const vendorProvisionSchema = storeUpdateSchema.extend({
   hours: hoursSchema.optional(),
 }).strict();
 export const vendorLoginSchema = partnerLoginSchema;
+// Public onboarding accepts only identity and the required store profile.
+// Prices, fees, approval, documents and role are never client-assigned.
+export const vendorRegistrationSchema = z.object({
+  username: usernameSchema,
+  name: storeUpdateSchema.shape.name.unwrap(),
+  ownerName: storeUpdateSchema.shape.ownerName.unwrap(),
+  phone: storeUpdateSchema.shape.phone.unwrap(),
+  addressLine1: storeUpdateSchema.shape.addressLine1.unwrap(),
+  locality: storeUpdateSchema.shape.locality.unwrap(),
+  city: storeUpdateSchema.shape.city.unwrap(),
+  state: storeUpdateSchema.shape.state.unwrap(),
+  pincode: storeUpdateSchema.shape.pincode.unwrap(),
+}).strict();

@@ -143,3 +143,6 @@ export * from './vendorProductMatch';
 export * from './vendorProductMatchesResponse';
 export * from './vendorProfileInput';
 export * from './vendorProvisionInput';
+export * from './vendorRegistrationInput';
+export * from './vendorRegistrationOutcome';
+export * from './vendorRegistrationOutcomeStatus';

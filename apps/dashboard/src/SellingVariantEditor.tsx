@@ -14,6 +14,7 @@ import {
 interface SellingVariantEditorProps {
   token: string;
   product: Product;
+  idPrefix: string;
   onProductUpdated: (product: Product) => void;
   onMessage: (message: string, kind?: "success" | "error") => void;
 }
@@ -176,6 +177,7 @@ function describeValidationError(index: number, errors: VariantFieldErrors) {
 export function SellingVariantEditor({
   token,
   product,
+  idPrefix,
   onProductUpdated,
   onMessage,
 }: SellingVariantEditorProps) {
@@ -355,7 +357,8 @@ export function SellingVariantEditor({
           {variants.map((variant, index) => {
             const fieldErrors = variantErrors[index];
             const label = formatVariantLabel(variant.quantityValue, variant.quantityUnit);
-            const fieldId = (suffix: string) => `selling-variant-${index}-${suffix}`;
+            const safeProductId = product.id.replace(/[^a-zA-Z0-9_-]/g, "-");
+            const fieldId = (suffix: string) => `selling-variant-${idPrefix}-${safeProductId}-${index}-${suffix}`;
             return (
               <article
                 className={`vendor-selling-variant-row ${variant.isActive ? "" : "is-inactive"}`}
@@ -541,7 +544,7 @@ export function SellingVariantEditor({
             quantityValue: "",
             quantityUnit: "",
             price: "",
-            stockQuantity: "0",
+            stockQuantity: "",
             availability: true,
             isActive: true,
             sku: "",

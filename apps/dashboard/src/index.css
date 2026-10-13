@@ -2257,6 +2257,122 @@ a:focus-visible {
   gap: 10px;
 }
 
+.vendor-master-bulk-bar,
+.vendor-master-confirmation,
+.vendor-master-bulk-result {
+  align-items: center;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  justify-content: space-between;
+  margin: 14px 0;
+  padding: 13px 15px;
+}
+
+.vendor-master-bulk-bar > div:first-child,
+.vendor-master-confirmation > div:first-child {
+  flex: 1 1 280px;
+}
+
+.vendor-master-bulk-bar .vendor-text-muted,
+.vendor-master-confirmation span,
+.vendor-master-bulk-result > span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+
+.vendor-master-confirmation {
+  background: #f5f8f5;
+  border-color: var(--border-strong);
+}
+
+.vendor-master-bulk-result {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.vendor-master-select {
+  align-items: center;
+  color: var(--text);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 7px;
+}
+
+.vendor-master-select input {
+  accent-color: var(--primary);
+  height: 17px;
+  width: 17px;
+}
+
+.vendor-master-card-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.vendor-master-ineligible {
+  color: var(--text-muted);
+  display: block;
+  font-size: 11px;
+  margin-top: 7px;
+}
+
+.vendor-master-already-listed {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.vendor-master-inline-editor {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.vendor-master-inline-editor .vendor-selling-variant-editor {
+  margin-top: 2px;
+}
+
+.vendor-product-inline-editor {
+  grid-column: 1 / -1;
+  padding: 0 16px 16px;
+}
+
+.vendor-product-inline-editor .vendor-selling-variant-editor {
+  margin-top: 0;
+}
+
+@media (max-width: 620px) {
+  .vendor-master-bulk-bar,
+  .vendor-master-confirmation {
+    align-items: stretch;
+  }
+
+  .vendor-master-bulk-bar .vendor-row-actions,
+  .vendor-master-confirmation .vendor-row-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .vendor-master-card-actions {
+    justify-content: flex-start;
+  }
+
+  .vendor-product-inline-editor {
+    padding: 0 10px 12px;
+  }
+}
+
 @media (max-width: 800px) {
   .vendor-selling-variant-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));

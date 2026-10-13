@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { filterVendorProducts } from "./vendor-product-search";
 import { formatPrice } from "@workspace/validation/variant-formatting";
 import { apiRequest, type Category, type Product } from "./api";
@@ -75,6 +75,7 @@ export function CatalogManagementPanel({
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [productSearch, setProductSearch] = useState("");
   const [expandedVariantProductId, setExpandedVariantProductId] = useState("");
+  const [mountedVariantProductIds, setMountedVariantProductIds] = useState<string[]>([]);
   const [addProductMode, setAddProductMode] = useState<"choose" | "master" | "new">("choose");
   const productSaveBusyRef = useRef(false);
 
@@ -302,9 +303,7 @@ export function CatalogManagementPanel({
     if (productToggleBusyId) return;
     if (!product.isActive && product.masterProductId) {
       setExpandedVariantProductId(product.id);
-      window.setTimeout(() => {
-        document.querySelector(`[aria-label="${CSS.escape(product.name)} selling variants"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 60);
+      setMountedVariantProductIds((current) => current.includes(product.id) ? current : [...current, product.id]);
       return;
     }
     if (
@@ -363,10 +362,7 @@ export function CatalogManagementPanel({
   const handleMasterProductAdded = (product: Product) => {
     upsertProduct(product);
     setCategoryFilter("all");
-    setExpandedVariantProductId(product.id);
-    window.setTimeout(() => {
-      document.querySelector(`[aria-label="${CSS.escape(product.name)} selling variants"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 60);
+    setExpandedVariantProductId("");
   };
 
   return (
@@ -404,7 +400,14 @@ export function CatalogManagementPanel({
         </div>
       </section>
       {addProductMode === "master" && (
-        <VendorMasterCatalogPanel token={token} onAdded={handleMasterProductAdded} onMessage={onMessage} />
+        <VendorMasterCatalogPanel
+          token={token}
+          products={products}
+          storeInlineActive={Boolean(expandedVariantProductId)}
+          onAdded={handleMasterProductAdded}
+          onListingConfigured={() => setExpandedVariantProductId("")}
+          onMessage={onMessage}
+        />
       )}
       {addProductMode === "new" && (
         <VendorNewProductPanel
@@ -522,7 +525,8 @@ export function CatalogManagementPanel({
                 <div>Actions</div>
               </div>
               {visibleProducts.map((product) => (
-                <div className={`vendor-product-row ${product.isActive ? "" : "inactive"}`} key={product.id}>
+                <Fragment key={product.id}>
+                <div className={`vendor-product-row ${product.isActive ? "" : "inactive"}`}>
                   <div className="vendor-product-identity">
                     {product.imageUrl ? (
                       <img alt={product.name} src={product.imageUrl} />
@@ -576,6 +580,7 @@ export function CatalogManagementPanel({
                       className="vendor-secondary-button vendor-compact-button"
                       aria-expanded={expandedVariantProductId === product.id}
                       onClick={() => {
+                        setMountedVariantProductIds((current) => current.includes(product.id) ? current : [...current, product.id]);
                         setExpandedVariantProductId((current) => current === product.id ? "" : product.id);
                       }}
                     >
@@ -591,20 +596,19 @@ export function CatalogManagementPanel({
                     </button>
                   </div>
                 </div>
+                {mountedVariantProductIds.includes(product.id) && (
+                  <div className="vendor-product-inline-editor" hidden={expandedVariantProductId !== product.id}>
+                    <SellingVariantEditor
+                      token={token}
+                      product={product}
+                      idPrefix="store"
+                      onProductUpdated={upsertProduct}
+                      onMessage={onMessage}
+                    />
+                  </div>
+                )}
+                </Fragment>
               ))}
-              {expandedVariantProductId && (() => {
-                const selectedProduct = visibleProducts.find((item) => item.id === expandedVariantProductId);
-                if (!selectedProduct) return null;
-                return (
-                  <SellingVariantEditor
-                    key={selectedProduct.id}
-                    token={token}
-                    product={selectedProduct}
-                    onProductUpdated={upsertProduct}
-                    onMessage={onMessage}
-                  />
-                );
-              })()}
             </div>
           )}
         </div>

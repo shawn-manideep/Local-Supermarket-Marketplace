@@ -11,7 +11,7 @@ export function ownedDocumentStore(request: Request) {
   return storeId;
 }
 export async function documentStatus(storeId: string) {
-  const storeRows = await getDb().execute(sql`SELECT documents_required AS required,
+  const storeRows = await getDb().execute(sql`SELECT documents_required AS required, status AS "storeStatus",
     document_verification_status AS "verificationStatus",document_submission_id AS "submissionId",
     documents_submitted_at AS "submittedAt",documents_reviewed_at AS "reviewedAt",
     document_rejection_reason AS "rejectionReason" FROM stores WHERE id=${storeId}`);
@@ -31,13 +31,14 @@ export async function documentStatus(storeId: string) {
     documents.filter(d => d.mandatory).every(d => d.current?.verificationStatus === "APPROVED");
   const verificationStatus = store.required ? store.verificationStatus : "EXEMPT";
   const message = !store.required ? "Existing catalog access is retained; document verification is not required for this account."
+    : verified && store.storeStatus !== "ACTIVE" ? "Documents approved. Catalog access also requires Admin store approval."
     : verified ? "Documents approved. Your catalog is available."
     : verificationStatus === "SUBMITTED" ? "Documents submitted for verification. Catalog access will be enabled after approval."
     : verificationStatus === "REJECTED" ? "Documents rejected. Correct the rejected documents and resubmit for verification."
     : mandatoryCount === 4 ? "Documents uploaded. Submit them for Admin verification."
     : "Upload all mandatory documents, submit for verification and await Admin approval.";
   return { required: Boolean(store.required), mandatoryCount, optionalCount,
-    canManageCatalog: !store.required || verified, verificationStatus,
+    canManageCatalog: !store.required || (verified && store.storeStatus === "ACTIVE"), verificationStatus,
     submissionId: store.submissionId, submittedAt: store.submittedAt,
     reviewedAt: store.reviewedAt, rejectionReason: store.rejectionReason, message,
     documents };

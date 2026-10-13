@@ -5,6 +5,7 @@ import { asyncHandler, HttpError, validationDetails } from "../http.js";
 import { loginVendor } from "../admin-management/vendor-profile.js";
 import type { AuthenticatedRequest } from "./types.js";
 import { customerLoginSchema, loginCustomer, recoveryInput, recoveryRedirect, requestRecovery, RECOVERY_MESSAGE } from "./account-access.js";
+import { registerVendor } from "./vendor-registration.js";
 
 export const authRouter = Router();
 const recoveryAttempts = new Map<string, { count: number; until: number }>();
@@ -42,6 +43,11 @@ authRouter.post("/api/vendor/login", asyncHandler(async (req, res) => {
   const input = vendorLoginSchema.safeParse(req.body);
   if (!input.success) throw new HttpError(400, "Invalid vendor credentials", validationDetails(input.error));
   res.json(await loginVendor(input.data.username, input.data.password));
+}));
+
+authRouter.post("/api/vendor/register", requireAuth(), asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.status(201).json(await registerVendor(req as AuthenticatedRequest));
 }));
 
 authRouter.get("/api/auth/me", requireAuth(), async (request, response, next) => {

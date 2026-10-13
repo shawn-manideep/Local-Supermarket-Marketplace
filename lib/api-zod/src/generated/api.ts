@@ -1378,6 +1378,48 @@ export const LoginVendorUsernameResponse = zod.object({
 })
 
 
+/**
+ * Complete a verified, unused Vendor sign-up identity; creates a pending store requiring document review.
+ */
+export const completeVendorRegistrationBodyUsernameMin = 3;
+export const completeVendorRegistrationBodyUsernameMax = 30;
+
+
+export const completeVendorRegistrationBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
+export const completeVendorRegistrationBodyNameMax = 120;
+
+export const completeVendorRegistrationBodyOwnerNameMax = 100;
+
+export const completeVendorRegistrationBodyPhoneRegExp = new RegExp('^(?:(?:\\+|00)91[- ]?|91[- ]?)?[6-9][0-9]{9}$');
+export const completeVendorRegistrationBodyAddressLine1Max = 250;
+
+export const completeVendorRegistrationBodyLocalityMax = 120;
+
+export const completeVendorRegistrationBodyCityMax = 120;
+
+export const completeVendorRegistrationBodyStateMax = 120;
+
+export const completeVendorRegistrationBodyPincodeRegExp = new RegExp('^[1-9][0-9]{5}$');
+
+
+export const CompleteVendorRegistrationBody = zod.object({
+  "username": zod.string().min(completeVendorRegistrationBodyUsernameMin).max(completeVendorRegistrationBodyUsernameMax).regex(completeVendorRegistrationBodyUsernameRegExp),
+  "name": zod.string().min(1).max(completeVendorRegistrationBodyNameMax),
+  "ownerName": zod.string().min(1).max(completeVendorRegistrationBodyOwnerNameMax),
+  "phone": zod.string().regex(completeVendorRegistrationBodyPhoneRegExp),
+  "addressLine1": zod.string().min(1).max(completeVendorRegistrationBodyAddressLine1Max),
+  "locality": zod.string().min(1).max(completeVendorRegistrationBodyLocalityMax),
+  "city": zod.string().min(1).max(completeVendorRegistrationBodyCityMax),
+  "state": zod.string().min(1).max(completeVendorRegistrationBodyStateMax),
+  "pincode": zod.string().regex(completeVendorRegistrationBodyPincodeRegExp)
+})
+
+export const CompleteVendorRegistrationResponse = zod.object({
+  "storeId": zod.string().uuid(),
+  "status": zod.enum(['PENDING_APPROVAL'])
+})
+
+
 export const getVendorStoreProfileResponseStoreHandlingFeeDefault = `0.00`;
 
 export const GetVendorStoreProfileResponse = zod.object({

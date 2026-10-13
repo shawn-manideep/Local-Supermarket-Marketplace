@@ -669,6 +669,26 @@ paths:
         "401": { description: Invalid username or password }
         "403": { description: Existing store suspension rule }
         "429": { description: Login rate limit exceeded }
+  /vendor/register:
+    post:
+      operationId: completeVendorRegistration
+      description: Complete a verified, unused Vendor sign-up identity; creates a pending store requiring document review.
+      security: [{ customerBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VendorRegistrationInput" }
+      responses:
+        "201":
+          description: Pending Vendor store created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VendorRegistrationOutcome" }
+        "400": { description: Invalid registration fields }
+        "401": { description: Authentication required }
+        "403": { description: Email unverified or identity not eligible for new Vendor registration }
+        "409": { description: Vendor identity already in use }
   /vendor/store:
     get:
       operationId: getVendorStoreProfile
@@ -1573,6 +1593,26 @@ components:
         handlingFee: { $ref: "#/components/schemas/HandlingFeeInput" }
         minimumOrderValue: { type: number, minimum: 0, maximum: 1000000 }
         hours: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/StoreProfileHour" } }
+    VendorRegistrationInput:
+      type: object
+      required: [username, name, ownerName, phone, addressLine1, locality, city, state, pincode]
+      additionalProperties: false
+      properties:
+        username: { type: string, minLength: 3, maxLength: 30, pattern: '^[A-Za-z][A-Za-z0-9_]{2,29}$' }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        ownerName: { type: string, minLength: 1, maxLength: 100 }
+        phone: { type: string, pattern: '^(?:(?:\+|00)91[- ]?|91[- ]?)?[6-9][0-9]{9}$' }
+        addressLine1: { type: string, minLength: 1, maxLength: 250 }
+        locality: { type: string, minLength: 1, maxLength: 120 }
+        city: { type: string, minLength: 1, maxLength: 120 }
+        state: { type: string, minLength: 1, maxLength: 120 }
+        pincode: { type: string, pattern: '^[1-9][0-9]{5}$' }
+    VendorRegistrationOutcome:
+      type: object
+      required: [storeId, status]
+      properties:
+        storeId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING_APPROVAL] }
     VendorProvisionInput:
       type: object
       additionalProperties: false

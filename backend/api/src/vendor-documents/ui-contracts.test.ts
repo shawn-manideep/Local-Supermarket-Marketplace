@@ -5,8 +5,9 @@ const source = async (file: string) => (await readFile(new URL(`../../../../apps
 test("Vendor navigation gates only Catalog and preserves Orders/Profile/account/logout", async () => {
   const panel = await source("VendorStorePanel.tsx");
   assert.match(panel, /if \(!documentResponse.canManageCatalog\) setCurrentTab\("documents"\)/);
-  assert.match(panel, /setCurrentTab\(documentStatus\?\.canManageCatalog \? "catalog" : "documents"\)/);
-  assert.match(panel, /currentTab === "catalog" && documentStatus\?\.canManageCatalog/);
+  assert.match(panel, /navigateVendor\(documentStatus\?\.canManageCatalog \? "catalog" : "documents"\)/);
+  assert.match(panel, /documentStatus\?\.canManageCatalog && \(/);
+  assert.match(panel, /hidden=\{currentTab !== "catalog"\}/);
   for (const label of ["Orders", "Store Profile", "Account & Settings", "Documents"]) assert.ok(panel.includes(label));
   assert.match(panel, /onSignOut=\{onSignOut\}/);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { ApiRequestError, apiRequest } from "./api";
 import { supabase, supabaseConfigMissing } from "./supabase";
@@ -9,6 +9,8 @@ import { AdminPortal } from "./admin/AdminPortal";
 import { matchesAdminPath } from "./admin/route-access";
 import { usernameSchema } from "@workspace/validation";
 import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
+import { VendorSignup } from "./VendorSignup";
+import { isCurrentSessionFailure, keepVendorProfile } from "./vendor-session";
 
 type Role = "customer" | "vendor" | "admin" | "delivery_partner";
 type AuthProfile = { auth: { userId: string; role: Role; storeId: string | null } };
@@ -22,7 +24,11 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(() => new URLSearchParams(window.location.search).get("recovery") === "1");
   const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
   const [notice, setNotice] = useState<{ message: string; kind: "success" | "error" } | null>(null);
+  const [vendorSignup, setVendorSignup] = useState(false);
+  const vendorProfileRef = useRef<AuthProfile["auth"] | null>(null);
+  const latestSessionRef = useRef<Session | null>(null);
   const [partnerMode, setPartnerMode] = useState(() => window.location.pathname.replace(/\/$/, "").endsWith("/delivery-partner"));
   const [adminMode, setAdminMode] = useState(() => isAdminPath(window.location.pathname));
   const selectPortal = (partner: boolean) => {
@@ -43,10 +49,12 @@ export default function App() {
   useEffect(() => {
     if (!supabase) return;
     let active = true;
+    let sessionEventSeen = false;
     void supabase.auth
       .getSession()
       .then(({ data }) => {
-        if (active) {
+        if (active && !sessionEventSeen) {
+          latestSessionRef.current = data.session;
           setSession(data.session);
         }
       })
@@ -62,13 +70,19 @@ export default function App() {
       });
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
+      sessionEventSeen = true;
+      latestSessionRef.current = nextSession;
       if (event === "PASSWORD_RECOVERY") {
         setRecoveryMode(true);
         window.history.replaceState(null, "", `${window.location.pathname}?recovery=1`);
-      } else if (event === "SIGNED_IN") setRecoveryMode(false);
+      } else if (event === "SIGNED_IN" && !new URLSearchParams(window.location.search).has("recovery")) setRecoveryMode(false);
+      const sameVendor = keepVendorProfile(vendorProfileRef.current, nextSession?.user.id);
       setSession(nextSession);
-      setProfile(null);
-      setNotice(null);
+      if (!sameVendor) {
+        vendorProfileRef.current = null;
+        setProfile(null);
+        setNotice(null);
+      }
       setAuthLoading(false);
     });
     return () => {
@@ -84,12 +98,13 @@ export default function App() {
       return;
     }
     let active = true;
-    setRoleLoading(true);
+    if (vendorProfileRef.current?.userId !== session.user.id) setRoleLoading(true);
     setAuthError("");
     void apiRequest<AuthProfile>("/api/auth/me", session.access_token)
       .then((response) => {
         if (active) {
           setProfile(response.auth);
+          vendorProfileRef.current = response.auth.role === "vendor" ? response.auth : null;
           if (response.auth.role === "admin") {
             const base = import.meta.env.BASE_URL.replace(/\/$/, "");
             if (!isAdminPath(window.location.pathname)) {
@@ -108,10 +123,15 @@ export default function App() {
       .catch(async (error) => {
         if (!active) return;
         const message = error instanceof Error ? error.message : "Your session could not be verified.";
-        if (error instanceof ApiRequestError && error.status === 401) {
+        if (error instanceof ApiRequestError && error.status === 401 && isCurrentSessionFailure(session.access_token, latestSessionRef.current?.access_token)) {
           await supabase?.auth.signOut();
           setAuthError("Your session expired. Sign in again to continue.");
+        } else if (error instanceof ApiRequestError && error.status === 401) {
+          // A stale token's failed request must not invalidate a refreshed session.
+          return;
         } else {
+          vendorProfileRef.current = null;
+          setProfile(null);
           setAuthError(message);
         }
       })
@@ -138,6 +158,7 @@ export default function App() {
   const signIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthError("");
+    setAuthSuccess("");
     if (!supabase) return;
     setAuthLoading(true);
     try {
@@ -186,6 +207,8 @@ export default function App() {
   const signOut = async () => {
     setAuthError("");
     await supabase?.auth.signOut();
+    vendorProfileRef.current = null;
+    latestSessionRef.current = null;
     setProfile(null);
     setSession(null);
   };
@@ -202,7 +225,8 @@ export default function App() {
     return <main className="page"><div className="dashboard-shell"><AuthFrame><ResetPassword onComplete={success => {
       setRecoveryMode(false); setSession(null); setProfile(null); setPassword("");
       window.history.replaceState(null, "", window.location.pathname);
-      setAuthError(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
+      setAuthError("");
+      setAuthSuccess(success ? "Password updated. Sign in with your new password." : "Password reset cancelled.");
     }} /></AuthFrame></div></main>;
   }
 
@@ -215,17 +239,21 @@ export default function App() {
     }} />;
     return (
       <main className="page"><div className="dashboard-shell"><AuthFrame>
+        {!adminMode && vendorSignup ? <VendorSignup onBack={() => setVendorSignup(false)} /> : <>
         <form className="auth-form" onSubmit={signIn}>
           <p className="eyebrow">{adminMode ? "Local Basket · Admin" : "Secure operations access"}</p>
           <h1>{adminMode ? "Admin Portal sign in" : "Sign in to store management"}</h1>
           <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : "Use your marketplace account to manage stores, catalog, and orders."}</p>
           {authError && <div className="auth-error" role="alert">{authError}</div>}
+          {authSuccess && <div className="auth-success" role="status">{authSuccess}</div>}
           <label>{adminMode ? "Email address" : "Email or vendor username"}<input data-testid="input-email" autoComplete={adminMode || email.includes("@") ? "email" : "username"} onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type={adminMode ? "email" : "text"} value={email} required /></label>
           <label>Password<PasswordInput data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} value={password} required /></label>
           <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
+          {!adminMode && <button className="text-button" type="button" onClick={() => setVendorSignup(true)}>Create Vendor Account / Sign Up</button>}
           {!adminMode && <button className="text-button" onClick={() => selectPortal(true)} type="button">Delivery Partner sign in</button>}
         </form>
         <ForgotPassword key={adminMode ? "admin" : "vendor"} role={adminMode ? "admin" : "vendor"} initialIdentity={email} />
+        </>}
       </AuthFrame></div></main>
     );
   }
@@ -236,6 +264,20 @@ export default function App() {
 
   if (authError || !profile) {
     return <main className="page"><div className="dashboard-shell"><AuthFrame><AuthState title="Could not verify access" message={authError || "The account permissions response was incomplete."} action={signOut} /></AuthFrame></div></main>;
+  }
+
+  if (profile.role === "customer" && session.user.user_metadata?.vendor_signup === true && !adminMode && !partnerMode) {
+    return <main className="page"><div className="dashboard-shell"><AuthFrame>
+      <VendorSignup session={session} onBack={signOut} onCompleted={() => {
+        setProfile(null); setRoleLoading(true);
+        void apiRequest<AuthProfile>("/api/auth/me", session.access_token).then(result => {
+          setProfile(result.auth);
+          vendorProfileRef.current = result.auth.role === "vendor" ? result.auth : null;
+        }).catch(error => setAuthError(error instanceof Error ? error.message : "Unable to verify the new store."))
+          .finally(() => setRoleLoading(false));
+      }} />
+      <button className="text-button" type="button" onClick={signOut}>Sign out</button>
+    </AuthFrame></div></main>;
   }
 
   if (adminMode && profile.role !== "admin") {
