@@ -280,3 +280,17 @@ mtime_ms = 1791872795675
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/a53f7ca3-e9e1-4c81-84c6-8c71eb3ef7f2/bb9e480b-1719-4956-8ae1-483c822c66ba"
 storage_version_token = "1791872833303144"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "Zc-DqmRZJuavhbI9FzlhU"
+uri = "file://docs/CUSTOMER_PRIVACY_TERMS_REPORT.md"
+type = "text"
+title = "Customer Privacy & Terms — Implementation Report"
+description = "Exact files, all 21 source sections, unresolved legal/business details, verified data practices, bilingual coverage, test/build results and manual acceptance checklist."
+logical_id = "848363e2-bf0f-4d08-a901-d05fbe7ab95a"
+content_hash = "sha256:1ea6af17032518c83af3746a306ff4bffae0fe78a2102df4cff7b457a85a88b6"
+size = 14502
+mtime_ms = 1791894208812
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/848363e2-bf0f-4d08-a901-d05fbe7ab95a/e28441a8-7818-4191-970e-8d574aae4500"
+storage_version_token = "1791894245234880"
+content_type = "text/markdown"

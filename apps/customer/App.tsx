@@ -39,11 +39,13 @@ import { SavedItemsProvider } from "./src/SavedItemsContext";
 import { SavedItemsScreen } from "./src/SavedItemsScreen";
 import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
 import { HelpSupportScreen } from "./src/HelpSupportScreen";
+import { CustomerPolicyScreen } from "./src/CustomerPolicyScreen";
+import { AccountPrivacyScreen } from "./src/AccountPrivacyScreen";
 import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
 import { useLanguageScope, useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
 
-type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings" | "help";
+type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings" | "help" | "privacy" | "accountPrivacy" | "terms";
 
 function NavIcon({
   item,
@@ -449,6 +451,21 @@ function AccountScreen({
                     <Text style={styles.menuLabel}>{t("help.title")}</Text>
                     <Text accessible={false} style={styles.menuArrow}>›</Text>
                   </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("legal.privacy.title")} style={styles.menuRow} onPress={() => navigate("privacy")}>
+                    <Text accessible={false} style={styles.menuIcon}>◇</Text>
+                    <Text style={styles.menuLabel}>{t("legal.privacy.title")}</Text>
+                    <Text accessible={false} style={styles.menuArrow}>›</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("legal.account.title")} style={styles.menuRow} onPress={() => navigate("accountPrivacy")}>
+                    <Text accessible={false} style={styles.menuIcon}>⚿</Text>
+                    <Text style={styles.menuLabel}>{t("legal.account.title")}</Text>
+                    <Text accessible={false} style={styles.menuArrow}>›</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("legal.terms.title")} style={styles.menuRow} onPress={() => navigate("terms")}>
+                    <Text accessible={false} style={styles.menuIcon}>≡</Text>
+                    <Text style={styles.menuLabel}>{t("legal.terms.title")}</Text>
+                    <Text accessible={false} style={styles.menuArrow}>›</Text>
+                  </Pressable>
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -831,6 +848,7 @@ function CustomerApp() {
   const { t } = useTranslation();
   const { height: viewportHeight } = useWindowDimensions();
   const [screen, setScreen] = useState<Screen>("home");
+  const [privacyReturn, setPrivacyReturn] = useState<"account" | "accountPrivacy">("account");
   const [activePincode, setActivePincode] = useState("");
   const [orderId, setOrderId] = useState<string | undefined>();
   const [requestedStoreId, setRequestedStoreId] = useState<string | undefined>();
@@ -889,7 +907,10 @@ function CustomerApp() {
             }}
           />
         ) : screen === "account" ? (
-          <AccountScreen navigate={setScreen} />
+          <AccountScreen navigate={(destination) => {
+            if (destination === "privacy") setPrivacyReturn("account");
+            setScreen(destination);
+          }} />
         ) : screen === "profile" ? (
           <AccountScreen navigate={setScreen} editProfile />
         ) : screen === "saved" ? (
@@ -905,6 +926,15 @@ function CustomerApp() {
           <CustomerSettingsScreen onBack={() => setScreen("account")} />
         ) : screen === "help" ? (
           <HelpSupportScreen onBack={() => setScreen("account")} />
+        ) : screen === "privacy" ? (
+          <CustomerPolicyScreen kind="privacy" onBack={() => setScreen(privacyReturn)} />
+        ) : screen === "terms" ? (
+          <CustomerPolicyScreen kind="terms" onBack={() => setScreen("account")} />
+        ) : screen === "accountPrivacy" ? (
+          <AccountPrivacyScreen onBack={() => setScreen("account")} onNavigate={(destination) => {
+            if (destination === "privacy") setPrivacyReturn("accountPrivacy");
+            setScreen(destination);
+          }} />
         ) : (
           <AddressesScreen navigate={setScreen} />
         )}
@@ -918,7 +948,7 @@ function CustomerApp() {
               selected:
                 screen === item ||
                 (item === "account" &&
-                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help")),
+                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help" || screen === "privacy" || screen === "accountPrivacy" || screen === "terms")),
             }}
             key={item}
             onPress={() => {
@@ -936,7 +966,7 @@ function CustomerApp() {
               active={
                 screen === item ||
                 (item === "account" &&
-                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help"))
+                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help" || screen === "privacy" || screen === "accountPrivacy" || screen === "terms"))
               }
             />
             <Text
@@ -944,7 +974,7 @@ function CustomerApp() {
                 styles.navText,
                 (screen === item ||
                   (item === "account" &&
-                    (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help"))) &&
+                    (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help" || screen === "privacy" || screen === "accountPrivacy" || screen === "terms"))) &&
                   styles.navActive,
               ]}
             >

@@ -1,4 +1,5 @@
 import { serviceEn, serviceTe } from "./service-messages";
+import { legalEn, legalTe } from "./legal-copy";
 
 /**
  * Customer UI catalogue. Human-readable English is deliberately used as the
@@ -7,6 +8,7 @@ import { serviceEn, serviceTe } from "./service-messages";
  */
 export const en = {
   ...serviceEn,
+  ...legalEn,
   "help.title": "Help & Support",
   "help.back": "Back to Account & Settings",
   "help.searchPlaceholder": "How can we help?",
@@ -495,6 +497,7 @@ export type TranslationKey = keyof typeof en;
 
 // Partial by design: lookup falls back to English, never to a blank label.
 export const te: Partial<Record<TranslationKey, string>> = {
+  ...legalTe,
   "help.title": "సహాయం & మద్దతు",
   "help.back": "ఖాతా & సెట్టింగ్‌లకు తిరిగి వెళ్లండి",
   "help.searchPlaceholder": "మీకు ఎలా సహాయపడగలం?",
