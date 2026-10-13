@@ -38,11 +38,12 @@ import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/co
 import { SavedItemsProvider } from "./src/SavedItemsContext";
 import { SavedItemsScreen } from "./src/SavedItemsScreen";
 import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
+import { HelpSupportScreen } from "./src/HelpSupportScreen";
 import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
 import { useLanguageScope, useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
 
-type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings";
+type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings" | "help";
 
 function NavIcon({
   item,
@@ -442,6 +443,11 @@ function AccountScreen({
                     <Text style={styles.menuIcon}>⚙</Text>
                     <Text style={styles.menuLabel}>{t("Settings")}</Text>
                     <Text style={styles.menuArrow}>›</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("help.title")} style={styles.menuRow} onPress={() => navigate("help")}>
+                    <Text accessible={false} style={styles.menuIcon}>?</Text>
+                    <Text style={styles.menuLabel}>{t("help.title")}</Text>
+                    <Text accessible={false} style={styles.menuArrow}>›</Text>
                   </Pressable>
                 </View>
                 <Pressable
@@ -897,6 +903,8 @@ function CustomerApp() {
           />
         ) : screen === "settings" ? (
           <CustomerSettingsScreen onBack={() => setScreen("account")} />
+        ) : screen === "help" ? (
+          <HelpSupportScreen onBack={() => setScreen("account")} />
         ) : (
           <AddressesScreen navigate={setScreen} />
         )}
@@ -910,7 +918,7 @@ function CustomerApp() {
               selected:
                 screen === item ||
                 (item === "account" &&
-                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings")),
+                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help")),
             }}
             key={item}
             onPress={() => {
@@ -928,7 +936,7 @@ function CustomerApp() {
               active={
                 screen === item ||
                 (item === "account" &&
-                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings"))
+                  (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help"))
               }
             />
             <Text
@@ -936,7 +944,7 @@ function CustomerApp() {
                 styles.navText,
                 (screen === item ||
                   (item === "account" &&
-                    (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings"))) &&
+                    (screen === "profile" || screen === "addresses" || screen === "saved" || screen === "settings" || screen === "help"))) &&
                   styles.navActive,
               ]}
             >

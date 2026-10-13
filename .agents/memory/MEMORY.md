@@ -29,3 +29,4 @@
 - [Saved Items and product images](saved-items-and-product-images.md) — exact store-listing favorites; existing profile/password boundaries; product photos separate from private Documents.
 - [Legacy address compatibility](legacy-address-compatibility.md) — preserve unparsed old address text; structured fields never justify guessing or rewriting historical order addresses.
 - [Customer-only localization](localization-boundaries.md) — Vendor, Delivery Partner, Admin and dashboard auth are excluded; preferences stay outside auth and entered data is never auto-translated.
+- [Customer support boundaries](customer-support-boundaries.md) — accurate feature/policy answers only; no fictional contacts, tickets, wallet features or refund guarantees.

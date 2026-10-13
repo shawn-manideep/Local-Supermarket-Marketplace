@@ -1,0 +1,105 @@
+# Customer Portal — Add Help & Support Under Account & Settings
+
+Implement a Help & Support feature in the existing Local Supermarket Marketplace Customer Portal, using the uploaded screenshots as the layout and functionality reference.
+
+## 1. Entry Point in Account & Settings
+
+- Add a clearly visible **Help & Support** option inside the existing Customer Account & Settings section.
+- Include a suitable help/headset icon.
+- Tapping it should open a dedicated Help & Support screen.
+- Provide a back button that returns to the previous Customer screen.
+- Follow the existing Customer Portal navigation and styling conventions.
+
+## 2. Help & Support Screen Design
+
+Use the reference screenshots for the layout structure, but preserve the marketplace's existing blue, deep navy, light background and white color palette.
+
+Create a clean, mobile-friendly page containing:
+
+### Header
+- Back button.
+- Title: **Help & Support**.
+
+### Search
+- Search bar with placeholder: **How can we help?**
+- Allow customers to search available FAQ questions and help topics.
+- Show a helpful empty state when there are no matches.
+
+### Help Categories
+Create clickable cards for:
+
+1. **Account & Profile**
+2. **Order & Delivery**
+3. **Payments & Refunds**
+4. **Wallet Related**
+5. **General Info**
+
+Use appropriate icons, consistent spacing, rounded cards and responsive layouts. Each card must open a relevant help-topic list or section. Do not leave decorative cards that do nothing.
+
+If wallet functionality is not implemented in the current application, display only relevant available help information. Do not invent wallet features or payment capabilities.
+
+### Frequently Asked Questions
+Add an FAQ section with expandable/collapsible questions, following the reference layout.
+
+Include relevant questions such as:
+- How can I track my order?
+- Can I change my delivery address?
+- How do I request a refund?
+- How can I change my account details?
+- How does scheduled delivery work?
+- What should I do if an item is missing or incorrect?
+
+Provide accurate answers based on the application's existing functionality and policies. Do not promise refunds, cancellations or delivery capabilities that are not currently supported.
+
+### Still Need Help?
+Add a support section with:
+- A short message explaining how customers can get assistance.
+- A **Chat with Us** button.
+- A **Contact Us** button.
+
+Before implementing these actions, inspect the existing project for configured support channels, contact details or working chat integrations.
+
+- Connect buttons to existing supported destinations if available.
+- If no support channel exists, do not fabricate phone numbers, email addresses or chat integrations. Provide an appropriate in-app message or a clearly configured placeholder that can be completed later.
+- Do not claim 24/7 availability unless that is actually configured.
+
+## 3. English and Telugu Localization
+
+The Customer Portal already supports English and Telugu.
+
+- Add the new Help & Support interface strings to the existing Customer localization dictionaries.
+- Provide natural Telugu translations for the page title, search placeholder, categories, FAQ questions and answers, buttons, and empty states.
+- Preserve the existing language selector, saved preferences, localization provider and font configuration.
+- Switching languages must update the Help & Support screen immediately.
+- Do not modify the Vendor, Delivery Partner or Admin portals or their localization state.
+
+## 4. Functional and UI Requirements
+
+- Make every category card, FAQ accordion and working support button functional.
+- Preserve the existing navigation and back-button behavior.
+- Ensure the page scrolls correctly on mobile, including smaller screens.
+- Prevent the bottom navigation or system navigation area from covering content.
+- Use consistent typography, spacing, card sizes, icons and accessible tap targets.
+- Retain the existing application theme; do not redesign unrelated Customer screens.
+- Reuse existing components wherever practical.
+
+## 5. Testing and Safety
+
+- Add focused tests for navigation, FAQ expansion, search filtering, localization and available support actions.
+- Run existing Customer regression tests, localization tests, typecheck and Customer web export.
+- Do not run automated browser tests; I will manually test the Replit preview.
+- Do not change database schema or backend APIs unless an existing supported integration genuinely requires it.
+- Do not modify authentication, cart, stock, order processing or delivery logic.
+- Do not deploy or publish.
+
+## Final Report
+
+Report:
+1. Files and components changed.
+2. How customers access Help & Support.
+3. Implemented categories, FAQs and support actions.
+4. English and Telugu translation coverage.
+5. Test and build results.
+6. Any support integrations or contact details still requiring configuration.
+
+Stop after implementation and reporting.

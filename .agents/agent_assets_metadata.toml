@@ -266,3 +266,17 @@ mtime_ms = 1791652066086
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/0768ff8d-8d51-465b-a1e0-a329c095d55f/a1967e6d-bc0a-44cc-8d0a-3e5bb80f7803"
 storage_version_token = "1791652087057821"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "tfqWnkwEqiuszCJTDgocB"
+uri = "file://docs/CUSTOMER_HELP_SUPPORT_REPORT.md"
+type = "text"
+title = "Customer Help & Support — Implementation Report"
+description = "Changed files, FAQs and support actions, bilingual coverage, verification results, configuration requirements and manual checklist."
+logical_id = "a53f7ca3-e9e1-4c81-84c6-8c71eb3ef7f2"
+content_hash = "sha256:117427f6eb176aa85e4580a918a21c9e69358f87a7647f90c47f81ec851ca581"
+size = 6739
+mtime_ms = 1791872795675
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:85f32ae4-272f-47c7-a068-6b1e1b0107d8/a53f7ca3-e9e1-4c81-84c6-8c71eb3ef7f2/bb9e480b-1719-4956-8ae1-483c822c66ba"
+storage_version_token = "1791872833303144"
+content_type = "text/markdown"
