@@ -4,6 +4,7 @@ import type { Request } from "express";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { HttpError, asyncHandler } from "../http.js";
 import { DOCUMENT_TYPES } from "./files.js";
+import { fssaiStatus } from "./expiry.js";
 
 export function ownedDocumentStore(request: Request) {
   const storeId = (request as AuthenticatedRequest).auth?.storeId;
@@ -22,7 +23,7 @@ export async function documentStatus(storeId: string) {
   const result = await getDb().execute(sql`
     SELECT id,document_type AS type,file_name AS "fileName",mime_type AS "mimeType",
       size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",updated_at AS "updatedAt",version,
-      verification_status AS "verificationStatus",rejection_reason AS "rejectionReason"
+      verification_status AS "verificationStatus",rejection_reason AS "rejectionReason",expiry_date::text AS "expiryDate"
     FROM vendor_documents WHERE store_id=${storeId} AND is_current ORDER BY document_type`);
   const documents = DOCUMENT_TYPES.map(type => ({
     ...type, current: result.rows.find(row => row.type === type.type) ?? null,
@@ -32,7 +33,10 @@ export async function documentStatus(storeId: string) {
   const verified = mandatoryCount === 4 && store.verificationStatus === "APPROVED" &&
     documents.filter(d => d.mandatory).every(d => d.current?.verificationStatus === "APPROVED");
   const verificationStatus = store.required ? store.verificationStatus : "EXEMPT";
-  const message = store.bankStatus !== "APPROVED" ? "Approved bank details and mandatory documents are required for catalog access and new orders. Complete Bank Details and await Admin review."
+  const fssai = fssaiStatus((result.rows.find(row => row.type === "fssai")?.expiryDate as string | null) ?? null);
+  const message = fssai.status === "EXPIRED" ? "FSSAI license expired. Catalog access and new orders are restricted. Renew the license and submit for Admin review; existing fulfillment remains available."
+    : fssai.status === "DATE_REQUIRED" ? "Provide the actual FSSAI expiry date and submit documents for Admin review. An unknown expiry date cannot unlock catalog access or new orders."
+    : store.bankStatus !== "APPROVED" ? "Approved bank details and mandatory documents are required for catalog access and new orders. Complete Bank Details and await Admin review."
     : verified && store.storeStatus !== "ACTIVE" ? "Documents approved. Catalog access also requires Admin store approval."
     : verified ? "Documents approved. Your catalog is available."
     : verificationStatus === "SUBMITTED" ? "Documents submitted for verification. Catalog access will be enabled after approval."
@@ -43,7 +47,7 @@ export async function documentStatus(storeId: string) {
     canManageCatalog: Boolean(store.complianceApproved), bankStatus: store.bankStatus ?? "MISSING", verificationStatus,
     submissionId: store.submissionId, submittedAt: store.submittedAt,
     reviewedAt: store.reviewedAt, rejectionReason: store.rejectionReason, message,
-    documents };
+    documents, fssai };
 }
 /** Admin selectors use the Vendor account ID, never a caller-supplied store ID. */
 export async function adminDocumentStore(vendorId: string) {

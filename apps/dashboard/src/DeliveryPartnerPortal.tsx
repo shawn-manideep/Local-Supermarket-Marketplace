@@ -3,6 +3,7 @@ import type { DeliveryAssignment, DeliveryAssignmentOutcome, PartnerDashboardOut
 import { ApiRequestError, apiAuthorizationHeaders, apiRequest, apiUrl } from "./api";
 import "./partner.css";
 import { BrandingLogo } from "./BrandingLogo";
+import { runRefreshEventStream } from "./refresh-event-stream";
 
 type Props = { token: string; onSignOut: () => Promise<void> };
 type Screen = "dashboard" | "deliveries" | "profile";
@@ -199,6 +200,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
       }
     };
     void checkOffers();
+    void runRefreshEventStream("/api/delivery-partner/events", token, controller.signal, () => { void checkOffers(); });
     const timer = window.setInterval(() => void checkOffers(), OFFER_POLL_MS);
     window.addEventListener("focus", checkOffers);
     return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", checkOffers); claimedOffers.current.clear(); };
@@ -459,7 +461,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
                 <aside className="lbp-aside-card"><div><p className="lbp-kicker">Partner note</p><h2>One clear next step at a time.</h2></div><p>Available offers refresh every 12 seconds while this portal is open. Assigned delivery details refresh every 45 seconds.</p></aside>
              </section>
               <section className="lbp-panel lbp-content-panel lbp-available-offers" aria-label="Available delivery offers">
-                <div className="lbp-section-head"><div><p className="lbp-kicker">First claim wins</p><h2>Available deliveries</h2></div><span className="lbp-date-note">Refreshes every 12 seconds while open</span></div>
+                 <div className="lbp-section-head"><div><p className="lbp-kicker">First claim wins</p><h2>Available deliveries</h2></div><span className="lbp-date-note">Live refresh signal when connected · 12-second polling fallback</span></div>
                 {offers.length ? <div className="lbp-delivery-list">{offers.map((offer) => <article className="lbp-delivery-row" key={offer.orderId}>
                   <div><div className="lbp-delivery-ref">{offer.orderReference}</div><div className="lbp-delivery-time">{offer.storeName} · ₹{Number(offer.orderTotal).toFixed(2)}</div><div className="lbp-delivery-schedule">{offer.deliveryMode === "SCHEDULED" && offer.scheduledStartAt ? `Scheduled · ${dateTime(offer.scheduledStartAt)}` : "Instant delivery"}</div></div>
                   <button className="lbp-button lbp-button-primary" type="button" disabled={claimedOffer === offer.orderId || Boolean(claimedOffer)} onClick={() => void claimOffer(offer)}>{claimedOffer === offer.orderId ? "Claiming…" : "Claim delivery"}</button>

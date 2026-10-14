@@ -70,25 +70,30 @@ export function deliveryWorkflow(db: Database = getDb()) {
         s.id AS "storeId",s.name AS "storeName",o.total_amount::text AS "orderTotal",
         o.delivery_mode AS "deliveryMode",o.scheduled_start_at AS "scheduledStartAt",o.scheduled_end_at AS "scheduledEndAt"
         FROM orders o JOIN stores s ON s.id=o.store_id WHERE o.status='READY'
+        AND (o.delivery_mode<>'SCHEDULED' OR o.scheduled_end_at>clock_timestamp())
         AND NOT EXISTS(SELECT 1 FROM delivery_assignments a WHERE a.order_id=o.id
           AND a.status IN ('PENDING','ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED'))
         ORDER BY o.created_at,o.id`);
       return result.rows;
     },
     async claim(partnerId: string, orderId: string) {
-      await db.transaction(async tx => {
-        const order = (await tx.execute(sql`SELECT status FROM orders WHERE id=${orderId} FOR UPDATE`)).rows[0];
+      const assignmentId = await db.transaction(async tx => {
+        const order = (await tx.execute(sql`SELECT status,delivery_mode,scheduled_end_at,
+          (scheduled_end_at>clock_timestamp()) AS offer_not_expired FROM orders WHERE id=${orderId} FOR UPDATE`)).rows[0];
         await active(tx,partnerId);
-        if (!order || order.status !== "READY") fail("DELIVERY_UNAVAILABLE","This delivery is no longer available.");
-        const existing = await tx.execute(sql`SELECT id FROM delivery_assignments WHERE order_id=${orderId}
+        const existing = await tx.execute(sql`SELECT id,partner_user_id,status FROM delivery_assignments WHERE order_id=${orderId}
           AND status IN ('PENDING','ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED')`);
+        const previous = existing.rows[0];
+        if (previous?.partner_user_id === partnerId && ["ACCEPTED","PICKED_UP","OUT_FOR_DELIVERY","DELIVERED"].includes(String(previous.status)))
+          return String(previous.id); // Retry of a successful claim, not another duty.
+        if (!order || order.status !== "READY" || (order.delivery_mode === "SCHEDULED" && !order.offer_not_expired))
+          fail("DELIVERY_UNAVAILABLE","This delivery is no longer available or its scheduled offer has expired.");
         if (existing.rows.length) fail("DELIVERY_UNAVAILABLE","Another partner already accepted this delivery. Refresh available deliveries.");
-        await tx.execute(sql`INSERT INTO delivery_assignments(order_id,partner_user_id,status,assigned_at,accepted_at)
-          VALUES(${orderId},${partnerId},'ACCEPTED',transaction_timestamp(),clock_timestamp())`);
+        const inserted = await tx.execute(sql`INSERT INTO delivery_assignments(order_id,partner_user_id,status,assigned_at,accepted_at)
+          VALUES(${orderId},${partnerId},'ACCEPTED',transaction_timestamp(),clock_timestamp()) RETURNING id`);
+        return String(inserted.rows[0]!.id);
       });
-      const result = await db.execute(sql`SELECT id FROM delivery_assignments WHERE order_id=${orderId}
-        AND partner_user_id=${partnerId} AND status='ACCEPTED' ORDER BY assigned_at DESC LIMIT 1`);
-      return own(partnerId,String(result.rows[0]?.id));
+      return own(partnerId,assignmentId);
     },
     async eligible(actor: Actor) {
       const result = await db.execute(sql`SELECT p.user_id AS id,p.display_name AS "displayName",p.status

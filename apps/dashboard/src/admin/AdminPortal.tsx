@@ -9,6 +9,7 @@ import {
   changeAdminStatus,
   createAdminVendor,
   createAdminPartner,
+  getAdminVendorDocuments,
   getAdminAccount,
   getAdminDashboard,
   listAdminAccounts,
@@ -22,6 +23,7 @@ import {
 } from "../admin-api";
 import { partnerProvisionSchema, storeUpdateSchema, usernameSchema } from "@workspace/validation";
 import { StoreProfileFields } from "../StoreProfileFields";
+import { StoreLocationMap } from "../StoreLocationMap";
 import { readWeeklyHours, WeeklyHoursFields } from "../WeeklyHoursFields";
 import { OrderOperations } from "../OrderOperations";
 import "./admin.css";
@@ -430,7 +432,7 @@ function AccountDirectory({ kind, token, revision, onOpen, onProvisioned }: { ki
     <section className="lb-admin-panel">
       {loading && !page ? <div className="lb-admin-loading" aria-label={`Loading ${kindLabel[kind]}`}><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div> : error && !page ? <div className="lb-admin-empty"><strong>Directory could not be loaded</strong>Retry to check your permission and connection.</div> : page && page.items.length === 0 ? <div className="lb-admin-empty"><strong>No {kindLabel[kind].toLowerCase()} found</strong>{searchReady || status ? "Adjust the search or status filter and try again." : `No ${kindLabel[kind].toLowerCase()} are available yet.`}</div> : page && <>
         <div className="lb-admin-table-wrap"><table className="lb-admin-table"><thead><tr><th>{title}</th>{kind === "vendors" && <><th>Owner</th><th>Location</th><th>Store status</th><th>Documents</th></>}<th>{kind === "delivery-partners" || kind === "vendors" ? "Username" : "Email / username"}</th><th>Created</th><th>Status</th><th aria-label="Actions" /></tr></thead><tbody>
-          {page.items.map((row) => <AccountRow key={row.id} kind={kind} row={row} onOpen={() => onOpen(kind, row.id)} />)}
+          {page.items.map((row) => <AccountRow key={row.id} kind={kind} row={row} token={token} onOpen={() => onOpen(kind, row.id)} />)}
         </tbody></table></div>
         <div className="lb-admin-pagination"><span>Showing {start}–{end} of {page.total.toLocaleString("en-IN")} · Page {page.page} of {Math.max(1, Math.ceil(page.total / page.pageSize))}</span><div className="lb-admin-page-actions"><button type="button" disabled={loading || page.page <= 1} onClick={() => setPageNumber((current) => Math.max(1, current - 1))}>Previous</button><button type="button" disabled={loading || page.page * page.pageSize >= page.total} onClick={() => setPageNumber((current) => current + 1)}>Next</button></div></div>
       </>}
@@ -479,7 +481,7 @@ function AdminDailyReports({ token, partners }: { token: string; partners: Admin
   </section>;
 }
 
-function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onOpen: () => void }) {
+function AccountRow({ kind, row, token, onOpen }: { kind: AdminKind; row: AdminRow; token: string; onOpen: () => void }) {
   const display = row.displayName || row.username || row.email || "Unnamed account";
   const storeStatus = kind === "vendors" ? row.status : null;
   const accountStatus = kind === "vendors" ? (row.storeId ? row.status : null) : row.status;
@@ -487,12 +489,25 @@ function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onO
     <td data-label={kind === "vendors" ? "Shop / vendor" : "Account"}><span className="lb-admin-person">{kind === "vendors" ? row.storeName || "Not linked" : display}</span><span className="lb-admin-secondary">{kind === "vendors" ? [row.locality, row.city, row.pincode].filter(Boolean).join(" · ") || "Location not provided" : row.username ? `@${row.username}` : "Account"}</span></td>
     {kind === "vendors" && <><td data-label="Owner">{row.ownerName || "—"}</td><td data-label="Location">{[row.locality, row.city, row.pincode].filter(Boolean).join(", ") || "—"}</td></>}
     {kind === "vendors" && <td data-label="Store status"><StatusPill value={storeStatus} fallback={row.storeId ? "Unknown" : "Not linked"} /></td>}
-    {kind === "vendors" && <td data-label="Documents"><DocumentVerificationPill value={row.documentVerificationStatus} /></td>}
+    {kind === "vendors" && <td data-label="Documents"><DocumentVerificationPill value={row.documentVerificationStatus} /><VendorFssaiDirectoryCell vendorId={row.id} token={token} /></td>}
     <td data-label={kind === "customers" ? "Email / username" : "Username"}>{kind === "delivery-partners" || kind === "vendors" ? row.username || "—" : row.email || row.username || "—"}{kind !== "delivery-partners" && kind !== "vendors" && row.email && row.username && <span className="lb-admin-secondary">@{row.username}</span>}</td>
     <td data-label="Created">{formatDate(row.createdAt)}</td>
     <td data-label="Status"><StatusPill value={accountStatus} fallback={row.storeId || kind !== "vendors" ? "Unknown" : "Not linked"} /></td>
     <td data-label="Actions"><button className="lb-admin-row-action" type="button" onClick={onOpen}>View details</button></td>
   </tr>;
+}
+function VendorFssaiDirectoryCell({ vendorId, token }: { vendorId: string; token: string }) {
+  const [expiry, setExpiry] = useState<{ date: string | null; status: string } | null>(null);
+  useEffect(() => {
+    let active = true;
+    void getAdminVendorDocuments(vendorId, token).then((result) => {
+      if (active && result.fssai) setExpiry({ date: result.fssai.expiryDate, status: result.fssai.status });
+    }).catch(() => { if (active) setExpiry(null); });
+    return () => { active = false; };
+  }, [vendorId, token]);
+  return <span className="lb-admin-secondary lb-admin-fssai-directory" data-testid={`vendor-fssai-summary-${vendorId}`}>
+    FSSAI · {expiry ? `${expiry.status.replaceAll("_", " ")}${expiry.date ? ` · ${formatDate(expiry.date)}` : " · date unknown"}` : "Checking…"}
+  </span>;
 }
 function StatusPill({ value, fallback }: { value: string | null; fallback: string }) {
   return <span className={`lb-admin-status ${statusClass(value)}`}>{value ? titleCaseStatus(value) : fallback}</span>;
@@ -573,7 +588,7 @@ function VendorDetailGroups({ account }: { account: AdminDetail }) {
   return <div className="lb-admin-vendor-groups">
     <section><h3>Owner</h3><p>{store.ownerName || account.ownerName || "—"} · {store.phone || account.contactNumber || "No mobile"} · {store.email || account.email || "No email"}</p></section>
     <section><h3>Store</h3><p>{store.name}</p><p>{store.description || "No store description provided."}</p>{store.logoImageUrl && <a href={store.logoImageUrl} target="_blank" rel="noreferrer">View store logo</a>}</section>
-    <section><h3>Store location</h3><p>{line || "Store address not provided."}</p><p>Coordinates · {store.latitude != null && store.longitude != null ? `${store.latitude}, ${store.longitude}` : "Not provided"}</p></section>
+    <section><h3>Store location</h3><p>{line || "Store address not provided."}</p><p>Coordinates · {store.latitude != null && store.longitude != null ? `${store.latitude}, ${store.longitude}` : "Not provided"}</p><StoreLocationMap latitude={store.latitude} longitude={store.longitude} editable={false} /></section>
     <section><h3>Operations</h3><p>Delivery fee ₹{store.deliveryFee} · Handling fee ₹{store.handlingFee ?? "0.00"} · Minimum order ₹{store.minimumOrderValue}</p></section>
   </div>;
 }

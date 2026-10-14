@@ -43,7 +43,7 @@ before(async () => {
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
     SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
   const migrations = new URL("../../../../database/migrations/", import.meta.url);
-  for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !["0019","0021","0024"].some(prefix=>file.startsWith(prefix))).sort()) {
+  for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !["0019","0021","0024","0025"].some(prefix=>file.startsWith(prefix))).sort()) {
     await pool.query(await readFile(new URL(file, migrations), "utf8"));
   }
   for (const id of [legacy, vendorA, vendorB, customer, admin, delivery, customerB]) {
@@ -65,6 +65,7 @@ before(async () => {
     await pool.query("INSERT INTO store_operating_hours(store_id,day_of_week,is_closed,opens_at,closes_at) SELECT $1,generate_series(0,6),false,'00:00','23:59'", [id]);
   }
   await pool.query(await readFile(new URL("0024_vendor_compliance_and_delivery_photos.sql", migrations),"utf8"));
+  await pool.query(await readFile(new URL("0025_fssai_expiry_and_vendor_notifications.sql", migrations),"utf8"));
   // Isolate document-review regressions from the independently tested bank flow.
   const { approvedFixtureBank } = await import("../test-fixture-compliance.js");
   for(const id of [storeA,storeB]) await approvedFixtureBank(pool,id,admin);
@@ -123,7 +124,7 @@ async function request(actor: string | null, path: string, method = "GET", body?
   });
 }
 async function upload(actor: string, type: string, bytes = pdf, fileName = "license.pdf", mimeType = "application/pdf"): Promise<QAResponse> {
-  return originalFetch(`${base}/api/vendor/documents/${type}?fileName=${encodeURIComponent(fileName)}`, {
+  return originalFetch(`${base}/api/vendor/documents/${type}?fileName=${encodeURIComponent(fileName)}${type==="fssai"?"&expiryDate=2099-12-31":""}`, {
     method: "PUT", headers: { Authorization: `Bearer ${actor}`, "Content-Type": mimeType, "X-Forwarded-For": actorIp(actor) }, body: new Uint8Array(bytes),
   });
 }
@@ -144,7 +145,8 @@ test("new and existing vendors require current compliance without rewriting hist
   assert.equal(fresh.mandatoryCount, 0); assert.equal(fresh.optionalCount, 0);
   assert.deepEqual(fresh.documents.map((item: { label: string }) => item.label),
     ["FSSAI License", "Aadhaar Card", "PAN Card", "Vendor Photo", "GST", "Trade License", "Labour License"]);
-  assert.equal(fresh.message, "Upload all mandatory documents, submit for verification and await Admin approval.");
+  assert.equal(fresh.fssai.status, "DATE_REQUIRED");
+  assert.match(fresh.message, /actual FSSAI expiry date/);
 });
 test("server gate covers direct product/category/variant mutations and Master selection", async () => {
   for (const [path, method, body] of [

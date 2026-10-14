@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 export { catalogImportEvents } from "./catalog-imports.js";
 export { vendorBankDetails, deliveryPickupPhotos } from "./vendor-compliance.js";
+export { vendorNotifications } from "./vendor-notifications.js";
 
 import {
   boolean,

@@ -8,7 +8,6 @@ import {
   type OrderStatus,
   type OrderSummary,
   type Store,
-  type VendorDeliveryPartner,
 } from "./api";
 import type { DeliveryAssignment } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { actionProgress, createVendorActionGate, vendorActions, vendorEmptyMessage, vendorStatusLabel, type VendorOrderAction } from "./vendor-orders";
@@ -52,14 +51,9 @@ function deliverySnapshot(order: Pick<OrderSummary, "deliveryMode" | "scheduledS
 
 function VendorDeliveryAssignmentPanel({ token, detail, disabled = false }: { token: string; detail: OrderDetail; disabled?: boolean }) {
   const [assignment, setAssignment] = useState<DeliveryAssignment | null>(null);
-  const [partners, setPartners] = useState<VendorDeliveryPartner[]>([]);
-  const [partnerId, setPartnerId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [confirmReplacement, setConfirmReplacement] = useState(false);
   const requestGeneration = useRef(0);
-  const actionGate = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
   const replacementDialog = useRef<HTMLDialogElement>(null);
   const scope = `${token}:${detail.id}`;
@@ -77,14 +71,6 @@ function VendorDeliveryAssignmentPanel({ token, detail, disabled = false }: { to
       );
       if (signal?.aborted || generation !== requestGeneration.current || requestScope !== renderedScope.current) return;
       setAssignment(response.assignment);
-      const replaceable = !response.assignment || ["PENDING", "REJECTED", "CANCELLED"].includes(response.assignment.status);
-      if (detail.status === "READY" && replaceable) {
-        const directory = await apiRequest<{ partners: VendorDeliveryPartner[] }>("/api/vendor/delivery-partners", token, { signal });
-        if (signal?.aborted || generation !== requestGeneration.current || requestScope !== renderedScope.current) return;
-        setPartners(directory.partners.filter((partner) => partner.status === "ACTIVE"));
-      } else {
-        setPartners([]);
-      }
     } catch {
       if (!signal?.aborted && generation === requestGeneration.current && requestScope === renderedScope.current) {
         setError("Delivery assignment could not be loaded. Retry to check its current state.");
@@ -99,12 +85,10 @@ function VendorDeliveryAssignmentPanel({ token, detail, disabled = false }: { to
     controllerRef.current = controller;
     renderedScope.current = scope;
     setAssignment(null);
-    setPartners([]);
-    setPartnerId("");
     setLoading(true);
     void refresh(controller.signal);
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible" && !actionGate.current && !controller.signal.aborted)
+      if (document.visibilityState === "visible" && !controller.signal.aborted)
         void refresh(controller.signal);
     };
     const timer = window.setInterval(refreshWhenVisible, 45_000);
@@ -120,83 +104,20 @@ function VendorDeliveryAssignmentPanel({ token, detail, disabled = false }: { to
     };
   }, [refresh, scope]);
 
-  useEffect(() => {
-    if (confirmReplacement && assignment?.status === "PENDING") replacementDialog.current?.showModal();
-    else replacementDialog.current?.close();
-  }, [confirmReplacement, assignment?.status]);
-
-  const assign = async () => {
-    const signal = controllerRef.current?.signal;
-    const requestScope = scope;
-    if (disabled || requestScope !== renderedScope.current || !partnerId || saving || actionGate.current || detail.status !== "READY" || !signal || signal.aborted) return;
-    actionGate.current = true;
-    setSaving(true);
-    setError("");
-    try {
-      const response = await apiRequest<{ assignment: DeliveryAssignment | null }>(
-        `/api/vendor/orders/${encodeURIComponent(detail.id)}/delivery`,
-        token,
-        { method: "POST", body: JSON.stringify({ partnerId }), signal },
-      );
-      if (signal.aborted || requestScope !== renderedScope.current) return;
-      setAssignment(response.assignment);
-      setPartnerId("");
-      // Re-read the server-owned assignment after the write.
-      await refresh(signal);
-    } catch {
-      if (!signal.aborted && requestScope === renderedScope.current) {
-        await refresh(signal);
-        if (!signal.aborted && requestScope === renderedScope.current)
-          setError("Partner assignment could not be completed. Review the current assignment before trying again.");
-      }
-    } finally {
-      actionGate.current = false;
-      if (!signal.aborted && requestScope === renderedScope.current) setSaving(false);
-    }
-  };
-
-  const canReplace = !assignment || ["PENDING", "REJECTED", "CANCELLED"].includes(assignment.status);
-  const beginAssign = () => {
-    if (assignment?.status === "PENDING") setConfirmReplacement(true);
-    else void assign();
-  };
   return (
     <div className="vendor-info-block vendor-delivery-assignment" aria-label="Delivery assignment">
       <div className="vendor-assignment-heading">
         <div><h3 className="vendor-subtitle">Delivery partner</h3><p className="vendor-text-muted">Partner fulfillment is managed separately from order preparation.</p></div>
-        <button className="vendor-text-button" type="button" disabled={loading || saving || disabled} onClick={() => void refresh()}>{loading ? "Checking…" : "Refresh"}</button>
+          <button className="vendor-text-button" type="button" disabled={loading || disabled} onClick={() => void refresh()}>{loading ? "Checking…" : "Refresh"}</button>
       </div>
       {error && <div className="vendor-notice vendor-notice-error" role="alert"><span>{error}</span><button className="vendor-secondary-button" type="button" disabled={loading} onClick={() => void refresh()}>Retry</button></div>}
       {loading ? <div className="vendor-delivery-skeleton" aria-label="Loading delivery assignment" /> : assignment ? (
         <div className="vendor-assignment-current">
           <div><span className="vendor-text-muted">Assigned to</span><strong>{assignment.partnerName}</strong></div>
           <span className={`vendor-status-badge vendor-status-${assignment.status.toLowerCase()}`}>{deliveryStatusLabel(assignment.status)}</span>
-          {assignment.status === "PENDING" && <p className="vendor-assignment-warning">Replacing this assignment will cancel the current pending duty before a new partner is assigned.</p>}
-          {["REJECTED", "CANCELLED"].includes(assignment.status) && <p className="vendor-text-muted">This assignment is closed. A replacement may be selected when the order is ready.</p>}
+          {assignment.status === "PENDING" && <p className="vendor-text-muted">The delivery offer is awaiting the selected partner’s response.</p>}
         </div>
-      ) : <p className="vendor-text-muted">No delivery partner has been assigned.</p>}
-      {!loading && detail.status === "READY" && canReplace && (
-        <div className="vendor-assignment-select">
-          <label htmlFor="delivery-partner-select">{assignment?.status === "PENDING" ? "Choose a replacement partner" : "Choose an active partner"}</label>
-          <div>
-            <select id="delivery-partner-select" value={partnerId} onChange={(event) => setPartnerId(event.target.value)} disabled={saving || !!error || disabled}>
-              <option value="">Select a partner</option>
-              {partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.displayName}</option>)}
-            </select>
-            <button className="vendor-primary-button" type="button" disabled={!partnerId || saving || !!error || disabled} onClick={beginAssign}>{saving ? "Assigning…" : assignment?.status === "PENDING" ? "Replace pending assignment" : "Assign partner"}</button>
-          </div>
-          {!partners.length && !error && <small>No active partners are available.</small>}
-        </div>
-      )}
-      {!loading && detail.status !== "READY" && !assignment && <p className="vendor-text-muted">Partner assignment becomes available when preparation is marked ready.</p>}
-      <dialog className="vendor-order-reject-dialog" ref={replacementDialog} aria-labelledby="vendor-replace-delivery-title" onCancel={() => setConfirmReplacement(false)}>
-        <h3 id="vendor-replace-delivery-title">Replace pending delivery?</h3>
-        <p>The current pending duty for {assignment?.partnerName} will be cancelled before the new partner is assigned.</p>
-        <div className="vendor-order-confirm-actions">
-          <button type="button" className="vendor-secondary-button" autoFocus onClick={() => setConfirmReplacement(false)}>Keep current partner</button>
-          <button type="button" className="vendor-primary-button" disabled={!partnerId || saving || !!error || disabled} onClick={() => { setConfirmReplacement(false); void assign(); }}>{saving ? "Replacing…" : "Confirm replacement"}</button>
-        </div>
-      </dialog>
+      ) : <p className="vendor-text-muted">{detail.status === "READY" ? "Ready for delivery · awaiting the first eligible partner to claim this order." : "No partner assignment yet. The offer opens automatically when the order is marked ready."}</p>}
     </div>
   );
 }

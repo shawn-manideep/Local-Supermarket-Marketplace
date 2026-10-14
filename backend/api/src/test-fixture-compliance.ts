@@ -25,5 +25,9 @@ export async function approvedFixtureDocuments(pool: pg.Pool, storeId: string, a
       object_ref,version,is_current,verification_status,submission_id)
       VALUES($1,$2,'fixture.pdf','application/pdf',64,$3,1,true,'APPROVED',$4)`,
       [storeId,type,`/fixture/documents/${storeId}/${type}`,submission]);
+    // Older isolated lifecycle fixtures deliberately run only earlier migrations.
+    const column = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='vendor_documents' AND column_name='expiry_date'");
+    if (type === "fssai" && column.rowCount)
+      await pool.query("UPDATE vendor_documents SET expiry_date='2099-12-31' WHERE store_id=$1 AND document_type='fssai' AND is_current",[storeId]);
   }
 }

@@ -456,6 +456,8 @@ export interface VendorCurrentDocument {
   verificationStatus?: VendorCurrentDocumentVerificationStatus;
   /** @nullable */
   rejectionReason?: string | null;
+  /** @nullable */
+  expiryDate?: string | null;
 }
 
 export interface VendorDocumentSummary {
@@ -463,6 +465,24 @@ export interface VendorDocumentSummary {
   label: string;
   mandatory: boolean;
   current: VendorCurrentDocument | null;
+}
+
+export type FssaiStatusStatus = typeof FssaiStatusStatus[keyof typeof FssaiStatusStatus];
+
+
+export const FssaiStatusStatus = {
+  DATE_REQUIRED: 'DATE_REQUIRED',
+  VALID: 'VALID',
+  EXPIRING_SOON: 'EXPIRING_SOON',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export interface FssaiStatus {
+  /** @nullable */
+  expiryDate: string | null;
+  status: FssaiStatusStatus;
+  /** @nullable */
+  daysRemaining: number | null;
 }
 
 export interface VendorDocumentStatus {
@@ -488,7 +508,62 @@ export interface VendorDocumentStatus {
      */
   optionalCount: number;
   message: string;
+  fssai?: FssaiStatus;
   documents: VendorDocumentSummary[];
+}
+
+export interface FssaiExpiryInput {
+  expiryDate: string;
+}
+
+export type VendorNotificationKind = typeof VendorNotificationKind[keyof typeof VendorNotificationKind];
+
+
+export const VendorNotificationKind = {
+  NEW_ORDER: 'NEW_ORDER',
+  FSSAI_EXPIRY: 'FSSAI_EXPIRY',
+} as const;
+
+/**
+ * @nullable
+ */
+export type VendorNotificationMilestone = typeof VendorNotificationMilestone[keyof typeof VendorNotificationMilestone] | null;
+
+
+export const VendorNotificationMilestone = {
+  NUMBER_30: '30',
+  NUMBER_7: '7',
+  NUMBER_0: '0',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export interface VendorNotification {
+  id: string;
+  kind: VendorNotificationKind;
+  message: string;
+  /** @nullable */
+  orderId: string | null;
+  /** @nullable */
+  documentId: string | null;
+  /** @nullable */
+  expiryDate: string | null;
+  /** @nullable */
+  milestone: VendorNotificationMilestone;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+}
+
+export type VendorNotificationFeedDeliveryMode = typeof VendorNotificationFeedDeliveryMode[keyof typeof VendorNotificationFeedDeliveryMode];
+
+
+export const VendorNotificationFeedDeliveryMode = {
+  IN_APP_REALTIME_WITH_POLLING: 'IN_APP_REALTIME_WITH_POLLING',
+} as const;
+
+export interface VendorNotificationFeed {
+  deliveryMode: VendorNotificationFeedDeliveryMode;
+  notifications: VendorNotification[];
 }
 
 export interface VendorProductMatch {
@@ -1616,6 +1691,10 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type AcknowledgeVendorNotification200 = {
+  ok: boolean;
+};
 
 export type GetAdminVendorBankDetailsParams = {
 reveal?: boolean;

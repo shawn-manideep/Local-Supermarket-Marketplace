@@ -16,6 +16,8 @@ import { createApiRateLimit } from "./security.js";
 import { adminManagementRouter } from "./admin-management/routes.js";
 import { catalogExcelRouter } from "./master-catalog/excel-routes.js";
 import { vendorDocumentsRouter } from "./vendor-documents/routes.js";
+import { vendorNotificationsRouter } from "./vendor-documents/notifications.js";
+import { portalEventsRouter } from "./portal-events.js";
 import { brandingRouter } from "./branding/routes.js";
 import { bankDetailsRouter } from "./vendor-documents/bank-details.js";
 import { pickupPhotosRouter } from "./delivery-partner/photos.js";
@@ -128,6 +130,8 @@ export function createApp() {
   app.use(pickupPhotosRouter);
   app.use(storeManagementRouter);
   app.use(vendorDocumentsRouter);
+  app.use(vendorNotificationsRouter);
+  app.use(portalEventsRouter);
   app.use(bankDetailsRouter);
   app.use(catalogManagementRouter);
   app.use(masterCatalogRouter);

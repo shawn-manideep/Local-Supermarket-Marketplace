@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { StoreLocationMap } from "./StoreLocationMap";
 
 export type StoreProfileValues = {
   name?: string | null;
@@ -83,12 +84,11 @@ export function StoreProfileFields({ values = {}, disabled = false, variant = "a
         </div>
       </div>
       <div className={vendor ? "vendor-address-group" : "lb-admin-address-group"}>
-        <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Exact location · optional</strong>
-        <p className={vendor ? "vendor-text-muted" : "lb-admin-secondary"}>Enter coordinates manually if a map pin is unavailable. Latitude −90 to 90; longitude −180 to 180.</p>
-        <div className={vendor ? "vendor-profile-fields-grid" : "lb-admin-provision-grid"}>
-          {field("Latitude", "latitude", { type: "number", value: values.latitude ?? "", inputMode: "decimal" })}
-          {field("Longitude", "longitude", { type: "number", value: values.longitude ?? "", inputMode: "decimal" })}
-        </div>
+        <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Exact store location · optional</strong>
+        {vendor ? <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={!disabled} /> : <>
+          <p className="lb-admin-secondary">Coordinates are read-only in this profile form.</p>
+          <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={false} />
+        </>}
       </div>
       {!vendor && <div className="lb-admin-address-group">
         <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Store operations</strong>

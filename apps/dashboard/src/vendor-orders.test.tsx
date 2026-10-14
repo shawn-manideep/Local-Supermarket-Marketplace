@@ -20,21 +20,13 @@ test("vendor delivery view never dispatches or completes partner deliveries", ()
   assert.deepEqual(vendorActions("OUT_FOR_DELIVERY", "delivery"), []);
   assert.deepEqual(vendorActions("PLACED", "delivery"), []);
 });
-test("vendor order details use partner assignment contracts and hide opaque selection IDs", async () => {
+test("vendor order details expose read-only first-claim assignment status, never manual selection", async () => {
   const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
   const panel = source.slice(source.indexOf("function VendorDeliveryAssignmentPanel"), source.indexOf("function AdminSummaryTiles"));
   assert.match(panel, /\/api\/vendor\/orders\/\$\{encodeURIComponent\(detail\.id\)\}\/delivery/);
-  assert.match(panel, /\/api\/vendor\/delivery-partners/);
-  assert.match(panel, /partner\.status === "ACTIVE"/);
-  assert.match(panel, /detail\.status === "READY" && canReplace/);
-  assert.match(panel, /const replaceable = !response\.assignment \|\| \["PENDING", "REJECTED", "CANCELLED"\]\.includes\(response\.assignment\.status\)/);
-  assert.match(panel, /const canReplace = !assignment \|\| \["PENDING", "REJECTED", "CANCELLED"\]\.includes\(assignment\.status\)/);
-  assert.match(panel, /Replacing this assignment will cancel the current pending duty/);
-  assert.match(panel, /Replace pending delivery\?/);
-  assert.doesNotMatch(panel, /\["PENDING", "REJECTED", "CANCELLED", "ACCEPTED"|canReplace = .*PICKED_UP|canReplace = .*OUT_FOR_DELIVERY/);
-  assert.match(panel, /JSON\.stringify\(\{ partnerId \}\)/);
+  assert.doesNotMatch(panel, /\/api\/vendor\/delivery-partners|method:\s*"POST"|partnerId|<select/);
+  assert.match(panel, /awaiting the first eligible partner to claim this order/);
   assert.match(panel, /assignment\.partnerName/);
-  assert.match(panel, /<option key=\{partner\.id\} value=\{partner\.id\}>\{partner\.displayName\}<\/option>/);
   assert.doesNotMatch(panel, /<strong>\{assignment\.id\}|>Delivery · \{assignment\.id\}</);
   assert.match(source, /<VendorDeliveryAssignmentPanel token=\{token\} detail=\{detail\} disabled=\{busy\} \/>/);
   assert.match(panel, /window\.setInterval\(refreshWhenVisible, 45_000\)/);

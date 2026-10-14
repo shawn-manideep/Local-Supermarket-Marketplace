@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DocumentVerificationState } from './documentVerificationState';
+import type { FssaiStatus } from './fssaiStatus';
 import type { VendorDocumentSummary } from './vendorDocumentSummary';
 
 export interface VendorDocumentStatus {
@@ -31,5 +32,6 @@ export interface VendorDocumentStatus {
      */
   optionalCount: number;
   message: string;
+  fssai?: FssaiStatus;
   documents: VendorDocumentSummary[];
 }

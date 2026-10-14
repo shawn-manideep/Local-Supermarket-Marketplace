@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { apiAuthorizationHeaders, apiRequest, apiUrl } from "./api";
+import { FssaiExpiryStatus } from "./FssaiExpiryStatus";
 import type { VendorDocumentStatus } from "./vendor-document-types";
 export type { VendorDocumentStatus } from "./vendor-document-types";
 
@@ -7,6 +8,7 @@ interface Props {
   token: string;
   onMessage: (message: string, kind?: "success" | "error") => void;
   onChanged: (status: VendorDocumentStatus) => void;
+  currentStatus?: VendorDocumentStatus | null;
 }
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -20,7 +22,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 type BankDetails = { accountHolderName: string; maskedAccountNumber: string; accountNumber?: string; ifsc: string; bankName: string; bankBranch: string; vendorMobileNumber: string; status: "SUBMITTED" | "APPROVED" | "REJECTED"; submissionId: string; rejectionReason?: string | null; submittedAt?: string | null; reviewedAt?: string | null };
 type BankResponse = { bankDetails: BankDetails | null; history: Array<{ action: string; createdAt: string; previousStatus?: string | null; nextStatus?: string | null }> };
 
-export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
+export function VendorDocumentsPanel({ token, onMessage, onChanged, currentStatus }: Props) {
   const [status, setStatus] = useState<VendorDocumentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -31,6 +33,9 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
   const [bankBusy, setBankBusy] = useState(false);
   const [bankError, setBankError] = useState("");
   const [bankExpanded, setBankExpanded] = useState(false);
+  const [expiryBusy, setExpiryBusy] = useState(false);
+  const [expiryError, setExpiryError] = useState("");
+  const [expiryDraft, setExpiryDraft] = useState("");
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
@@ -53,6 +58,22 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
   }, [token]);
 
   useEffect(() => { void loadStatus(); }, [loadStatus]);
+  useEffect(() => { if (currentStatus) setStatus(currentStatus); }, [currentStatus]);
+  useEffect(() => { setExpiryDraft(status?.fssai?.expiryDate ?? ""); }, [status?.fssai?.expiryDate]);
+
+  const saveFssaiExpiry = async (documentId: string) => {
+    if (!expiryDraft || expiryBusy || status?.verificationStatus === "SUBMITTED") return;
+    setExpiryBusy(true); setExpiryError("");
+    try {
+      const nextStatus = await apiRequest<VendorDocumentStatus>(`/api/vendor/documents/${encodeURIComponent(documentId)}/expiry`, token, {
+        method: "PATCH", body: JSON.stringify({ expiryDate: expiryDraft }),
+      });
+      setStatus(nextStatus); onChangedRef.current(nextStatus);
+      onMessage("FSSAI expiry date saved. Your mandatory submission is now a draft and must be resubmitted for review.", "success");
+    } catch (error) {
+      setExpiryError(error instanceof Error ? error.message : "Unable to save FSSAI expiry date.");
+    } finally { setExpiryBusy(false); }
+  };
 
   const uploadDocument = async (type: string, file: File | undefined) => {
     if (!file || uploadingType) return;
@@ -236,6 +257,8 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
       }
       {loading && status && <p className="vendor-text-muted" role="status">Refreshing document status…</p>}
       {loadError && status && <div className="vendor-document-inline-error" role="alert">{loadError}<button type="button" className="vendor-text-button" onClick={() => void loadStatus()}>Retry</button></div>}
+      {status?.fssai && <FssaiExpiryStatus value={status.fssai} />}
+      {expiryError && <div className="vendor-document-inline-error" role="alert">{expiryError}</div>}
 
       <section className="vendor-card vendor-document-group vendor-bank-details">
         <button type="button" className="vendor-card-heading vendor-bank-toggle" aria-expanded={bankExpanded} onClick={() => setBankExpanded((value) => !value)}>
@@ -284,6 +307,14 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged }: Props) {
                 }}
                 onChoose={() => fileInputs.current[item.type]?.click()}
                 onView={() => item.current && void viewDocument(item.current.id)}
+                 {...(item.type === "fssai" && item.current ? {
+                   expiryDate: expiryDraft,
+                   expiryStatus: status?.fssai?.status ?? "DATE_REQUIRED",
+                   expiryBusy,
+                   expiryDisabled: verification === "SUBMITTED",
+                   onExpiryChange: setExpiryDraft,
+                   onSaveExpiry: () => void saveFssaiExpiry(item.current!.id),
+                 } : {})}
               />
             ))}
           </div>
@@ -329,6 +360,7 @@ type DocumentItem = VendorDocumentStatus["documents"][number];
 
 function DocumentRow({
   item, busy, viewing, disabled, inputRef, onUpload, onChoose, onView,
+  expiryDate, expiryStatus, expiryBusy = false, expiryDisabled = false, onExpiryChange, onSaveExpiry,
 }: {
   item: DocumentItem;
   busy: boolean;
@@ -338,6 +370,12 @@ function DocumentRow({
   onUpload: (file: File | undefined) => void;
   onChoose: () => void;
   onView: () => void;
+  expiryDate?: string;
+  expiryStatus?: string;
+  expiryBusy?: boolean;
+  expiryDisabled?: boolean;
+  onExpiryChange?: (value: string) => void;
+  onSaveExpiry?: () => void;
 }) {
   const current = item.current;
   const verificationStatus = current?.verificationStatus ?? (current ? "DRAFT" : undefined);
@@ -356,6 +394,14 @@ function DocumentRow({
           <span>{item.mandatory ? "Not uploaded yet" : "Optional"}</span>
         )}
       </div>
+      {item.type === "fssai" && onExpiryChange && onSaveExpiry && <div className="vendor-fssai-expiry-editor">
+        <label>License expiry date
+          <input type="date" value={expiryDate ?? ""} onChange={(event) => onExpiryChange(event.target.value)} disabled={expiryDisabled || expiryBusy} aria-label="FSSAI license expiry date" />
+        </label>
+        <span className={`vendor-document-review-pill status-${(expiryStatus ?? "DATE_REQUIRED").toLowerCase()}`}>{(expiryStatus ?? "DATE_REQUIRED").replaceAll("_", " ")}</span>
+        <button type="button" className="vendor-secondary-button vendor-compact-button" onClick={onSaveExpiry} disabled={expiryDisabled || expiryBusy || !expiryDate}>{expiryBusy ? "Saving…" : "Save expiry"}</button>
+        {expiryDisabled && <small>Mandatory submission is under review. Expiry date editing is locked until review completes.</small>}
+      </div>}
       <div className="vendor-document-actions">
         {current && <button type="button" className="vendor-text-button" onClick={onView} disabled={viewing || disabled}>{viewing ? "Opening…" : "View"}</button>}
         <input

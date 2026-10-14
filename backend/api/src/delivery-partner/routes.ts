@@ -55,9 +55,10 @@ deliveryPartnerRouter.get("/api/vendor/orders/:orderId/delivery", requireRole("v
 }));
 deliveryPartnerRouter.post("/api/vendor/orders/:orderId/delivery", requireRole("vendor"), asyncHandler(async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  const input = z.object({ partnerId: z.string().uuid() }).strict().safeParse(req.body);
-  if (!input.success) throw new HttpError(400, "Invalid delivery assignment.", undefined, "INVALID_ASSIGNMENT");
-  res.json({ assignment: await deliveryWorkflow().assign((req as AuthenticatedRequest).auth!, identifier(req.params.orderId), input.data.partnerId) });
+  // Keep the legacy URL explicitly denied rather than allowing a stale client
+  // to bypass first-eligible-partner claims. Historic pending duties are retained.
+  throw new HttpError(403, "Manual Vendor assignment is disabled. The first eligible active Partner to accept is assigned automatically.",
+    undefined, "AUTOMATIC_ASSIGNMENT_REQUIRED");
 }));
 deliveryPartnerRouter.get("/api/delivery-partner/deliveries/:assignmentId", requireDeliveryPartner(), asyncHandler(async (req, res) => {
   res.json({ assignment: await deliveryWorkflow().own((req as AuthenticatedRequest).auth!.userId, identifier(req.params.assignmentId)) });

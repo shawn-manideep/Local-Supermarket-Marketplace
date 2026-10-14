@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "@workspace/constants/theme.css";
+@import "leaflet/dist/leaflet.css";
+@import "./store-location-map.css";
 
 :root {
   font-family: var(--lb-font-family);

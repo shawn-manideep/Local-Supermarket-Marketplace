@@ -11,6 +11,99 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /vendor/events:
+    get:
+      operationId: streamVendorPortalEvents
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Authenticated foreground SSE refresh hints for this Vendor only
+          content:
+            text/event-stream:
+              schema: {type: string}
+  /delivery-partner/events:
+    get:
+      operationId: streamPartnerPortalEvents
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Authenticated foreground SSE refresh hints for eligible active Partners
+          content:
+            text/event-stream:
+              schema: {type: string}
+  /vendor/documents/{documentId}/expiry:
+    patch:
+      operationId: updateVendorFssaiExpiry
+      security: [{customerBearer: []}]
+      parameters:
+        - {in: path, name: documentId, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FssaiExpiryInput'}
+      responses:
+        '200':
+          description: Current document status; date changes require fresh document review
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorDocumentStatus'}
+  /admin/vendors/{vendorId}/documents/{documentId}/expiry:
+    patch:
+      operationId: updateAdminFssaiExpiry
+      security: [{customerBearer: []}]
+      parameters:
+        - {in: path, name: vendorId, required: true, schema: {type: string, format: uuid}}
+        - {in: path, name: documentId, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FssaiExpiryInput'}
+      responses:
+        '200':
+          description: Current document status; date changes require fresh document review
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorDocumentStatus'}
+  /vendor/notifications:
+    get:
+      operationId: listVendorNotifications
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Persistent in-app notifications; expiry milestones checked at request time
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorNotificationFeed'}
+  /vendor/notifications/{notificationId}/read:
+    post:
+      operationId: acknowledgeVendorNotification
+      security: [{customerBearer: []}]
+      parameters:
+        - {in: path, name: notificationId, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Acknowledged by owning Vendor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: {type: boolean}
+  /admin/vendors/{vendorId}/notifications:
+    get:
+      operationId: listAdminVendorNotifications
+      security: [{customerBearer: []}]
+      parameters:
+        - {in: path, name: vendorId, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Vendor notification creation and acknowledgement history
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VendorNotificationFeed'}
   /api/vendor/bank-details:
     get:
       operationId: getVendorBankDetails
@@ -1733,6 +1826,7 @@ components:
         version: {type: integer, minimum: 1}
         verificationStatus: {type: string, enum: [DRAFT, SUBMITTED, APPROVED, REJECTED]}
         rejectionReason: {type: [string, 'null']}
+        expiryDate: {type: [string, 'null'], format: date}
     VendorDocumentSummary:
       type: object
       required: [type, label, mandatory, current]
@@ -1759,10 +1853,45 @@ components:
         mandatoryCount: {type: integer, minimum: 0, maximum: 4}
         optionalCount: {type: integer, minimum: 0, maximum: 3}
         message: {type: string}
+        fssai: {$ref: '#/components/schemas/FssaiStatus'}
         documents:
           type: array
           items:
             $ref: '#/components/schemas/VendorDocumentSummary'
+    FssaiExpiryInput:
+      type: object
+      additionalProperties: false
+      required: [expiryDate]
+      properties:
+        expiryDate: {type: string, format: date}
+    FssaiStatus:
+      type: object
+      required: [expiryDate, status, daysRemaining]
+      properties:
+        expiryDate: {type: [string, 'null'], format: date}
+        status: {type: string, enum: [DATE_REQUIRED, VALID, EXPIRING_SOON, EXPIRED]}
+        daysRemaining: {type: [integer, 'null']}
+    VendorNotification:
+      type: object
+      required: [id, kind, message, orderId, documentId, expiryDate, milestone, createdAt, readAt]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {type: string, enum: [NEW_ORDER, FSSAI_EXPIRY]}
+        message: {type: string}
+        orderId: {type: [string, 'null'], format: uuid}
+        documentId: {type: [string, 'null'], format: uuid}
+        expiryDate: {type: [string, 'null'], format: date}
+        milestone: {type: [string, 'null'], enum: ['30', '7', '0', EXPIRED, null]}
+        createdAt: {type: string, format: date-time}
+        readAt: {type: [string, 'null'], format: date-time}
+    VendorNotificationFeed:
+      type: object
+      required: [notifications, deliveryMode]
+      properties:
+        deliveryMode: {type: string, enum: [IN_APP_REALTIME_WITH_POLLING]}
+        notifications:
+          type: array
+          items: {$ref: '#/components/schemas/VendorNotification'}
     VendorProductMatch:
       type: object
       required: [id, name, exactIdentity, canAddToStore]

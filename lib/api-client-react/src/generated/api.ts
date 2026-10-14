@@ -22,6 +22,7 @@ import type {
 import type {
   AccountRecoveryInput,
   AccountRecoveryOutcome,
+  AcknowledgeVendorNotification200,
   AdminAccountStatusInput,
   AdminDashboardOutcome,
   AdminDetailOutcome,
@@ -52,6 +53,7 @@ import type {
   DownloadAdminOrderReportParams,
   DownloadOwnDailyDeliveryReportParams,
   DownloadVendorOrderReportParams,
+  FssaiExpiryInput,
   GetAdminOrderDeliveryHistory200,
   GetAdminVendorBankDetailsParams,
   GetAvailableDeliveries200,
@@ -102,6 +104,7 @@ import type {
   VendorDocumentType,
   VendorLocalProductCreate,
   VendorLocalProductResponse,
+  VendorNotificationFeed,
   VendorProductMatchesResponse,
   VendorProfileInput,
   VendorProvisionInput,
@@ -135,6 +138,526 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getStreamVendorPortalEventsUrl = () => {
+
+
+
+
+  return `/api/vendor/events`
+}
+
+export const streamVendorPortalEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getStreamVendorPortalEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStreamVendorPortalEventsQueryKey = () => {
+    return [
+    `/api/vendor/events`
+    ] as const;
+    }
+
+
+export const getStreamVendorPortalEventsQueryOptions = <TData = Awaited<ReturnType<typeof streamVendorPortalEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamVendorPortalEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStreamVendorPortalEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof streamVendorPortalEvents>>> = ({ signal }) => streamVendorPortalEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof streamVendorPortalEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StreamVendorPortalEventsQueryResult = NonNullable<Awaited<ReturnType<typeof streamVendorPortalEvents>>>
+export type StreamVendorPortalEventsQueryError = ErrorType<unknown>
+
+
+
+export function useStreamVendorPortalEvents<TData = Awaited<ReturnType<typeof streamVendorPortalEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamVendorPortalEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStreamVendorPortalEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStreamPartnerPortalEventsUrl = () => {
+
+
+
+
+  return `/api/delivery-partner/events`
+}
+
+export const streamPartnerPortalEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getStreamPartnerPortalEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStreamPartnerPortalEventsQueryKey = () => {
+    return [
+    `/api/delivery-partner/events`
+    ] as const;
+    }
+
+
+export const getStreamPartnerPortalEventsQueryOptions = <TData = Awaited<ReturnType<typeof streamPartnerPortalEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamPartnerPortalEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStreamPartnerPortalEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof streamPartnerPortalEvents>>> = ({ signal }) => streamPartnerPortalEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof streamPartnerPortalEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StreamPartnerPortalEventsQueryResult = NonNullable<Awaited<ReturnType<typeof streamPartnerPortalEvents>>>
+export type StreamPartnerPortalEventsQueryError = ErrorType<unknown>
+
+
+
+export function useStreamPartnerPortalEvents<TData = Awaited<ReturnType<typeof streamPartnerPortalEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamPartnerPortalEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStreamPartnerPortalEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateVendorFssaiExpiryUrl = (documentId: string,) => {
+
+
+
+
+  return `/api/vendor/documents/${documentId}/expiry`
+}
+
+export const updateVendorFssaiExpiry = async (documentId: string,
+    fssaiExpiryInput: FssaiExpiryInput, options?: Parameters<typeof customFetch>[1]): Promise<VendorDocumentStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VendorDocumentStatus>(getUpdateVendorFssaiExpiryUrl(documentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fssaiExpiryInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateVendorFssaiExpiryMutationKey = () => ['updateVendorFssaiExpiry'] as const;
+
+export const getUpdateVendorFssaiExpiryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendorFssaiExpiry>>, TError,UpdateVendorFssaiExpiryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVendorFssaiExpiry>>, TError,UpdateVendorFssaiExpiryMutationVariables, TContext> => {
+
+const mutationKey = getUpdateVendorFssaiExpiryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVendorFssaiExpiry>>, UpdateVendorFssaiExpiryMutationVariables> = (props) => {
+          const {documentId,data} = props ?? {};
+
+          return  updateVendorFssaiExpiry(documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVendorFssaiExpiryMutationResult = NonNullable<Awaited<ReturnType<typeof updateVendorFssaiExpiry>>>
+    export type UpdateVendorFssaiExpiryMutationBody = BodyType<FssaiExpiryInput>
+    export type UpdateVendorFssaiExpiryMutationError = ErrorType<unknown>
+    export type UpdateVendorFssaiExpiryMutationVariables = {documentId: string;data: BodyType<FssaiExpiryInput>}
+
+    export const useUpdateVendorFssaiExpiry = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendorFssaiExpiry>>, TError,UpdateVendorFssaiExpiryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVendorFssaiExpiry>>,
+        TError,
+        UpdateVendorFssaiExpiryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateVendorFssaiExpiryMutationOptions(options));
+    }
+
+export const getUpdateAdminFssaiExpiryUrl = (vendorId: string,
+    documentId: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${vendorId}/documents/${documentId}/expiry`
+}
+
+export const updateAdminFssaiExpiry = async (vendorId: string,
+    documentId: string,
+    fssaiExpiryInput: FssaiExpiryInput, options?: Parameters<typeof customFetch>[1]): Promise<VendorDocumentStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VendorDocumentStatus>(getUpdateAdminFssaiExpiryUrl(vendorId,documentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fssaiExpiryInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminFssaiExpiryMutationKey = () => ['updateAdminFssaiExpiry'] as const;
+
+export const getUpdateAdminFssaiExpiryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminFssaiExpiry>>, TError,UpdateAdminFssaiExpiryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminFssaiExpiry>>, TError,UpdateAdminFssaiExpiryMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminFssaiExpiryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminFssaiExpiry>>, UpdateAdminFssaiExpiryMutationVariables> = (props) => {
+          const {vendorId,documentId,data} = props ?? {};
+
+          return  updateAdminFssaiExpiry(vendorId,documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminFssaiExpiryMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminFssaiExpiry>>>
+    export type UpdateAdminFssaiExpiryMutationBody = BodyType<FssaiExpiryInput>
+    export type UpdateAdminFssaiExpiryMutationError = ErrorType<unknown>
+    export type UpdateAdminFssaiExpiryMutationVariables = {vendorId: string;documentId: string;data: BodyType<FssaiExpiryInput>}
+
+    export const useUpdateAdminFssaiExpiry = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminFssaiExpiry>>, TError,UpdateAdminFssaiExpiryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminFssaiExpiry>>,
+        TError,
+        UpdateAdminFssaiExpiryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminFssaiExpiryMutationOptions(options));
+    }
+
+export const getListVendorNotificationsUrl = () => {
+
+
+
+
+  return `/api/vendor/notifications`
+}
+
+export const listVendorNotifications = async ( options?: Parameters<typeof customFetch>[1]): Promise<VendorNotificationFeed> => {
+
+  return customFetch<VendorNotificationFeed>(getListVendorNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVendorNotificationsQueryKey = () => {
+    return [
+    `/api/vendor/notifications`
+    ] as const;
+    }
+
+
+export const getListVendorNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listVendorNotifications>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVendorNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVendorNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVendorNotifications>>> = ({ signal }) => listVendorNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVendorNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVendorNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listVendorNotifications>>>
+export type ListVendorNotificationsQueryError = ErrorType<unknown>
+
+
+
+export function useListVendorNotifications<TData = Awaited<ReturnType<typeof listVendorNotifications>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVendorNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVendorNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcknowledgeVendorNotificationUrl = (notificationId: string,) => {
+
+
+
+
+  return `/api/vendor/notifications/${notificationId}/read`
+}
+
+export const acknowledgeVendorNotification = async (notificationId: string, options?: Parameters<typeof customFetch>[1]): Promise<AcknowledgeVendorNotification200> => {
+
+  return customFetch<AcknowledgeVendorNotification200>(getAcknowledgeVendorNotificationUrl(notificationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcknowledgeVendorNotificationMutationKey = () => ['acknowledgeVendorNotification'] as const;
+
+export const getAcknowledgeVendorNotificationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeVendorNotification>>, TError,AcknowledgeVendorNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeVendorNotification>>, TError,AcknowledgeVendorNotificationMutationVariables, TContext> => {
+
+const mutationKey = getAcknowledgeVendorNotificationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeVendorNotification>>, AcknowledgeVendorNotificationMutationVariables> = (props) => {
+          const {notificationId} = props ?? {};
+
+          return  acknowledgeVendorNotification(notificationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeVendorNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeVendorNotification>>>
+
+    export type AcknowledgeVendorNotificationMutationError = ErrorType<unknown>
+    export type AcknowledgeVendorNotificationMutationVariables = {notificationId: string}
+
+    export const useAcknowledgeVendorNotification = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeVendorNotification>>, TError,AcknowledgeVendorNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeVendorNotification>>,
+        TError,
+        AcknowledgeVendorNotificationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcknowledgeVendorNotificationMutationOptions(options));
+    }
+
+export const getListAdminVendorNotificationsUrl = (vendorId: string,) => {
+
+
+
+
+  return `/api/admin/vendors/${vendorId}/notifications`
+}
+
+export const listAdminVendorNotifications = async (vendorId: string, options?: Parameters<typeof customFetch>[1]): Promise<VendorNotificationFeed> => {
+
+  return customFetch<VendorNotificationFeed>(getListAdminVendorNotificationsUrl(vendorId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminVendorNotificationsQueryKey = (vendorId: string,) => {
+    return [
+    `/api/admin/vendors/${vendorId}/notifications`
+    ] as const;
+    }
+
+
+export const getListAdminVendorNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminVendorNotifications>>, TError = ErrorType<unknown>>(vendorId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVendorNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminVendorNotificationsQueryKey(vendorId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminVendorNotifications>>> = ({ signal }) => listAdminVendorNotifications(vendorId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: vendorId !== null && vendorId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminVendorNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminVendorNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminVendorNotifications>>>
+export type ListAdminVendorNotificationsQueryError = ErrorType<unknown>
+
+
+
+export function useListAdminVendorNotifications<TData = Awaited<ReturnType<typeof listAdminVendorNotifications>>, TError = ErrorType<unknown>>(
+ vendorId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVendorNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminVendorNotificationsQueryOptions(vendorId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetVendorBankDetailsUrl = () => {
 

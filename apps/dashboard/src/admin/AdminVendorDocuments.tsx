@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiAuthorizationHeaders, apiRequest, apiUrl } from "../api";
 import { getAdminVendorDocuments } from "../admin-api";
 import type { VendorDocumentStatus, VendorDocumentTypeName } from "../vendor-document-types";
+import type { VendorNotificationFeed } from "../../../../lib/api-client-react/src/generated/api.schemas";
 
 type DocumentItem = VendorDocumentStatus["documents"][number];
 type CurrentDocument = NonNullable<DocumentItem["current"]>;
@@ -11,10 +12,10 @@ type BankStatus = { bankDetails: BankDetailsRecord | null; history: Array<{ acti
 
 const formatDate = (value?: string | null) => {
   if (!value) return "—";
-  const date = new Date(value);
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00+05:30` : value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(date);
+    : new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(date);
 };
 
 function errorMessage(error: unknown) {
@@ -39,6 +40,10 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
   const [revealBank, setRevealBank] = useState(false);
   const [bankReviewBusy, setBankReviewBusy] = useState(false);
   const [bankReviewReason, setBankReviewReason] = useState("");
+  const [notifications, setNotifications] = useState<VendorNotificationFeed | null>(null);
+  const [expiryDraft, setExpiryDraft] = useState("");
+  const [expiryBusy, setExpiryBusy] = useState(false);
+  const [expiryError, setExpiryError] = useState("");
   const requestRef = useRef<AbortController | null>(null);
   const viewRequestRef = useRef<AbortController | null>(null);
   const previewRef = useRef<PreviewSession | null>(null);
@@ -107,6 +112,7 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
     void getAdminVendorDocuments(vendorId, token, controller.signal).then((nextStatus) => {
       if (controller.signal.aborted) return;
       setStatus(nextStatus);
+      setExpiryDraft(nextStatus.fssai?.expiryDate ?? "");
       setError("");
     }).catch((loadError: unknown) => {
       if (!controller.signal.aborted) setError(errorMessage(loadError));
@@ -116,8 +122,25 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
     void apiRequest<BankStatus>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/bank-details${revealBank ? "?reveal=true" : ""}`, token, { signal: controller.signal })
       .then((result) => { if (!controller.signal.aborted) { setBankStatus(result); setBankError(""); } })
       .catch((cause: unknown) => { if (!controller.signal.aborted) setBankError(errorMessage(cause)); });
+    void apiRequest<VendorNotificationFeed>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/notifications`, token, { signal: controller.signal })
+      .then((feed) => { if (!controller.signal.aborted) setNotifications(feed); })
+      .catch(() => { if (!controller.signal.aborted) setNotifications(null); });
     return () => controller.abort();
   }, [vendorId, token, refreshIndex, revealBank]);
+
+  useEffect(() => { setExpiryDraft(status?.fssai?.expiryDate ?? ""); }, [status?.fssai?.expiryDate]);
+
+  const saveFssaiExpiry = async (documentId: string) => {
+    if (!expiryDraft || expiryBusy) return;
+    setExpiryBusy(true); setExpiryError("");
+    try {
+      const next = await apiRequest<VendorDocumentStatus>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/documents/${encodeURIComponent(documentId)}/expiry`, token, {
+        method: "PATCH", body: JSON.stringify({ expiryDate: expiryDraft }),
+      });
+      setStatus(next); setExpiryDraft(next.fssai?.expiryDate ?? ""); refresh();
+    } catch (cause) { setExpiryError(cause instanceof Error ? cause.message : "Unable to save FSSAI expiry date."); }
+    finally { setExpiryBusy(false); }
+  };
 
   const reviewBank = async (action: "APPROVE" | "REJECT") => {
     const submissionId = bankStatus?.bankDetails?.submissionId;
@@ -272,6 +295,26 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
           <button className="lb-admin-button primary" type="button" disabled={decisionBusy || loading} onClick={() => void reviewSubmission("approve")}>{decisionBusy ? "Saving…" : "Approve submission"}</button>
         </div>}
       </div>
+      {status.fssai && <section className="lb-admin-fssai-summary">
+        <div><span className="lb-admin-eyebrow">License compliance</span><strong>FSSAI · {status.fssai.status.replaceAll("_", " ")}</strong>
+          <span>{status.fssai.expiryDate ? `Expires ${formatDate(status.fssai.expiryDate)}${status.fssai.daysRemaining != null && status.fssai.daysRemaining >= 0 ? ` · ${status.fssai.daysRemaining} days remaining` : ""}` : "Expiry date unknown; no value has been supplied."}</span>
+        </div>
+        {status.fssai.status === "EXPIRED" && <strong>Expired · review required</strong>}
+        {status.documents.find((item) => item.type === "fssai")?.current && <label>Actual expiry date<input aria-label="FSSAI expiry date for vendor" type="date" value={expiryDraft} disabled={expiryBusy} onChange={(event) => setExpiryDraft(event.target.value)} /></label>}
+        {status.documents.find((item) => item.type === "fssai")?.current && <button className="lb-admin-button" type="button" disabled={expiryBusy || !expiryDraft} onClick={() => {
+          const document = status.documents.find((item) => item.type === "fssai")?.current;
+          if (document) void saveFssaiExpiry(document.id);
+        }}>{expiryBusy ? "Saving…" : "Save expiry date"}</button>}
+        {expiryError && <span className="lb-admin-doc-rejection-reason" role="alert">{expiryError}</span>}
+        {verificationStatus === "SUBMITTED" && <small>Changing an expiry date resets the mandatory submission to draft; review it again after resubmission.</small>}
+      </section>}
+      <section className="lb-admin-vendor-notifications">
+        <div><span className="lb-admin-eyebrow">Notification audit</span><h4>Vendor notification feed</h4></div>
+        <p>Feed mode: {notifications ? String(notifications.deliveryMode).replaceAll("_", " ") : "checking"}. Creation and read acknowledgement only; this does not prove browser delivery. Background delivery is not configured here.</p>
+        {!notifications ? <p className="lb-admin-secondary">Notification feed is unavailable.</p> : notifications.notifications.length === 0
+          ? <p className="lb-admin-secondary">No recent notification records.</p>
+          : <ul>{notifications.notifications.map((notice) => <li key={notice.id}><strong>{notice.kind === "NEW_ORDER" ? `Order ${notice.orderId ?? ""}` : "FSSAI expiry"}</strong><span>{notice.message}</span><small>Created {formatDate(notice.createdAt)} · {notice.readAt ? `Acknowledged ${formatDate(notice.readAt)}` : "Unread"}</small></li>)}</ul>}
+      </section>
       {submittedForReview && <div className="lb-admin-doc-reject-form">
         <label>Rejection reason<textarea value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength={1000} rows={2} placeholder="Explain which mandatory document needs correction." /></label>
         <fieldset><legend>Select mandatory document types to reject</legend>

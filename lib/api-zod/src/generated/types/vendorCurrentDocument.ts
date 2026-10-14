@@ -24,4 +24,6 @@ export interface VendorCurrentDocument {
   verificationStatus?: VendorCurrentDocumentVerificationStatus;
   /** @nullable */
   rejectionReason?: string | null;
+  /** @nullable */
+  expiryDate?: Date | null;
 }

@@ -8,6 +8,168 @@
 import * as zod from 'zod';
 
 
+export const StreamVendorPortalEventsResponse = zod.unknown()
+
+
+export const StreamPartnerPortalEventsResponse = zod.unknown()
+
+
+export const UpdateVendorFssaiExpiryParams = zod.object({
+  "documentId": zod.coerce.string().uuid()
+})
+
+export const UpdateVendorFssaiExpiryBody = zod.object({
+  "expiryDate": zod.coerce.date()
+})
+
+export const updateVendorFssaiExpiryResponseMandatoryCountMin = 0;
+export const updateVendorFssaiExpiryResponseMandatoryCountMax = 4;
+
+export const updateVendorFssaiExpiryResponseOptionalCountMin = 0;
+export const updateVendorFssaiExpiryResponseOptionalCountMax = 3;
+
+export const updateVendorFssaiExpiryResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const UpdateVendorFssaiExpiryResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "mandatoryCount": zod.number().int().min(updateVendorFssaiExpiryResponseMandatoryCountMin).max(updateVendorFssaiExpiryResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(updateVendorFssaiExpiryResponseOptionalCountMin).max(updateVendorFssaiExpiryResponseOptionalCountMax),
+  "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(updateVendorFssaiExpiryResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
+}),zod.null()])
+}))
+})
+
+
+export const UpdateAdminFssaiExpiryParams = zod.object({
+  "vendorId": zod.coerce.string().uuid(),
+  "documentId": zod.coerce.string().uuid()
+})
+
+export const UpdateAdminFssaiExpiryBody = zod.object({
+  "expiryDate": zod.coerce.date()
+})
+
+export const updateAdminFssaiExpiryResponseMandatoryCountMin = 0;
+export const updateAdminFssaiExpiryResponseMandatoryCountMax = 4;
+
+export const updateAdminFssaiExpiryResponseOptionalCountMin = 0;
+export const updateAdminFssaiExpiryResponseOptionalCountMax = 3;
+
+export const updateAdminFssaiExpiryResponseDocumentsItemCurrentOneSizeBytesMax = 5242880;
+
+
+
+
+export const UpdateAdminFssaiExpiryResponse = zod.object({
+  "required": zod.boolean(),
+  "canManageCatalog": zod.boolean(),
+  "verificationStatus": zod.enum(['EXEMPT', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().nullish(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "mandatoryCount": zod.number().int().min(updateAdminFssaiExpiryResponseMandatoryCountMin).max(updateAdminFssaiExpiryResponseMandatoryCountMax),
+  "optionalCount": zod.number().int().min(updateAdminFssaiExpiryResponseOptionalCountMin).max(updateAdminFssaiExpiryResponseOptionalCountMax),
+  "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
+  "documents": zod.array(zod.object({
+  "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
+  "label": zod.string(),
+  "mandatory": zod.boolean(),
+  "current": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "fileName": zod.string(),
+  "mimeType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
+  "sizeBytes": zod.number().int().min(1).max(updateAdminFssaiExpiryResponseDocumentsItemCurrentOneSizeBytesMax),
+  "uploadedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional(),
+  "version": zod.number().int().min(1),
+  "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
+}),zod.null()])
+}))
+})
+
+
+export const ListVendorNotificationsResponse = zod.object({
+  "deliveryMode": zod.enum(['IN_APP_REALTIME_WITH_POLLING']),
+  "notifications": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['NEW_ORDER', 'FSSAI_EXPIRY']),
+  "message": zod.string(),
+  "orderId": zod.string().uuid().nullable(),
+  "documentId": zod.string().uuid().nullable(),
+  "expiryDate": zod.coerce.date().nullable(),
+  "milestone": zod.union([zod.literal('30'),zod.literal('7'),zod.literal('0'),zod.literal('EXPIRED'),zod.literal(null)]).nullable(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}))
+})
+
+
+export const AcknowledgeVendorNotificationParams = zod.object({
+  "notificationId": zod.coerce.string().uuid()
+})
+
+export const AcknowledgeVendorNotificationResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+export const ListAdminVendorNotificationsParams = zod.object({
+  "vendorId": zod.coerce.string().uuid()
+})
+
+export const ListAdminVendorNotificationsResponse = zod.object({
+  "deliveryMode": zod.enum(['IN_APP_REALTIME_WITH_POLLING']),
+  "notifications": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['NEW_ORDER', 'FSSAI_EXPIRY']),
+  "message": zod.string(),
+  "orderId": zod.string().uuid().nullable(),
+  "documentId": zod.string().uuid().nullable(),
+  "expiryDate": zod.coerce.date().nullable(),
+  "milestone": zod.union([zod.literal('30'),zod.literal('7'),zod.literal('0'),zod.literal('EXPIRED'),zod.literal(null)]).nullable(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}))
+})
+
+
 export const GetVendorBankDetailsResponse = zod.object({
   "bankDetails": zod.object({
   "accountHolderName": zod.string().optional(),
@@ -662,6 +824,11 @@ export const SubmitVendorDocumentsResponse = zod.object({
   "mandatoryCount": zod.number().int().min(submitVendorDocumentsResponseMandatoryCountMin).max(submitVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(submitVendorDocumentsResponseOptionalCountMin).max(submitVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
   "documents": zod.array(zod.object({
   "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
   "label": zod.string(),
@@ -675,7 +842,8 @@ export const SubmitVendorDocumentsResponse = zod.object({
   "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1),
   "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
-  "rejectionReason": zod.string().nullish()
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
 }),zod.null()])
 }))
 })
@@ -711,6 +879,11 @@ export const ApproveVendorDocumentsResponse = zod.object({
   "mandatoryCount": zod.number().int().min(approveVendorDocumentsResponseMandatoryCountMin).max(approveVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(approveVendorDocumentsResponseOptionalCountMin).max(approveVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
   "documents": zod.array(zod.object({
   "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
   "label": zod.string(),
@@ -724,7 +897,8 @@ export const ApproveVendorDocumentsResponse = zod.object({
   "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1),
   "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
-  "rejectionReason": zod.string().nullish()
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
 }),zod.null()])
 }))
 })
@@ -768,6 +942,11 @@ export const RejectVendorDocumentsResponse = zod.object({
   "mandatoryCount": zod.number().int().min(rejectVendorDocumentsResponseMandatoryCountMin).max(rejectVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(rejectVendorDocumentsResponseOptionalCountMin).max(rejectVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
   "documents": zod.array(zod.object({
   "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
   "label": zod.string(),
@@ -781,7 +960,8 @@ export const RejectVendorDocumentsResponse = zod.object({
   "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1),
   "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
-  "rejectionReason": zod.string().nullish()
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
 }),zod.null()])
 }))
 })
@@ -928,6 +1108,11 @@ export const GetVendorDocumentsResponse = zod.object({
   "mandatoryCount": zod.number().int().min(getVendorDocumentsResponseMandatoryCountMin).max(getVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(getVendorDocumentsResponseOptionalCountMin).max(getVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
   "documents": zod.array(zod.object({
   "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
   "label": zod.string(),
@@ -941,7 +1126,8 @@ export const GetVendorDocumentsResponse = zod.object({
   "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1),
   "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
-  "rejectionReason": zod.string().nullish()
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
 }),zod.null()])
 }))
 })
@@ -981,6 +1167,11 @@ export const UploadVendorDocumentResponse = zod.object({
   "mandatoryCount": zod.number().int().min(uploadVendorDocumentResponseMandatoryCountMin).max(uploadVendorDocumentResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(uploadVendorDocumentResponseOptionalCountMin).max(uploadVendorDocumentResponseOptionalCountMax),
   "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
   "documents": zod.array(zod.object({
   "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
   "label": zod.string(),
@@ -994,7 +1185,8 @@ export const UploadVendorDocumentResponse = zod.object({
   "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1),
   "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
-  "rejectionReason": zod.string().nullish()
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
 }),zod.null()])
 }))
 })
@@ -1036,6 +1228,11 @@ export const GetAdminVendorDocumentsResponse = zod.object({
   "mandatoryCount": zod.number().int().min(getAdminVendorDocumentsResponseMandatoryCountMin).max(getAdminVendorDocumentsResponseMandatoryCountMax),
   "optionalCount": zod.number().int().min(getAdminVendorDocumentsResponseOptionalCountMin).max(getAdminVendorDocumentsResponseOptionalCountMax),
   "message": zod.string(),
+  "fssai": zod.object({
+  "expiryDate": zod.coerce.date().nullable(),
+  "status": zod.enum(['DATE_REQUIRED', 'VALID', 'EXPIRING_SOON', 'EXPIRED']),
+  "daysRemaining": zod.number().int().nullable()
+}).optional(),
   "documents": zod.array(zod.object({
   "type": zod.enum(['fssai', 'aadhaar', 'pan', 'photo', 'gst', 'trade_license', 'labour_license']),
   "label": zod.string(),
@@ -1049,7 +1246,8 @@ export const GetAdminVendorDocumentsResponse = zod.object({
   "updatedAt": zod.coerce.date().optional(),
   "version": zod.number().int().min(1),
   "verificationStatus": zod.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
-  "rejectionReason": zod.string().nullish()
+  "rejectionReason": zod.string().nullish(),
+  "expiryDate": zod.coerce.date().nullish()
 }),zod.null()])
 }))
 })

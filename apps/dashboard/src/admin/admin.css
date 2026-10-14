@@ -1,3 +1,13 @@
+.lb-admin-fssai-summary, .lb-admin-vendor-notifications { display: grid; gap: 10px; padding: 14px; border: 1px solid #d8dccd; border-radius: 10px; background: #f8f8ef; }
+.lb-admin-fssai-summary > div, .lb-admin-fssai-summary label { display: grid; gap: 5px; }
+.lb-admin-fssai-summary > strong { color: #a43f31; }
+.lb-admin-fssai-summary input { width: fit-content; border: 1px solid #cbd2c2; border-radius: 7px; padding: 8px; font: inherit; }
+.lb-admin-vendor-notifications h4 { margin: 0; }
+.lb-admin-vendor-notifications p { margin: 0; font-size: 12px; }
+.lb-admin-vendor-notifications ul { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.lb-admin-vendor-notifications li { display: grid; gap: 4px; border-top: 1px solid #e1e3d9; padding-top: 8px; font-size: 12px; }
+.lb-admin-vendor-notifications li small { color: #6a766b; }
+.lb-admin-fssai-directory { display: block; margin-top: 4px; font-size: 10px; }
 .lb-admin {
   --ink: #1f2937;
   --ink-soft: #4b5563;

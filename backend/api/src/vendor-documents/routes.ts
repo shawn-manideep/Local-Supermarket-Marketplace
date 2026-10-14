@@ -11,8 +11,22 @@ import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, validateDocument } from "./files.js
 import { documentStorage } from "./storage.js";
 import { adminDocumentStore, documentStatus, ownedDocumentStore } from "./service.js";
 import { sendDocumentContent } from "./content.js";
+import { fssaiExpiryInput, saveFssaiExpiry } from "./expiry.js";
 
 export const vendorDocumentsRouter = Router();
+for (const admin of [false, true]) {
+  vendorDocumentsRouter.patch(admin ? "/api/admin/vendors/:vendorId/documents/:documentId/expiry"
+    : "/api/vendor/documents/:documentId/expiry", requireRole(admin ? "admin" : "vendor"),
+  asyncHandler(async (request, response) => {
+    const parsed = fssaiExpiryInput.safeParse(request.body);
+    const id = z.string().uuid().safeParse(request.params.documentId);
+    if (!parsed.success || !id.success) throw new HttpError(400, "Provide a current FSSAI document and a real expiry date as YYYY-MM-DD.");
+    const storeId = admin ? await adminDocumentStore(String(request.params.vendorId)) : ownedDocumentStore(request);
+    await saveFssaiExpiry(storeId, id.data, (request as AuthenticatedRequest).auth!.userId, parsed.data.expiryDate, admin);
+    response.setHeader("Cache-Control", "private, no-store");
+    response.json(await documentStatus(storeId));
+  }));
+}
 vendorDocumentsRouter.get("/api/vendor/documents", requireRole("vendor"), asyncHandler(async (request, response) => {
   response.setHeader("Cache-Control", "private, no-store");
   response.json(await documentStatus(ownedDocumentStore(request)));
@@ -23,6 +37,11 @@ vendorDocumentsRouter.put("/api/vendor/documents/:type", requireRole("vendor"),
     const storeId = ownedDocumentStore(request);
     const type = String(request.params.type);
     if (!DOCUMENT_TYPES.some(item => item.type === type)) throw new HttpError(400, "Invalid document type");
+    const expiryInput = request.query.expiryDate === undefined ? null :
+      fssaiExpiryInput.safeParse({ expiryDate: request.query.expiryDate });
+    if (expiryInput && (!expiryInput.success || type !== "fssai"))
+      throw new HttpError(400, "Only FSSAI documents may include a real expiry date.");
+    const expiryDate = expiryInput?.success ? expiryInput.data.expiryDate : null;
     const fileName = typeof request.query.fileName === "string" ? request.query.fileName : "";
     const mimeType = request.get("content-type")?.split(";")[0] ?? "";
     const bytes = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
@@ -54,8 +73,8 @@ vendorDocumentsRouter.put("/api/vendor/documents/:type", requireRole("vendor"),
         await transaction.execute(sql`UPDATE vendor_documents SET is_current=false,updated_at=now()
           WHERE store_id=${storeId} AND document_type=${type} AND is_current`);
         await transaction.execute(sql`INSERT INTO vendor_documents
-          (id,store_id,document_type,object_ref,file_name,mime_type,size_bytes,version)
-          VALUES (${id},${storeId},${type},${ref},${fileName},${mimeType},${bytes.length},${version})`);
+          (id,store_id,document_type,object_ref,file_name,mime_type,size_bytes,version,expiry_date)
+          VALUES (${id},${storeId},${type},${ref},${fileName},${mimeType},${bytes.length},${version},${expiryDate}::date)`);
       });
     } catch (error) {
       await documentStorage.discard(ref).catch(() => undefined);

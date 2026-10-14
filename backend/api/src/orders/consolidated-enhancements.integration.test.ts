@@ -68,7 +68,7 @@ before(async()=>{
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
       SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
   const migrations=new URL("../../../../database/migrations/",import.meta.url);
-  for(const file of (await readdir(migrations)).filter(f=>/^\d.*\.sql$/.test(f) && !f.startsWith("0024")).sort())
+  for(const file of (await readdir(migrations)).filter(f=>/^\d.*\.sql$/.test(f) && !["0024","0025"].some(prefix => f.startsWith(prefix))).sort())
     await pool.query(await readFile(new URL(file,migrations),"utf8"));
   for(const [id,role] of roles){
     await pool.query("INSERT INTO auth.users(id,email) VALUES($1,$2)",[id,`${role}_${id.slice(0,8)}@fixture.invalid`]);
@@ -88,6 +88,7 @@ before(async()=>{
   await pool.query(`INSERT INTO delivery_assignments(id,order_id,partner_user_id,status,assigned_at,accepted_at,picked_up_at)
     VALUES($1,$2,$3,'PICKED_UP',now()-interval '3 hours',now()-interval '2 hours',now()-interval '1 hour')`,[oldAssignment,oldOrder,partnerA]);
   await pool.query(await readFile(new URL("0024_vendor_compliance_and_delivery_photos.sql",migrations),"utf8"));
+  await pool.query(await readFile(new URL("0025_fssai_expiry_and_vendor_notifications.sql",migrations),"utf8"));
   // Even a broader hypothetical column grant must not bypass the Vendor policy.
   await pool.query("GRANT SELECT(id,delivery_fee,handling_fee) ON stores TO authenticated");
   process.env.SUPABASE_DB_URL=`postgresql://fixture@127.0.0.1:${port}/postgres?sslmode=disable`;
@@ -147,7 +148,7 @@ test("bank entry/review is owner scoped, masked and version checked, with non-se
 });
 test("four mandatory documents include Labour License, not photo; only combined Admin approvals unlock catalog",async()=>{
   for(const type of ["fssai","aadhaar","pan","labour_license"]){
-    const response=await originalFetch(`${base}/api/vendor/documents/${type}?fileName=fixture.png`,{
+    const response=await originalFetch(`${base}/api/vendor/documents/${type}?fileName=fixture.png${type==="fssai"?"&expiryDate=2099-12-31":""}`,{
       method:"PUT",headers:{Authorization:`Bearer fixture-${vendorA}`,"Content-Type":"image/png"},body:new Uint8Array(png)});
     assert.equal(response.status,201,await response.text());
   }
@@ -276,4 +277,139 @@ test("private relations deny authenticated direct reads and cross-assignment pho
   }finally{client.release();}
   await assert.rejects(pool.query(`INSERT INTO delivery_pickup_photos(assignment_id,order_id,partner_user_id,object_ref,mime_type,size_bytes,captured_at)
     VALUES($1,$2,$3,'/fixture/invalid','image/png',100,now())`,[oldAssignment,oldOrder,partnerB]),(e:unknown)=>(e as {code:string}).code==="23503");
+});
+test("manual Vendor assignment is denied, duplicate winning claims are idempotent and stale offers cannot be claimed",async()=>{
+  const id=await makeOrder(storeA,"READY");
+  const before=(await pool.query("SELECT count(*)::int AS n FROM delivery_assignments WHERE order_id=$1",[id])).rows[0].n;
+  const denied=await call(`/api/vendor/orders/${id}/delivery`,vendorA,{partnerId:partnerA});
+  assert.equal(denied.status,403);
+  assert.equal((await denied.json()).code,"AUTOMATIC_ASSIGNMENT_REQUIRED");
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM delivery_assignments WHERE order_id=$1",[id])).rows[0].n,before);
+  const claimed=await call(`/api/delivery-partner/orders/${id}/claim`,partnerA,{});
+  assert.equal(claimed.status,200); const data=await claimed.json();
+  const retry=await call(`/api/delivery-partner/orders/${id}/claim`,partnerA,{});
+  assert.equal(retry.status,200); assert.equal((await retry.json()).assignment.id,data.assignment.id);
+  assert.equal((await call(`/api/delivery-partner/orders/${id}/claim`,partnerB,{})).status,409);
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM delivery_assignments WHERE order_id=$1",[id])).rows[0].n,1);
+  const expired=await makeOrder(storeA,"READY");
+  await pool.query(`UPDATE orders SET delivery_mode='SCHEDULED',scheduled_start_at=now()-interval '2 hours',
+    scheduled_end_at=now()-interval '1 hour' WHERE id=$1`,[expired]);
+  const available=await (await call("/api/delivery-partner/available-deliveries",partnerA)).json();
+  assert.ok(!available.deliveries.some((d:{orderId:string})=>d.orderId===expired));
+  assert.equal((await call(`/api/delivery-partner/orders/${expired}/claim`,partnerA,{})).status,409);
+  await pool.query("UPDATE orders SET status='CANCELLED' WHERE id=$1",[expired]);
+  assert.equal((await call(`/api/delivery-partner/orders/${expired}/claim`,partnerA,{})).status,409);
+});
+test("new-order notifications are committed once, rollback-safe, privately scoped and persist acknowledgements",async()=>{
+  const id=await makeOrder(storeB);
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM vendor_notifications WHERE order_id=$1",[id])).rows[0].n,1);
+  const rolledBack=randomUUID(),client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`INSERT INTO orders(id,customer_id,store_id,subtotal,delivery_fee_snapshot,total_amount,
+      delivery_contact_name,delivery_contact_phone,delivery_address_snapshot)
+      VALUES($1,$2,$3,5,0,5,'Fixture','9876543210','{}')`,[rolledBack,customer,storeB]);
+    assert.equal((await client.query("SELECT count(*)::int AS n FROM vendor_notifications WHERE order_id=$1",[rolledBack])).rows[0].n,1);
+    await client.query("ROLLBACK");
+  } finally { client.release(); }
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM vendor_notifications WHERE order_id=$1",[rolledBack])).rows[0].n,0);
+  const feed=await(await call("/api/vendor/notifications",vendorB)).json();
+  const notice=feed.notifications.find((n:{orderId:string})=>n.orderId===id);
+  assert.ok(notice);assert.equal(notice.readAt,null);assert.equal(feed.deliveryMode,"IN_APP_REALTIME_WITH_POLLING");
+  const other=await(await call("/api/vendor/notifications",vendorA)).json();
+  assert.ok(!other.notifications.some((n:{orderId:string})=>n.orderId===id));
+  assert.equal((await call(`/api/vendor/notifications/${notice.id}/read`,vendorA)).status,404);
+  assert.equal((await call(`/api/vendor/notifications/${notice.id}/read`,vendorB,{})).status,200);
+  const readAt=(await pool.query("SELECT read_at FROM vendor_notifications WHERE id=$1",[notice.id])).rows[0].read_at;
+  assert.equal((await call(`/api/vendor/notifications/${notice.id}/read`,vendorB,{})).status,200);
+  assert.deepEqual((await pool.query("SELECT read_at FROM vendor_notifications WHERE id=$1",[notice.id])).rows[0].read_at,readAt);
+  const adminFeed=await(await call(`/api/admin/vendors/${vendorB}/notifications`,admin)).json();
+  assert.ok(adminFeed.notifications.find((n:{id:string,readAt:string})=>n.id===notice.id)?.readAt);
+  assert.equal((await call(`/api/admin/vendors/${vendorB}/notifications`,vendorA)).status,403);
+  assert.equal((await call("/api/vendor/notifications",customer)).status,403);
+  const direct=await pool.connect();
+  try {await direct.query("BEGIN");await direct.query("SET LOCAL ROLE authenticated");
+    await assert.rejects(direct.query("SELECT * FROM vendor_notifications"),(e:unknown)=>(e as {code:string}).code==="42501");
+    await direct.query("ROLLBACK");
+  } finally {direct.release();}
+});
+test("authenticated foreground streams deliver committed new-order and Ready signals without exposing payload data",async()=>{
+  assert.equal((await call("/api/vendor/events")).status,401);
+  assert.equal((await call("/api/vendor/events",customer)).status,403);
+  assert.equal((await call("/api/delivery-partner/events",vendorA)).status,403);
+  const streams: Array<{controller:AbortController,reader:ReadableStreamDefaultReader<Uint8Array>}>=[];
+  async function stream(path:string,actor:string) {
+    const controller=new AbortController();
+    const response=await originalFetch(`${base}${path}`,{headers:{Authorization:`Bearer fixture-${actor}`},signal:controller.signal});
+    assert.equal(response.status,200);assert.match(response.headers.get("content-type") ?? "",/text\/event-stream/);
+    const reader=response.body!.getReader();streams.push({controller,reader});
+    async function refresh() {
+      let text="";
+      const timeout=setTimeout(()=>controller.abort(),5_000);
+      try {
+        while(!text.includes("event: refresh\ndata: {}\n\n")){
+          const next=await reader.read();if(next.done)throw new Error("Live stream ended");
+          text+=new TextDecoder().decode(next.value);
+        }
+        assert.ok(!text.includes("storeId"));assert.ok(!text.includes("recipient"));return text;
+      }finally{clearTimeout(timeout);}
+    }
+    await refresh();return refresh;
+  }
+  try {
+    const vendorRefresh=await stream("/api/vendor/events",vendorB);
+    const partnerRefresh=await stream("/api/delivery-partner/events",partnerA);
+    const vendorSignal=vendorRefresh();
+    const id=await makeOrder(storeB);
+    await vendorSignal;
+    const partnerSignal=partnerRefresh();
+    await pool.query("UPDATE orders SET status='READY' WHERE id=$1",[id]);
+    await partnerSignal;
+  } finally {
+    for(const {controller,reader} of streams){controller.abort();await reader.cancel().catch(()=>undefined);}
+  }
+});
+test("FSSAI date changes protect ownership/current version, invalidate review, and reject impossible dates",async()=>{
+  const doc=(await pool.query("SELECT id FROM vendor_documents WHERE store_id=$1 AND document_type='fssai' AND is_current",[storeA])).rows[0];
+  const path=`/api/vendor/documents/${doc.id}/expiry`;
+  assert.equal((await call(path,vendorB,{expiryDate:"2098-12-31"},"PATCH")).status,404);
+  for(const expiryDate of ["2026-02-30","2026-13-01","garbage","0000-01-01"])
+    assert.equal((await call(path,vendorA,{expiryDate},"PATCH")).status,400);
+  assert.equal((await call(path,customer,{expiryDate:"2098-12-31"},"PATCH")).status,403);
+  const changed=await call(path,vendorA,{expiryDate:"2098-12-31"},"PATCH");
+  assert.equal(changed.status,200);
+  const status=await changed.json();assert.equal(status.verificationStatus,"DRAFT");assert.equal(status.canManageCatalog,false);
+  assert.equal(status.fssai.status,"VALID");assert.equal(status.fssai.expiryDate,"2098-12-31");
+  const submitted=await(await call("/api/vendor/documents/submit",vendorA,{})).json();
+  assert.equal((await call(path,vendorA,{expiryDate:"2097-12-31"},"PATCH")).status,409);
+  const adminPath=`/api/admin/vendors/${vendorA}/documents/${doc.id}/expiry`;
+  assert.equal((await call(adminPath,admin,{expiryDate:"2097-12-31"},"PATCH")).status,200);
+  assert.equal((await call(`/api/admin/vendors/${vendorA}/documents/approve`,admin,{submissionId:submitted.submissionId})).status,409);
+  const resubmitted=await(await call("/api/vendor/documents/submit",vendorA,{})).json();
+  assert.equal((await call(`/api/admin/vendors/${vendorA}/documents/approve`,admin,{submissionId:resubmitted.submissionId})).status,200);
+  await pool.query("UPDATE vendor_documents SET expiry_date=NULL WHERE id=$1",[doc.id]);
+  const unknown=await(await call("/api/vendor/documents",vendorA)).json();
+  assert.equal(unknown.fssai.status,"DATE_REQUIRED");assert.equal(unknown.canManageCatalog,false);
+  assert.equal((await call("/api/vendor/documents/submit",vendorA,{})).status,409);
+  await pool.query("UPDATE vendor_documents SET expiry_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date WHERE id=$1",[doc.id]);
+  const expired=await(await call("/api/vendor/documents",vendorA)).json();
+  assert.equal(expired.fssai.status,"EXPIRED");assert.equal(expired.canManageCatalog,false);
+  assert.equal((await call("/api/vendor/products",vendorA)).status,403);
+  assert.equal((await call("/api/vendor/orders",vendorA)).status,200);
+});
+test("FSSAI milestone notifications are unique under simultaneous polling, catch up on sign-in and retain expired warning",async()=>{
+  const doc=(await pool.query("SELECT id FROM vendor_documents WHERE store_id=$1 AND document_type='fssai' AND is_current",[storeA])).rows[0];
+  for(const days of [30,7,0]){
+    await pool.query(`UPDATE vendor_documents SET expiry_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date+$2::int WHERE id=$1`,[doc.id,days]);
+    await Promise.all([call("/api/vendor/notifications",vendorA),call("/api/vendor/notifications",vendorA),call("/api/vendor/notifications",vendorA)]);
+    const notices=(await pool.query("SELECT id,milestone FROM vendor_notifications WHERE document_id=$1 AND expiry_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date+$2::int",[doc.id,days])).rows;
+    assert.equal(notices.length,1);assert.equal(notices[0].milestone,String(days));
+    assert.equal((await call(`/api/vendor/notifications/${notices[0].id}/read`,vendorA,{})).status,200);
+  }
+  const status=await(await call("/api/vendor/documents",vendorA)).json();
+  assert.equal(status.fssai.status,"EXPIRED");assert.ok(status.message.includes("expired"));
+  await pool.query(`UPDATE vendor_documents SET expiry_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date+5 WHERE id=$1`,[doc.id]);
+  const feed=await(await call("/api/vendor/notifications",vendorA)).json();
+  const current=feed.notifications.filter((n:{documentId:string})=>n.documentId===doc.id);
+  assert.equal(current.length,1);assert.equal(current[0].milestone,"7");
 });

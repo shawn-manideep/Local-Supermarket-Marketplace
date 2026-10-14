@@ -16,9 +16,12 @@ export async function submitDocuments(storeId: string) {
     if (!store.documents_required) fail("This existing account retains catalog access without the new verification gate.");
     if (store.document_verification_status === "SUBMITTED")
       fail("This submission is already pending review or approved.");
-    const documents = await tx.execute(sql`SELECT id,document_type FROM vendor_documents
+    const documents = await tx.execute(sql`SELECT id,document_type,
+      (expiry_date>(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date) AS valid_expiry FROM vendor_documents
       WHERE store_id=${storeId} AND is_current AND document_type IN ('fssai','aadhaar','pan','labour_license') FOR UPDATE`);
     if (documents.rows.length !== 4) fail("Upload all four mandatory documents before submitting.");
+    if (!documents.rows.find(d => d.document_type === "fssai")?.valid_expiry)
+      fail("Provide an actual, unexpired FSSAI expiry date before submitting.");
     const submissionId = randomUUID();
     await tx.execute(sql`UPDATE vendor_documents SET verification_status='SUBMITTED',
       submission_id=${submissionId},rejection_reason=NULL,updated_at=now()
@@ -43,10 +46,13 @@ export async function reviewDocuments(
     const store = result.rows[0];
     if (!store || store.document_verification_status !== "SUBMITTED" || store.document_submission_id !== submissionId)
       fail("This submission changed or is no longer pending review. Refresh before reviewing.");
-    const documents = await tx.execute(sql`SELECT id FROM vendor_documents WHERE store_id=${storeId}
+    const documents = await tx.execute(sql`SELECT id,document_type,
+      (expiry_date>(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date) AS valid_expiry FROM vendor_documents WHERE store_id=${storeId}
       AND is_current AND document_type IN ('fssai','aadhaar','pan','labour_license')
       AND submission_id=${submissionId} AND verification_status='SUBMITTED' FOR UPDATE`);
     if (documents.rows.length !== 4) fail("The current mandatory documents do not match this submission.");
+    if (!rejection && !documents.rows.find(d => d.document_type === "fssai")?.valid_expiry)
+      fail("An expired FSSAI license or one without an expiry date cannot be approved.");
     await tx.execute(sql`UPDATE vendor_documents SET verification_status='APPROVED',rejection_reason=NULL,updated_at=now()
       WHERE store_id=${storeId} AND is_current AND submission_id=${submissionId}
       AND document_type IN ('fssai','aadhaar','pan','labour_license')`);
