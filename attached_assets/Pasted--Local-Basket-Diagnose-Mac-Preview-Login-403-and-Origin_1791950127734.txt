@@ -1,0 +1,43 @@
+# Local Basket — Diagnose Mac Preview Login 403 and Origin Rejection
+
+I have reproduced the issue on my Mac in Chrome using the Local Basket project preview.
+
+Evidence from DevTools:
+- `POST /api/customer/login` returns **403 Forbidden**.
+- The browser displays “Unable to authenticate. Check your details and try again.”
+- The Console displays a failed `postMessage` warning and iframe sandbox warnings.
+- The app is running inside the Replit workspace preview.
+- The application has previously displayed “Origin is not allowed.”
+
+## Required investigation
+
+1. Reproduce or inspect the exact request path for `POST /api/customer/login`.
+2. Identify the actual request `Origin` header and compare it with the backend's configured allowed origins.
+3. Inspect CORS middleware, origin-validation middleware, authentication guards, rate limiting, and any Replit preview protection.
+4. Identify which middleware or backend handler produces the 403 response. Do not assume that CORS is responsible merely because the error mentions origin.
+5. Inspect the failed response body and backend logs. Determine whether the request is rejected before credentials are checked or whether valid credentials are being rejected by authentication logic.
+6. Verify the frontend's configured API base URL and ensure the Customer frontend is calling the intended backend.
+7. Determine whether the `postMessage` and iframe sandbox warnings are unrelated workspace warnings or actually affect login.
+8. Compare behavior with the intended direct preview URL, if supported, without changing production configuration.
+
+## Fix requirements
+
+- Fix only the confirmed root cause.
+- Allow only legitimate, explicitly configured application origins using the existing secure configuration pattern.
+- Do not use wildcard CORS, disable origin checks, bypass authentication, weaken role permissions, or expose credentials.
+- Do not change passwords, user records, or production settings.
+- Do not modify unrelated projects or application modules.
+- Add or update focused tests for the confirmed cause.
+- Do not run automated browser tests; I will test manually.
+- Do not deploy.
+
+## Completion report
+
+Report:
+- Exact root cause of the 403
+- Which middleware or handler generated it
+- Files and environment configuration changed
+- Relevant test results
+- Any manual action needed to verify the fix
+
+Stop after the diagnostic and fix report.
