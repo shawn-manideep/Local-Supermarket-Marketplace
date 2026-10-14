@@ -1,0 +1,44 @@
+# Local Basket — Fix Mobile Number Signup That Does Not Create Accounts
+
+The Customer and Vendor signup forms currently display:
+
+“Details are valid, but no account was created. Secure mobile verification is not available yet.”
+
+This is a known blocker. The forms validate input but do not perform real account creation.
+
+## Required outcome
+
+Make Customer and Vendor registration genuinely functional using mobile number and password, without requiring users to enter an email address.
+
+### 1. Inspect the current architecture
+- Inspect Supabase Auth configuration, current development/production isolation, registration APIs, user identity mappings, and the existing mobile login implementation.
+- Confirm whether the development Supabase project is isolated from production before changing authentication settings.
+- Do not modify provider settings until environment isolation is confirmed and the required setup is approved.
+
+### 2. Implement real registration
+- Customer: Mobile Number, Password, Confirm Password.
+- Vendor: Shop Name, Mobile Number, Password, Confirm Password.
+- Use a supported phone-authentication and ownership-verification mechanism.
+- After successful verification, create the account and required profile using the existing authentication architecture.
+- Preserve existing account IDs, roles, and application records.
+- Prevent duplicate phone numbers and account creation without verification.
+- New Vendors must remain pending Admin approval and mandatory document verification.
+- Do not enable Delivery Partner self-registration or change Admin authentication.
+
+### 3. Make registration end to end
+- A successful signup must create a real account, not just display a success message.
+- After successful registration, provide the correct next step and allow the user to sign in using the registered mobile number and password.
+- Display meaningful errors for duplicate numbers, invalid verification codes, provider failures, and incomplete verification.
+- Do not create fake email addresses, mark phone numbers verified without proof, or bypass authentication.
+
+### 4. Setup and costs
+- If Supabase Phone Auth or a WhatsApp/SMS provider is required, first report the exact configuration needed and its expected costs.
+- Do not configure paid services or incur charges without approval.
+- If development isolation is unverified, stop before changing authentication settings and report the specific blocker.
+
+### 5. Tests
+Verify actual account creation, phone ownership verification, mobile/password login, duplicate-number rejection, Vendor approval restrictions, and preservation of existing accounts.
+
+Run relevant tests, typechecks, and builds. Do not run automated browser tests; I will test manually.
+
+Do not deploy or modify production. Report what is implemented, what requires manual setup, and whether signup has been proven end to end. Stop for my approval if provider setup or paid services are required.
