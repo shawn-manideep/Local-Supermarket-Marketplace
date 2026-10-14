@@ -1,5 +1,6 @@
 import { z } from "zod";
 export { formatQuantity, formatVariantName, formatPrice } from "./variant-formatting.js";
+export { indianMobileSchema, mobileLoginSchema } from "./mobile-auth.js";
 
 export const RESERVED_USERNAMES = ["admin", "administrator", "support", "system", "api", "root", "delivery", "vendor", "customer", "login", "logout", "dashboard"] as const;
 export const usernameSchema = z.string().min(3).max(30)
@@ -8,6 +9,9 @@ export const usernameSchema = z.string().min(3).max(30)
   .transform(value => value.toLowerCase());
 export const partnerLoginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
 export const resetPasswordSchema = z.string().min(8, "Use at least 8 characters").max(128);
+export const portalResetPasswordSchema = resetPasswordSchema
+  .regex(/\p{L}/u, "Include at least one letter.")
+  .regex(/\d/, "Include at least one number.");
 export function isPasswordOwner(
   auth: { userId?: string; role?: string } | undefined,
   userId: string | undefined,

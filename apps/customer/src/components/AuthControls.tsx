@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { requestAccountRecovery } from "@workspace/api-client-react";
-import { RECOVERY_CONFIRMATION, resetPasswordSchema, usernameSchema, isPasswordOwner } from "@workspace/validation";
+import { RECOVERY_CONFIRMATION, portalResetPasswordSchema, indianMobileSchema, usernameSchema, isPasswordOwner } from "@workspace/validation";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./CustomerTypography";
 import { colors, radius, spacing, typography, commonStyles } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -27,7 +27,9 @@ export function PasswordField({ label = "Password", ...props }: React.ComponentP
   </View>;
 }
 
-export function CustomerRecoveryForm({ initialIdentity = "", onBack }: { initialIdentity?: string; onBack: () => void }) {
+export function CustomerRecoveryForm({ initialIdentity = "", identityType = "legacy", onBack }: {
+  initialIdentity?: string; identityType?: "mobile" | "legacy"; onBack: () => void;
+}) {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -35,16 +37,16 @@ export function CustomerRecoveryForm({ initialIdentity = "", onBack }: { initial
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const submit = async () => {
-    const checked = resetPasswordSchema.safeParse(password);
+    const checked = portalResetPasswordSchema.safeParse(password);
     if (!checked.success || password !== confirmation) {
-      setError(!checked.success ? "Use at least 8 characters." : "Passwords must match."); return;
+      setError(!checked.success ? "Use at least 8 characters, including a letter and a number." : "Passwords must match."); return;
     }
-    const parsed = usernameSchema.safeParse(initialIdentity);
-    if (!initialIdentity.trim()) { setError("Enter your username on the sign-in screen first, then reopen Forgot Password."); return; }
-    if (!parsed.success) { setError("Enter a valid username."); return; }
+    const parsed = identityType === "mobile" ? indianMobileSchema.safeParse(initialIdentity) : usernameSchema.safeParse(initialIdentity);
+    if (!initialIdentity.trim()) { setError("Enter your account identity on the sign-in screen first, then reopen Forgot Password."); return; }
+    if (!parsed.success) { setError(identityType === "mobile" ? "Enter a valid registered Indian mobile number." : "Enter a valid username."); return; }
     setBusy(true); setError(""); setMessage("");
     try {
-      await requestAccountRecovery({ role: "customer", identity: parsed.data });
+      await requestAccountRecovery({ role: "customer", identity: parsed.data, identityType });
       setPassword(""); setConfirmation("");
       setMessage(RECOVERY_CONFIRMATION);
     } catch { setError("Reset instructions could not be requested. Please wait and try again."); }
@@ -53,11 +55,14 @@ export function CustomerRecoveryForm({ initialIdentity = "", onBack }: { initial
   return <View style={styles.form}>
     <Text style={typography.title2}>{t("Forgot Password?")}</Text>
     <Text style={typography.body}>{t("Verify ownership using the recovery link sent for the account entered on sign-in. Re-enter your new password after verification.")}</Text>
+    <Text style={typography.body}>{t("Save Password becomes available after ownership verification. If your mobile number is not verified, use your existing username to request recovery.")}</Text>
+    <Text style={typography.body}>{t("Use at least 8 characters, including a letter and a number.")}</Text>
     <PasswordField label={t("New password")} autoComplete="new-password" value={password} onChangeText={setPassword} />
-    <PasswordField label={t("Re-enter New Password")} autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
+    <PasswordField label={t("Re-enter Password")} autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
     {!!message && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[typography.body, { color: colors.success }]}>{localizeCustomerMessage(message, t)}</Text>}
     {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{localizeCustomerMessage(error, t)}</Text>}
-    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}>{busy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryButtonText}>{t("Send Reset Instructions")}</Text>}</Pressable>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}>{busy ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryButtonText}>{t("Verify account ownership")}</Text>}</Pressable>
+    <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled style={[styles.primaryButton, { opacity: 0.5 }]}><Text style={styles.primaryButtonText}>{t("Save Password")}</Text></Pressable>
     <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setPassword(""); setConfirmation(""); onBack(); }}><Text style={styles.link}>{t("Back to sign in")}</Text></Pressable>
   </View>;
 }
@@ -74,8 +79,8 @@ export function CustomerResetForm({ onComplete }: { onComplete: (success: boolea
     onComplete(success);
   };
   const submit = async () => {
-    const parsed = resetPasswordSchema.safeParse(password);
-    if (!parsed.success || password !== confirmation) { setError(!parsed.success ? "Use at least 8 characters." : "Passwords must match."); return; }
+    const parsed = portalResetPasswordSchema.safeParse(password);
+    if (!parsed.success || password !== confirmation) { setError(!parsed.success ? "Use at least 8 characters, including a letter and a number." : "Passwords must match."); return; }
     setBusy(true); setError("");
     try {
       const { data: before } = await supabase.auth.getSession();
@@ -94,11 +99,11 @@ export function CustomerResetForm({ onComplete }: { onComplete: (success: boolea
     <CustomerBrandingLogo size={56} />
     <CustomerLanguageSelector />
     <Text style={typography.title1}>{t("Choose a new password")}</Text>
-    <Text style={typography.body}>{t("Use at least 8 characters.")}</Text>
+    <Text style={typography.body}>{t("Use at least 8 characters, including a letter and a number.")}</Text>
     <PasswordField label={t("New password")} autoComplete="new-password" value={password} onChangeText={setPassword} />
-    <PasswordField label={t("Re-enter New Password")} autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
+    <PasswordField label={t("Re-enter Password")} autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
     {!!error && <Text accessibilityRole="alert" style={[typography.body, { color: colors.danger }]}>{localizeCustomerMessage(error, t)}</Text>}
-    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{busy ? t("Updating…") : t("Update password")}</Text></Pressable>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{busy ? t("Updating…") : t("Save Password")}</Text></Pressable>
     <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void finish(false); }}><Text style={styles.link}>{t("Cancel reset")}</Text></Pressable>
   </View></ScrollView>;
 }

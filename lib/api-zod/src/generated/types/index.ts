@@ -7,6 +7,7 @@
  */
 
 export * from './accountRecoveryInput';
+export * from './accountRecoveryInputIdentityType';
 export * from './accountRecoveryInputRole';
 export * from './accountRecoveryOutcome';
 export * from './adminAccountStatusInput';
@@ -89,6 +90,7 @@ export * from './managementPageParameter';
 export * from './managementPageSizeParameter';
 export * from './managementSearchParameter';
 export * from './managementStatusParameter';
+export * from './mobilePasswordCredentials';
 export * from './partnerAdministrationOutcome';
 export * from './partnerAdminRecord';
 export * from './partnerCredentials';

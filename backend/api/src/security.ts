@@ -25,15 +25,17 @@ export function createApiRateLimit() {
     }
     const identity = request.ip || request.socket.remoteAddress || "unknown";
     const isMutation = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method);
-    const scope = request.method === "POST" && request.path === "/api/delivery-partner/login"
+    const scope = request.method === "POST" && ["/api/delivery-partner/login", "/api/delivery-partner/mobile-login"].includes(request.path)
       ? "partner-login"
-      : request.method === "POST" && request.path === "/api/vendor/login"
+      : request.method === "POST" && ["/api/vendor/login", "/api/vendor/mobile-login"].includes(request.path)
       ? "vendor-login"
+      : request.method === "POST" && request.path === "/api/customer/mobile-login"
+      ? "customer-mobile-login"
       : request.method === "POST" && request.path === "/api/customer/orders"
       ? "orders"
       : isMutation ? "mutations" : "reads";
     const key = `${identity}:${scope}`;
-    const limit = scope === "orders" ? ORDER_LIMIT : scope === "partner-login" || scope === "vendor-login" ? PARTNER_LOGIN_LIMIT : scope === "mutations" ? GENERAL_LIMIT : READ_LIMIT;
+    const limit = scope === "orders" ? ORDER_LIMIT : ["partner-login", "vendor-login", "customer-mobile-login"].includes(scope) ? PARTNER_LOGIN_LIMIT : scope === "mutations" ? GENERAL_LIMIT : READ_LIMIT;
     const bucket = buckets.get(key);
     if (!bucket || bucket.resetAt <= now) {
       buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });

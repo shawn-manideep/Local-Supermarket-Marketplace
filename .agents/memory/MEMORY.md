@@ -32,3 +32,4 @@
 - [Customer support boundaries](customer-support-boundaries.md) — accurate feature/policy answers only; no fictional contacts, tickets, wallet features or refund guarantees.
 - [Customer legal review](customer-legal-review-boundaries.md) — keep unapproved legal content visibly draft; source contacts/deadlines need confirmation and deletion needs a defined safe process.
 - [Application branding and recovery](application-branding-and-recovery.md) — platform logo stays separate from store imagery; password-only recovery still requires verified ownership.
+- [Mobile login transition](mobile-login-transition.md) — approved phased mobile/password sign-in retains legacy access and email-dependent registration until secure phone enrollment exists.

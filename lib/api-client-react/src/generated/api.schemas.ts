@@ -496,6 +496,17 @@ export const AccountRecoveryInputRole = {
   admin: 'admin',
 } as const;
 
+/**
+ * Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin.
+ */
+export type AccountRecoveryInputIdentityType = typeof AccountRecoveryInputIdentityType[keyof typeof AccountRecoveryInputIdentityType];
+
+
+export const AccountRecoveryInputIdentityType = {
+  mobile: 'mobile',
+  legacy: 'legacy',
+} as const;
+
 export interface AccountRecoveryInput {
   role: AccountRecoveryInputRole;
   /**
@@ -503,6 +514,8 @@ export interface AccountRecoveryInput {
      * @maxLength 254
      */
   identity: string;
+  /** Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin. */
+  identityType?: AccountRecoveryInputIdentityType;
 }
 
 export interface AccountRecoveryOutcome {
@@ -1055,6 +1068,19 @@ export const AdminAccountStatusInputStatus = {
 
 export interface AdminAccountStatusInput {
   status: AdminAccountStatusInputStatus;
+}
+
+export interface MobilePasswordCredentials {
+  /**
+     * Ten-digit Indian mobile number with optional +91 prefix; server trims outer whitespace.
+     * @pattern ^(?:\+91)?[6-9][0-9]{9}$
+     */
+  mobileNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  password: string;
 }
 
 export interface PartnerCredentials {

@@ -6,9 +6,20 @@ import { loginVendor } from "../admin-management/vendor-profile.js";
 import type { AuthenticatedRequest } from "./types.js";
 import { customerLoginSchema, loginCustomer, recoveryInput, recoveryRedirect, requestRecovery, RECOVERY_MESSAGE } from "./account-access.js";
 import { registerVendor } from "./vendor-registration.js";
+import { mobileLoginSchema } from "@workspace/validation";
+import { loginMobile, type MobileRole } from "./mobile-access.js";
 
 export const authRouter = Router();
 const recoveryAttempts = new Map<string, { count: number; until: number }>();
+for (const role of ["customer", "vendor", "delivery_partner"] as const) {
+  const portal = role === "delivery_partner" ? "delivery-partner" : role;
+  authRouter.post(`/api/${portal}/mobile-login`, asyncHandler(async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const input = mobileLoginSchema.safeParse(req.body);
+    if (!input.success) throw new HttpError(401, "Invalid sign-in details.");
+    res.json(await loginMobile(role satisfies MobileRole, input.data.mobileNumber, input.data.password));
+  }));
+}
 authRouter.post("/api/customer/login", asyncHandler(async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const input = customerLoginSchema.safeParse(req.body);

@@ -523,6 +523,63 @@ paths:
                 $ref: '#/components/schemas/PartnerSessionOutcome'
         '401':
           description: Invalid username or password
+  /customer/mobile-login:
+    post:
+      operationId: loginCustomerMobile
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobilePasswordCredentials' }
+      responses:
+        '200':
+          description: Existing Customer session for a unique Auth-confirmed phone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartnerSessionOutcome' }
+        '401':
+          description: Invalid sign-in details, including unknown or unverified phone
+        '403':
+          description: Customer account inactive after password authentication
+  /vendor/mobile-login:
+    post:
+      operationId: loginVendorMobile
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobilePasswordCredentials' }
+      responses:
+        '200':
+          description: Existing Vendor session; document and store approval gates remain separate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartnerSessionOutcome' }
+        '401':
+          description: Invalid sign-in details, including unknown or unverified phone
+        '403':
+          description: Vendor suspended after password authentication
+  /delivery-partner/mobile-login:
+    post:
+      operationId: loginDeliveryPartnerMobile
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobilePasswordCredentials' }
+      responses:
+        '200':
+          description: Existing active Delivery Partner session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartnerSessionOutcome' }
+        '401':
+          description: Invalid sign-in details, including unknown or unverified phone
+        '403':
+          description: Delivery Partner inactive after password authentication
   /auth/recovery:
     post:
       operationId: requestAccountRecovery
@@ -1437,6 +1494,10 @@ components:
           type: string
           minLength: 1
           maxLength: 254
+        identityType:
+          type: string
+          enum: [mobile, legacy]
+          description: Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin.
     AccountRecoveryOutcome:
       type: object
       required: [message]
@@ -1729,6 +1790,19 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [ACTIVE, INACTIVE] }
+    MobilePasswordCredentials:
+      type: object
+      additionalProperties: false
+      required: [mobileNumber, password]
+      properties:
+        mobileNumber:
+          type: string
+          pattern: '^(?:\+91)?[6-9][0-9]{9}$'
+          description: Ten-digit Indian mobile number with optional +91 prefix; server trims outer whitespace.
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
     PartnerCredentials:
       type: object
       additionalProperties: false

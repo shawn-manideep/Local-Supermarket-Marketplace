@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AccountRecoveryInputIdentityType } from './accountRecoveryInputIdentityType';
 import type { AccountRecoveryInputRole } from './accountRecoveryInputRole';
 
 export interface AccountRecoveryInput {
@@ -14,4 +15,6 @@ export interface AccountRecoveryInput {
      * @maxLength 254
      */
   identity: string;
+  /** Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin. */
+  identityType?: AccountRecoveryInputIdentityType;
 }

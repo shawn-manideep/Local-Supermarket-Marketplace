@@ -21,9 +21,9 @@ test("Vendor, Partner and Admin reuse password/recovery controls without nested 
   assert.match(app, /<PasswordInput data-testid="input-password"/);
   assert.match(app, /role=\{adminMode \? "admin" : "vendor"\}/);
   assert.match(partner, /<PasswordInput id="lbp-password"/);
-  assert.match(partner, /<ForgotPassword role="delivery_partner"/);
-  assert.match(app, /<\/form>\s*<ForgotPassword/);
-  assert.match(partner, /<\/form>\s*<ForgotPassword/);
+  assert.match(partner, /<ForgotPassword[^>]*role="delivery_partner"/);
+  assert.match(app, /<\/form>[\s\S]*?<ForgotPassword/);
+  assert.match(partner, /<\/form>\s*<button[\s\S]*?<ForgotPassword/);
   assert.match(controls, /setVisible\(value => !value\)/);
   assert.match(controls, /type="button" className="auth-eye"/);
   assert.match(controls, /aria-pressed=\{visible\}/);
@@ -33,7 +33,7 @@ test("recovery preserves role identities and displays only generic confirmation/
   const controls = await source("./AuthControls.tsx");
   assert.match(controls, /Re-enter New Password/);
   assert.doesNotMatch(controls, /value=\{identity\}/);
-  assert.match(controls, /JSON\.stringify\(\{ role, identity \}\)/);
+  assert.match(controls, /JSON\.stringify\(\{\s*role, identity/);
   assert.match(controls, /setMessage\(RECOVERY_CONFIRMATION\)/);
   assert.doesNotMatch(controls, /data\.user|recoveryEmail|reset_token|error\.message|console\./);
 });

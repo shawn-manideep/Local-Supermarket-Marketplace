@@ -60,6 +60,7 @@ import type {
   ManagedCustomerAddressInput,
   ManagedCustomerAddressResponse,
   ManagedCustomerAddressUpdate,
+  MobilePasswordCredentials,
   PartnerAdministrationOutcome,
   PartnerCredentials,
   PartnerDashboardOutcome,
@@ -2233,6 +2234,252 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getLoginCustomerUsernameMutationOptions(options));
+    }
+
+export const getLoginCustomerMobileUrl = () => {
+
+
+
+
+  return `/api/customer/mobile-login`
+}
+
+export const loginCustomerMobile = async (mobilePasswordCredentials: MobilePasswordCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerSessionOutcome>(getLoginCustomerMobileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mobilePasswordCredentials)
+  }
+);}
+
+
+
+
+
+export const getLoginCustomerMobileMutationKey = () => ['loginCustomerMobile'] as const;
+
+export const getLoginCustomerMobileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginCustomerMobile>>, TError,LoginCustomerMobileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginCustomerMobile>>, TError,LoginCustomerMobileMutationVariables, TContext> => {
+
+const mutationKey = getLoginCustomerMobileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginCustomerMobile>>, LoginCustomerMobileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginCustomerMobile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginCustomerMobileMutationResult = NonNullable<Awaited<ReturnType<typeof loginCustomerMobile>>>
+    export type LoginCustomerMobileMutationBody = BodyType<MobilePasswordCredentials>
+    export type LoginCustomerMobileMutationError = ErrorType<void>
+    export type LoginCustomerMobileMutationVariables = {data: BodyType<MobilePasswordCredentials>}
+
+    export const useLoginCustomerMobile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginCustomerMobile>>, TError,LoginCustomerMobileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loginCustomerMobile>>,
+        TError,
+        LoginCustomerMobileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoginCustomerMobileMutationOptions(options));
+    }
+
+export const getLoginVendorMobileUrl = () => {
+
+
+
+
+  return `/api/vendor/mobile-login`
+}
+
+export const loginVendorMobile = async (mobilePasswordCredentials: MobilePasswordCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerSessionOutcome>(getLoginVendorMobileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mobilePasswordCredentials)
+  }
+);}
+
+
+
+
+
+export const getLoginVendorMobileMutationKey = () => ['loginVendorMobile'] as const;
+
+export const getLoginVendorMobileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginVendorMobile>>, TError,LoginVendorMobileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginVendorMobile>>, TError,LoginVendorMobileMutationVariables, TContext> => {
+
+const mutationKey = getLoginVendorMobileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginVendorMobile>>, LoginVendorMobileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginVendorMobile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginVendorMobileMutationResult = NonNullable<Awaited<ReturnType<typeof loginVendorMobile>>>
+    export type LoginVendorMobileMutationBody = BodyType<MobilePasswordCredentials>
+    export type LoginVendorMobileMutationError = ErrorType<void>
+    export type LoginVendorMobileMutationVariables = {data: BodyType<MobilePasswordCredentials>}
+
+    export const useLoginVendorMobile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginVendorMobile>>, TError,LoginVendorMobileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loginVendorMobile>>,
+        TError,
+        LoginVendorMobileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoginVendorMobileMutationOptions(options));
+    }
+
+export const getLoginDeliveryPartnerMobileUrl = () => {
+
+
+
+
+  return `/api/delivery-partner/mobile-login`
+}
+
+export const loginDeliveryPartnerMobile = async (mobilePasswordCredentials: MobilePasswordCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PartnerSessionOutcome>(getLoginDeliveryPartnerMobileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mobilePasswordCredentials)
+  }
+);}
+
+
+
+
+
+export const getLoginDeliveryPartnerMobileMutationKey = () => ['loginDeliveryPartnerMobile'] as const;
+
+export const getLoginDeliveryPartnerMobileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginDeliveryPartnerMobile>>, TError,LoginDeliveryPartnerMobileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginDeliveryPartnerMobile>>, TError,LoginDeliveryPartnerMobileMutationVariables, TContext> => {
+
+const mutationKey = getLoginDeliveryPartnerMobileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginDeliveryPartnerMobile>>, LoginDeliveryPartnerMobileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginDeliveryPartnerMobile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginDeliveryPartnerMobileMutationResult = NonNullable<Awaited<ReturnType<typeof loginDeliveryPartnerMobile>>>
+    export type LoginDeliveryPartnerMobileMutationBody = BodyType<MobilePasswordCredentials>
+    export type LoginDeliveryPartnerMobileMutationError = ErrorType<void>
+    export type LoginDeliveryPartnerMobileMutationVariables = {data: BodyType<MobilePasswordCredentials>}
+
+    export const useLoginDeliveryPartnerMobile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginDeliveryPartnerMobile>>, TError,LoginDeliveryPartnerMobileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loginDeliveryPartnerMobile>>,
+        TError,
+        LoginDeliveryPartnerMobileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoginDeliveryPartnerMobileMutationOptions(options));
     }
 
 export const getRequestAccountRecoveryUrl = () => {

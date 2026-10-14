@@ -93,6 +93,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
       <p className="muted">{session
         ? "Use your verified email to register a new store. Admin approval and document review are required before catalog access."
         : "Verify your email before setting up your store. Existing customer accounts cannot be converted."}</p>
+      {!session && <p className="muted">Registration still requires a recovery email until secure mobile ownership enrollment is available. A store contact number is not a verified login number.</p>}
       {error && <p className="auth-error" role="alert">{error}</p>}
       {message && <p className="auth-success" role="status">{message}</p>}
       {input("name", "Shop Name", "organization")}

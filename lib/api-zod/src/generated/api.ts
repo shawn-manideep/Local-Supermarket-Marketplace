@@ -854,13 +854,68 @@ export const LoginCustomerUsernameResponse = zod.object({
 })
 
 
+export const loginCustomerMobileBodyMobileNumberRegExp = new RegExp('^(?:\\+91)?[6-9][0-9]{9}$');
+export const loginCustomerMobileBodyPasswordMax = 128;
+
+
+
+export const LoginCustomerMobileBody = zod.object({
+  "mobileNumber": zod.string().regex(loginCustomerMobileBodyMobileNumberRegExp).describe('Ten-digit Indian mobile number with optional +91 prefix; server trims outer whitespace.'),
+  "password": zod.string().min(1).max(loginCustomerMobileBodyPasswordMax)
+})
+
+export const LoginCustomerMobileResponse = zod.object({
+  "session": zod.object({
+  "access_token": zod.string(),
+  "refresh_token": zod.string()
+})
+})
+
+
+export const loginVendorMobileBodyMobileNumberRegExp = new RegExp('^(?:\\+91)?[6-9][0-9]{9}$');
+export const loginVendorMobileBodyPasswordMax = 128;
+
+
+
+export const LoginVendorMobileBody = zod.object({
+  "mobileNumber": zod.string().regex(loginVendorMobileBodyMobileNumberRegExp).describe('Ten-digit Indian mobile number with optional +91 prefix; server trims outer whitespace.'),
+  "password": zod.string().min(1).max(loginVendorMobileBodyPasswordMax)
+})
+
+export const LoginVendorMobileResponse = zod.object({
+  "session": zod.object({
+  "access_token": zod.string(),
+  "refresh_token": zod.string()
+})
+})
+
+
+export const loginDeliveryPartnerMobileBodyMobileNumberRegExp = new RegExp('^(?:\\+91)?[6-9][0-9]{9}$');
+export const loginDeliveryPartnerMobileBodyPasswordMax = 128;
+
+
+
+export const LoginDeliveryPartnerMobileBody = zod.object({
+  "mobileNumber": zod.string().regex(loginDeliveryPartnerMobileBodyMobileNumberRegExp).describe('Ten-digit Indian mobile number with optional +91 prefix; server trims outer whitespace.'),
+  "password": zod.string().min(1).max(loginDeliveryPartnerMobileBodyPasswordMax)
+})
+
+export const LoginDeliveryPartnerMobileResponse = zod.object({
+  "session": zod.object({
+  "access_token": zod.string(),
+  "refresh_token": zod.string()
+})
+})
+
+
 export const requestAccountRecoveryBodyIdentityMax = 254;
 
 
 
 export const RequestAccountRecoveryBody = zod.object({
   "role": zod.enum(['customer', 'vendor', 'delivery_partner', 'admin']),
-  "identity": zod.string().min(1).max(requestAccountRecoveryBodyIdentityMax)
+  "identity": zod.string().min(1).max(requestAccountRecoveryBodyIdentityMax),
+  "identityType": zod.enum(['mobile', 'legacy']).optional().describe('Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin.')
 })
 
 export const RequestAccountRecoveryResponse = zod.object({

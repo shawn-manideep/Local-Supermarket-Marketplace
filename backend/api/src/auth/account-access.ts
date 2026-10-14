@@ -3,17 +3,21 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { getDb } from "@workspace/db";
 import { z } from "zod";
-import { usernameSchema, partnerLoginSchema, RECOVERY_CONFIRMATION } from "@workspace/validation";
+import { usernameSchema, partnerLoginSchema, RECOVERY_CONFIRMATION, indianMobileSchema } from "@workspace/validation";
 import { partnerRepository } from "../delivery-partner/repository.js";
 import { supabasePartnerAuth, type PartnerAuthGateway } from "../delivery-partner/auth-service.js";
 import { getSupabasePublicConfig } from "./config.js";
 import { HttpError } from "../http.js";
+import { verifiedMobileAccount } from "./mobile-access.js";
 
 export const RECOVERY_MESSAGE = RECOVERY_CONFIRMATION;
 export const recoveryInput = z.object({
   role: z.enum(["customer", "vendor", "delivery_partner", "admin"]),
   identity: z.string().min(1).max(254),
-}).strict();
+  identityType: z.enum(["mobile", "legacy"]).optional(),
+}).strict().refine(input => input.identityType !== "mobile"
+  || (input.role !== "admin" && indianMobileSchema.safeParse(input.identity).success),
+  "Enter a valid mobile number for a supported portal.");
 export type RecoveryInput = z.infer<typeof recoveryInput>;
 export type RecoveryIdentity = { id: string; role: string; email: string };
 export interface RecoveryGateway {
@@ -24,6 +28,19 @@ export interface RecoveryGateway {
 export function recoveryGateway(): RecoveryGateway {
   return {
     async find(input) {
+      if (input.identityType === "mobile") {
+        if (input.role === "admin") return null;
+        const account = await verifiedMobileAccount(input.identity, input.role);
+        if (!account) return null;
+        const phone = indianMobileSchema.parse(input.identity);
+        const result = await getDb().execute<RecoveryIdentity>(sql`
+          SELECT u.id,p.role::text AS role,u.email FROM auth.users u
+          JOIN public.user_profiles p ON p.id=u.id
+          WHERE u.id=${account.id} AND p.role::text=${input.role}
+          AND u.phone_confirmed_at IS NOT NULL
+          AND u.phone IN (${phone},${phone.slice(1)},${phone.slice(3)}) LIMIT 1`);
+        return result.rows[0] ?? null;
+      }
       const useEmail = input.role === "admin" || (input.role === "vendor" && input.identity.includes("@"));
       const username = usernameSchema.safeParse(input.identity);
       if (!useEmail && !username.success) return null;

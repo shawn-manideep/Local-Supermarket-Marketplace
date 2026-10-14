@@ -7,7 +7,7 @@ import { DeliveryPartnerPortal } from "./DeliveryPartnerPortal";
 import { DeliveryPartnerLogin } from "./DeliveryPartnerLogin";
 import { AdminPortal } from "./admin/AdminPortal";
 import { matchesAdminPath } from "./admin/route-access";
-import { usernameSchema } from "@workspace/validation";
+import { usernameSchema, indianMobileSchema } from "@workspace/validation";
 import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
 import { VendorSignup } from "./VendorSignup";
 import { isCurrentSessionFailure, keepVendorProfile } from "./vendor-session";
@@ -22,6 +22,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(!supabaseConfigMissing);
   const [roleLoading, setRoleLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [legacyVendorLogin, setLegacyVendorLogin] = useState(false);
   const [password, setPassword] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(() => new URLSearchParams(window.location.search).get("recovery") === "1");
   const [authError, setAuthError] = useState("");
@@ -163,6 +165,21 @@ export default function App() {
     if (!supabase) return;
     setAuthLoading(true);
     try {
+      if (!adminMode && !legacyVendorLogin) {
+        const parsed = indianMobileSchema.safeParse(mobileNumber);
+        if (!parsed.success) {
+          setAuthError("Enter a valid registered Indian mobile number.");
+          setPassword("");
+          return;
+        }
+        const response = await apiRequest<{ session: { access_token: string; refresh_token: string } }>("/api/vendor/mobile-login", "", {
+          method: "POST", body: JSON.stringify({ mobileNumber: parsed.data, password }),
+        });
+        const { error } = await supabase.auth.setSession(response.session);
+        if (error) throw new Error("Your session could not be established. Please sign in again.");
+        setPassword("");
+        return;
+      }
       if (!adminMode && !email.trim().includes("@")) {
         const parsed = usernameSchema.safeParse(email);
         if (!parsed.success) {
@@ -244,16 +261,17 @@ export default function App() {
         <form className="auth-form" onSubmit={signIn}>
           <p className="eyebrow">{adminMode ? "Local Basket · Admin" : "Secure operations access"}</p>
           <h1>{adminMode ? "Admin Portal sign in" : "Sign in to store management"}</h1>
-          <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : "Use your marketplace account to manage stores, catalog, and orders."}</p>
+          <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : legacyVendorLogin ? "Use your existing account sign-in details until mobile ownership is verified." : "Mobile sign-in requires verified ownership. Existing vendors can use legacy sign-in below."}</p>
           {authError && <div className="auth-error" role="alert">{authError}</div>}
           {authSuccess && <div className="auth-success" role="status">{authSuccess}</div>}
-          <label>{adminMode ? "Email address" : "Email or vendor username"}<input data-testid="input-email" autoComplete={adminMode || email.includes("@") ? "email" : "username"} onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type={adminMode ? "email" : "text"} value={email} required /></label>
+          {adminMode ? <label>Email address<input data-testid="input-email" autoComplete="email" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="email" value={email} required /></label> : legacyVendorLogin ? <label>Legacy account identifier<input data-testid="input-vendor-legacy" autoComplete="username" placeholder="Enter your existing sign-in identifier" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="text" value={email} required /></label> : <label>Mobile Number<input data-testid="input-vendor-mobile" type="tel" inputMode="tel" autoComplete="tel" maxLength={13} placeholder="Enter your registered mobile number" value={mobileNumber} onChange={event => { setMobileNumber(event.target.value); setAuthError(""); }} required /></label>}
           <label>Password<PasswordInput data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} value={password} required /></label>
           <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
           {!adminMode && <button className="text-button" type="button" onClick={() => setVendorSignup(true)}>Sign Up as Vendor</button>}
           {!adminMode && <button className="text-button" onClick={() => selectPortal(true)} type="button">Delivery Partner sign in</button>}
         </form>
-        <ForgotPassword key={adminMode ? "admin" : "vendor"} role={adminMode ? "admin" : "vendor"} initialIdentity={email} />
+        {!adminMode && <button type="button" className="text-button" disabled={authLoading} onClick={() => { setLegacyVendorLogin(value => !value); setPassword(""); setAuthError(""); setAuthSuccess(""); }}>{legacyVendorLogin ? "Use mobile number instead" : "Use legacy sign-in instead"}</button>}
+        <ForgotPassword key={adminMode ? "admin" : legacyVendorLogin ? "vendor-legacy" : "vendor-mobile"} role={adminMode ? "admin" : "vendor"} initialIdentity={adminMode || legacyVendorLogin ? email : mobileNumber} identityType={adminMode || legacyVendorLogin ? "legacy" : "mobile"} />
         </>}
       </AuthFrame></div></main>
     );

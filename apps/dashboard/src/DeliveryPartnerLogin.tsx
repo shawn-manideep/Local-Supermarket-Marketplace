@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { usernameSchema } from "@workspace/validation";
-import type { PartnerCredentials, PartnerSessionOutcome } from "../../../lib/api-client-react/src/generated/api.schemas";
+import { usernameSchema, indianMobileSchema } from "@workspace/validation";
+import type { PartnerSessionOutcome } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { ApiRequestError, apiRequest } from "./api";
 import "./partner.css";
 import { PasswordInput, ForgotPassword } from "./AuthControls";
@@ -13,6 +13,8 @@ type Props = {
 
 export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
   const [username, setUsername] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [legacyLogin, setLegacyLogin] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,21 +22,23 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    if (!usernameSchema.safeParse(username).success) {
-      setError("Enter your delivery partner username.");
+    const identity = legacyLogin ? usernameSchema.safeParse(username) : indianMobileSchema.safeParse(mobileNumber);
+    if (!identity.success) {
+      setError(legacyLogin ? "Enter your delivery partner username." : "Enter a valid registered Indian mobile number.");
       return;
     }
     setBusy(true);
     try {
-      const credentials: PartnerCredentials = { username, password };
+      const credentials = legacyLogin ? { username: identity.data, password } : { mobileNumber: identity.data, password };
       const outcome = await apiRequest<PartnerSessionOutcome>(
-        "/api/delivery-partner/login",
+        legacyLogin ? "/api/delivery-partner/login" : "/api/delivery-partner/mobile-login",
         "",
         { method: "POST", body: JSON.stringify(credentials) },
       );
       await onAuthenticated(outcome.session);
       setPassword("");
       setUsername("");
+      setMobileNumber("");
     } catch (reason) {
       setPassword("");
       setError(reason instanceof ApiRequestError && reason.status === 403 ? reason.message : "We could not sign you in with those details. Check them and try again.");
@@ -62,11 +66,11 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
             <form className="lbp-login-form" onSubmit={submit}>
               <p className="lbp-kicker">Secure access</p>
               <h2>Partner sign in</h2>
-              <p>Use the username issued by your Local Basket administrator.</p>
+              <p>{legacyLogin ? "Use the username issued by your Local Basket administrator." : "Mobile sign-in requires verified ownership. Existing partners can use their administrator-issued username below."}</p>
               {error && <div className="lbp-alert" role="alert" data-testid="status-partner-login-error">{error}</div>}
               <div className="lbp-field">
-                <label htmlFor="lbp-username">Username</label>
-                <input id="lbp-username" data-testid="input-partner-username" autoComplete="username" maxLength={30} value={username} onChange={(event) => { setUsername(event.target.value); setError(""); }} required />
+                <label htmlFor="lbp-identity">{legacyLogin ? "Username" : "Mobile Number"}</label>
+                <input id="lbp-identity" data-testid={legacyLogin ? "input-partner-username" : "input-partner-mobile"} type={legacyLogin ? "text" : "tel"} inputMode={legacyLogin ? "text" : "tel"} autoComplete={legacyLogin ? "username" : "tel"} placeholder={legacyLogin ? "Enter your administrator-issued username" : "Enter your registered mobile number"} maxLength={legacyLogin ? 30 : 13} value={legacyLogin ? username : mobileNumber} onChange={(event) => { legacyLogin ? setUsername(event.target.value) : setMobileNumber(event.target.value); setError(""); }} required />
               </div>
               <div className="lbp-field">
                 <label htmlFor="lbp-password">Password</label>
@@ -75,7 +79,8 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
               <button className="lbp-button lbp-button-primary" data-testid="button-partner-sign-in" disabled={busy} type="submit">{busy ? "Checking access…" : "Sign in"}</button>
               <div className="lbp-login-footer"><span>Partner accounts are provided by an administrator.</span><button className="lbp-button lbp-button-quiet" data-testid="button-partner-login-cancel" onClick={onCancel} type="button">Cancel</button></div>
             </form>
-            <ForgotPassword role="delivery_partner" initialIdentity={username} />
+            <button type="button" className="text-button" disabled={busy} onClick={() => { setLegacyLogin(value => !value); setPassword(""); setError(""); }}>{legacyLogin ? "Use mobile number instead" : "Use administrator-issued username instead"}</button>
+            <ForgotPassword key={legacyLogin ? "legacy" : "mobile"} role="delivery_partner" initialIdentity={legacyLogin ? username : mobileNumber} identityType={legacyLogin ? "legacy" : "mobile"} />
           </section>
         </div>
       </div>
