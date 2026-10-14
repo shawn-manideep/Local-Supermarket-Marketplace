@@ -1,0 +1,60 @@
+# Local Basket — Supabase Environment Isolation and OTP Migration Readiness Audit
+
+## Objective
+
+Determine whether Local Basket has properly isolated development and production environments and whether the project is ready to begin WhatsApp OTP implementation.
+
+This is a **read-only audit**. Do not modify code, database schemas, migrations, environment variables, secrets, Supabase settings, provider settings, user records, or deployment configuration. Do not send OTPs, install packages, create accounts, or incur charges.
+
+## 1. Establish the actual environments
+
+Inspect the repository, Replit configuration, build scripts, deployment configuration, and available project metadata.
+
+Identify separately:
+- The Supabase project used by the current Replit development preview.
+- The Supabase project configured for the intended Vercel frontend.
+- The Supabase project configured for the intended Railway backend.
+- Any Supabase project intended for production.
+- Any staging environment already configured.
+
+For each environment, report the project name and non-secret project reference or hostname, where safely available. Do not print keys, passwords, connection strings, access tokens, or other secrets.
+
+Do not assume that different environment-variable names or deployment configurations mean different Supabase projects.
+
+## 2. Determine whether production exists
+
+Establish whether:
+- Production Vercel and Railway deployments exist.
+- Production uses a separate Supabase project.
+- Production and development share the same database or Auth service.
+- Any environment configuration points to an unexpected project.
+- Database migrations are consistent with the intended deployment setup.
+
+Use read-only inspection only. If the available access cannot establish a fact, mark it **unverified** instead of guessing.
+
+## 3. Evaluate OTP migration readiness
+
+Using the previous WhatsApp OTP audit, confirm:
+- Existing Auth account IDs and role mappings remain the source of identity.
+- Phone authentication can first be tested in an isolated development environment.
+- Existing user enrollment can be tested without replacing accounts.
+- The one-unique-verified-phone-per-account policy can be enforced safely.
+- Customer, Vendor, and Delivery Partner can retain password fallback during rollout.
+- Admin authentication can remain unchanged.
+- Selective password retirement has a supported enforcement strategy.
+- Provider configuration can be tested without affecting production users.
+
+Do not enable phone authentication or change any settings.
+
+## 4. Required report
+
+Return a table containing each environment, its purpose, its Supabase project reference, whether it is isolated, and the evidence supporting the finding.
+
+Then provide:
+1. The recommended development/staging/production architecture.
+2. Any shared-project or configuration risks.
+3. The minimum manual setup needed before OTP provider configuration.
+4. Whether we can safely proceed to the development provider proof.
+5. Any remaining decisions that genuinely require my approval.
+
+Stop after the report. No implementation, deployment, provider changes, or paid services are authorized.
