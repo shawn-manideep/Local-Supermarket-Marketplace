@@ -7,6 +7,13 @@ Partner accounts. Preserve separate legacy sign-in, including existing Vendors'
 email-based access, until those accounts have securely verified mobile identities.
 Email-dependent Customer/Vendor registration and recovery remain available.
 
+The current direction uses the mobile number as an identifier for the existing
+Supabase Auth account and its existing password authentication. Do not enable
+Phone Auth, implement OTP, integrate paid phone providers, or replace identities.
+
+**Why:** The user's revised mobile-login request explicitly requires retaining
+the existing password architecture without OTP or provider-setting changes.
+
 When secure phone enrollment or provider setup is out of scope, the user permits
 only the safe portion of mobile registration. Keep email-free account creation
 explicitly unavailable rather than inventing emails, auto-confirming numbers,

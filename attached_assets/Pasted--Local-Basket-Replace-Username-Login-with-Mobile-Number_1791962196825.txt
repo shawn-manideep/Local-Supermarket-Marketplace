@@ -1,0 +1,145 @@
+# Local Basket — Replace Username Login with Mobile Number + Password
+
+Implement a fully functional mobile-number-based login experience for the Customer, Vendor, and Delivery Partner portals.
+
+**Objective:** Users should be able to remember their mobile number and password instead of remembering a username. Keep the existing password authentication architecture wherever possible. Do not implement OTP authentication.
+
+## 1. Customer, Vendor and Delivery Partner Login
+
+Update the login screens for all three portals.
+
+Fields:
+- Mobile Number
+- Password
+
+Controls:
+- Show/hide password
+- Forgot Password?
+- Sign In
+- Sign Up
+
+Requirements:
+- Remove username and email login inputs and related wording from these three login screens.
+- Accept Indian mobile numbers in 10-digit format or with the `+91` country prefix.
+- Normalize numbers consistently before lookup.
+- Authenticate the correct existing account using its existing Supabase Auth identity and password.
+- Keep existing role checks and account-status restrictions.
+- Customer accounts must remain subject to existing account restrictions.
+- Vendors must remain subject to approval, suspension, and document-verification rules.
+- Delivery Partners must remain subject to Admin provisioning and active/inactive restrictions.
+- Admin login must remain unchanged and continue using its existing email/password authentication.
+
+## 2. Mobile Number Mapping for Existing Accounts
+
+The current application uses email/password authentication internally. Inspect the existing database schema and authentication code before modifying anything.
+
+Implement a secure mapping from mobile number to the existing Supabase Auth account.
+
+Requirements:
+- Preserve all existing Auth UUIDs, profiles, usernames, stores, orders, inventory, and delivery assignments.
+- Do not create replacement accounts or merge accounts automatically.
+- Do not use address recipient numbers or historical order contact numbers as login identities.
+- Do not treat an arbitrary contact number as verified merely because it exists in a profile.
+- Enforce uniqueness for the login mobile number.
+- Handle missing, duplicate, unverified, and conflicting mobile numbers safely.
+- Ensure that a submitted mobile number cannot be used to access another user's account.
+- Return a generic authentication error for unknown numbers and incorrect passwords.
+
+If the current account lacks a suitable mobile-number mapping, provide a safe enrollment or account-update process without locking existing users out.
+
+## 3. Password Authentication Without OTP
+
+Keep password-based authentication.
+
+- Do not enable Supabase Phone Auth.
+- Do not integrate Twilio, SMS, WhatsApp OTP, or another paid authentication provider.
+- Do not change Supabase Auth provider settings as part of this task.
+- Do not create fake email addresses or bypass Supabase Auth.
+- Do not implement custom password storage or compare password hashes manually.
+- Use the existing supported authentication mechanism and securely resolve the mobile number to the correct account before password authentication.
+- Keep service-role credentials and privileged operations on the backend only.
+
+If Supabase's current email-based Auth configuration prevents a safe mobile-number-to-account mapping, report the exact limitation and implement the safe portion without pretending that login is fully functional.
+
+## 4. Sign Up
+
+Update Customer and Vendor signup to use:
+
+### Customer
+- Mobile Number
+- Password
+- Confirm Password
+- Create Account
+
+### Vendor
+- Shop Name
+- Mobile Number
+- Password
+- Confirm Password
+- Create Account
+
+Requirements:
+- Do not display email or username fields on these signup forms.
+- Validate Indian mobile numbers, password strength, and password confirmation.
+- Prevent duplicate mobile-number registrations.
+- Preserve the existing account-creation and role-assignment architecture.
+- Keep new Vendors pending approval and subject to mandatory document verification.
+- Do not enable public Delivery Partner signup.
+- Do not change Admin registration or authentication.
+
+**Important:** Existing Supabase Auth registration depends on email. Determine whether the requested email-free registration can be supported safely without enabling Phone Auth or fabricating email addresses. If it cannot, stop short of creating incomplete accounts and report the exact blocker. Do not display a false success message.
+
+## 5. Forgot Password
+
+Keep the Forgot Password option on Customer, Vendor, and Delivery Partner login screens.
+
+- Make password recovery work without requiring the user to remember their username.
+- Keep email-based recovery or the existing secure recovery mechanism as a fallback if required by the current architecture.
+- Do not display an unrestricted New Password form that changes an account password without ownership verification.
+- Do not implement insecure direct password updates.
+- Preserve Admin's existing recovery flow.
+
+If password recovery without email requires a different secure recovery mechanism, explain the supported options before implementing it.
+
+## 6. Testing
+
+Verify:
+1. Mobile-number/password login works for an existing account with a properly mapped mobile number.
+2. A 10-digit number and a `+91`-prefixed number resolve consistently.
+3. Wrong passwords and unknown numbers fail safely.
+4. Duplicate and conflicting numbers cannot access another account.
+5. Customer, Vendor, and Delivery Partner roles remain isolated.
+6. Vendor approval and document restrictions remain enforced.
+7. Inactive Delivery Partners cannot access the portal.
+8. Existing accounts, usernames, Auth UUIDs, stores, orders, stock, and delivery assignments remain unchanged.
+9. Admin login and recovery remain unchanged.
+10. Signup creates real accounts only when the supported authentication architecture permits it.
+11. Password recovery requires valid account ownership verification.
+
+Run the relevant automated tests, typechecks, and builds. Do not run automated browser tests; I will perform manual testing.
+
+## 7. Scope Restrictions
+
+- Do not implement OTP.
+- Do not configure paid providers.
+- Do not deploy to production.
+- Do not modify production credentials or provider settings.
+- Do not change Admin authentication.
+- Do not weaken authentication or role permissions.
+- Do not modify unrelated projects or business logic.
+- Use additive, forward-only migrations if necessary.
+- Preserve legacy login as a controlled fallback until mobile-number login is proven to work for existing accounts.
+
+## Completion Report
+
+Report:
+- Files changed
+- Database migrations, if any
+- How mobile numbers map to existing Supabase Auth identities
+- How password authentication works without OTP
+- Whether email-free signup is actually supported
+- Any remaining enrollment or recovery requirements
+- Test and build results
+- Manual steps required for verification
+
+Stop after implementation and reporting. Do not deploy or proceed to another phase until I manually verify the changes.
