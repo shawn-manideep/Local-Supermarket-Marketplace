@@ -61,7 +61,8 @@ storeManagementRouter.get(
   "/api/vendor/store",
   requireRole("vendor"),
   asyncHandler(async (request, response) => {
-    response.json({ store: await getStore(vendorStoreId(request)) });
+    const { deliveryFee: _delivery, handlingFee: _handling, ...store } = await getStore(vendorStoreId(request));
+    response.json({ store });
   }),
 );
 
@@ -69,13 +70,16 @@ storeManagementRouter.patch(
   "/api/vendor/store",
   requireRole("vendor"),
   asyncHandler(async (request, response) => {
-    const parsed = storeUpdateSchema.safeParse(request.body);
+    const parsed = storeUpdateSchema.omit({deliveryFee:true,handlingFee:true}).safeParse(request.body);
     if (!parsed.success) {
       sendValidationError(response, parsed.error);
       return;
     }
 
     const updates = parsed.data;
+    if ((updates.latitude === undefined) !== (updates.longitude === undefined) ||
+      ((updates.latitude === null) !== (updates.longitude === null)))
+      throw new HttpError(400,"Provide both latitude and longitude, or clear both coordinates.");
     if (Object.keys(updates).length === 0) {
       throw new HttpError(400, "At least one permitted store field is required");
     }
@@ -83,11 +87,6 @@ storeManagementRouter.patch(
     const dbUpdates = {
       ...updates,
       updatedAt: new Date(),
-      deliveryFee:
-        updates.deliveryFee === undefined
-          ? undefined
-          : updates.deliveryFee.toFixed(2),
-      handlingFee: updates.handlingFee === undefined ? undefined : updates.handlingFee.toFixed(2),
       minimumOrderValue:
         updates.minimumOrderValue === undefined
           ? undefined
@@ -102,7 +101,8 @@ storeManagementRouter.patch(
     if (!store) {
       throw new HttpError(404, "Store not found");
     }
-    response.json({ store });
+    const { deliveryFee: _delivery, handlingFee: _handling, ...safe } = store;
+    response.json({ store: safe });
   }),
 );
 

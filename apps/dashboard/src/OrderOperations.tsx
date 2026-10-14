@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  apiAuthorizationHeaders,
   apiRequest,
+  apiUrl,
   type OrderDetail,
   type OrderListEnvelope,
   type OrderStatus,
@@ -19,6 +21,25 @@ const date = (value: string) => new Date(value).toLocaleString(undefined, { date
 const statusLabel = (value: string) => value.replaceAll("_", " ");
 const deliveryLabel = (value: string) => value === "vendor_staff" ? "Vendor delivery" : "Platform partner";
 const deliveryStatusLabel = (value: string) => value.replaceAll("_", " ");
+type DateFilter = "RECENT" | "WEEK" | "FIFTEEN_DAYS" | "MONTH" | "CUSTOM" | "ALL";
+const dateFilterOptions: Array<[DateFilter, string]> = [
+  ["RECENT", "Recent Orders"], ["WEEK", "Last 1 Week"], ["FIFTEEN_DAYS", "Last 15 Days"],
+  ["MONTH", "Last 30 Days"], ["CUSTOM", "Custom Date Range"], ["ALL", "All Orders"],
+];
+async function downloadPdf(path: string, token: string, fileName: string) {
+  const response = await fetch(apiUrl(path), { credentials: "same-origin", headers: apiAuthorizationHeaders(token) });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined) as { error?: string } | undefined;
+    throw new Error(payload?.error || `Report download failed (${response.status}).`);
+  }
+  const blob = await response.blob();
+  if (!blob.size || (response.headers.get("Content-Type") || "").toLowerCase().includes("application/json"))
+    throw new Error("The report could not be generated. Please retry.");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = fileName; document.body.appendChild(link); link.click(); link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
 function deliverySnapshot(order: Pick<OrderSummary, "deliveryMode" | "scheduledStartAt" | "scheduledEndAt">) {
   if (order.deliveryMode !== "SCHEDULED" || !order.scheduledStartAt || !order.scheduledEndAt) return "Instant delivery";
   const start = new Date(order.scheduledStartAt);
@@ -191,11 +212,40 @@ function AdminSummaryTiles({ counts }: { counts: Record<string, number> }) {
   );
 }
 
-function AdminDetail({ detail, busy, onClose }: {
+function AdminDetail({ detail, token, busy, onClose }: {
   detail: OrderDetail;
+  token: string;
   busy: boolean;
   onClose: () => void;
 }) {
+  const [assignments, setAssignments] = useState<Array<{ id: string; partnerUserId: string; partnerName: string; status: string; assignedAt?: string | null; acceptedAt?: string | null; pickedUpAt?: string | null; deliveredAt?: string | null }>>([]);
+  const [deliveryError, setDeliveryError] = useState("");
+  const [deliveryPhoto, setDeliveryPhoto] = useState<Record<string, string>>({});
+  const [photoLoading, setPhotoLoading] = useState("");
+  const photoUrls = useRef<Record<string, string>>({});
+  useEffect(() => {
+    let live = true;
+    const controller = new AbortController();
+    Object.values(photoUrls.current).forEach(URL.revokeObjectURL);
+    photoUrls.current = {};
+    setAssignments([]); setDeliveryError(""); setDeliveryPhoto({});
+    void apiRequest<{ assignments: typeof assignments }>(`/api/admin/orders/${encodeURIComponent(detail.id)}/delivery`, token, { signal: controller.signal })
+      .then((result) => { if (live) setAssignments(result.assignments); })
+      .catch(() => { if (live && !controller.signal.aborted) setDeliveryError("Delivery assignment history is unavailable."); });
+    return () => { live = false; controller.abort(); Object.values(photoUrls.current).forEach(URL.revokeObjectURL); photoUrls.current = {}; };
+  }, [detail.id, token]);
+  const viewDeliveryPhoto = async (assignmentId: string) => {
+    setPhotoLoading(assignmentId); setDeliveryError("");
+    try {
+      const response = await fetch(apiUrl(`/api/admin/deliveries/${encodeURIComponent(assignmentId)}/photo`), { credentials: "same-origin", headers: apiAuthorizationHeaders(token) });
+      if (!response.ok) throw new Error(response.status === 404 ? "No package photo was saved for this assignment." : "Package photo could not be loaded.");
+      const url = URL.createObjectURL(await response.blob());
+      if (photoUrls.current[assignmentId]) URL.revokeObjectURL(photoUrls.current[assignmentId]);
+      photoUrls.current[assignmentId] = url;
+      setDeliveryPhoto((current) => ({ ...current, [assignmentId]: url }));
+    } catch (cause) { setDeliveryError(cause instanceof Error ? cause.message : "Package photo could not be loaded."); }
+    finally { setPhotoLoading(""); }
+  };
   return (
     <div className="card order-detail" data-testid={`card-order-detail-${detail.id}`}>
       <div className="card-heading">
@@ -230,17 +280,25 @@ function AdminDetail({ detail, busy, onClose }: {
           </dl>
           <h3>Status history</h3>
           <div className="history-list">{detail.statusHistory.map((entry, index) => <div key={`${entry.createdAt}-${index}`}><strong>{statusLabel(entry.status)}</strong>{entry.note && <span> — {entry.note}</span>}<small>{date(entry.createdAt)}</small></div>)}</div>
+          <h3>Delivery oversight</h3>
+          {deliveryError && <p className="order-error" role="alert">{deliveryError}</p>}
+          {assignments.length ? <div className="history-list">{assignments.map((assignment) => <div key={assignment.id}>
+            <strong>{assignment.partnerName} · {statusLabel(assignment.status)}</strong>
+            <small>Assigned {assignment.assignedAt ? date(assignment.assignedAt) : "—"} · Accepted {assignment.acceptedAt ? date(assignment.acceptedAt) : "—"} · Picked up {assignment.pickedUpAt ? date(assignment.pickedUpAt) : "—"} · Delivered {assignment.deliveredAt ? date(assignment.deliveredAt) : "—"}</small>
+            {deliveryPhoto[assignment.id] ? <img src={deliveryPhoto[assignment.id]} alt="Saved package photo" style={{ display: "block", maxWidth: "100%", maxHeight: 260, marginTop: 10, borderRadius: 8 }} /> : <button className="text-button" type="button" disabled={photoLoading === assignment.id} onClick={() => void viewDeliveryPhoto(assignment.id)}>{photoLoading === assignment.id ? "Loading photo…" : "View package photo"}</button>}
+          </div>)}</div> : <p className="muted">No delivery assignments recorded.</p>}
         </div>
       </div>
     </div>
   );
 }
 
-function AdminOrderOperations({ token, stores = [], storeId, onMessage }: { token: string; stores?: Store[]; storeId?: string; onMessage: (message: string, kind?: "success" | "error") => void; }) {
+function AdminOrderOperations({ token, stores: providedStores, storeId, onMessage }: { token: string; stores?: Array<Pick<Store, "id" | "name">>; storeId?: string; onMessage: (message: string, kind?: "success" | "error") => void; }) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState("ALL");
   const [adminStore, setAdminStore] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("RECENT");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
@@ -252,17 +310,36 @@ function AdminOrderOperations({ token, stores = [], storeId, onMessage }: { toke
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [directoryStores, setDirectoryStores] = useState<Array<Pick<Store, "id" | "name">>>([]);
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
+  useEffect(() => {
+    if (providedStores) { setDirectoryStores(providedStores); return; }
+    const controller = new AbortController();
+    void apiRequest<{ items: Array<{ storeId: string | null; storeName: string | null }> }>("/api/admin/vendors?page=1&pageSize=100", token, { signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        const seen = new Set<string>();
+        setDirectoryStores(response.items.flatMap((item) => {
+          if (!item.storeId || !item.storeName || seen.has(item.storeId)) return [];
+          seen.add(item.storeId); return [{ id: item.storeId, name: item.storeName }];
+        }));
+      }).catch(() => { if (!controller.signal.aborted) setDirectoryStores([]); });
+    return () => controller.abort();
+  }, [providedStores, token]);
   const query = useMemo(() => {
     const params = new URLSearchParams({ page: String(page), pageSize: "10" });
     if (status !== "ALL") params.set("status", status);
     if (adminStore) params.set("storeId", adminStore);
-    if (from) params.set("from", `${from}T00:00:00.000Z`);
-    if (to) params.set("to", `${to}T23:59:59.999Z`);
+    params.set("dateFilter", dateFilter);
+    if (dateFilter === "CUSTOM" && from) params.set("startDate", from);
+    if (dateFilter === "CUSTOM" && to) params.set("endDate", to);
     return params.toString();
-  }, [adminStore, from, page, status, to]);
+  }, [adminStore, dateFilter, from, page, status, to]);
   const load = async () => {
+    if (dateFilter === "CUSTOM" && (!from || !to || from > to)) {
+      ++listGeneration.current; setOrders([]); setCounts({}); setPagination((current) => ({ ...current, total: 0 })); setLoading(false); setError(""); return;
+    }
     const requestGeneration = ++listGeneration.current;
     setLoading(true); setError("");
     try {
@@ -295,16 +372,18 @@ function AdminOrderOperations({ token, stores = [], storeId, onMessage }: { toke
       <div className="card">
         <div className="order-toolbar"><div className="order-filters">
           <label>Status<select data-testid="select-order-status" onChange={(event) => { setStatus(event.target.value); setPage(1); }} value={status}>{statuses.map((item) => <option key={item} value={item}>{item === "ALL" ? "All statuses" : statusLabel(item)}</option>)}</select></label>
-          <label>Store<select data-testid="select-order-store" onChange={(event) => { setAdminStore(event.target.value); setPage(1); }} value={adminStore}><option value="">All stores</option>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
-          <label>From<input data-testid="input-orders-from" onChange={(event) => { setFrom(event.target.value); setPage(1); }} type="date" value={from} /></label><label>To<input data-testid="input-orders-to" onChange={(event) => { setTo(event.target.value); setPage(1); }} type="date" value={to} /></label>
-        </div><span className="muted">{pagination.total} total</span></div>
+          <label>Store<select data-testid="select-order-store" onChange={(event) => { setAdminStore(event.target.value); setPage(1); }} value={adminStore}><option value="">All stores</option>{directoryStores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select></label>
+          <label>Date range<select value={dateFilter} onChange={(event) => { setDateFilter(event.target.value as DateFilter); setPage(1); }}>{dateFilterOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          {dateFilter === "CUSTOM" && <><label>Start date<input data-testid="input-orders-from" onChange={(event) => { setFrom(event.target.value); setPage(1); }} type="date" value={from} /></label><label>End date<input data-testid="input-orders-to" onChange={(event) => { setTo(event.target.value); setPage(1); }} type="date" value={to} /></label></>}
+        </div><div className="order-toolbar-actions"><span className="muted">{pagination.total} total</span><button className="secondary-button" type="button" disabled={dateFilter === "CUSTOM" && (!from || !to || from > to)} onClick={() => { const params = new URLSearchParams({ dateFilter }); if (dateFilter === "CUSTOM" && from) params.set("startDate", from); if (dateFilter === "CUSTOM" && to) params.set("endDate", to); if (adminStore) params.set("storeId", adminStore); if (status !== "ALL") params.set("status", status); void downloadPdf(`/api/admin/orders/report.pdf?${params}`, token, "local-basket-orders.pdf").catch(() => onMessage("Order PDF could not be downloaded. Check your connection and retry.", "error")); }}>Download PDF</button></div></div>
+        {dateFilter === "CUSTOM" && (!from || !to || from > to) && <p className="muted">Choose a valid start and end date to view or download this range.</p>}
         {error && <div className="order-error" role="alert"><span>{error}</span><button className="secondary-button" onClick={() => void load()} type="button">Retry</button></div>}
         {loading ? <div aria-live="polite" className="empty-state"><strong>Loading order queue…</strong><span>Checking the latest operational state.</span></div> : orders.length === 0 ? <div className="empty-state"><strong>No orders in this view</strong><span>Try another status or refresh when new orders arrive.</span></div> : <div aria-label="Orders" className="order-table" role="table"><div className="order-row order-row-header" role="row"><strong role="columnheader">Order</strong><strong role="columnheader">Customer</strong><strong role="columnheader">Status</strong><strong role="columnheader">Amount</strong><strong role="columnheader">Created</strong></div>{orders.map((order) => <div className="order-row order-row-data" data-testid={`row-order-${order.id}`} key={order.id} role="row"><button aria-label={`Open order ${order.id.slice(0, 8)} from ${order.storeName}`} className="text-button order-id" onClick={() => void openDetail(order.id)} role="cell" type="button">#{order.id.slice(0, 8)}</button><div className="order-customer" role="cell"><strong>{order.deliveryContactName}</strong><small className="order-store">{order.storeName}</small><small>{order.itemCount} items · {order.deliveryAddressSnapshot.pincode}</small></div><span className={`status status-${order.status.toLowerCase()}`} role="cell">{statusLabel(order.status)}</span><div className="order-amount" role="cell"><strong>{money(order.totalAmount)}</strong><small>{order.paymentMethod}</small></div><small className="order-created" role="cell">{date(order.createdAt)}</small></div>)}</div>}
         <div className="order-pagination"><button className="secondary-button" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)} type="button">Previous</button><span className="muted">Page {page} of {Math.max(1, Math.ceil(pagination.total / pagination.pageSize))}</span><button className="secondary-button" disabled={loading || page >= Math.ceil(pagination.total / pagination.pageSize)} onClick={() => setPage((current) => current + 1)} type="button">Next</button></div>
       </div>
       {detailLoading && <div className="card empty-state"><strong>Loading order detail…</strong><span>Retrieving the latest status and historical snapshots.</span></div>}
       {!detailLoading && detailError && <div className="card order-error" role="alert"><span>{detailError}</span><button className="secondary-button" disabled={!detailTargetId} onClick={() => { if (detailTargetId) void openDetail(detailTargetId); }} type="button">Retry detail</button></div>}
-      {!detailLoading && selected && <AdminDetail detail={selected} busy={busy} onClose={() => { ++detailGeneration.current; setSelected(null); setDetailTargetId(""); setDetailError(""); }} />}
+       {!detailLoading && selected && <AdminDetail detail={selected} token={token} busy={busy} onClose={() => { ++detailGeneration.current; setSelected(null); setDetailTargetId(""); setDetailError(""); }} />}
     </section>
   );
 }
@@ -422,10 +501,13 @@ function VendorDetail({ detail, token, busy, pendingAction, vendorView, onAction
   );
 }
 
-function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessage }: { token: string; vendorView?: "orders" | "delivery"; storeId?: string; onMessage: (message: string, kind?: "success" | "error") => void; }) {
+function VendorOrderOperations({ token, vendorView = "orders", storeId, initialOrderId, onInitialOrderHandled, onMessage }: { token: string; vendorView?: "orders" | "delivery"; storeId?: string; initialOrderId?: string; onInitialOrderHandled?: () => void; onMessage: (message: string, kind?: "success" | "error") => void; }) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState(vendorView === "delivery" ? "READY" : "PLACED");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("RECENT");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [selected, setSelected] = useState<OrderDetail | null>(null);
@@ -446,6 +528,9 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
+  const listController = useRef<AbortController | null>(null);
+  const detailController = useRef<AbortController | null>(null);
+  const actionController = useRef<AbortController | null>(null);
   const activeTabs = vendorView === "delivery" ? deliveryVendorTabs : orderVendorTabs;
 
   useEffect(() => {
@@ -457,55 +542,67 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   }, [vendorView, status]);
 
   const query = useMemo(() => {
-    const params = new URLSearchParams({ page: String(page), pageSize: "10" });
+    const params = new URLSearchParams({ page: String(page), pageSize: "10", dateFilter });
     if (status !== "ALL") params.set("status", status);
+    if (dateFilter === "CUSTOM" && from) params.set("startDate", from);
+    if (dateFilter === "CUSTOM" && to) params.set("endDate", to);
     return params.toString();
-  }, [page, status]);
+  }, [dateFilter, from, page, status, to]);
 
   const load = useCallback(async (quiet = false) => {
     if (actionGate.current.pending) return;
+    if (dateFilter === "CUSTOM" && (!from || !to || from > to)) {
+      ++listGeneration.current; setOrders([]); setCounts({}); setPagination((current) => ({ ...current, total: 0 })); setLoading(false); setError(""); return;
+    }
+    listController.current?.abort();
+    const controller = new AbortController();
+    listController.current = controller;
     const requestGeneration = ++listGeneration.current;
     const requestScope = scope;
     if (!quiet) setLoading(true);
     setError("");
     try {
-      const response = await apiRequest<OrderListEnvelope>(`/api/vendor/orders?${query}`, token);
+      const response = await apiRequest<OrderListEnvelope>(`/api/vendor/orders?${query}`, token, { signal: controller.signal });
       if (requestGeneration === listGeneration.current && requestScope === currentScope.current) {
         setOrders(response.orders); setCounts(response.counts); setPagination(response.pagination);
       }
     } catch {
-      if (requestGeneration === listGeneration.current && requestScope === currentScope.current) {
+      if (!controller.signal.aborted && requestGeneration === listGeneration.current && requestScope === currentScope.current) {
         setError("We couldn't load your orders. Please refresh or try again.");
       } 
     } finally { 
       if (requestGeneration === listGeneration.current && requestScope === currentScope.current) setLoading(false);
     }
-  }, [query, scope, token]);
+  }, [dateFilter, from, query, scope, to, token]);
 
   useEffect(() => {
     ++listGeneration.current; ++detailGeneration.current;
+    listController.current?.abort(); detailController.current?.abort(); actionController.current?.abort();
     renderedScope.current = scope;
     setOrders([]); setCounts({}); setPage(1); setStatus(vendorView === "delivery" ? "READY" : "PLACED");
     setSelected(null); setDetailTargetId(""); setDetailError(""); setActionError(""); setDetailRefreshing(false);
-    return () => { ++listGeneration.current; ++detailGeneration.current; };
+    return () => { ++listGeneration.current; ++detailGeneration.current; listController.current?.abort(); detailController.current?.abort(); actionController.current?.abort(); };
   }, [token, storeId, vendorView]);
   useEffect(() => { void load(); }, [load]);
 
   const openDetail = useCallback(async (id: string, quiet = false, reconcilingAction = false) => {
     if (!id.trim() || (actionGate.current.pending && !reconcilingAction)) return;
+    detailController.current?.abort();
+    const controller = new AbortController();
+    detailController.current = controller;
     const requestGeneration = ++detailGeneration.current;
     const requestScope = scope;
     setDetailTargetId(id);
     if (quiet) setDetailRefreshing(true);
     else { setDetailRefreshing(false); setDetailLoading(true); setDetailError(""); }
     try { 
-      const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${id}`, token); 
+      const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${encodeURIComponent(id)}`, token, { signal: controller.signal }); 
       if (requestGeneration === detailGeneration.current && requestScope === currentScope.current) {
         setSelected(response.order);
         setDetailError("");
       }
     } catch {
-      if (requestGeneration === detailGeneration.current && requestScope === currentScope.current) {
+      if (!controller.signal.aborted && requestGeneration === detailGeneration.current && requestScope === currentScope.current) {
         if (!quiet) setSelected(null);
         setDetailError("We couldn't refresh this order. Please retry before taking an action.");
       }
@@ -518,20 +615,29 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
   }, [scope, token]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const refreshVisible = () => {
       if (document.visibilityState !== "visible" || actionGate.current.pending) return;
       void load(true);
       if (detailTargetId) void openDetail(detailTargetId, true);
     };
-    const timer = window.setInterval(refreshVisible, 45_000);
+    const timer = window.setInterval(refreshVisible, 12_000);
     window.addEventListener("focus", refreshVisible);
     document.addEventListener("visibilitychange", refreshVisible);
     return () => {
+      controller.abort();
       window.clearInterval(timer);
       window.removeEventListener("focus", refreshVisible);
       document.removeEventListener("visibilitychange", refreshVisible);
     };
   }, [load, openDetail, detailTargetId]);
+
+  useEffect(() => {
+    if (!initialOrderId || vendorView !== "orders") return;
+    setStatus("ALL"); setPage(1);
+    void openDetail(initialOrderId);
+    onInitialOrderHandled?.();
+  }, [initialOrderId, onInitialOrderHandled, openDetail, vendorView]);
 
   const action = async (name: VendorOrderAction, note?: string) => {
     if (!selected || busy || detailLoading || detailRefreshing || detailError || error ||
@@ -539,11 +645,14 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
     const id = selected.id;
     const requestScope = scope;
     const requestGeneration = ++detailGeneration.current;
+    actionController.current?.abort();
+    const controller = new AbortController();
+    actionController.current = controller;
     ++listGeneration.current;
     setBusy(true); setPendingAction(name); setActionError("");
     let needsFreshDetail = false;
     try { 
-      const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${id}/actions`, token, { method: "POST", body: JSON.stringify({ action: name, ...(note ? { note } : {}) }) });
+      const response = await apiRequest<{ order: OrderDetail }>(`/api/vendor/orders/${encodeURIComponent(id)}/actions`, token, { method: "POST", body: JSON.stringify({ action: name, ...(note ? { note } : {}) }), signal: controller.signal });
       if (requestGeneration !== detailGeneration.current || requestScope !== currentScope.current) return;
       setSelected(response.order);
       onMessage("Order status updated.", "success"); 
@@ -587,7 +696,7 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
       <div className="vendor-section-header">
         <div>
           <h2 className="vendor-title">{vendorView === "delivery" ? "Delivery Operations" : "Order Management"}</h2>
-          <p className="vendor-text-muted">{vendorView === "delivery" ? "Manage orders ready for dispatch and track active deliveries." : "Review new orders, accept or reject, prepare, and mark ready. Updates every 45 seconds while this page is visible."}</p>
+          <p className="vendor-text-muted">{vendorView === "delivery" ? "Manage orders ready for dispatch and track active deliveries." : "Review, accept or reject, then mark accepted orders ready. Updates every 12 seconds while visible."}</p>
         </div>
         <button className="vendor-secondary-button" disabled={loading} onClick={() => void load()} type="button">{loading ? "Refreshing..." : "Refresh List"}</button>
       </div>
@@ -605,6 +714,12 @@ function VendorOrderOperations({ token, vendorView = "orders", storeId, onMessag
               </button>
             ))}
           </div>
+          {vendorView === "orders" && <div className="vendor-order-report-controls">
+            <label>Date range<select value={dateFilter} onChange={(event) => { setDateFilter(event.target.value as DateFilter); setPage(1); }}>{dateFilterOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            {dateFilter === "CUSTOM" && <><label>Start date<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPage(1); }} /></label><label>End date<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPage(1); }} /></label></>}
+            <button className="vendor-secondary-button" type="button" disabled={dateFilter === "CUSTOM" && (!from || !to || from > to)} onClick={() => { const params = new URLSearchParams({ dateFilter }); if (dateFilter === "CUSTOM" && from) params.set("startDate", from); if (dateFilter === "CUSTOM" && to) params.set("endDate", to); void downloadPdf(`/api/vendor/orders/report.pdf?${params}`, token, "my-store-orders.pdf").catch(() => onMessage("Order PDF could not be downloaded. Check your connection and retry.", "error")); }}>Download PDF</button>
+          </div>}
+          {vendorView === "orders" && dateFilter === "CUSTOM" && (!from || !to || from > to) && <small className="vendor-text-muted">Choose a valid start and end date to view or download this range.</small>}
         </div>
         
         {error && <div className="vendor-notice vendor-notice-error" role="alert"><span>{error}</span><button className="vendor-secondary-button" onClick={() => void load()} type="button">Retry</button></div>}
@@ -675,6 +790,8 @@ interface Props {
   vendorView?: "orders" | "delivery";
   stores?: Store[]; 
   storeId?: string; 
+  initialOrderId?: string;
+  onInitialOrderHandled?: () => void;
   onMessage: (message: string, kind?: "success" | "error") => void; 
 }
 

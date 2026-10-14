@@ -337,11 +337,13 @@ test("direct authenticated store writes remain prohibited", async () => {
   } finally { await connection.query("ROLLBACK"); connection.release(); }
 });
 
-test("handling fee provisioning, Vendor updates and Admin updates share one isolated store setting", async () => {
-  assert.equal((await http(vendorA, "/api/vendor/store")).store.handlingFee, "2.25");
-  assert.equal((await http(existingVendor, "/api/vendor/store")).store.handlingFee, "0.00", "unconfigured stores default to zero");
+test("handling fee provisioning and Admin updates remain authoritative and hidden from Vendors", async () => {
+  assert.equal((await http(admin, `/api/admin/vendors/${vendorA}`)).account.store.handlingFee, "2.25");
+  assert.equal((await http(admin, `/api/admin/vendors/${existingVendor}`)).account.store.handlingFee, "0.00");
+  assert.equal((await http(vendorA, "/api/vendor/store")).store.handlingFee, undefined);
   const bBefore = (await http(vendorB, "/api/vendor/store")).store;
-  await http(vendorA, "/api/vendor/store", "PATCH", { handlingFee: "5.25" });
+  await http(vendorA, "/api/vendor/store", "PATCH", { handlingFee: "5.25" },400);
+  await http(admin, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee: "5.25" });
   assert.equal((await http(admin, `/api/admin/vendors/${vendorA}`)).account.store.handlingFee, "5.25");
   assert.deepEqual((await http(vendorB, "/api/vendor/store")).store, bBefore);
   await http(vendorA, "/api/vendor/store", "PATCH", { handlingFee: "90", storeId: bBefore.id }, 400);
@@ -356,16 +358,20 @@ test("handling fee provisioning, Vendor updates and Admin updates share one isol
   const protectedBefore = await protectedData();
   await http(admin, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee: "8.50" });
   const after = (await http(vendorA, "/api/vendor/store")).store;
-  assert.equal(after.handlingFee, "8.50");
+  assert.equal(after.handlingFee, undefined);
+  assert.equal((await http(admin, `/api/admin/vendors/${vendorA}`)).account.store.handlingFee, "8.50");
   for (const key of ["deliveryFee", "minimumOrderValue", "status", "name", "ownerUserId"]) assert.equal(after[key], before[key]);
   assert.deepEqual(await protectedData(), protectedBefore);
   await http(admin, `/api/admin/vendors/${vendorA}`, "PATCH", { handlingFee: "0" });
-  assert.equal((await http(vendorA, "/api/vendor/store")).store.handlingFee, "0.00");
+  assert.equal((await http(admin, `/api/admin/vendors/${vendorA}`)).account.store.handlingFee, "0.00");
   const audit = await pool.query("SELECT count(*)::int AS n FROM platform_management_events WHERE target_id=$1 AND action='vendor_profile_updated'", [before.id]);
   assert.ok(audit.rows[0].n > 0);
 });
 
 test("authoritative cart/checkout fees and order snapshots; rejected scheduled requests leave inventory unchanged", async () => {
+  const { approvedFixtureBank,approvedFixtureDocuments } = await import("../test-fixture-compliance.js");
+  await approvedFixtureBank(pool,existingStore,admin);
+  await approvedFixtureDocuments(pool,existingStore,admin);
   const hours = Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, isClosed: false, opensAt: "00:00", closesAt: "23:59" }));
   await http(admin, `/api/admin/vendors/${existingVendor}`, "PATCH", { handlingFee: "5.25", hours });
   const addressId = (await pool.query("SELECT id FROM customer_addresses WHERE customer_id=$1", [customer])).rows[0].id as string;
@@ -390,7 +396,8 @@ test("authoritative cart/checkout fees and order snapshots; rejected scheduled r
   assert.equal(accepted.total_amount, cart.total);
   assert.equal((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=$1", [variant])).rows[0].stock_quantity,
     15, "accepted order deducts exactly the ordered quantity");
-  await http(existingVendor, "/api/vendor/store", "PATCH", { handlingFee: "25.00" });
+  await http(existingVendor, "/api/vendor/store", "PATCH", { handlingFee: "25.00" },400);
+  await http(admin, `/api/admin/vendors/${existingVendor}`, "PATCH", { handlingFee: "25.00" });
   const preserved = (await pool.query("SELECT * FROM orders WHERE id=$1", [accepted.id])).rows[0];
   assert.deepEqual(preserved, accepted, "current store fee changes must not rewrite accepted order snapshots");
   await assert.rejects(() => pool.query("UPDATE orders SET handling_fee_snapshot=99 WHERE id=$1", [accepted.id]), /immutable/);

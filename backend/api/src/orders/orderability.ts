@@ -75,6 +75,9 @@ export async function assertStoreOrderable(
 ) {
   const state = await storeOrderability(storeId, db, lock);
   if (!state.isActive) throw new HttpError(409, "This store is not available for orders.", undefined, "STORE_UNAVAILABLE");
+  const compliance = await db.execute(sql`SELECT public.vendor_compliance_approved(${storeId}::uuid) AS approved`);
+  if (!compliance.rows[0]?.approved)
+    throw new HttpError(409, "This store is awaiting required document or bank-detail approval and cannot receive new orders.", undefined, "STORE_COMPLIANCE_REQUIRED");
   if (mode === "SCHEDULED" && !state.scheduledDeliveryAvailable)
     throw new HttpError(409, "No valid scheduled delivery slots are available.", undefined, "DELIVERY_SLOT_UNAVAILABLE");
   if (state.operatingStatus !== "OPEN" && (mode === "INSTANT" || !state.scheduledDeliveryAvailable)) {

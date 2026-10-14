@@ -379,6 +379,31 @@
   .lb-catalog-file-controls { align-items: stretch; flex-direction: column; }
   .lb-catalog-file-controls .lb-admin-button { width: 100%; }
 }
+.lb-admin-bank-review { margin-top:16px; border:1px solid var(--line); border-radius:10px; background:var(--surface); overflow:hidden; }
+.lb-admin-bank-toggle { display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; padding:16px; border:0; background:transparent; color:var(--ink); text-align:left; font:inherit; cursor:pointer; }
+.lb-admin-bank-toggle > span:first-child { display:grid; gap:4px; }
+.lb-admin-bank-toggle small,.lb-admin-bank-grid span { color:var(--ink-soft); font-size:11px; }
+.lb-admin-bank-body { padding:0 16px 16px; }
+.lb-admin-bank-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.lb-admin-bank-grid > div { display:grid; gap:5px; min-width:0; padding:10px; border:1px solid var(--line); border-radius:7px; }
+.lb-admin-bank-grid strong { overflow-wrap:anywhere; font-size:13px; }
+.lb-admin-bank-reveal { display:flex; align-items:center; gap:8px; margin:13px 0; color:var(--ink-soft); font-size:11px; }
+.lb-admin-bank-actions { display:grid; gap:10px; max-width:520px; }
+.lb-admin-bank-actions label { display:grid; gap:6px; color:var(--ink-soft); font-size:11px; font-weight:700; }
+.lb-admin-bank-actions textarea { width:100%; padding:9px; border:1px solid var(--line); border-radius:7px; background:#fbfcf8; color:var(--ink); font:inherit; }
+.lb-admin-bank-history { display:grid; gap:6px; margin-top:15px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; }
+.lb-admin-bank-history span { color:var(--ink-soft); }
+.lb-admin-daily-reports { margin:0 0 20px; }
+.lb-admin-report-controls { display:flex; flex-wrap:wrap; align-items:end; gap:12px; padding:0 17px 17px; }
+.lb-admin-report-controls label { display:grid; gap:6px; min-width:155px; color:var(--ink-soft); font-size:11px; font-weight:700; }
+.lb-admin-report-controls select,.lb-admin-report-controls input { min-height:40px; max-width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--ink); font:inherit; }
+.lb-admin-report-controls label:nth-child(2) { flex:1 1 240px; }
+.lb-admin-daily-reports > .lb-admin-message { margin:0 17px 16px; }
+@media(max-width:520px) {
+  .lb-admin-bank-grid { grid-template-columns:1fr; }
+  .lb-admin-report-controls { display:grid; grid-template-columns:minmax(0,1fr); }
+  .lb-admin-report-controls label,.lb-admin-report-controls button { width:100%; }
+}
 
 /* Admin-only, read-only vendor document status and secure preview controls. */
 .lb-admin-vendor-documents { margin-top: 17px; overflow: hidden; }

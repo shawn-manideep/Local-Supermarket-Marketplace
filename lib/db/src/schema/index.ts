@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 export { catalogImportEvents } from "./catalog-imports.js";
+export { vendorBankDetails, deliveryPickupPhotos } from "./vendor-compliance.js";
 
 import {
   boolean,
@@ -89,6 +90,7 @@ export const platformManagementEvents = pgTable("platform_management_events", {
   targetId: uuid("target_id").notNull(),
   previousStatus: text("previous_status"),
   nextStatus: text("next_status").notNull(),
+  details: jsonb("details").notNull().default({}),
   createdAt: createdAt(),
 }, table => [
   check("platform_management_events_target_type_check", sql`${table.targetType} IN ('store','customer','delivery_partner')`),
@@ -153,6 +155,8 @@ export const stores = pgTable(
     addressLine1: text("address_line_1"),
     addressLine2: text("address_line_2"),
     locality: text("locality"),
+    latitude: numeric("latitude", { precision: 10, scale: 7, mode: "number" }),
+    longitude: numeric("longitude", { precision: 10, scale: 7, mode: "number" }),
     city: text("city"),
     state: text("state"),
     pincode: text("pincode"),

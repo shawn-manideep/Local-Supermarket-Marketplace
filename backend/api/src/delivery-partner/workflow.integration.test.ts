@@ -43,6 +43,8 @@ before(async () => {
   for (const file of ["0012_delivery_partner_role", "0013_delivery_partner_foundation", "0014_delivery_workflow"]) {
     await pool.query(await readFile(new URL(`../../../../database/migrations/${file}.sql`, import.meta.url), "utf8"));
   }
+  await pool.query(`CREATE TABLE delivery_pickup_photos(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id uuid NOT NULL,order_id uuid NOT NULL,partner_user_id uuid NOT NULL)`);
   workflow = deliveryWorkflow(drizzle(pool));
   vendor = { userId: randomUUID(), storeId: randomUUID() };
   otherVendor = { userId: randomUUID(), storeId: randomUUID() };
@@ -72,6 +74,10 @@ async function assignment(partner = a) {
   const orderId = await order();
   const value = await workflow.assign(vendor, orderId, partner);
   assert.ok(value);
+  // These legacy lifecycle cases assume a securely saved photo; the complete
+  // HTTP suite separately verifies absent/invalid/private/failed-upload cases.
+  await pool.query("INSERT INTO delivery_pickup_photos(assignment_id,order_id,partner_user_id) VALUES($1,$2,$3)",
+    [value.id,orderId,partner]);
   return { id: String(value.id), orderId };
 }
 async function readOrder(id: string) {
@@ -248,6 +254,8 @@ test("scheduled assignments retain their window and forbid pickup/dispatch befor
   const assignment = await workflow.assign(vendor, id, a);
   const assignmentId = String(assignment.id);
   assert.equal(assignment.deliveryMode, "SCHEDULED"); assert.ok(assignment.scheduledStartAt);
+  await pool.query("INSERT INTO delivery_pickup_photos(assignment_id,order_id,partner_user_id) VALUES($1,$2,$3)",
+    [assignmentId,id,a]);
   await workflow.action(a, assignmentId, "ACCEPT");
   await assert.rejects(workflow.action(a, assignmentId, "PICKUP"), { code: "SCHEDULED_DELIVERY_NOT_DUE" });
   await pool.query("UPDATE delivery_assignments SET status='PICKED_UP',picked_up_at=clock_timestamp() WHERE id=$1", [assignmentId]);

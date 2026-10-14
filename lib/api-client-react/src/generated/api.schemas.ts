@@ -5,6 +5,124 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface BankSubmissionInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  accountHolderName: string;
+  /**
+     * Required initially; omit to retain an unchanged saved number
+     * @pattern ^[0-9]{6,34}$
+     */
+  accountNumber?: string;
+  /** @pattern ^[A-Za-z]{4}0[A-Za-z0-9]{6}$ */
+  ifsc: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  bankName: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  bankBranch: string;
+  /** @pattern ^(\+91)?[6-9][0-9]{9}$ */
+  vendorMobileNumber: string;
+}
+
+export type BankSubmissionResponseBankDetailsStatus = typeof BankSubmissionResponseBankDetailsStatus[keyof typeof BankSubmissionResponseBankDetailsStatus];
+
+
+export const BankSubmissionResponseBankDetailsStatus = {
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type BankSubmissionResponseBankDetails = {
+  accountHolderName?: string;
+  maskedAccountNumber?: string;
+  /** Only included in an explicit authorized Admin reveal */
+  accountNumber?: string;
+  ifsc?: string;
+  bankName?: string;
+  bankBranch?: string;
+  vendorMobileNumber?: string;
+  status?: BankSubmissionResponseBankDetailsStatus;
+  submissionId?: string;
+  /** @nullable */
+  rejectionReason?: string | null;
+  submittedAt?: string;
+  /** @nullable */
+  reviewedAt?: string | null;
+} | null;
+
+export type BankSubmissionResponseHistoryItemDetails = { [key: string]: unknown };
+
+export type BankSubmissionResponseHistoryItem = {
+  action?: string;
+  createdAt?: string;
+  /** @nullable */
+  previousStatus?: string | null;
+  nextStatus?: string;
+  details?: BankSubmissionResponseHistoryItemDetails;
+};
+
+export interface BankSubmissionResponse {
+  /** @nullable */
+  bankDetails: BankSubmissionResponseBankDetails;
+  history: BankSubmissionResponseHistoryItem[];
+}
+
+export type PickupPhotoResponsePhotoMimeType = typeof PickupPhotoResponsePhotoMimeType[keyof typeof PickupPhotoResponsePhotoMimeType];
+
+
+export const PickupPhotoResponsePhotoMimeType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+} as const;
+
+/**
+ * @nullable
+ */
+export type PickupPhotoResponsePhoto = {
+  id?: string;
+  capturedAt?: string;
+  uploadedAt?: string;
+  mimeType?: PickupPhotoResponsePhotoMimeType;
+} | null;
+
+export interface PickupPhotoResponse {
+  /** @nullable */
+  photo: PickupPhotoResponsePhoto;
+}
+
+export type AvailableDeliveryOfferDeliveryMode = typeof AvailableDeliveryOfferDeliveryMode[keyof typeof AvailableDeliveryOfferDeliveryMode];
+
+
+export const AvailableDeliveryOfferDeliveryMode = {
+  INSTANT: 'INSTANT',
+  SCHEDULED: 'SCHEDULED',
+} as const;
+
+export interface AvailableDeliveryOffer {
+  orderId: string;
+  orderReference: string;
+  storeId: string;
+  storeName: string;
+  orderTotal: string;
+  deliveryMode: AvailableDeliveryOfferDeliveryMode;
+  /** @nullable */
+  scheduledStartAt?: string | null;
+  /** @nullable */
+  scheduledEndAt?: string | null;
+}
+
 export type SavedListingProductVariantsItemQuantityUnit = typeof SavedListingProductVariantsItemQuantityUnit[keyof typeof SavedListingProductVariantsItemQuantityUnit];
 
 
@@ -1460,6 +1578,28 @@ export interface ApplicationBranding {
   revision: string | null;
 }
 
+export type ReportOrderDateFilterParameter = typeof ReportOrderDateFilterParameter[keyof typeof ReportOrderDateFilterParameter];
+
+
+export const ReportOrderDateFilterParameter = {
+  RECENT: 'RECENT',
+  WEEK: 'WEEK',
+  FIFTEEN_DAYS: 'FIFTEEN_DAYS',
+  MONTH: 'MONTH',
+  CUSTOM: 'CUSTOM',
+  ALL: 'ALL',
+} as const;
+
+/**
+ * Required for CUSTOM
+ */
+export type ReportStartDateParameter = string;
+
+/**
+ * Required for CUSTOM; includes the whole end day in Asia/Kolkata
+ */
+export type ReportEndDateParameter = string;
+
 export type ManagementPageParameter = number;
 
 export type ManagementPageSizeParameter = number;
@@ -1476,6 +1616,116 @@ export const ManagementStatusParameter = {
   REJECTED: 'REJECTED',
   INACTIVE: 'INACTIVE',
 } as const;
+
+export type GetAdminVendorBankDetailsParams = {
+reveal?: boolean;
+};
+
+export type ReviewVendorBankDetailsBodyAction = typeof ReviewVendorBankDetailsBodyAction[keyof typeof ReviewVendorBankDetailsBodyAction];
+
+
+export const ReviewVendorBankDetailsBodyAction = {
+  APPROVE: 'APPROVE',
+  REJECT: 'REJECT',
+} as const;
+
+export type ReviewVendorBankDetailsBody = {
+  submissionId: string;
+  action: ReviewVendorBankDetailsBodyAction;
+  /**
+     * Required when rejecting
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason?: string;
+};
+
+export type DownloadVendorOrderReportParams = {
+/**
+ * RECENT is the latest 50 orders; rolling day ranges include today; CUSTOM uses inclusive India-calendar dates; ALL is unbounded
+ */
+dateFilter?: ReportOrderDateFilterParameter;
+/**
+ * Required for CUSTOM
+ */
+startDate?: ReportStartDateParameter;
+/**
+ * Required for CUSTOM; includes the whole end day in Asia/Kolkata
+ */
+endDate?: ReportEndDateParameter;
+status?: string;
+};
+
+export type DownloadAdminOrderReportParams = {
+/**
+ * RECENT is the latest 50 orders; rolling day ranges include today; CUSTOM uses inclusive India-calendar dates; ALL is unbounded
+ */
+dateFilter?: ReportOrderDateFilterParameter;
+/**
+ * Required for CUSTOM
+ */
+startDate?: ReportStartDateParameter;
+/**
+ * Required for CUSTOM; includes the whole end day in Asia/Kolkata
+ */
+endDate?: ReportEndDateParameter;
+storeId?: string;
+status?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAvailableDeliveries200 = {
+  deliveries: AvailableDeliveryOffer[];
+};
+
+export type ClaimAvailableDeliveryBody = { [key: string]: unknown };
+
+export type ClaimAvailableDelivery200 = {
+  assignment: DeliveryAssignment;
+};
+
+export type SavePickupPhotographParams = {
+/**
+ * @maxLength 200
+ */
+fileName?: string;
+capturedAt?: string;
+};
+
+export type GetAdminOrderDeliveryHistory200AssignmentsItem = {
+  id: string;
+  partnerUserId: string;
+  partnerName: string;
+  status: string;
+  assignedAt: string;
+  /** @nullable */
+  acceptedAt?: string | null;
+  /** @nullable */
+  pickedUpAt?: string | null;
+  /** @nullable */
+  deliveredAt?: string | null;
+};
+
+export type GetAdminOrderDeliveryHistory200 = {
+  assignments: GetAdminOrderDeliveryHistory200AssignmentsItem[];
+};
+
+export type DownloadOwnDailyDeliveryReportParams = {
+date: string;
+};
+
+export type DownloadAdminDailyDeliveryReportParams = {
+date: string;
+partnerId?: string;
+};
 
 export type SaveApplicationLogoParams = {
 /**

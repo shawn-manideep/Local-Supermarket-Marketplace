@@ -19,9 +19,11 @@ export interface Store {
   city: string | null;
   state: string | null;
   pincode: string | null;
-  deliveryFee: string;
+  deliveryFee?: string;
   handlingFee?: string;
   minimumOrderValue: string;
+  latitude?: number | null;
+  longitude?: number | null;
   commissionRate: string | null;
   status: StoreStatus;
   createdAt: string;

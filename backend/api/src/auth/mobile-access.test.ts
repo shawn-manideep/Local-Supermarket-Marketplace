@@ -106,7 +106,7 @@ test("pending/rejected Vendors may authenticate for onboarding without changing 
     assert.ok(result.session.access_token);
   }
   const gate = await readFile(new URL("../vendor-documents/service.ts", import.meta.url), "utf8");
-  assert.match(gate, /canManageCatalog: !store\.required \|\| \(verified && store\.storeStatus === "ACTIVE"\)/);
+  assert.match(gate, /canManageCatalog: Boolean\(store\.complianceApproved\)/);
 });
 
 test("mobile identity queries exclude every editable contact field, and contain no account/data writes", async () => {

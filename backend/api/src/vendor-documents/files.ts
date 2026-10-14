@@ -5,10 +5,10 @@ export const DOCUMENT_TYPES = [
   { type: "fssai", label: "FSSAI License", mandatory: true },
   { type: "aadhaar", label: "Aadhaar Card", mandatory: true },
   { type: "pan", label: "PAN Card", mandatory: true },
-  { type: "photo", label: "Photo", mandatory: true },
+  { type: "photo", label: "Vendor Photo", mandatory: false },
   { type: "gst", label: "GST", mandatory: false },
   { type: "trade_license", label: "Trade License", mandatory: false },
-  { type: "labour_license", label: "Labour License", mandatory: false },
+  { type: "labour_license", label: "Labour License", mandatory: true },
 ] as const;
 
 export function validateDocument(fileName: string, mimeType: string, bytes: Buffer) {

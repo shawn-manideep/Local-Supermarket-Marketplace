@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatVariantName, formatPrice } from "@workspace/validation/variant-formatting";
-import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, AppState, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { CustomerText as Text } from "./components/CustomerTypography";
 import { customerApi, CustomerRequestError, type CustomerAddress, type CustomerCart, type CustomerCheckoutSubmission, type CustomerDeliveryMode, type CustomerDeliverySlot, type CustomerDeliverySlotsResponse } from "./lib/api";
 import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
@@ -11,6 +11,9 @@ import { shoppingError } from "./lib/shopping";
 import { addressStreetLines } from "./lib/address-format";
 import { createCartQuantityController, waitForCartQuantityWrites } from "./lib/cart-quantity";
 import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
+import { CustomerAddressFields } from "./components/CustomerAddressForm";
+import { blankAddress, normalizeAddressInput, validateAddressInput } from "./lib/address-entry";
+import type { AddressInput } from "./lib/api";
 
 function BasketIcon() {
   return (
@@ -25,6 +28,10 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
   const [cart, setCart] = useState<CustomerCart | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [addressId, setAddressId] = useState("");
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [addressDraft, setAddressDraft] = useState<AddressInput>(blankAddress);
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [addressMessage, setAddressMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -194,6 +201,49 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
     }
   };
 
+  const saveNewAddress = async () => {
+    const validationError = validateAddressInput(addressDraft);
+    if (validationError) {
+      setAddressMessage(validationError);
+      return;
+    }
+    setAddressSaving(true);
+    setAddressMessage("");
+    try {
+      const { address: created } = await customerApi<{ address: CustomerAddress }>("/api/customer/addresses", {
+        method: "POST",
+        body: JSON.stringify(normalizeAddressInput({ ...addressDraft, isDefault: false })),
+      });
+      let refreshed = false;
+      let nextAddresses = addresses;
+      try {
+        const result = await customerApi<{ addresses: CustomerAddress[] }>("/api/customer/addresses");
+        nextAddresses = result.addresses;
+        refreshed = true;
+      } catch {
+        // The created record is still usable for this checkout; keep it visible and selected.
+      }
+      if (!nextAddresses.some(item => item.id === created.id)) nextAddresses = [...nextAddresses, created];
+      setAddresses(nextAddresses);
+      setAddressId(created.id);
+      selectedSlotRef.current = null;
+      setSelectedSlot(null);
+      setSelectedDay("");
+      setSlotResponse(null);
+      setSlotsError("");
+      checkoutIntent.current = null;
+      checkoutChoiceChanged.current = true;
+      setSlotRefresh(value => value + 1);
+      setAddressDraft(blankAddress);
+      setAddressModalVisible(false);
+      if (!refreshed) setMessage("Address saved, but the saved address list could not refresh. It is selected for this order.");
+    } catch (reason) {
+      setAddressMessage(shoppingError(reason, "Unable to save address. Please try again."));
+    } finally {
+      setAddressSaving(false);
+    }
+  };
+
   const validate = async () => {
     if (checkoutInFlight.current || checkoutBusy || !cart || !addressId) { if (!addressId) setMessage("Select or add a delivery address."); return; }
     if (deliveryMode === "INSTANT" && !instantAvailable) {
@@ -311,11 +361,9 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
           </View>
 
            <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>{t("Delivery Address")}</Text>
-          {addresses.length === 0 ? (
-             <Pressable accessibilityRole="button" onPress={openAddresses} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{t("Add Delivery Address")}</Text></Pressable>
-          ) : (
-            <View style={{ gap: spacing.sm }}>
-              {addresses.map((address) => (
+           {addresses.length === 0 && <Text style={[typography.caption, { marginBottom: spacing.sm }]}>{t("No addresses saved yet.")}</Text>}
+           <View style={{ gap: spacing.sm }}>
+               {addresses.map((address) => (
                 <Pressable key={address.id} accessibilityRole="radio" accessibilityState={{ selected: addressId === address.id }} onPress={() => {
                   if (address.id !== addressId) {
                     setAddressId(address.id);
@@ -332,12 +380,19 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={typography.bodySemibold}>{address.label ?? address.recipientName}</Text>
+                     {address.label && <Text style={typography.caption}>{address.recipientName}</Text>}
                     {addressStreetLines(address).map((line, index) => <Text key={`${address.id}-address-${index}`} style={typography.body}>{line}</Text>)}
                   </View>
                 </Pressable>
               ))}
-            </View>
-          )}
+           </View>
+           <Pressable accessibilityRole="button" onPress={() => { setAddressDraft(blankAddress); setAddressMessage(""); setAddressModalVisible(true); }} style={styles.addAddressButton}>
+             <Text style={styles.addAddressPlus}>+</Text>
+             <Text style={styles.addAddressText}>{t("+ Add New Address")}</Text>
+           </Pressable>
+           {!!addresses.length && <Pressable accessibilityRole="button" onPress={openAddresses} style={{ alignSelf: "flex-start", paddingVertical: spacing.xs }}>
+             <Text style={[typography.caption, { color: colors.accent, fontWeight: fontWeights.semibold }]}>{t("Manage saved addresses")}</Text>
+           </Pressable>}
 
           <Text style={[typography.title2, { marginTop: spacing.xl, marginBottom: spacing.md }]}>{t("Delivery Option")}</Text>
           <View style={{ gap: spacing.sm }}>
@@ -444,6 +499,33 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
         onConfirm={confirmClear}
         onCancel={() => !clearLoading && setClearDialogVisible(false)}
       />
+      <Modal visible={addressModalVisible} transparent animationType="slide" onRequestClose={() => !addressSaving && setAddressModalVisible(false)}>
+        <View style={styles.addressModalBackdrop}>
+          <View style={styles.addressModal}>
+            <View style={styles.addressModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={typography.eyebrow}>{t("CHECKOUT")}</Text>
+                <Text style={typography.title2}>{t("Add New Address")}</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("Cancel")} disabled={addressSaving} onPress={() => { setAddressModalVisible(false); setAddressDraft(blankAddress); setAddressMessage(""); }} hitSlop={10}>
+                <Text style={styles.modalClose}>{t("Cancel")}</Text>
+              </Pressable>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: spacing.md }}>
+              <CustomerAddressFields draft={addressDraft} onChange={patch => setAddressDraft(current => ({ ...current, ...patch }))} showDefaultToggle={false} />
+              {!!addressMessage && <Text accessibilityRole="alert" style={[typography.caption, { color: colors.danger, marginTop: spacing.md }]}>{localizeCustomerMessage(addressMessage, t)}</Text>}
+              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg }}>
+                <Pressable accessibilityRole="button" disabled={addressSaving} onPress={() => { setAddressModalVisible(false); setAddressDraft(blankAddress); setAddressMessage(""); }} style={[styles.secondaryBtn, { flex: 1 }, addressSaving && styles.disabled]}>
+                  <Text style={styles.secondaryBtnText}>{t("Cancel")}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={addressSaving} onPress={saveNewAddress} style={[styles.primaryBtn, { flex: 1 }, addressSaving && styles.disabled]}>
+                  {addressSaving ? <ActivityIndicator color={colors.card} /> : <Text style={styles.primaryBtnText}>{t("Save address")}</Text>}
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -524,6 +606,13 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   addressCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md },
   addressCardActive: { borderColor: colors.ink, backgroundColor: colors.soft },
+  addAddressButton: { minHeight: 52, borderWidth: 1, borderStyle: "dashed", borderColor: colors.accent, backgroundColor: colors.soft, borderRadius: radius.lg, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.sm },
+  addAddressPlus: { color: colors.accent, fontSize: 24, fontWeight: fontWeights.bold, lineHeight: 28 },
+  addAddressText: { ...typography.bodySemibold, color: colors.accent },
+  addressModalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(26, 36, 29, 0.45)" },
+  addressModal: { maxHeight: "92%", backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
+  addressModalHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.line, marginBottom: spacing.md },
+  modalClose: { ...typography.caption, color: colors.accent, fontWeight: fontWeights.semibold },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.muted, justifyContent: "center", alignItems: "center" },
   radioActive: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.ink, justifyContent: "center", alignItems: "center" },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.ink },

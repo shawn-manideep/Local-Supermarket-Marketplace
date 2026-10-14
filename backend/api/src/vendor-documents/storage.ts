@@ -10,18 +10,19 @@ const storage = new Storage({
     universe_domain: "googleapis.com",
   },
 });
-function file(ref: string) {
+function file(ref: string, area: "vendor-documents" | "delivery-photos") {
   const directory = process.env.PRIVATE_OBJECT_DIR?.replace(/\/$/, "");
-  if (!directory || !ref.startsWith(`${directory}/vendor-documents/`)) throw new Error("Invalid private document reference");
+  if (!directory || !ref.startsWith(`${directory}/${area}/`)) throw new Error("Invalid private object reference");
   const parts = ref.replace(/^\//, "").split("/");
   return storage.bucket(parts.shift()!).file(parts.join("/"));
 }
-export const documentStorage = {
+export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
-    await file(ref).save(bytes, { resumable: false, validation: "crc32c",
+    await file(ref, area).save(bytes, { resumable: false, validation: "crc32c",
       metadata: { contentType: mimeType, cacheControl: "private, no-store",
         metadata: { visibility: "private" } } });
   },
-  async get(ref: string) { return (await file(ref).download())[0]; },
-  async discard(ref: string) { await file(ref).delete({ ignoreNotFound: true }); },
-};
+  async get(ref: string) { return (await file(ref, area).download())[0]; },
+  async discard(ref: string) { await file(ref, area).delete({ ignoreNotFound: true }); },
+});
+export const documentStorage = privateObjectStorage("vendor-documents");

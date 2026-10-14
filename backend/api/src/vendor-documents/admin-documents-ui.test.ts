@@ -9,7 +9,12 @@ test("Admin Vendor detail mounts account-keyed private documents and submission-
   const panel = await ui();
   for (const label of ["Vendor Documents", "Mandatory Documents", "Optional Documents", "Not uploaded", "Uploaded", "Approve", "Reject"])
     assert.ok(panel.includes(label), label);
-  assert.match(panel, /status\?\.mandatoryCount/);
+  assert.match(panel, /const mandatory = documents\.filter\(\(document\) => document\.mandatory \|\| document\.type === "labour_license"\)/);
+  assert.match(panel, /const mandatoryCount = mandatory\.filter\(\(document\) => Boolean\(document\.current\)\)\.length/);
+  assert.match(panel, /const complete = mandatoryCount >= 4/);
+  assert.match(panel, /const submittedForReview = verificationStatus === "SUBMITTED" && Boolean\(status\?\.submissionId\)/);
+  assert.match(panel, /submittedForReview && <div className="lb-admin-doc-review-actions">/);
+  assert.match(panel, /disabled=\{decisionBusy \|\| loading\}/);
   assert.doesNotMatch(panel, /canManageCatalog|type="file"|object_ref|objectRef/);
   assert.match(panel, /verificationStatus/);
   assert.match(panel, /submissionId/);

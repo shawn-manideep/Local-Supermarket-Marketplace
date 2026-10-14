@@ -6,9 +6,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { VendorOrderReceipt } from "./VendorOrderReceipt";
 import { actionProgress, createVendorActionGate, historicalVariantLabel, vendorActions, vendorEmptyMessage, vendorStatusLabel } from "./vendor-orders";
 
-test("placed orders offer accept and reject; accepted and preparing offer only their next action", () => {
+test("placed orders offer accept and reject; accepted and preparing offer only ready", () => {
   assert.deepEqual(vendorActions("PLACED", "orders").map(item => item.action), ["ACCEPT", "REJECT"]);
-  assert.deepEqual(vendorActions("ACCEPTED", "orders").map(item => item.action), ["PREPARE"]);
+  assert.deepEqual(vendorActions("ACCEPTED", "orders").map(item => item.action), ["READY"]);
   assert.deepEqual(vendorActions("PREPARING", "orders").map(item => item.action), ["READY"]);
 });
 test("preparation stops at ready and historical or terminal statuses offer no preparation action", () => {
@@ -94,12 +94,11 @@ test("new, filtered and all-orders empty states are distinct", () => {
   assert.equal(vendorStatusLabel("PLACED"), "New / Placed");
   assert.equal(vendorStatusLabel("DELIVERED"), "Completed / Delivered");
 });
-test("each preparation action has a specific progress label", () => {
+test("each visible vendor action has a specific progress label without manual preparing", () => {
   assert.equal(actionProgress.ACCEPT, "Accepting...");
   assert.equal(actionProgress.REJECT, "Rejecting...");
-  assert.equal(actionProgress.PREPARE, "Starting preparation...");
   assert.equal(actionProgress.READY, "Marking ready...");
-  assert.deepEqual(Object.keys(actionProgress).sort(), ["ACCEPT", "PREPARE", "READY", "REJECT"]);
+  assert.deepEqual(Object.keys(actionProgress).sort(), ["ACCEPT", "READY", "REJECT"]);
 });
 test("detail opens as its own view, with fulfillment, receipt, actions and append-only timeline in order", async () => {
   const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
@@ -124,7 +123,7 @@ test("rejection needs accessible confirmation and preserves the optional reason"
 test("vendor refresh is manual, periodic and visibility-aware without a second status architecture", async () => {
   const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
   const vendor = source.slice(source.indexOf("function VendorOrderOperations"));
-  assert.match(vendor, /window\.setInterval\(refreshVisible, 45_000\)/);
+  assert.match(vendor, /window\.setInterval\(refreshVisible, 12_000\)/);
   assert.match(vendor, /document\.visibilityState !== "visible"/);
   assert.match(vendor, /window\.addEventListener\("focus", refreshVisible\)/);
   assert.match(vendor, /window\.clearInterval\(timer\)/);

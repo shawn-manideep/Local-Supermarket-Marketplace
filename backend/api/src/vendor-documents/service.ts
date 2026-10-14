@@ -12,6 +12,8 @@ export function ownedDocumentStore(request: Request) {
 }
 export async function documentStatus(storeId: string) {
   const storeRows = await getDb().execute(sql`SELECT documents_required AS required, status AS "storeStatus",
+    public.vendor_compliance_approved(id) AS "complianceApproved",
+    (SELECT status FROM vendor_bank_details b WHERE b.store_id=stores.id) AS "bankStatus",
     document_verification_status AS "verificationStatus",document_submission_id AS "submissionId",
     documents_submitted_at AS "submittedAt",documents_reviewed_at AS "reviewedAt",
     document_rejection_reason AS "rejectionReason" FROM stores WHERE id=${storeId}`);
@@ -30,7 +32,7 @@ export async function documentStatus(storeId: string) {
   const verified = mandatoryCount === 4 && store.verificationStatus === "APPROVED" &&
     documents.filter(d => d.mandatory).every(d => d.current?.verificationStatus === "APPROVED");
   const verificationStatus = store.required ? store.verificationStatus : "EXEMPT";
-  const message = !store.required ? "Existing catalog access is retained; document verification is not required for this account."
+  const message = store.bankStatus !== "APPROVED" ? "Approved bank details and mandatory documents are required for catalog access and new orders. Complete Bank Details and await Admin review."
     : verified && store.storeStatus !== "ACTIVE" ? "Documents approved. Catalog access also requires Admin store approval."
     : verified ? "Documents approved. Your catalog is available."
     : verificationStatus === "SUBMITTED" ? "Documents submitted for verification. Catalog access will be enabled after approval."
@@ -38,7 +40,7 @@ export async function documentStatus(storeId: string) {
     : mandatoryCount === 4 ? "Documents uploaded. Submit them for Admin verification."
     : "Upload all mandatory documents, submit for verification and await Admin approval.";
   return { required: Boolean(store.required), mandatoryCount, optionalCount,
-    canManageCatalog: !store.required || (verified && store.storeStatus === "ACTIVE"), verificationStatus,
+    canManageCatalog: Boolean(store.complianceApproved), bankStatus: store.bankStatus ?? "MISSING", verificationStatus,
     submissionId: store.submissionId, submittedAt: store.submittedAt,
     reviewedAt: store.reviewedAt, rejectionReason: store.rejectionReason, message,
     documents };
@@ -58,7 +60,7 @@ export async function assertCatalogDocuments(storeId: string) {
   if (!status.canManageCatalog) throw new HttpError(403, status.message, undefined, "VENDOR_DOCUMENTS_REQUIRED");
 }
 export const requireCatalogDocuments = asyncHandler(async (request, _response, next) => {
-  if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+  if (request.method !== "OPTIONS") {
     await assertCatalogDocuments(ownedDocumentStore(request));
   }
   next();

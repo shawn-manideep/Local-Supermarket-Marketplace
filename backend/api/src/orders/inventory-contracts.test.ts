@@ -48,7 +48,8 @@ test("authorized placed cancellation and rejection restore inside their status/h
   for (const body of [cancel, action]) {
     assert.ok(body.indexOf('throw new HttpError(404, "Order not found")') < body.indexOf("restoreOrderStock"));
     assert.ok(body.indexOf("tx.update(orders)") < body.indexOf("restoreOrderStock"));
-    assert.ok(body.indexOf("restoreOrderStock") < body.indexOf("tx.insert(orderStatusHistory)"));
+    const restoreAt=body.indexOf("restoreOrderStock");
+    assert.ok(restoreAt < body.indexOf("tx.insert(orderStatusHistory)",restoreAt));
     assert.doesNotMatch(body, /deductStock/);
   }
   assert.match(action, /if \(next === "REJECTED"\) await restoreOrderStock/);

@@ -11,6 +11,286 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /api/vendor/bank-details:
+    get:
+      operationId: getVendorBankDetails
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Own bank submission; account number always masked
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BankSubmissionResponse'}
+        '403': {description: Vendor role required}
+    patch:
+      operationId: submitVendorBankDetails
+      security: [{customerBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BankSubmissionInput'}
+      responses:
+        '200':
+          description: Submission saved pending review; previous approval invalidated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BankSubmissionResponse'}
+        '400': {description: Invalid fields or missing initial account number}
+        '403': {description: Vendor role required}
+  /api/admin/vendors/{vendorId}/bank-details:
+    parameters:
+      - {name: vendorId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getAdminVendorBankDetails
+      security: [{customerBearer: []}]
+      parameters:
+        - {name: reveal, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200':
+          description: Admin-only bank review; full number only when explicitly revealed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BankSubmissionResponse'}
+        '403': {description: Admin role required}
+        '404': {description: Vendor not found}
+  /api/admin/vendors/{vendorId}/bank-details/review:
+    parameters:
+      - {name: vendorId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: reviewVendorBankDetails
+      security: [{customerBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [submissionId, action]
+              properties:
+                submissionId: {type: string, format: uuid}
+                action: {type: string, enum: [APPROVE, REJECT]}
+                reason: {type: string, minLength: 1, maxLength: 1000, description: Required when rejecting}
+      responses:
+        '200':
+          description: Decision audited against the unchanged current submission
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BankSubmissionResponse'}
+        '400': {description: Invalid decision or missing rejection reason}
+        '403': {description: Admin role required}
+        '409': {description: Stale or already reviewed submission}
+  /api/vendor/orders/report.pdf:
+    get:
+      operationId: downloadVendorOrderReport
+      security: [{customerBearer: []}]
+      parameters:
+        - {$ref: '#/components/parameters/ReportOrderDateFilter'}
+        - {$ref: '#/components/parameters/ReportStartDate'}
+        - {$ref: '#/components/parameters/ReportEndDate'}
+        - {name: status, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: Private unpaginated PDF using owned order snapshots, Asia/Kolkata dates
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+        '400': {description: Invalid filters; store overrides are not accepted}
+        '403': {description: Vendor role required}
+  /api/admin/orders/report.pdf:
+    get:
+      operationId: downloadAdminOrderReport
+      security: [{customerBearer: []}]
+      parameters:
+        - {$ref: '#/components/parameters/ReportOrderDateFilter'}
+        - {$ref: '#/components/parameters/ReportStartDate'}
+        - {$ref: '#/components/parameters/ReportEndDate'}
+        - {name: storeId, in: query, schema: {type: string, format: uuid}}
+        - {name: status, in: query, schema: {type: string}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses:
+        '200':
+          description: Admin-only all-store or selected-store PDF; pagination does not truncate exports
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+        '400': {description: Invalid filters}
+        '403': {description: Admin role required}
+  /api/delivery-partner/available-deliveries:
+    get:
+      operationId: getAvailableDeliveries
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Eligible Ready offers for an active partner; no customer contact/address data
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries]
+                properties:
+                  deliveries:
+                    type: array
+                    items: {$ref: '#/components/schemas/AvailableDeliveryOffer'}
+        '403': {description: Active Delivery Partner role required}
+  /api/delivery-partner/orders/{orderId}/claim:
+    parameters:
+      - {name: orderId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: claimAvailableDelivery
+      security: [{customerBearer: []}]
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
+      responses:
+        '200':
+          description: Atomically accepted delivery, bound to the authenticated partner
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [assignment]
+                properties:
+                  assignment: {$ref: '#/components/schemas/DeliveryAssignment'}
+        '403': {description: Active Delivery Partner role required}
+        '409': {description: Another partner won or delivery is no longer eligible}
+  /api/delivery-partner/deliveries/{assignmentId}/photo:
+    parameters:
+      - {name: assignmentId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: savePickupPhotograph
+      security: [{customerBearer: []}]
+      parameters:
+        - {name: fileName, in: query, schema: {type: string, maxLength: 200}}
+        - {name: capturedAt, in: query, schema: {type: string, format: date-time}}
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: {type: string, format: binary}
+          image/png:
+            schema: {type: string, format: binary}
+      responses:
+        '201':
+          description: Validated image saved privately before pickup; maximum 5 MiB
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PickupPhotoResponse'}
+        '403': {description: Active assigned Delivery Partner required}
+        '404': {description: Assignment does not belong to the partner}
+        '409': {description: Assignment already picked up or changed}
+        '413': {description: Image too large}
+    get:
+      operationId: getOwnPickupPhotograph
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Authenticated private image bytes; no public object URL
+          content:
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/png: {schema: {type: string, format: binary}}
+        '404': {description: Missing photo or assignment not owned}
+  /api/delivery-partner/deliveries/{assignmentId}/photo/metadata:
+    parameters:
+      - {name: assignmentId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getOwnPickupPhotoMetadata
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Own photo metadata; null until securely saved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PickupPhotoResponse'}
+        '404': {description: Assignment not owned}
+  /api/admin/deliveries/{assignmentId}/photo:
+    parameters:
+      - {name: assignmentId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getAdminPickupPhotograph
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Admin-only authenticated private package image
+          content:
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/png: {schema: {type: string, format: binary}}
+        '403': {description: Admin role required}
+        '404': {description: Missing photograph}
+  /api/admin/deliveries/{assignmentId}/photo/metadata:
+    parameters:
+      - {name: assignmentId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getAdminPickupPhotoMetadata
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: Admin-only package-photo metadata
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PickupPhotoResponse'}
+        '403': {description: Admin role required}
+  /api/admin/orders/{orderId}/delivery:
+    parameters:
+      - {name: orderId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getAdminOrderDeliveryHistory
+      security: [{customerBearer: []}]
+      responses:
+        '200':
+          description: All assignment attempts and recorded transition times for the order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [assignments]
+                properties:
+                  assignments:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, partnerUserId, partnerName, status, assignedAt]
+                      properties:
+                        id: {type: string, format: uuid}
+                        partnerUserId: {type: string, format: uuid}
+                        partnerName: {type: string}
+                        status: {type: string}
+                        assignedAt: {type: string, format: date-time}
+                        acceptedAt: {type: [string, 'null'], format: date-time}
+                        pickedUpAt: {type: [string, 'null'], format: date-time}
+                        deliveredAt: {type: [string, 'null'], format: date-time}
+        '403': {description: Admin role required}
+  /api/delivery-partner/reports/daily.pdf:
+    get:
+      operationId: downloadOwnDailyDeliveryReport
+      security: [{customerBearer: []}]
+      parameters:
+        - {name: date, in: query, required: true, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: Own actual deliveries for the India-calendar day; order amounts, not earnings; no retry duplicates
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+        '400': {description: Invalid date or forbidden partner override}
+        '403': {description: Active Delivery Partner required}
+  /api/admin/reports/deliveries/daily.pdf:
+    get:
+      operationId: downloadAdminDailyDeliveryReport
+      security: [{customerBearer: []}]
+      parameters:
+        - {name: date, in: query, required: true, schema: {type: string, format: date}}
+        - {name: partnerId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Selected partner or consolidated daily deliveries, Asia/Kolkata
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+        '403': {description: Admin role required}
   /api/branding:
     get:
       operationId: getApplicationBranding
@@ -1187,6 +1467,21 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   parameters:
+    ReportOrderDateFilter:
+      name: dateFilter
+      in: query
+      description: RECENT is the latest 50 orders; rolling day ranges include today; CUSTOM uses inclusive India-calendar dates; ALL is unbounded
+      schema: {type: string, enum: [RECENT, WEEK, FIFTEEN_DAYS, MONTH, CUSTOM, ALL], default: ALL}
+    ReportStartDate:
+      name: startDate
+      in: query
+      description: Required for CUSTOM
+      schema: {type: string, format: date}
+    ReportEndDate:
+      name: endDate
+      in: query
+      description: Required for CUSTOM; includes the whole end day in Asia/Kolkata
+      schema: {type: string, format: date}
     ManagementPage:
       name: page
       in: query
@@ -1213,6 +1508,69 @@ components:
       type: http
       scheme: bearer
   schemas:
+    BankSubmissionInput:
+      type: object
+      additionalProperties: false
+      required: [accountHolderName, ifsc, bankName, bankBranch, vendorMobileNumber]
+      properties:
+        accountHolderName: {type: string, minLength: 2, maxLength: 120}
+        accountNumber: {type: string, pattern: '^[0-9]{6,34}$', description: Required initially; omit to retain an unchanged saved number}
+        ifsc: {type: string, pattern: '^[A-Za-z]{4}0[A-Za-z0-9]{6}$'}
+        bankName: {type: string, minLength: 2, maxLength: 120}
+        bankBranch: {type: string, minLength: 2, maxLength: 120}
+        vendorMobileNumber: {type: string, pattern: '^(\+91)?[6-9][0-9]{9}$'}
+    BankSubmissionResponse:
+      type: object
+      required: [bankDetails, history]
+      properties:
+        bankDetails:
+          type: [object, 'null']
+          properties:
+            accountHolderName: {type: string}
+            maskedAccountNumber: {type: string}
+            accountNumber: {type: string, description: Only included in an explicit authorized Admin reveal}
+            ifsc: {type: string}
+            bankName: {type: string}
+            bankBranch: {type: string}
+            vendorMobileNumber: {type: string}
+            status: {type: string, enum: [SUBMITTED, APPROVED, REJECTED]}
+            submissionId: {type: string, format: uuid}
+            rejectionReason: {type: [string, 'null']}
+            submittedAt: {type: string, format: date-time}
+            reviewedAt: {type: [string, 'null'], format: date-time}
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              action: {type: string}
+              createdAt: {type: string, format: date-time}
+              previousStatus: {type: [string, 'null']}
+              nextStatus: {type: string}
+              details: {type: object, additionalProperties: true}
+    PickupPhotoResponse:
+      type: object
+      required: [photo]
+      properties:
+        photo:
+          type: [object, 'null']
+          properties:
+            id: {type: string, format: uuid}
+            capturedAt: {type: string, format: date-time}
+            uploadedAt: {type: string, format: date-time}
+            mimeType: {type: string, enum: [image/jpeg, image/png]}
+    AvailableDeliveryOffer:
+      type: object
+      required: [orderId, orderReference, storeId, storeName, orderTotal, deliveryMode]
+      properties:
+        orderId: {type: string, format: uuid}
+        orderReference: {type: string}
+        storeId: {type: string, format: uuid}
+        storeName: {type: string}
+        orderTotal: {type: string}
+        deliveryMode: {type: string, enum: [INSTANT, SCHEDULED]}
+        scheduledStartAt: {type: [string, 'null'], format: date-time}
+        scheduledEndAt: {type: [string, 'null'], format: date-time}
     CustomerSavedItem:
       type: object
       required: [productId, storeId, storeName, savedAt, available, unavailableReason, product]

@@ -11,6 +11,16 @@ import { deliveryWorkflow } from "./workflow.js";
 import { adminManagement, managementQuery, partnerManagementStatusInput } from "../admin-management/service.js";
 
 export const deliveryPartnerRouter = Router();
+deliveryPartnerRouter.get("/api/delivery-partner/available-deliveries",requireDeliveryPartner(),asyncHandler(async(req,res) => {
+  res.setHeader("Cache-Control","private, no-store");
+  res.json({deliveries:await deliveryWorkflow().available((req as AuthenticatedRequest).auth!.userId)});
+}));
+deliveryPartnerRouter.post("/api/delivery-partner/orders/:orderId/claim",requireDeliveryPartner(),asyncHandler(async(req,res) => {
+  const body = z.object({}).strict().safeParse(req.body ?? {});
+  if (!body.success) throw new HttpError(400,"No partner identifier or assignment override is permitted.");
+  res.setHeader("Cache-Control","private, no-store");
+  res.json({assignment:await deliveryWorkflow().claim((req as AuthenticatedRequest).auth!.userId,identifier(req.params.orderId))});
+}));
 deliveryPartnerRouter.use("/api/delivery-partner", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 deliveryPartnerRouter.use("/api/admin/delivery-partners", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 deliveryPartnerRouter.post("/api/delivery-partner/login", asyncHandler(async (req, res) => {

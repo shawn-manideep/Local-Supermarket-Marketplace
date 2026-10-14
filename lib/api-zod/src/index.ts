@@ -15,3 +15,10 @@ export { UploadVendorDocumentParams } from "./generated/api";
 export type { UploadVendorDocumentParams as VendorDocumentUploadQueryInput } from "./generated/types";
 export { SaveCustomerItemBody, ChangeCustomerPasswordBody } from "./generated/api";
 export type { SaveCustomerItemBody as SaveCustomerItemInput, ChangeCustomerPasswordBody as ChangeCustomerPasswordInput } from "./generated/types";
+export { ClaimAvailableDeliveryBody, GetAdminVendorBankDetailsParams, ReviewVendorBankDetailsBody, SavePickupPhotographParams } from "./generated/api";
+export type {
+  ClaimAvailableDeliveryBody as DeliveryClaimInput,
+  GetAdminVendorBankDetailsParams as BankRevealQueryInput,
+  ReviewVendorBankDetailsBody as BankReviewInput,
+  SavePickupPhotographParams as PickupPhotographQueryInput,
+} from "./generated/types";

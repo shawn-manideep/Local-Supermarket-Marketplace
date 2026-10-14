@@ -1,7 +1,7 @@
 import type { OrderItemSnapshot, OrderStatus } from "./api";
 import { formatVariantName } from "@workspace/validation/variant-formatting";
 
-export type VendorOrderAction = "ACCEPT" | "REJECT" | "PREPARE" | "READY";
+export type VendorOrderAction = "ACCEPT" | "REJECT" | "READY";
 export type VendorOrderView = "orders" | "delivery";
 export function vendorActions(status: OrderStatus, view: VendorOrderView): Array<{ action: VendorOrderAction; label: string; className: string }> {
   const primary = "vendor-primary-button";
@@ -10,7 +10,7 @@ export function vendorActions(status: OrderStatus, view: VendorOrderView): Array
     { action: "ACCEPT", label: "Accept Order", className: primary },
     { action: "REJECT", label: "Reject Order", className: "vendor-danger-button" },
   ];
-  if (status === "ACCEPTED") return [{ action: "PREPARE", label: "Start Preparing", className: primary }];
+  if (status === "ACCEPTED") return [{ action: "READY", label: "Mark as Ready", className: primary }];
   if (status === "PREPARING") return [{ action: "READY", label: "Mark Ready", className: primary }];
   return [];
 }
@@ -31,7 +31,7 @@ export function vendorEmptyMessage(status: string) {
 }
 
 export const actionProgress: Record<VendorOrderAction, string> = {
-  ACCEPT: "Accepting...", REJECT: "Rejecting...", PREPARE: "Starting preparation...",
+  ACCEPT: "Accepting...", REJECT: "Rejecting...",
   READY: "Marking ready...",
 };
 

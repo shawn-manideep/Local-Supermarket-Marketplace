@@ -97,6 +97,8 @@ export const storeUpdateSchema = z
     logoImageUrl: z.string().url().max(2_048).nullable().optional(),
     phone: phoneSchema.nullable().optional(),
     ownerName: z.string().trim().min(1).max(100).optional(),
+    latitude: z.number().finite().min(-90).max(90).nullable().optional(),
+    longitude: z.number().finite().min(-180).max(180).nullable().optional(),
     email: z.string().trim().email().max(254).nullable().optional(),
     addressLine1: z.string().trim().min(1).max(250).optional(),
     addressLine2: z.string().trim().max(250).nullable().optional(),
@@ -662,13 +664,23 @@ const orderListQueryBase = {
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
 };
+export const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0,10) === value;
+}, "Use a valid calendar date");
+export const orderDateFilterFields = {
+  dateFilter: z.enum(["RECENT","WEEK","FIFTEEN_DAYS","MONTH","CUSTOM","ALL"]).optional(),
+  startDate: calendarDateSchema.optional(), endDate: calendarDateSchema.optional(),
+};
 export const vendorOrderQuerySchema = z.object({
+  ...orderDateFilterFields,
   status: orderStatusFilterSchema.optional(),
   page: orderListQueryBase.page,
   pageSize: orderListQueryBase.pageSize,
 }).strict();
 export const adminOrderQuerySchema = z.object({
   ...orderListQueryBase,
+  ...orderDateFilterFields,
   storeId: z.string().uuid().optional(),
 }).strict().refine(
   (value) => !value.from || !value.to || Date.parse(value.from) <= Date.parse(value.to),

@@ -43,7 +43,7 @@ before(async () => {
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
     SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
   const migrations = new URL("../../../../database/migrations/", import.meta.url);
-  for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !file.startsWith("0019") && !file.startsWith("0021")).sort()) {
+  for (const file of (await readdir(migrations)).filter(file => /^\d.*\.sql$/.test(file) && !["0019","0021","0024"].some(prefix=>file.startsWith(prefix))).sort()) {
     await pool.query(await readFile(new URL(file, migrations), "utf8"));
   }
   for (const id of [legacy, vendorA, vendorB, customer, admin, delivery, customerB]) {
@@ -64,6 +64,10 @@ before(async () => {
     await pool.query("INSERT INTO store_service_pincodes(store_id,pincode) VALUES($1,'500090')", [id]);
     await pool.query("INSERT INTO store_operating_hours(store_id,day_of_week,is_closed,opens_at,closes_at) SELECT $1,generate_series(0,6),false,'00:00','23:59'", [id]);
   }
+  await pool.query(await readFile(new URL("0024_vendor_compliance_and_delivery_photos.sql", migrations),"utf8"));
+  // Isolate document-review regressions from the independently tested bank flow.
+  const { approvedFixtureBank } = await import("../test-fixture-compliance.js");
+  for(const id of [storeA,storeB]) await approvedFixtureBank(pool,id,admin);
   await pool.query("INSERT INTO master_products(id,name,brand,is_active) VALUES($1,'Canonical Apples','Harvest',true)", [masterId]);
   await pool.query(`INSERT INTO customer_addresses(customer_id,recipient_name,phone,line1,city,state,pincode,is_default)
     VALUES($1,'Synthetic shopper','9876543210','QA Home','Hyderabad','Telangana','500090',true)`, [customer]);
@@ -132,14 +136,14 @@ const localInput = () => ({
     { quantityValue: 1, quantityUnit: "kg", price: 160, stockQuantity: 3 },
   ],
 });
-test("new vendors require documents; existing vendors are grandfathered with no data rewritten", async () => {
+test("new and existing vendors require current compliance without rewriting historical products", async () => {
   const existing = await (await request(legacy, "/api/vendor/documents")).json();
   const fresh = await (await request(vendorA, "/api/vendor/documents")).json();
-  assert.equal(existing.required, false); assert.equal(existing.canManageCatalog, true);
+  assert.equal(existing.required, true); assert.equal(existing.canManageCatalog, false);
   assert.equal(fresh.required, true); assert.equal(fresh.canManageCatalog, false);
   assert.equal(fresh.mandatoryCount, 0); assert.equal(fresh.optionalCount, 0);
   assert.deepEqual(fresh.documents.map((item: { label: string }) => item.label),
-    ["FSSAI License", "Aadhaar Card", "PAN Card", "Photo", "GST", "Trade License", "Labour License"]);
+    ["FSSAI License", "Aadhaar Card", "PAN Card", "Vendor Photo", "GST", "Trade License", "Labour License"]);
   assert.equal(fresh.message, "Upload all mandatory documents, submit for verification and await Admin approval.");
 });
 test("server gate covers direct product/category/variant mutations and Master selection", async () => {
@@ -162,7 +166,7 @@ test("server gate covers direct product/category/variant mutations and Master se
   }
   assert.equal((await request(vendorA, "/api/vendor/store")).status, 200);
   assert.equal((await request(vendorA, "/api/vendor/orders")).status, 200);
-  assert.equal((await request(legacy, "/api/vendor/products", "POST", localInput())).status, 201);
+  assert.equal((await request(legacy, "/api/vendor/products", "POST", localInput())).status, 403);
 });
 test("uploads reject invalid extensions, MIME, empty, corrupt, oversize and unknown types", async () => {
   for (const [type, bytes, name, mime] of [
@@ -188,7 +192,7 @@ test("optional uploads and four mandatory uploads remain locked until submission
   const partial = await (await request(vendorA, "/api/vendor/documents")).json();
   assert.equal(partial.mandatoryCount, 3); assert.equal(partial.optionalCount, 1);
   assert.equal((await request(vendorA, "/api/vendor/products", "POST", localInput())).status, 403);
-  const complete = await (await upload(vendorA, "photo")).json();
+  const complete = await (await upload(vendorA, "labour_license")).json();
   assert.equal(complete.mandatoryCount, 4); assert.equal(complete.canManageCatalog, false);
   assert.equal(complete.verificationStatus, "DRAFT");
   const submitted = await (await request(vendorA, "/api/vendor/documents/submit", "POST", {})).json();
@@ -248,9 +252,12 @@ test("atomic store-local creation uses existing products/variants, no global wri
   assert.deepEqual(product.variants.map((variant: { price: string }) => Number(variant.price)), [88, 160]);
   assert.equal((await pool.query("SELECT count(*)::integer AS n FROM master_products")).rows[0].n, 1);
   assert.equal((await pool.query("SELECT count(*)::integer AS n FROM master_categories")).rows[0].n, 0);
-  assert.equal((await request(vendorB, `/api/vendor/products/${createdProduct}`)).status, 404);
-  const listB = await (await request(vendorB, "/api/vendor/products")).json();
-  assert.ok(!listB.products.some((item: { id: string }) => item.id === createdProduct));
+  assert.equal((await request(vendorB, `/api/vendor/products/${createdProduct}`)).status, 403);
+  assert.equal((await request(vendorB, "/api/vendor/products")).status, 403);
+  assert.equal((await request(vendorA, `/api/vendor/products/${protectedProduct}`)).status, 404);
+  const listA = await (await request(vendorA, "/api/vendor/products")).json();
+  assert.ok(listA.products.some((item: { id: string }) => item.id === createdProduct));
+  assert.ok(!listA.products.some((item: { id: string }) => item.id === protectedProduct));
   const duplicate = await request(vendorA, "/api/vendor/products", "POST", localInput());
   assert.equal(duplicate.status, 409);
 });
@@ -327,8 +334,8 @@ test("Admin retrieves existing document metadata without private references", as
   const body = await response.json();
   assert.equal(body.documents.length, 7);
   assert.equal(body.mandatoryCount, 1);
-  assert.equal(body.required, false);
-  assert.equal(body.canManageCatalog, true); // Legacy exemption is not document completion.
+  assert.equal(body.required, true);
+  assert.equal(body.canManageCatalog, false);
   assert.equal(body.documents.find((item: any) => item.type === "fssai").current.id, adminCurrentId);
   assert.doesNotMatch(JSON.stringify(body), /object_ref|objectRef|qa-private-bucket/);
 });
@@ -370,7 +377,7 @@ test("Optional uploads do not inflate mandatory completion; all four mandatory d
   let status = await (await request(admin, adminPath())).json();
   assert.equal(status.mandatoryCount, 1);
   assert.equal(status.optionalCount, 1);
-  for (const type of ["aadhaar", "pan", "photo"]) assert.equal((await upload(legacy, type)).status, 201);
+  for (const type of ["aadhaar", "pan", "labour_license"]) assert.equal((await upload(legacy, type)).status, 201);
   status = await (await request(admin, adminPath())).json();
   assert.equal(status.mandatoryCount, 4);
   assert.equal(status.optionalCount, 1);
@@ -425,7 +432,7 @@ test("Admin reads and denials leave all existing public-table data unchanged", a
 
 test("new Vendor submission, partial rejection, correction and receipt-safe approval", async () => {
   assert.equal((await request(vendorB, "/api/vendor/documents/submit", "POST", {})).status, 409);
-  for (const type of ["fssai", "aadhaar", "pan", "photo", "gst"]) assert.equal((await upload(vendorB, type)).status, 201);
+  for (const type of ["fssai", "aadhaar", "pan", "labour_license", "gst"]) assert.equal((await upload(vendorB, type)).status, 201);
   const uploaded = await (await request(vendorB, "/api/vendor/documents")).json();
   assert.equal(uploaded.canManageCatalog, false);
   const pending = await (await request(vendorB, "/api/vendor/documents/submit", "POST", {})).json();

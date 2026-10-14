@@ -6,8 +6,10 @@ import type { VendorDocumentStatus, VendorDocumentTypeName } from "../vendor-doc
 type DocumentItem = VendorDocumentStatus["documents"][number];
 type CurrentDocument = NonNullable<DocumentItem["current"]>;
 type PreviewSession = { popup: Window; objectUrl?: string; closeCheck?: number };
+type BankDetailsRecord = { accountHolderName: string; maskedAccountNumber: string; accountNumber?: string; ifsc: string; bankName: string; bankBranch: string; vendorMobileNumber: string; status: "SUBMITTED" | "APPROVED" | "REJECTED"; submissionId: string; rejectionReason?: string | null; submittedAt?: string | null; reviewedAt?: string | null };
+type BankStatus = { bankDetails: BankDetailsRecord | null; history: Array<{ action: string; createdAt: string; previousStatus?: string | null; nextStatus?: string | null }> };
 
-const formatDate = (value?: string) => {
+const formatDate = (value?: string | null) => {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime())
@@ -31,6 +33,12 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectedTypes, setRejectedTypes] = useState<VendorDocumentTypeName[]>([]);
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const [bankStatus, setBankStatus] = useState<BankStatus | null>(null);
+  const [bankError, setBankError] = useState("");
+  const [bankExpanded, setBankExpanded] = useState(false);
+  const [revealBank, setRevealBank] = useState(false);
+  const [bankReviewBusy, setBankReviewBusy] = useState(false);
+  const [bankReviewReason, setBankReviewReason] = useState("");
   const requestRef = useRef<AbortController | null>(null);
   const viewRequestRef = useRef<AbortController | null>(null);
   const previewRef = useRef<PreviewSession | null>(null);
@@ -105,8 +113,25 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
     }).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
     });
+    void apiRequest<BankStatus>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/bank-details${revealBank ? "?reveal=true" : ""}`, token, { signal: controller.signal })
+      .then((result) => { if (!controller.signal.aborted) { setBankStatus(result); setBankError(""); } })
+      .catch((cause: unknown) => { if (!controller.signal.aborted) setBankError(errorMessage(cause)); });
     return () => controller.abort();
-  }, [vendorId, token, refreshIndex]);
+  }, [vendorId, token, refreshIndex, revealBank]);
+
+  const reviewBank = async (action: "APPROVE" | "REJECT") => {
+    const submissionId = bankStatus?.bankDetails?.submissionId;
+    if (!submissionId || bankReviewBusy) return;
+    if (action === "REJECT" && !bankReviewReason.trim()) { setBankError("Add a reason before rejecting bank details."); return; }
+    setBankReviewBusy(true); setBankError("");
+    try {
+      const next = await apiRequest<BankStatus>(`/api/admin/vendors/${encodeURIComponent(vendorId)}/bank-details/review`, token, {
+        method: "POST", body: JSON.stringify({ submissionId, action, ...(action === "REJECT" ? { reason: bankReviewReason.trim() } : {}) }),
+      });
+      setBankStatus(next); setBankReviewReason(""); refresh();
+    } catch (cause) { setBankError(errorMessage(cause)); }
+    finally { setBankReviewBusy(false); }
+  };
 
   useEffect(() => {
     const refreshOnReturn = () => {
@@ -191,15 +216,16 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
   }
 
   const documents = status?.documents ?? [];
-  const mandatory = documents.filter((document) => document.mandatory);
-  const optional = documents.filter((document) => !document.mandatory);
-  const complete = (status?.mandatoryCount ?? 0) >= 4;
+  const mandatory = documents.filter((document) => document.mandatory || document.type === "labour_license");
+  const optional = documents.filter((document) => !document.mandatory && document.type !== "labour_license");
+  const mandatoryCount = mandatory.filter((document) => Boolean(document.current)).length;
+  const complete = mandatoryCount >= 4;
   const renderGroup = (title: string, items: DocumentItem[], isMandatory: boolean) => (
     <section className="lb-admin-doc-group" aria-label={title}>
       <header className="lb-admin-doc-group-head">
         <div><span className="lb-admin-eyebrow">{isMandatory ? "Required" : "Additional"}</span><h4>{title}</h4></div>
         {isMandatory
-          ? <strong className={`lb-admin-doc-completion ${complete ? "is-complete" : "is-incomplete"}`}>{status?.mandatoryCount ?? 0}/4 {complete ? "Complete" : "Incomplete"}</strong>
+          ? <strong className={`lb-admin-doc-completion ${complete ? "is-complete" : "is-incomplete"}`}>{mandatoryCount}/4 {complete ? "Complete" : "Incomplete"}</strong>
           : <span className="lb-admin-doc-optional-count">{status?.optionalCount ?? 0}/3 uploaded</span>}
       </header>
       <div className="lb-admin-doc-list">
@@ -226,7 +252,7 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
     </section>
   );
 
-  const verificationStatus = status?.verificationStatus ?? "DRAFT";
+  const verificationStatus = status?.verificationStatus === "EXEMPT" ? "DRAFT" : status?.verificationStatus ?? "DRAFT";
   const submittedForReview = verificationStatus === "SUBMITTED" && Boolean(status?.submissionId);
   return <section className="lb-admin-vendor-documents lb-admin-panel" aria-labelledby="admin-vendor-documents-title">
     <div className="lb-admin-panel-head lb-admin-doc-panel-head">
@@ -238,7 +264,7 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
     {status && <>
       {loading && <p className="lb-admin-doc-refreshing" role="status">Refreshing current document details…</p>}
       <div className={`lb-admin-doc-review-summary lb-admin-doc-verification-${verificationStatus.toLowerCase()}`} role="status">
-        <div><span className="lb-admin-eyebrow">Submission status</span><strong>{verificationStatus === "EXEMPT" ? "Legacy exemption" : verificationStatus.toLowerCase().replaceAll("_", " ")}</strong>
+          <div><span className="lb-admin-eyebrow">Submission status</span><strong>{verificationStatus.toLowerCase().replaceAll("_", " ")}</strong>
           {status.submittedAt && <span>Submitted {formatDate(status.submittedAt)}{status.reviewedAt ? ` · Reviewed ${formatDate(status.reviewedAt)}` : ""}</span>}
           {status.rejectionReason && <span className="lb-admin-doc-rejection-reason">Review note: {status.rejectionReason}</span>}
         </div>
@@ -258,6 +284,35 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
         {renderGroup("Mandatory Documents", mandatory, true)}
         {renderGroup("Optional Documents", optional, false)}
       </div>
+      <section className="lb-admin-bank-review">
+        <button className="lb-admin-bank-toggle" type="button" aria-expanded={bankExpanded} onClick={() => setBankExpanded((value) => !value)}>
+          <span><strong>Bank Details</strong><small>Private financial information · admin review</small></span>
+          <span>{bankStatus?.bankDetails?.status ?? "Not submitted"} · {bankExpanded ? "−" : "+"}</span>
+        </button>
+        {bankExpanded && <div className="lb-admin-bank-body">
+          {bankError && <div className="lb-admin-doc-error" role="alert">{bankError}<button className="lb-admin-row-action" type="button" onClick={refresh}>Retry</button></div>}
+          {!bankStatus?.bankDetails ? <p className="lb-admin-secondary">No bank submission has been received.</p> : <>
+            <div className="lb-admin-bank-grid">
+              <div><span>Account holder</span><strong>{bankStatus.bankDetails.accountHolderName}</strong></div>
+              <div><span>Account number</span><strong>{revealBank ? bankStatus.bankDetails.accountNumber ?? bankStatus.bankDetails.maskedAccountNumber : bankStatus.bankDetails.maskedAccountNumber}</strong></div>
+              <div><span>IFSC</span><strong>{bankStatus.bankDetails.ifsc}</strong></div>
+              <div><span>Bank</span><strong>{bankStatus.bankDetails.bankName} · {bankStatus.bankDetails.bankBranch}</strong></div>
+              <div><span>Vendor mobile</span><strong>{bankStatus.bankDetails.vendorMobileNumber}</strong></div>
+              <div><span>Status</span><strong>{bankStatus.bankDetails.status}</strong></div>
+              <div><span>Submitted</span><strong>{formatDate(bankStatus.bankDetails.submittedAt)}</strong></div>
+              <div><span>Reviewed</span><strong>{formatDate(bankStatus.bankDetails.reviewedAt)}</strong></div>
+            </div>
+            <label className="lb-admin-bank-reveal"><input type="checkbox" checked={revealBank} onChange={(event) => setRevealBank(event.target.checked)} /> Reveal full account number (authorized admin view)</label>
+            {bankStatus.bankDetails.rejectionReason && <p className="lb-admin-doc-rejection-reason">Review note: {bankStatus.bankDetails.rejectionReason}</p>}
+            {bankStatus.bankDetails.status === "SUBMITTED" && <div className="lb-admin-bank-actions">
+              <button className="lb-admin-button primary" type="button" disabled={bankReviewBusy} onClick={() => void reviewBank("APPROVE")}>{bankReviewBusy ? "Saving…" : "Approve bank details"}</button>
+              <label>Rejection reason<textarea value={bankReviewReason} maxLength={1000} rows={2} onChange={(event) => setBankReviewReason(event.target.value)} placeholder="Explain what needs correction." /></label>
+              <button className="lb-admin-button" type="button" disabled={bankReviewBusy || !bankReviewReason.trim()} onClick={() => void reviewBank("REJECT")}>{bankReviewBusy ? "Saving…" : "Reject bank details"}</button>
+            </div>}
+            {bankStatus.history.length > 0 && <div className="lb-admin-bank-history"><strong>Approval history</strong>{bankStatus.history.map((entry, index) => <span key={`${entry.createdAt}-${index}`}>{entry.action.replaceAll("_", " ")}{entry.nextStatus ? ` · ${entry.nextStatus.toLowerCase()}` : ""} · {formatDate(entry.createdAt)}</span>)}</div>}
+          </>}
+        </div>}
+      </section>
     </>}
   </section>;
 }

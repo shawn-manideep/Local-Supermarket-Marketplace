@@ -20,3 +20,14 @@ application. Add idempotent forward repairs with explicit policy/trigger
 replacement and register the new migration in the journal. Use the exception
 only after confirming empty/absent remote history and obtaining explicit user
 authorization.
+
+The currently connected marketplace Supabase project was confirmed by the user
+to be development-only, with permission to apply necessary development migrations.
+
+**Why:** The user explicitly resolved the environment-isolation question before
+authorizing the compliance rollout.
+
+**How to apply:** This confirmation applies to the current development project,
+not a future connection or production environment. Continue using its established
+remote migration history, preserve existing records, and never infer production
+deployment permission.

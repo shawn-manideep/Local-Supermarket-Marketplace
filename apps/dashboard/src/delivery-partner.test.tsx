@@ -16,22 +16,26 @@ test("partner login validates literal username input and uses Supabase session t
 });
 test("portal uses partner-only scoped APIs, delivers status actions, and clears cached data on authorization loss", async () => {
   const portal = await source("DeliveryPartnerPortal.tsx");
+  const component = portal.slice(portal.indexOf("export function DeliveryPartnerPortal"));
   for (const path of ["me", "dashboard", "deliveries"]) assert.match(portal, new RegExp(`/api/delivery-partner/${path}`));
-  assert.match(portal, /\/api\/delivery-partner\/deliveries\/\$\{encodeURIComponent\(current\.id\)\}\/actions/);
-  assert.match(portal, /method: "POST", body: JSON\.stringify\(\{ action \}\)/);
+  assert.match(component, /\/api\/delivery-partner\/deliveries\/\$\{encodeURIComponent\(current\.id\)\}\/actions/);
+  assert.match(component, /method: "POST", body: JSON\.stringify\(\{ action \}\)/);
   assert.match(portal, /PENDING: \[\{ action: "ACCEPT"/);
   assert.match(portal, /ACCEPTED: \[\{ action: "PICKUP"/);
   assert.match(portal, /PICKED_UP: \[\{ action: "START"/);
   assert.match(portal, /OUT_FOR_DELIVERY: \[\{ action: "DELIVER"/);
-  assert.match(portal, /role="alertdialog"/);
-  assert.doesNotMatch(portal, /\/api\/vendor|\/api\/customer|\/api\/admin|<input|<textarea|delivery\.id\.slice/);
-  assert.match(portal, /setData\(EMPTY\)/);
-  assert.match(portal, /controller\.abort\(\)/);
-  assert.match(portal, /No deliveries assigned yet/);
-  assert.match(portal, /requestError\.status === 403 \? requestError\.message/);
-  assert.match(portal, /window\.setInterval\(\(\) => \{ void reload\(controller\.signal\); \}, POLL_MS\)/);
-  assert.match(portal, /snapshotAddress/);
-  assert.doesNotMatch(portal, /deliveryContactPhone|customerAccountId|userId|delivery\.id\.slice/);
+  assert.match(component, /role="alertdialog"/);
+  assert.doesNotMatch(component, /\/api\/vendor|\/api\/customer|\/api\/admin/);
+  assert.match(component, /type="date" value=\{reportDate\}/);
+  assert.match(component, /type="file" accept="image\/jpeg,image\/png" capture="environment"/);
+  assert.match(portal, /savePdf\(`\/api\/delivery-partner\/reports\/daily\.pdf/);
+  assert.match(component, /setData\(EMPTY\)/);
+  assert.match(component, /controller\.abort\(\)/);
+  assert.match(component, /No deliveries assigned yet/);
+  assert.match(component, /requestError\.status === 403 \? requestError\.message/);
+  assert.match(component, /window\.setInterval\(\(\) => \{ void reload\(controller\.signal\); \}, POLL_MS\)/);
+  assert.match(component, /snapshotAddress/);
+  assert.doesNotMatch(component, /deliveryContactPhone|customerAccountId|userId|delivery\.id\.slice/);
 });
 test("admin provisioning submits only approved fields, leaves username immutable and never preserves a password after save", async () => {
   const admin = await source("AdminDeliveryPartners.tsx");

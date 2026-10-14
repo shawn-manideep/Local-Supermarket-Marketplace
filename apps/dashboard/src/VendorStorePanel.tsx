@@ -71,6 +71,9 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [documentStatus, setDocumentStatus] = useState<VendorDocumentStatus | null>(null);
+  const [newOrders, setNewOrders] = useState<Array<{ id: string; contact: string; total: string | number }>>([]);
+  const [initialOrderId, setInitialOrderId] = useState<string | undefined>();
+  const seenOrderIds = useRef<Set<string>>(new Set());
   const navigateVendor = (tab: Tab) => {
     setCurrentTab(tab);
     setMobileMenuOpen(false);
@@ -150,6 +153,36 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
     return () => { current = false; };
   }, [token]);
 
+  useEffect(() => {
+    let active = true;
+    let initialized = false;
+    const controller = new AbortController();
+    setNewOrders([]);
+    const check = async () => {
+      if (!active || controller.signal.aborted || document.visibilityState !== "visible") return;
+      try {
+        const result = await apiRequest<OrderListEnvelope>("/api/vendor/orders?pageSize=50&dateFilter=RECENT", token, { signal: controller.signal });
+        if (!active || controller.signal.aborted) return;
+        const placed = result.orders.filter((order) => order.status === "PLACED");
+        if (!initialized) {
+          placed.forEach((order) => seenOrderIds.current.add(order.id));
+          initialized = true;
+          return;
+        }
+        const fresh = placed.filter((order) => !seenOrderIds.current.has(order.id));
+        placed.forEach((order) => seenOrderIds.current.add(order.id));
+        if (fresh.length) setNewOrders((current) => {
+          const queued = new Set(current.map((order) => order.id));
+          return [...current, ...fresh.filter((order) => !queued.has(order.id)).map((order) => ({ id: order.id, contact: order.deliveryContactName, total: order.totalAmount }))];
+        });
+      } catch { /* Existing workspace remains usable; the next poll retries. */ }
+    };
+    seenOrderIds.current.clear();
+    void check();
+    const timer = window.setInterval(() => void check(), 12_000);
+    return () => { active = false; controller.abort(); window.clearInterval(timer); seenOrderIds.current.clear(); };
+  }, [token, profile.storeId]);
+
   if (loading) {
     return (
       <div className="vendor-layout-loading">
@@ -181,6 +214,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
       </div>
     );
   }
+  const nextNewOrder = newOrders[0];
 
   return (
     <div className="vendor-layout is-vendor">
@@ -215,6 +249,11 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
       </aside>
       
       <main className="vendor-main">
+        {nextNewOrder && <div className="vendor-notice vendor-new-order-banner" role="status">
+          <span><strong>New order #{nextNewOrder.id.slice(0, 8).toUpperCase()}</strong> · {nextNewOrder.contact} · ₹{Number(nextNewOrder.total).toFixed(2)}{newOrders.length > 1 ? ` · ${newOrders.length - 1} more new order${newOrders.length === 2 ? "" : "s"}` : ""}</span>
+          <button type="button" className="vendor-primary-button" onClick={() => { setCurrentTab("orders"); setInitialOrderId(nextNewOrder.id); setNewOrders((current) => current.slice(1)); }}>View Order</button>
+          <button aria-label="Dismiss new order notice" type="button" onClick={() => setNewOrders((current) => current.slice(1))}>Dismiss</button>
+        </div>}
         {notice && (
           <div className={`vendor-notice vendor-notice-${notice.kind}`} role="status">
             {notice.message}
@@ -243,7 +282,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
           )}
           {currentTab === "catalog" && !documentStatus?.canManageCatalog && <p role="alert">Complete your document verification before managing your catalog.</p>}
           {currentTab === "documents" && <VendorDocumentsPanel token={token} onMessage={onMessage} onChanged={setDocumentStatus} />}
-          {currentTab === "orders" && <OrderOperations token={token} vendor vendorView="orders" storeId={store.id} onMessage={onMessage} />}
+          {currentTab === "orders" && <OrderOperations token={token} vendor vendorView="orders" storeId={store.id} initialOrderId={initialOrderId} onInitialOrderHandled={() => setInitialOrderId(undefined)} onMessage={onMessage} />}
           {currentTab === "settings" && <VendorSettings profile={profile} onSignOut={onSignOut} />}
         </div>
       </main>
@@ -365,6 +404,13 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
     if (storeBusy) return;
     setStoreBusy(true);
     const form = new FormData(event.currentTarget);
+    const latitudeRaw = String(form.get("latitude") ?? "").trim();
+    const longitudeRaw = String(form.get("longitude") ?? "").trim();
+    if (Boolean(latitudeRaw) !== Boolean(longitudeRaw)) {
+      setStoreBusy(false);
+      onMessage("Enter both latitude and longitude, or leave both blank.", "error");
+      return;
+    }
     try {
       const response = await apiRequest<{ store: Store }>("/api/vendor/store", token, {
         method: "PATCH",
@@ -381,9 +427,9 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
           city: form.get("city"),
           state: form.get("state"),
           pincode: form.get("pincode"),
-          deliveryFee: Number(form.get("deliveryFee")),
-          handlingFee: String(form.get("handlingFee") ?? "0"),
           minimumOrderValue: Number(form.get("minimumOrderValue")),
+          latitude: latitudeRaw ? Number(latitudeRaw) : null,
+          longitude: longitudeRaw ? Number(longitudeRaw) : null,
         }),
       });
       setStore(response.store);

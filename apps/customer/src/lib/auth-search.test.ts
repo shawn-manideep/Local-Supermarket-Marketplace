@@ -42,10 +42,14 @@ test("Customer login is username-only; registration alone collects a recovery co
 
 test("Customer recovery never asks for email or renders returned account data; reset flow clears secrets", async () => {
   const controls = await readFile(new URL("../components/AuthControls.tsx", import.meta.url), "utf8");
-  assert.match(controls, /requestAccountRecovery\(\{ role: "customer", identity: parsed\.data \}\)/);
-  assert.match(controls, /RECOVERY_CONFIRMATION/);
+  const recovery = controls.slice(controls.indexOf("export function CustomerRecoveryForm"), controls.indexOf("export function CustomerResetForm"));
+  const reset = controls.slice(controls.indexOf("export function CustomerResetForm"));
+  assert.match(recovery, /requestAccountRecovery\(\{ role: "customer", identity: parsed\.data, identityType \}\)/);
+  assert.match(recovery, /setMessage\(RECOVERY_CONFIRMATION\)/);
+  assert.match(recovery, /PasswordField label=\{t\("Re-enter Password"\)\}/);
+  assert.doesNotMatch(recovery, /keyboardType="email-address"|data\.user|\.email|reset_token|console\./);
   assert.match(controls, /secureTextEntry=\{visibility\.secureTextEntry\}/);
   assert.match(controls, /setVisible\(value => !value\)/);
-  assert.match(controls, /supabase\.auth\.updateUser\(\{ password \}\)/);
-  assert.doesNotMatch(controls, /keyboardType="email-address"|data\.user|\.email|reset_token|console\./);
+  assert.match(reset, /supabase\.auth\.updateUser\(\{ password \}\)/);
+  assert.match(reset, /setPassword\(""\); setConfirmation\(""\)/);
 });

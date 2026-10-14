@@ -50,8 +50,9 @@ export const createAdminPartner = (token: string, input: {
 export type AdminVendorInput = {
   username: string; password: string; name: string; ownerName: string; phone?: string | null;
   email?: string | null; description?: string | null; logoImageUrl?: string | null;
-  addressLine1: string; addressLine2?: string | null; locality: string; city: string;
+   addressLine1: string; addressLine2?: string | null; locality: string; city: string;
   state: string; pincode: string; deliveryFee?: number; handlingFee?: string | number; minimumOrderValue?: number;
+   latitude?: number | null; longitude?: number | null;
   hours?: Array<{ dayOfWeek: number; isClosed: boolean; opensAt?: string | null; closesAt?: string | null }>;
 };
 export type AdminVendorProfileInput = Omit<AdminVendorInput, "username" | "password">;

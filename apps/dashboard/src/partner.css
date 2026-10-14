@@ -308,3 +308,30 @@
 @media (max-width: 420px) {
   .lbp-table tbody tr { grid-template-columns: minmax(0, 1fr); }
 }
+
+.lbp-daily-report { display:flex; flex-wrap:wrap; align-items:end; gap:14px; padding:20px clamp(17px, 3vw, 26px); }
+.lbp-daily-report > div { flex:1 1 240px; }
+.lbp-daily-report h2 { font:600 22px/1.1 var(--lb-font-family); margin:0 0 6px; }
+.lbp-daily-report p { margin:0; }
+.lbp-daily-report label { display:grid; gap:6px; color:var(--lbp-muted); font-size:11px; font-weight:700; }
+.lbp-daily-report input { min-height:40px; max-width:100%; border:1px solid var(--lbp-line); border-radius:7px; padding:8px 10px; color:var(--lbp-ink); background:#fbfcf8; }
+.lbp-offer-alert { display:flex; flex-wrap:wrap; align-items:center; gap:9px 14px; }
+.lbp-offer-alert strong { flex-basis:100%; }
+.lbp-offer-alert span { flex:1 1 180px; }
+.lbp-available-offers { padding:clamp(18px,3vw,26px); }
+.lbp-package-photo { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; padding:18px 0; margin-top:6px; border-top:1px solid var(--lbp-line); }
+.lbp-package-photo h3 { margin:0; font:600 20px/1.2 var(--lb-font-family); }
+.lbp-package-photo p:not(.lbp-kicker) { color:var(--lbp-muted); font-size:13px; line-height:1.45; margin:6px 0 0; }
+.lbp-package-photo img { display:block; width:min(100%,520px); max-height:380px; object-fit:contain; object-position:left center; border-radius:10px; background:#f3f2ec; }
+.lbp-package-photo > input { width:100%; max-width:100%; font-size:12px; }
+.lbp-photo-actions { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+.lbp-photo-saved { color:#087a55; font-size:12px; font-weight:700; }
+.lbp-delivery-detail-head { position:relative; }
+@media(max-width:520px) {
+  .lbp-daily-report { align-items:stretch; flex-direction:column; }
+  .lbp-daily-report > div,.lbp-daily-report label,.lbp-daily-report button { width:100%; }
+  .lbp-daily-report input { width:100%; }
+  .lbp-photo-actions { display:grid; grid-template-columns:1fr; }
+  .lbp-photo-actions .lbp-button { width:100%; }
+  .lbp-offer-alert .lbp-button { margin-left:0; }
+}

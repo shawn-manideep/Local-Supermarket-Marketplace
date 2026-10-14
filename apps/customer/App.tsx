@@ -42,10 +42,12 @@ import { CustomerSettingsScreen } from "./src/CustomerSettingsScreen";
 import { HelpSupportScreen } from "./src/HelpSupportScreen";
 import { CustomerPolicyScreen } from "./src/CustomerPolicyScreen";
 import { AccountPrivacyScreen } from "./src/AccountPrivacyScreen";
-import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
+import { addressStreetLines } from "./src/lib/address-format";
 import { useLanguageScope, useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
 import { MobileRegistrationForm } from "./src/components/MobileRegistrationForm";
+import { CustomerAddressFields } from "./src/components/CustomerAddressForm";
+import { blankAddress, editableAddress, normalizeAddressInput, validateAddressInput } from "./src/lib/address-entry";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings" | "help" | "privacy" | "accountPrivacy" | "terms";
 
@@ -526,44 +528,6 @@ function AccountScreen({
   );
 }
 
-const blankAddress: AddressInput = {
-  label: null,
-  recipientName: "",
-  phone: "",
-  line1: "",
-  line2: null,
-  houseNumber: "",
-  buildingName: null,
-  landmark: null,
-  locality: null,
-  city: "",
-  state: "",
-  pincode: "",
-  isDefault: false,
-};
-function editableAddress(
-  address: AddressInput | CustomerAddress,
-): AddressInput {
-  const legacy = isLegacyAddress(address);
-  const houseNumber = legacy ? address.line1 : address.houseNumber ?? "";
-  const locality = legacy ? address.line2 : address.locality ?? null;
-  return {
-    label: address.label,
-    recipientName: address.recipientName,
-    phone: address.phone,
-    line1: houseNumber,
-    line2: locality,
-    houseNumber,
-    buildingName: address.buildingName ?? null,
-    landmark: address.landmark ?? null,
-    locality,
-    city: address.city,
-    state: address.state,
-    pincode: address.pincode,
-    isDefault: address.isDefault,
-  };
-}
-
 function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const { t } = useTranslation();
   const [items, setItems] = useState<CustomerAddress[]>([]);
@@ -585,35 +549,15 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
   }, []);
 
   const save = async () => {
-    if (
-      !draft.recipientName ||
-      !draft.phone ||
-      !draft.houseNumber?.trim() ||
-      !draft.city ||
-      !draft.state ||
-      !draft.pincode
-    ) {
-      setMessage("Please fill all required fields.");
-      return;
-    }
-    if (!/^[6-9]\d{9}$/.test(draft.phone)) {
-      setMessage("Please enter a valid 10-digit Indian mobile number.");
+    const validationError = validateAddressInput(draft);
+    if (validationError) {
+      setMessage(validationError);
       return;
     }
 
     setMessage("");
     try {
-      const houseNumber = draft.houseNumber?.trim() ?? "";
-      const locality = draft.locality?.trim() ?? "";
-      const submittedAddress: AddressInput = {
-        ...editableAddress(draft),
-        line1: houseNumber,
-        line2: locality || null,
-        houseNumber,
-        buildingName: draft.buildingName?.trim() || null,
-        landmark: draft.landmark?.trim() || null,
-        locality: locality || null,
-      };
+      const submittedAddress = normalizeAddressInput(draft);
       await customerApi(
         editId
           ? `/api/customer/addresses/${editId}`
@@ -665,98 +609,16 @@ function AddressesScreen({ navigate }: { navigate: (s: Screen) => void }) {
               {editId ? t("Edit Address") : t("Add New Address")}
             </Text>
             <View style={{ gap: spacing.md }}>
-              <Field
-                label={t("Label (e.g. Home, Work)")}
-                onChangeText={(v) => setDraft({ ...draft, label: v || null })}
-                value={draft.label ?? ""}
-              />
-              <Field
-                label={t("Recipient Name")}
-                onChangeText={(v) => setDraft({ ...draft, recipientName: v })}
-                value={draft.recipientName}
-              />
-              <PhoneInput
-                label={t("Phone Number")}
-                value={draft.phone}
-                onChangeText={(v) => setDraft({ ...draft, phone: v })}
-              />
-              {editId && (() => {
+              <CustomerAddressFields
+                draft={draft}
+                onChange={patch => setDraft(current => ({ ...current, ...patch }))}
+                legacyNote={editId ? (() => {
                 const editing = items.find((item) => item.id === editId);
                 return editing && !editing.houseNumber
-                  ? <Text style={[typography.caption, { marginBottom: spacing.xs }]}>
-                    {t("This saved address predates structured fields. Its existing address text is retained in House Number / Flat Number and Locality; no address history has been changed.")}
-                  </Text>
-                  : null;
-              })()}
-              <Field
-                label={t("House Number / Flat Number *")}
-                placeholder={t("e.g. Flat 302")}
-                onChangeText={(v) => setDraft({ ...draft, houseNumber: v, line1: v })}
-                value={draft.houseNumber ?? ""}
+                  ? t("This saved address predates structured fields. Its existing address text is retained in House Number / Flat Number and Locality; no address history has been changed.")
+                  : undefined;
+              })() : undefined}
               />
-              <Field
-                label={t("Building Name / Apartment Name (Optional)")}
-                placeholder={t("e.g. Green Heights Apartments")}
-                onChangeText={(v) => setDraft({ ...draft, buildingName: v || null })}
-                value={draft.buildingName ?? ""}
-              />
-              <Field
-                label={t("Landmark (Optional)")}
-                placeholder={t("e.g. Near ABC School")}
-                onChangeText={(v) => setDraft({ ...draft, landmark: v || null })}
-                value={draft.landmark ?? ""}
-              />
-              <Field
-                label={t("Locality")}
-                placeholder={t("e.g. Pragathi Nagar")}
-                onChangeText={(v) => setDraft({ ...draft, locality: v || null, line2: v || null })}
-                value={draft.locality ?? ""}
-              />
-              <View style={{ gap: spacing.md }}>
-                <View style={{ flex: 1 }}>
-                  <Field
-                    label={t("City")}
-                    onChangeText={(v) => setDraft({ ...draft, city: v })}
-                    value={draft.city}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Field
-                    label={t("State")}
-                    onChangeText={(v) => setDraft({ ...draft, state: v })}
-                    value={draft.state}
-                  />
-                </View>
-              </View>
-              <Field
-                label={t("Pincode")}
-                keyboardType="number-pad"
-                onChangeText={(v) =>
-                  setDraft({ ...draft, pincode: v.replace(/\D/g, "") })
-                }
-                value={draft.pincode}
-              />
-
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: draft.isDefault }}
-                onPress={() =>
-                  setDraft({ ...draft, isDefault: !draft.isDefault })
-                }
-                style={styles.checkRow}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    draft.isDefault && styles.checkboxActive,
-                  ]}
-                >
-                  {draft.isDefault && <View style={styles.checkboxInner} />}
-                </View>
-                <Text style={typography.bodySemibold}>
-                  {t("Make this my default address")}
-                </Text>
-              </Pressable>
 
               {!!message && (
                 <Text

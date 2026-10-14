@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { ApiRequestError } from "../api";
+import { ApiRequestError, apiAuthorizationHeaders, apiUrl } from "../api";
 import { AdminMasterCatalogPanel } from "../AdminMasterCatalogPanel";
 import { AdminVendorDocuments } from "./AdminVendorDocuments";
 import { AdminBranding } from "./AdminBranding";
@@ -23,9 +23,10 @@ import {
 import { partnerProvisionSchema, storeUpdateSchema, usernameSchema } from "@workspace/validation";
 import { StoreProfileFields } from "../StoreProfileFields";
 import { readWeeklyHours, WeeklyHoursFields } from "../WeeklyHoursFields";
+import { OrderOperations } from "../OrderOperations";
 import "./admin.css";
 
-type Section = "dashboard" | AdminKind | "profile" | "master-catalog" | "branding";
+type Section = "dashboard" | AdminKind | "orders" | "profile" | "master-catalog" | "branding";
 type Props = { token: string; session: Session; userId: string; onLogout: () => void };
 type Message = { text: string; kind: "error" | "success" | "notice" };
 
@@ -34,9 +35,10 @@ const nav: Array<{ key: Section; label: string; number: string }> = [
   { key: "vendors", label: "Vendors", number: "02" },
   { key: "customers", label: "Customers", number: "03" },
   { key: "delivery-partners", label: "Delivery Partners", number: "04" },
-  { key: "profile", label: "Profile", number: "05" },
-  { key: "master-catalog", label: "Master Catalog", number: "06" },
-  { key: "branding", label: "Application Branding", number: "07" },
+  { key: "orders", label: "Order Oversight", number: "05" },
+  { key: "profile", label: "Profile", number: "06" },
+  { key: "master-catalog", label: "Master Catalog", number: "07" },
+  { key: "branding", label: "Application Branding", number: "08" },
 ];
 const kindLabel: Record<AdminKind, string> = {
   vendors: "Vendors",
@@ -91,7 +93,7 @@ const statusOptions: Record<AdminKind, Array<{ value: string; label: string }>> 
 function sectionFromPath(): Section {
   const path = window.location.pathname.replace(/\/+$/, "");
   const last = path.split("/").pop() || "";
-  if (last === "vendors" || last === "customers" || last === "delivery-partners" || last === "profile" || last === "master-catalog" || last === "branding") return last;
+  if (last === "vendors" || last === "customers" || last === "delivery-partners" || last === "orders" || last === "profile" || last === "master-catalog" || last === "branding") return last;
   return "dashboard";
 }
 function sectionPath(section: Section) {
@@ -103,6 +105,7 @@ function headingFor(section: Section) {
   if (section === "profile") return ["Admin profile", "Your verified platform identity. Profile details are read-only here."];
   if (section === "master-catalog") return ["Master Catalog", "Manage canonical grocery identities without changing store-owned prices or inventory."];
   if (section === "branding") return ["Application Branding", "Set the shared Local Basket identity across customer and operations portals."];
+  if (section === "orders") return ["Order oversight", "Review order timelines, delivery assignments, package photos, and downloadable reports."];
   return [kindLabel[section], section === "vendors" ? "Review neighborhood shops and manage their storefront access." : section === "customers" ? "Look up customer accounts and safely manage access." : "Provision and maintain delivery partner portal access."];
 }
 
@@ -323,9 +326,10 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           {message && <div className={`lb-admin-message ${message.kind}`} role={message.kind === "error" ? "alert" : "status"}>{message.text}</div>}
           <section className="lb-admin-content" key={section}>
             <header className="lb-admin-heading"><div><p className="lb-admin-eyebrow">Platform administration</p><h1>{heading[0]}</h1><p className="lb-admin-subtitle">{heading[1]}</p></div>
-              {section !== "profile" && section !== "branding" && <button className="lb-admin-button" type="button" onClick={reload} disabled={section === "dashboard" && dashboardLoading}>{section === "dashboard" && dashboardLoading ? "Refreshing…" : "Refresh data"}</button>}
+              {section !== "profile" && section !== "branding" && section !== "orders" && <button className="lb-admin-button" type="button" onClick={reload} disabled={section === "dashboard" && dashboardLoading}>{section === "dashboard" && dashboardLoading ? "Refreshing…" : "Refresh data"}</button>}
             </header>
             {section === "dashboard" && <Dashboard data={dashboard} loading={dashboardLoading} error={dashboardError} retry={reload} go={navigate} />}
+            {section === "orders" && <OrderOperations token={token} vendor={false} onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
             {section === "master-catalog" && <AdminMasterCatalogPanel token={token} onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
             {section === "branding" && <AdminBranding token={token} />}
             {(section === "vendors" || section === "customers" || section === "delivery-partners") && <AccountDirectory key={section} kind={section} token={token} revision={revision} onOpen={openDetail} onProvisioned={(text) => { setMessage({ text, kind: "success" }); reload(); }} />}
@@ -416,6 +420,7 @@ function AccountDirectory({ kind, token, revision, onOpen, onProvisioned }: { ki
       <div className="lb-admin-panel-head"><div><h2>Create a vendor & store</h2><span className="lb-admin-secondary">Provision a login and complete neighborhood store profile.</span></div><button className={`lb-admin-button ${showProvision ? "" : "primary"}`} type="button" onClick={() => setShowProvision((current) => !current)}>{showProvision ? "Close form" : "Add vendor"}</button></div>
       {showProvision && <VendorProvisionForm token={token} onCancel={() => setShowProvision(false)} onComplete={(text) => { setShowProvision(false); setSearch(""); setSearchReady(""); setStatus(""); setPageNumber(1); onProvisioned(text); setFetchIndex((value) => value + 1); }} />}
     </section>}
+    {kind === "delivery-partners" && <AdminDailyReports token={token} partners={page?.items ?? []} />}
     <div className="lb-admin-toolbar" style={{ marginTop: kind === "delivery-partners" ? 20 : 0 }}>
       <label className="lb-admin-search-wrap"><span className="lb-admin-search-icon" aria-hidden="true">⌕</span><input className="lb-admin-search" type="search" placeholder={`Search ${kindLabel[kind].toLowerCase()}…`} aria-label={`Search ${kindLabel[kind].toLowerCase()}`} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
       <select aria-label="Filter by status" value={status} onChange={(event) => resetStatus(event.target.value)}>{statusOptions[kind].map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select>
@@ -431,6 +436,47 @@ function AccountDirectory({ kind, token, revision, onOpen, onProvisioned }: { ki
       </>}
     </section>
   </>;
+}
+
+function AdminDailyReports({ token, partners }: { token: string; partners: AdminRow[] }) {
+  const [date, setDate] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()));
+  const [partnerId, setPartnerId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [partnerOptions, setPartnerOptions] = useState<AdminRow[]>(partners);
+  useEffect(() => {
+    const controller = new AbortController();
+    void listAdminAccounts("delivery-partners", token, { page: 1, pageSize: 100, search: "", status: "" }, controller.signal)
+      .then((result) => { if (!controller.signal.aborted) setPartnerOptions(result.items); })
+      .catch(() => { if (!controller.signal.aborted) setPartnerOptions(partners); });
+    return () => controller.abort();
+  }, [token]);
+  const download = async () => {
+    if (!date || busy) return;
+    setBusy(true); setError("");
+    try {
+      const query = new URLSearchParams({ date });
+      if (partnerId) query.set("partnerId", partnerId);
+      const response = await fetch(apiUrl(`/api/admin/reports/deliveries/daily.pdf?${query}`), { credentials: "same-origin", headers: apiAuthorizationHeaders(token) });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => undefined) as { error?: string } | undefined;
+        throw new Error(payload?.error || `Report download failed (${response.status}).`);
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a"); link.href = url; link.download = `delivery-report-${date}${partnerId ? "-partner" : "-all"}.pdf`;
+      document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Daily report could not be downloaded."); }
+    finally { setBusy(false); }
+  };
+  return <section className="lb-admin-panel lb-admin-daily-reports">
+    <div className="lb-admin-panel-head"><div><h2>Daily delivery reports</h2><span className="lb-admin-secondary">Use Asia/Kolkata dates. Choose all partners or an individual partner.</span></div></div>
+    <div className="lb-admin-report-controls">
+      <label>Delivery date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+      <label>Partner<select value={partnerId} onChange={(event) => setPartnerId(event.target.value)}><option value="">All partners · consolidated</option>{partnerOptions.map((partner) => <option value={partner.id} key={partner.id}>{partner.displayName || partner.username || partner.id}</option>)}</select></label>
+      <button className="lb-admin-button primary" type="button" disabled={!date || busy} onClick={() => void download()}>{busy ? "Preparing PDF…" : "Download PDF"}</button>
+    </div>
+    {error && <div className="lb-admin-message error" role="alert">{error}<button className="lb-admin-row-action" type="button" onClick={() => void download()}>Retry</button></div>}
+  </section>;
 }
 
 function AccountRow({ kind, row, onOpen }: { kind: AdminKind; row: AdminRow; onOpen: () => void }) {
@@ -453,7 +499,7 @@ function StatusPill({ value, fallback }: { value: string | null; fallback: strin
 }
 function DocumentVerificationPill({ value }: { value: AdminRow["documentVerificationStatus"] }) {
   if (!value) return <span className="lb-admin-secondary">Not provided</span>;
-  const label = value === "EXEMPT" ? "Exempt · not verified" : value === "APPROVED" ? "Verified" : value.toLowerCase().replaceAll("_", " ");
+  const label = value === "EXEMPT" ? "Review required" : value === "APPROVED" ? "Verified" : value.toLowerCase().replaceAll("_", " ");
   return <span className={`lb-admin-doc-directory-status lb-admin-doc-verification-${value.toLowerCase()}`}>{label}</span>;
 }
 
@@ -478,6 +524,9 @@ function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind
       setSavingProfile(true); setProfileError("");
       const form = new FormData(event.currentTarget);
       const optional = (name: string) => String(form.get(name) ?? "").trim() || null;
+      const latitudeRaw = String(form.get("latitude") ?? "").trim();
+      const longitudeRaw = String(form.get("longitude") ?? "").trim();
+      if (Boolean(latitudeRaw) !== Boolean(longitudeRaw)) { setProfileError("Enter both latitude and longitude, or leave both blank."); setSavingProfile(false); return; }
       try {
         await updateAdminVendor(account.id, token, {
           name: String(form.get("name") ?? "").trim(), ownerName: String(form.get("ownerName") ?? "").trim(),
@@ -486,6 +535,8 @@ function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind
           addressLine2: optional("addressLine2"), locality: String(form.get("locality") ?? "").trim(),
           city: String(form.get("city") ?? "").trim(), state: String(form.get("state") ?? "").trim(),
           pincode: String(form.get("pincode") ?? "").trim(),
+          latitude: latitudeRaw ? Number(latitudeRaw) : null,
+          longitude: longitudeRaw ? Number(longitudeRaw) : null,
           deliveryFee: Number(form.get("deliveryFee") ?? 0), handlingFee: String(form.get("handlingFee") ?? "0"), minimumOrderValue: Number(form.get("minimumOrderValue") ?? 0),
           hours: readWeeklyHours(form),
         });
@@ -522,7 +573,7 @@ function VendorDetailGroups({ account }: { account: AdminDetail }) {
   return <div className="lb-admin-vendor-groups">
     <section><h3>Owner</h3><p>{store.ownerName || account.ownerName || "—"} · {store.phone || account.contactNumber || "No mobile"} · {store.email || account.email || "No email"}</p></section>
     <section><h3>Store</h3><p>{store.name}</p><p>{store.description || "No store description provided."}</p>{store.logoImageUrl && <a href={store.logoImageUrl} target="_blank" rel="noreferrer">View store logo</a>}</section>
-    <section><h3>Store location</h3><p>{line || "Store address not provided."}</p></section>
+    <section><h3>Store location</h3><p>{line || "Store address not provided."}</p><p>Coordinates · {store.latitude != null && store.longitude != null ? `${store.latitude}, ${store.longitude}` : "Not provided"}</p></section>
     <section><h3>Operations</h3><p>Delivery fee ₹{store.deliveryFee} · Handling fee ₹{store.handlingFee ?? "0.00"} · Minimum order ₹{store.minimumOrderValue}</p></section>
   </div>;
 }
@@ -564,6 +615,9 @@ function VendorProvisionForm({ token, onCancel, onComplete }: { token: string; o
     if (password !== confirmPassword) { setError("Passwords do not match."); clearSecrets(); return; }
     if (!phoneResult.success) { setError(phoneResult.error.issues[0]?.message || "Enter a valid Indian mobile number."); clearSecrets(); return; }
     const optional = (name: string) => String(form.get(name) ?? "").trim() || null;
+    const latitudeRaw = String(form.get("latitude") ?? "").trim();
+    const longitudeRaw = String(form.get("longitude") ?? "").trim();
+    if (Boolean(latitudeRaw) !== Boolean(longitudeRaw)) { setError("Enter both latitude and longitude, or leave both blank."); return; }
     const hours = readWeeklyHours(form);
     setSaving(true); setError("");
     try {
@@ -574,6 +628,8 @@ function VendorProvisionForm({ token, onCancel, onComplete }: { token: string; o
         addressLine1: String(form.get("addressLine1") ?? "").trim(), addressLine2: optional("addressLine2"),
         locality: String(form.get("locality") ?? "").trim(), city: String(form.get("city") ?? "").trim(),
         state: String(form.get("state") ?? "").trim(), pincode: String(form.get("pincode") ?? "").trim(),
+        latitude: latitudeRaw ? Number(latitudeRaw) : null,
+        longitude: longitudeRaw ? Number(longitudeRaw) : null,
         deliveryFee: Number(form.get("deliveryFee") || 0), handlingFee: String(form.get("handlingFee") ?? "0"), minimumOrderValue: Number(form.get("minimumOrderValue") || 0),
         hours,
       });

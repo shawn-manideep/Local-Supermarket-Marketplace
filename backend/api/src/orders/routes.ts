@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { orderDateWhere } from "./report-dates.js";
 import { Router, type Request } from "express";
 import { z } from "zod";
 import {
@@ -562,7 +563,8 @@ ordersRouter.get("/api/vendor/orders", requireRole("vendor"), asyncHandler(async
   const parsed = vendorOrderQuerySchema.safeParse(req.query);
   if (!parsed.success) throw new HttpError(400, "Invalid order filters", validationDetails(parsed.error));
   const { page, pageSize, status } = parsed.data;
-  const where = and(eq(orders.storeId, storeId), ...(status && status !== "ALL" ? [eq(orders.status, status)] : []));
+  const dateWhere = orderDateWhere(parsed.data,storeId);
+  const where = and(eq(orders.storeId, storeId), dateWhere, ...(status && status !== "ALL" ? [eq(orders.status, status)] : []));
   const db = getDb();
   const [rows, totals, statusRows] = await Promise.all([
     db.select({ ...vendorOrderSummaryFields, storeName: stores.name }).from(orders)
@@ -570,7 +572,7 @@ ordersRouter.get("/api/vendor/orders", requireRole("vendor"), asyncHandler(async
       .orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ count: sql<number>`count(*)::int` }).from(orders).where(where),
     db.select({ status: orders.status, count: sql<number>`count(*)::int` }).from(orders)
-      .where(eq(orders.storeId, storeId)).groupBy(orders.status),
+      .where(and(eq(orders.storeId, storeId),dateWhere)).groupBy(orders.status),
   ]);
   const ids = rows.map(row => row.id);
   const itemCounts = ids.length
@@ -615,11 +617,22 @@ ordersRouter.post("/api/vendor/orders/:orderId/actions", requireRole("vendor"), 
   const updated = await getDb().transaction(async tx => {
     const [order] = await tx.select().from(orders).where(and(eq(orders.id, id), eq(orders.storeId, storeId))).limit(1).for("update");
     if (!order) throw new HttpError(404, "Order not found");
+    // Legacy ACCEPTED orders also pass through a real, audited preparation event.
+    if (parsed.data.action === "READY" && order.status === "ACCEPTED") {
+      await tx.update(orders).set({status:"PREPARING",updatedAt:new Date()}).where(eq(orders.id,id));
+      await tx.insert(orderStatusHistory).values({orderId:id,status:"PREPARING",note:"Preparation started automatically before marking ready.",changedBy:userId(req),createdAt:sql`clock_timestamp()`});
+      order.status = "PREPARING";
+    }
     const next = LEGAL_ORDER_TRANSITIONS[parsed.data.action]?.[order.status];
     if (!next) throw new HttpError(409, `Illegal order transition from ${order.status}`);
     const [value] = await tx.update(orders).set({ status: next as typeof order.status, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
     if (next === "REJECTED") await restoreOrderStock(tx, id);
-    await tx.insert(orderStatusHistory).values({ orderId: id, status: next as typeof order.status, note: parsed.data.note, changedBy: userId(req) });
+    await tx.insert(orderStatusHistory).values({ orderId: id, status: next as typeof order.status, note: parsed.data.note, changedBy: userId(req),createdAt:sql`clock_timestamp()` });
+    if (parsed.data.action === "ACCEPT") {
+      const [preparing] = await tx.update(orders).set({status:"PREPARING",updatedAt:new Date()}).where(eq(orders.id,id)).returning();
+      await tx.insert(orderStatusHistory).values({orderId:id,status:"PREPARING",note:"Preparation started automatically after acceptance.",changedBy:userId(req),createdAt:sql`clock_timestamp()`});
+      return preparing;
+    }
     return value;
   }, { isolationLevel: "read committed" });
   const [safe] = await getDb().select({ ...safeOrderFields, storeName: stores.name })
@@ -639,6 +652,7 @@ const adminOrderListFields = {
 };
 function adminOrderWhere(query: z.infer<typeof adminOrderQuerySchema>, includeStatus = true) {
   return and(
+    orderDateWhere(query,query.storeId),
     ...(includeStatus && query.status && query.status !== "ALL" ? [eq(orders.status, query.status)] : []),
     ...(query.storeId ? [eq(orders.storeId, query.storeId)] : []),
     ...(query.from ? [gte(orders.createdAt, new Date(query.from))] : []),

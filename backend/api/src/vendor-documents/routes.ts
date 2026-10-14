@@ -41,6 +41,9 @@ vendorDocumentsRouter.put("/api/vendor/documents/:type", requireRole("vendor"),
         if (mandatory && state.rows[0]?.document_verification_status === "SUBMITTED")
           throw new HttpError(409, "Submitted documents are locked while Admin reviews them.", undefined, "DOCUMENTS_PENDING_REVIEW");
         if (mandatory && state.rows[0]?.documents_required) {
+          await transaction.execute(sql`INSERT INTO platform_management_events(actor_user_id,action,target_type,target_id,previous_status,next_status,details)
+            VALUES(${(request as AuthenticatedRequest).auth!.userId},'mandatory_document_replaced','store',${storeId},
+              ${state.rows[0].document_verification_status},'DRAFT',${JSON.stringify({type,documentId:id})}::jsonb)`);
           await transaction.execute(sql`UPDATE stores SET document_verification_status='DRAFT',
             document_submission_id=NULL,documents_submitted_at=NULL,documents_reviewed_at=NULL,
             documents_reviewed_by=NULL WHERE id=${storeId}`);

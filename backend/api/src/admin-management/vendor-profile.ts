@@ -13,6 +13,9 @@ type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type ProfileInput = z.infer<typeof vendorProfileUpdateSchema>;
 type ProvisionInput = z.infer<typeof vendorProvisionSchema>;
 function storeValues({ hours: _hours, ...input }: ProfileInput) {
+  if ((input.latitude === undefined) !== (input.longitude === undefined) ||
+    ((input.latitude === null) !== (input.longitude === null)))
+    throw new HttpError(400,"Provide both latitude and longitude, or clear both coordinates.");
   return {
     ...input,
     deliveryFee: input.deliveryFee === undefined ? undefined : input.deliveryFee.toFixed(2),

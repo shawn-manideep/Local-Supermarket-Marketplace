@@ -64,6 +64,32 @@ export function deliveryWorkflow(db: Database = getDb()) {
   }
   return {
     vendorRead, own,
+    async available(partnerId: string) {
+      await active(db, partnerId);
+      const result = await db.execute(sql`SELECT o.id AS "orderId",upper(left(o.id::text,8)) AS "orderReference",
+        s.id AS "storeId",s.name AS "storeName",o.total_amount::text AS "orderTotal",
+        o.delivery_mode AS "deliveryMode",o.scheduled_start_at AS "scheduledStartAt",o.scheduled_end_at AS "scheduledEndAt"
+        FROM orders o JOIN stores s ON s.id=o.store_id WHERE o.status='READY'
+        AND NOT EXISTS(SELECT 1 FROM delivery_assignments a WHERE a.order_id=o.id
+          AND a.status IN ('PENDING','ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED'))
+        ORDER BY o.created_at,o.id`);
+      return result.rows;
+    },
+    async claim(partnerId: string, orderId: string) {
+      await db.transaction(async tx => {
+        const order = (await tx.execute(sql`SELECT status FROM orders WHERE id=${orderId} FOR UPDATE`)).rows[0];
+        await active(tx,partnerId);
+        if (!order || order.status !== "READY") fail("DELIVERY_UNAVAILABLE","This delivery is no longer available.");
+        const existing = await tx.execute(sql`SELECT id FROM delivery_assignments WHERE order_id=${orderId}
+          AND status IN ('PENDING','ACCEPTED','PICKED_UP','OUT_FOR_DELIVERY','DELIVERED')`);
+        if (existing.rows.length) fail("DELIVERY_UNAVAILABLE","Another partner already accepted this delivery. Refresh available deliveries.");
+        await tx.execute(sql`INSERT INTO delivery_assignments(order_id,partner_user_id,status,assigned_at,accepted_at)
+          VALUES(${orderId},${partnerId},'ACCEPTED',transaction_timestamp(),clock_timestamp())`);
+      });
+      const result = await db.execute(sql`SELECT id FROM delivery_assignments WHERE order_id=${orderId}
+        AND partner_user_id=${partnerId} AND status='ACCEPTED' ORDER BY assigned_at DESC LIMIT 1`);
+      return own(partnerId,String(result.rows[0]?.id));
+    },
     async eligible(actor: Actor) {
       const result = await db.execute(sql`SELECT p.user_id AS id,p.display_name AS "displayName",p.status
         FROM delivery_partner_profiles p JOIN user_profiles u ON u.id=p.user_id
@@ -117,6 +143,11 @@ export function deliveryWorkflow(db: Database = getDb()) {
           fail("SCHEDULED_DELIVERY_NOT_DUE", "Pickup and dispatch are available only when the scheduled delivery window starts.");
         const requiredOrder = action === "DELIVER" ? "OUT_FOR_DELIVERY" : "READY";
         if (order.status !== requiredOrder) fail("INVALID_DELIVERY_TRANSITION", "The order is no longer eligible for this delivery action.");
+        if (action === "PICKUP") {
+          const photo = await tx.execute(sql`SELECT id FROM delivery_pickup_photos
+            WHERE assignment_id=${assignmentId} AND order_id=${orderId} AND partner_user_id=${partnerId}`);
+          if (!photo.rows.length) fail("PICKUP_PHOTO_REQUIRED","Securely upload one complete package photograph before confirming pickup.");
+        }
         const timestamp = {
           ACCEPT: sql`accepted_at=clock_timestamp()`, REJECT: sql`rejected_at=clock_timestamp()`,
           PICKUP: sql`picked_up_at=clock_timestamp()`, START: sql`updated_at=clock_timestamp()`,

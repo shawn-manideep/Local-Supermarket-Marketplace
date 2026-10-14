@@ -8,6 +8,329 @@
 import * as zod from 'zod';
 
 
+export const GetVendorBankDetailsResponse = zod.object({
+  "bankDetails": zod.object({
+  "accountHolderName": zod.string().optional(),
+  "maskedAccountNumber": zod.string().optional(),
+  "accountNumber": zod.string().optional().describe('Only included in an explicit authorized Admin reveal'),
+  "ifsc": zod.string().optional(),
+  "bankName": zod.string().optional(),
+  "bankBranch": zod.string().optional(),
+  "vendorMobileNumber": zod.string().optional(),
+  "status": zod.enum(['SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().optional(),
+  "rejectionReason": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().optional(),
+  "reviewedAt": zod.coerce.date().nullish()
+}).nullable(),
+  "history": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "previousStatus": zod.string().nullish(),
+  "nextStatus": zod.string().optional(),
+  "details": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})
+
+
+export const submitVendorBankDetailsBodyAccountHolderNameMin = 2;
+export const submitVendorBankDetailsBodyAccountHolderNameMax = 120;
+
+export const submitVendorBankDetailsBodyAccountNumberRegExp = new RegExp('^[0-9]{6,34}$');
+export const submitVendorBankDetailsBodyIfscRegExp = new RegExp('^[A-Za-z]{4}0[A-Za-z0-9]{6}$');
+export const submitVendorBankDetailsBodyBankNameMin = 2;
+export const submitVendorBankDetailsBodyBankNameMax = 120;
+
+export const submitVendorBankDetailsBodyBankBranchMin = 2;
+export const submitVendorBankDetailsBodyBankBranchMax = 120;
+
+export const submitVendorBankDetailsBodyVendorMobileNumberRegExp = new RegExp('^(\\+91)?[6-9][0-9]{9}$');
+
+
+export const SubmitVendorBankDetailsBody = zod.object({
+  "accountHolderName": zod.string().min(submitVendorBankDetailsBodyAccountHolderNameMin).max(submitVendorBankDetailsBodyAccountHolderNameMax),
+  "accountNumber": zod.string().regex(submitVendorBankDetailsBodyAccountNumberRegExp).optional().describe('Required initially; omit to retain an unchanged saved number'),
+  "ifsc": zod.string().regex(submitVendorBankDetailsBodyIfscRegExp),
+  "bankName": zod.string().min(submitVendorBankDetailsBodyBankNameMin).max(submitVendorBankDetailsBodyBankNameMax),
+  "bankBranch": zod.string().min(submitVendorBankDetailsBodyBankBranchMin).max(submitVendorBankDetailsBodyBankBranchMax),
+  "vendorMobileNumber": zod.string().regex(submitVendorBankDetailsBodyVendorMobileNumberRegExp)
+})
+
+export const SubmitVendorBankDetailsResponse = zod.object({
+  "bankDetails": zod.object({
+  "accountHolderName": zod.string().optional(),
+  "maskedAccountNumber": zod.string().optional(),
+  "accountNumber": zod.string().optional().describe('Only included in an explicit authorized Admin reveal'),
+  "ifsc": zod.string().optional(),
+  "bankName": zod.string().optional(),
+  "bankBranch": zod.string().optional(),
+  "vendorMobileNumber": zod.string().optional(),
+  "status": zod.enum(['SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().optional(),
+  "rejectionReason": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().optional(),
+  "reviewedAt": zod.coerce.date().nullish()
+}).nullable(),
+  "history": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "previousStatus": zod.string().nullish(),
+  "nextStatus": zod.string().optional(),
+  "details": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})
+
+
+export const GetAdminVendorBankDetailsParams = zod.object({
+  "vendorId": zod.coerce.string().uuid()
+})
+
+export const getAdminVendorBankDetailsQueryRevealDefault = false;
+
+export const GetAdminVendorBankDetailsQueryParams = zod.object({
+  "reveal": zod.coerce.boolean().default(getAdminVendorBankDetailsQueryRevealDefault)
+})
+
+export const GetAdminVendorBankDetailsResponse = zod.object({
+  "bankDetails": zod.object({
+  "accountHolderName": zod.string().optional(),
+  "maskedAccountNumber": zod.string().optional(),
+  "accountNumber": zod.string().optional().describe('Only included in an explicit authorized Admin reveal'),
+  "ifsc": zod.string().optional(),
+  "bankName": zod.string().optional(),
+  "bankBranch": zod.string().optional(),
+  "vendorMobileNumber": zod.string().optional(),
+  "status": zod.enum(['SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().optional(),
+  "rejectionReason": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().optional(),
+  "reviewedAt": zod.coerce.date().nullish()
+}).nullable(),
+  "history": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "previousStatus": zod.string().nullish(),
+  "nextStatus": zod.string().optional(),
+  "details": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})
+
+
+export const ReviewVendorBankDetailsParams = zod.object({
+  "vendorId": zod.coerce.string().uuid()
+})
+
+export const reviewVendorBankDetailsBodyReasonMax = 1000;
+
+
+
+export const ReviewVendorBankDetailsBody = zod.object({
+  "submissionId": zod.string().uuid(),
+  "action": zod.enum(['APPROVE', 'REJECT']),
+  "reason": zod.string().min(1).max(reviewVendorBankDetailsBodyReasonMax).optional().describe('Required when rejecting')
+})
+
+export const ReviewVendorBankDetailsResponse = zod.object({
+  "bankDetails": zod.object({
+  "accountHolderName": zod.string().optional(),
+  "maskedAccountNumber": zod.string().optional(),
+  "accountNumber": zod.string().optional().describe('Only included in an explicit authorized Admin reveal'),
+  "ifsc": zod.string().optional(),
+  "bankName": zod.string().optional(),
+  "bankBranch": zod.string().optional(),
+  "vendorMobileNumber": zod.string().optional(),
+  "status": zod.enum(['SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
+  "submissionId": zod.string().uuid().optional(),
+  "rejectionReason": zod.string().nullish(),
+  "submittedAt": zod.coerce.date().optional(),
+  "reviewedAt": zod.coerce.date().nullish()
+}).nullable(),
+  "history": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "previousStatus": zod.string().nullish(),
+  "nextStatus": zod.string().optional(),
+  "details": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})
+
+
+export const downloadVendorOrderReportQueryDateFilterDefault = `ALL`;
+
+export const DownloadVendorOrderReportQueryParams = zod.object({
+  "dateFilter": zod.enum(['RECENT', 'WEEK', 'FIFTEEN_DAYS', 'MONTH', 'CUSTOM', 'ALL']).default(downloadVendorOrderReportQueryDateFilterDefault).describe('RECENT is the latest 50 orders; rolling day ranges include today; CUSTOM uses inclusive India-calendar dates; ALL is unbounded'),
+  "startDate": zod.date().optional().describe('Required for CUSTOM'),
+  "endDate": zod.date().optional().describe('Required for CUSTOM; includes the whole end day in Asia/Kolkata'),
+  "status": zod.coerce.string().optional()
+})
+
+export const DownloadVendorOrderReportResponse = zod.unknown()
+
+
+export const downloadAdminOrderReportQueryDateFilterDefault = `ALL`;
+export const downloadAdminOrderReportQueryPageSizeMax = 100;
+
+
+
+export const DownloadAdminOrderReportQueryParams = zod.object({
+  "dateFilter": zod.enum(['RECENT', 'WEEK', 'FIFTEEN_DAYS', 'MONTH', 'CUSTOM', 'ALL']).default(downloadAdminOrderReportQueryDateFilterDefault).describe('RECENT is the latest 50 orders; rolling day ranges include today; CUSTOM uses inclusive India-calendar dates; ALL is unbounded'),
+  "startDate": zod.date().optional().describe('Required for CUSTOM'),
+  "endDate": zod.date().optional().describe('Required for CUSTOM; includes the whole end day in Asia/Kolkata'),
+  "storeId": zod.coerce.string().uuid().optional(),
+  "status": zod.coerce.string().optional(),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "pageSize": zod.coerce.number().int().min(1).max(downloadAdminOrderReportQueryPageSizeMax).optional()
+})
+
+export const DownloadAdminOrderReportResponse = zod.unknown()
+
+
+export const GetAvailableDeliveriesResponse = zod.object({
+  "deliveries": zod.array(zod.object({
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeId": zod.string().uuid(),
+  "storeName": zod.string(),
+  "orderTotal": zod.string(),
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish()
+}))
+})
+
+
+export const ClaimAvailableDeliveryParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const ClaimAvailableDeliveryBody = zod.object({
+
+})
+
+export const ClaimAvailableDeliveryResponse = zod.object({
+  "assignment": zod.object({
+  "deliveryMode": zod.enum(['INSTANT', 'SCHEDULED']).optional(),
+  "scheduledStartAt": zod.coerce.date().nullish(),
+  "scheduledEndAt": zod.coerce.date().nullish(),
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "orderReference": zod.string(),
+  "storeName": zod.string(),
+  "orderStatus": zod.string(),
+  "orderTotal": zod.string(),
+  "partnerName": zod.string(),
+  "status": zod.enum(['PENDING', 'ACCEPTED', 'REJECTED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullable(),
+  "rejectedAt": zod.coerce.date().nullable(),
+  "pickedUpAt": zod.coerce.date().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deliveryAddress": zod.record(zod.string(), zod.unknown()).nullable(),
+  "recipientName": zod.string().nullable()
+})
+})
+
+
+export const SavePickupPhotographParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const savePickupPhotographQueryFileNameMax = 200;
+
+
+
+export const SavePickupPhotographQueryParams = zod.object({
+  "fileName": zod.coerce.string().max(savePickupPhotographQueryFileNameMax).optional(),
+  "capturedAt": zod.date().optional()
+})
+
+export const SavePickupPhotographResponse = zod.object({
+  "photo": zod.object({
+  "id": zod.string().uuid().optional(),
+  "capturedAt": zod.coerce.date().optional(),
+  "uploadedAt": zod.coerce.date().optional(),
+  "mimeType": zod.enum(['image/jpeg', 'image/png']).optional()
+}).nullable()
+})
+
+
+export const GetOwnPickupPhotographParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const GetOwnPickupPhotographResponse = zod.unknown()
+
+
+export const GetOwnPickupPhotoMetadataParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const GetOwnPickupPhotoMetadataResponse = zod.object({
+  "photo": zod.object({
+  "id": zod.string().uuid().optional(),
+  "capturedAt": zod.coerce.date().optional(),
+  "uploadedAt": zod.coerce.date().optional(),
+  "mimeType": zod.enum(['image/jpeg', 'image/png']).optional()
+}).nullable()
+})
+
+
+export const GetAdminPickupPhotographParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const GetAdminPickupPhotographResponse = zod.unknown()
+
+
+export const GetAdminPickupPhotoMetadataParams = zod.object({
+  "assignmentId": zod.coerce.string().uuid()
+})
+
+export const GetAdminPickupPhotoMetadataResponse = zod.object({
+  "photo": zod.object({
+  "id": zod.string().uuid().optional(),
+  "capturedAt": zod.coerce.date().optional(),
+  "uploadedAt": zod.coerce.date().optional(),
+  "mimeType": zod.enum(['image/jpeg', 'image/png']).optional()
+}).nullable()
+})
+
+
+export const GetAdminOrderDeliveryHistoryParams = zod.object({
+  "orderId": zod.coerce.string().uuid()
+})
+
+export const GetAdminOrderDeliveryHistoryResponse = zod.object({
+  "assignments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "partnerUserId": zod.string().uuid(),
+  "partnerName": zod.string(),
+  "status": zod.string(),
+  "assignedAt": zod.coerce.date(),
+  "acceptedAt": zod.coerce.date().nullish(),
+  "pickedUpAt": zod.coerce.date().nullish(),
+  "deliveredAt": zod.coerce.date().nullish()
+}))
+})
+
+
+export const DownloadOwnDailyDeliveryReportQueryParams = zod.object({
+  "date": zod.date()
+})
+
+export const DownloadOwnDailyDeliveryReportResponse = zod.unknown()
+
+
+export const DownloadAdminDailyDeliveryReportQueryParams = zod.object({
+  "date": zod.date(),
+  "partnerId": zod.coerce.string().uuid().optional()
+})
+
+export const DownloadAdminDailyDeliveryReportResponse = zod.unknown()
+
+
 export const GetApplicationBrandingResponse = zod.object({
   "logoUrl": zod.string().nullable(),
   "revision": zod.string().nullable()

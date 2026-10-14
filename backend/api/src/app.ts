@@ -1,5 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
-import { authRouter } from "./auth/index.js";
+import { authRouter, requireRole } from "./auth/index.js";
 import { catalogManagementRouter } from "./catalog-management/index.js";
 import { masterCatalogRouter } from "./master-catalog/index.js";
 import { customerManagementRouter } from "./customer-management/index.js";
@@ -17,6 +17,10 @@ import { adminManagementRouter } from "./admin-management/routes.js";
 import { catalogExcelRouter } from "./master-catalog/excel-routes.js";
 import { vendorDocumentsRouter } from "./vendor-documents/routes.js";
 import { brandingRouter } from "./branding/routes.js";
+import { bankDetailsRouter } from "./vendor-documents/bank-details.js";
+import { pickupPhotosRouter } from "./delivery-partner/photos.js";
+import { reportsRouter } from "./orders/reports.js";
+import { requireCatalogDocuments } from "./vendor-documents/service.js";
 
 export type IntegrationErrorDiagnostic = {
   causeCode?: string;
@@ -112,12 +116,19 @@ export function createApp() {
   });
 
   app.use(authRouter);
+  // Cover read/write and nested catalog/image/import routes before any router
+  // can answer them. Profile, compliance submissions and existing orders stay usable.
+  app.use(["/api/vendor/products","/api/vendor/categories","/api/vendor/product-matches",
+    "/api/vendor/master-products","/api/vendor/master-categories","/api/vendor/master-brands",
+    "/api/vendor/catalog"],requireRole("vendor"),requireCatalogDocuments);
   app.use(brandingRouter);
   app.use(catalogExcelRouter);
   app.use(adminManagementRouter);
   app.use(deliveryPartnerRouter);
+  app.use(pickupPhotosRouter);
   app.use(storeManagementRouter);
   app.use(vendorDocumentsRouter);
+  app.use(bankDetailsRouter);
   app.use(catalogManagementRouter);
   app.use(masterCatalogRouter);
   app.use(customerManagementRouter);
@@ -126,6 +137,8 @@ export function createApp() {
   app.use(customerSettingsRouter);
   app.use(productImagesRouter);
   app.use(customerCartRouter);
+  // Reports precede parameterized order-detail routes (report.pdf is not a UUID).
+  app.use(reportsRouter);
   app.use(ordersRouter);
 
   app.use(
@@ -169,7 +182,7 @@ export function createApp() {
 
       const detail = error instanceof Error ? error.stack ?? error.message : String(error);
       process.stderr.write(
-        `${process.env.NODE_ENV === "development" ? detail : "Unhandled request error"}\n`,
+        `${_request.path.includes("/bank-details") ? "Bank request failed (sensitive details withheld)" : process.env.NODE_ENV === "development" ? detail : "Unhandled request error"}\n`,
       );
       response.status(500).json({ error: "Internal server error" });
     },

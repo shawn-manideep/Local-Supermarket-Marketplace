@@ -13,6 +13,8 @@ export type StoreProfileValues = {
   city?: string | null;
   state?: string | null;
   pincode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   deliveryFee?: string | number | null;
   handlingFee?: string | number | null;
   minimumOrderValue?: string | number | null;
@@ -36,8 +38,9 @@ function ProfileField({ label, name, values, disabled, variant, type = "text", r
   return <label className={vendor ? "vendor-label" : "lb-admin-field"}>
     <span>{label}{required && <span className="lb-required-mark" aria-hidden="true"> *</span>}</span>
     <input className={vendor ? "vendor-input" : ""} name={name} type={type} defaultValue={value ?? values[name] ?? ""} required={required}
-      min={type === "number" ? 0 : undefined} max={type === "number" ? 1_000_000 : undefined}
-      step={type === "number" ? 0.01 : undefined}
+      min={type === "number" ? (name === "latitude" ? -90 : name === "longitude" ? -180 : 0) : undefined}
+      max={type === "number" ? (name === "latitude" ? 90 : name === "longitude" ? 180 : 1_000_000) : undefined}
+      step={type === "number" ? (name === "latitude" || name === "longitude" ? "any" : 0.01) : undefined}
       maxLength={name === "pincode" ? 6 : maxLength} inputMode={name === "pincode" ? "numeric" : inputMode} disabled={disabled}
       {...(name === "pincode" ? { pattern: "[1-9][0-9]{5}", minLength: 6 } : {})}
       {...(name === "logoImageUrl" ? { placeholder: "https://…" } : {})} />
@@ -80,13 +83,21 @@ export function StoreProfileFields({ values = {}, disabled = false, variant = "a
         </div>
       </div>
       <div className={vendor ? "vendor-address-group" : "lb-admin-address-group"}>
+        <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Exact location · optional</strong>
+        <p className={vendor ? "vendor-text-muted" : "lb-admin-secondary"}>Enter coordinates manually if a map pin is unavailable. Latitude −90 to 90; longitude −180 to 180.</p>
+        <div className={vendor ? "vendor-profile-fields-grid" : "lb-admin-provision-grid"}>
+          {field("Latitude", "latitude", { type: "number", value: values.latitude ?? "", inputMode: "decimal" })}
+          {field("Longitude", "longitude", { type: "number", value: values.longitude ?? "", inputMode: "decimal" })}
+        </div>
+      </div>
+      {!vendor && <div className="lb-admin-address-group">
         <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Store operations</strong>
         <div className={vendor ? "vendor-profile-fields-grid" : "lb-admin-provision-grid"}>
           {field("Delivery fee (₹)", "deliveryFee", { type: "number", value: values.deliveryFee, inputMode: "decimal" })}
           {field("Handling fee (₹)", "handlingFee", { type: "number", value: values.handlingFee ?? "0.00", inputMode: "decimal", required: true })}
           {field("Minimum order value (₹)", "minimumOrderValue", { type: "number", value: values.minimumOrderValue, inputMode: "decimal" })}
         </div>
-      </div>
+      </div>}
     </div>
   </div>;
 }
