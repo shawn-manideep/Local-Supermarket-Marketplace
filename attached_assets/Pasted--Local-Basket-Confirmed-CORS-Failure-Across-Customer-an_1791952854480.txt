@@ -1,0 +1,27 @@
+## Local Basket — Confirmed CORS Failure Across Customer and Vendor Portals
+
+New evidence from Mac Chrome DevTools confirms:
+
+- Vendor login request returns HTTP 403 Forbidden.
+- The response body is exactly `{"error":"Origin is not allowed"}`.
+- The request is a POST to `/api/vendor/login`.
+- The Customer login endpoint previously returned the same origin rejection from an unapproved origin.
+- The backend's global CORS middleware rejects the request before credential validation.
+- The app is running inside the Replit workspace's embedded preview.
+
+### Required actions
+
+1. Inspect the actual `Origin` request header for the failed Customer and Vendor requests. Identify the exact preview origin being rejected.
+2. Inspect the global CORS middleware and its allowed-origin configuration, including environment variables and any development-preview handling.
+3. Determine why the legitimate Replit preview origin is not accepted. Do not infer the origin from the API hostname or Referer header.
+4. Fix the shared CORS configuration so legitimate configured preview origins can access the API across Customer, Vendor, Delivery Partner, and Admin portals.
+5. Preserve strict origin validation for untrusted origins. Do not use wildcard CORS, disable origin validation, or trust arbitrary `*.replit.dev` hostnames without an explicit security design.
+6. Preserve existing authentication, session handling, role permissions, and credential validation.
+7. Add focused tests covering approved origins, rejected origins, preflight requests, and the affected login endpoints.
+8. Confirm that a rejected origin still receives 403 and an approved origin can reach normal credential validation. Use a deliberately invalid test submission if needed; do not change real user credentials.
+9. Do not restart occupied services blindly. Inspect existing process and port ownership before any restart.
+10. Do not deploy or modify production configuration.
+
+### Report
+
+Provide the exact rejected Origin, the root cause, files or environment variables changed, test results, and any remaining manual steps. Stop after reporting so I can verify the fix in my browser.
