@@ -1,0 +1,86 @@
+# Local Basket — WhatsApp OTP Authentication Architecture Audit ONLY
+
+## Objective
+
+Prepare a safe implementation plan to migrate Customer, Vendor, and Delivery Partner authentication from username/password to mobile number + WhatsApp OTP.
+
+Admin authentication must remain unchanged.
+
+**AUDIT ONLY: Do not modify code, database schema, migrations, environment variables, Supabase settings, provider configuration, or existing user records. Do not install packages or send OTPs.**
+
+## 1. Inspect the existing authentication architecture
+
+Inspect the actual repository and document:
+
+- Supabase project/client configuration and current authentication providers.
+- Customer registration, login, account identity, session persistence, and `/api/auth/me` validation.
+- Vendor username registry, vendor profile linkage, login, approval status, and mandatory document verification.
+- Delivery Partner username registry, account provisioning, active/inactive status, and login.
+- Admin authentication and server-side ADMIN role enforcement.
+- Backend middleware, authentication routes, RLS policies, account-role checks, and token validation.
+- All frontend login screens and authentication-related API calls.
+- Current database tables, constraints, and migrations relevant to user identity and phone numbers.
+- Existing development versus production environment separation.
+
+Identify whether Customer, Vendor, and Delivery Partner accounts use the same or different Supabase Auth identities. Do not assume their username or profile identifiers are interchangeable.
+
+## 2. Phone-number identity and migration risks
+
+Determine:
+
+- Whether every existing account has a verified mobile number.
+- Whether multiple accounts or roles can share the same mobile number.
+- Whether phone numbers can be added to existing accounts without creating duplicate users.
+- How an OTP-verified phone number will map to the correct existing account.
+- How to prevent an unregistered number from accidentally creating a new Customer, Vendor, or Delivery Partner account during login.
+- How to preserve vendor approval/document requirements and delivery partner active/inactive restrictions.
+- How account recovery, number changes, and lost-phone scenarios should work.
+- Whether existing username/password login can remain available during a controlled migration.
+
+Do not expose account existence during OTP requests. Do not automatically merge accounts based solely on an unverified phone number. Do not allow users to choose or impersonate another role after OTP verification.
+
+## 3. Evaluate the WhatsApp provider
+
+Evaluate Supabase Phone Auth with Twilio Verify as the first option. Compare it with direct Twilio WhatsApp integration only if there is a concrete technical reason.
+
+Document:
+
+- Required Supabase Auth provider settings.
+- Required Twilio account, WhatsApp sender, authentication template, credentials, and approvals.
+- Whether a trial/sandbox can test the complete intended Supabase authentication flow.
+- Exact environment variables and which belong exclusively on the server.
+- OTP expiration, resend cooldown, attempt limits, rate limiting, CAPTCHA/abuse prevention, and provider error handling.
+- Applicable India pricing, message charges, verification charges, taxes, and possible Supabase plan costs.
+- Whether any provider limitations or existing identity architecture require an alternative design.
+
+Use official provider documentation and clearly label unverified pricing or configuration details.
+
+## 4. Proposed migration plan
+
+Prepare staged implementation phases:
+
+1. Configure provider and test in development.
+2. Add or verify phone-number association and ownership verification.
+3. Implement OTP request and verification for existing accounts.
+4. Test correct role resolution and all approval/active-state restrictions.
+5. Migrate existing accounts safely without resetting passwords or changing account ownership.
+6. Test Customer, Vendor, and Delivery Partner web/mobile sessions.
+7. Roll out OTP as the primary login method while retaining a controlled rollback path.
+8. Remove password login for these three roles only after successful acceptance.
+9. Keep Admin authentication unchanged throughout.
+
+Specify the rollback approach and any unavoidable account-enrollment steps.
+
+## 5. Required deliverable
+
+Return a concise but complete report containing:
+
+- Current architecture and identity mapping.
+- Relevant files, routes, tables, and migrations.
+- Missing or unverified phone-number data.
+- Recommended provider and cost assumptions.
+- Security and migration risks.
+- Phased implementation plan and acceptance tests.
+- Any decisions or manual setup required from me.
+
+Do not implement anything. Do not deploy. Stop after delivering the audit report so I can review it before authorizing the implementation.
