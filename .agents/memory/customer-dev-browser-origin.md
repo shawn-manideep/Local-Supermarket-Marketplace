@@ -21,3 +21,16 @@ gap through tool output or authentication changes is unnecessary.
 isolated browser context. Emit only sanitized assertions/screenshots, bound
 browser startup and cleanup, and remove temporary profiles on failure as well
 as success. Never copy credentials into code, reports, or tool arguments.
+
+The embedded workspace preview may send this application's legacy `.repl.co`
+Origin even when the runtime development hostname ends in `.replit.dev`.
+Approve only explicitly verified application origins; never infer the browser
+Origin from the API URL, Referer, or workspace parent page.
+
+**Why:** Mac Chrome login evidence identified a project-specific `.repl.co`
+origin that the development-only `.replit.dev` allowlist rejected before
+credentials were checked.
+
+**How to apply:** Obtain the failed request's actual Origin and use its
+canonical scheme/host/port (without a path or trailing slash). Keep compatibility
+aliases explicit and development-only; do not allow arbitrary Replit subdomains.
