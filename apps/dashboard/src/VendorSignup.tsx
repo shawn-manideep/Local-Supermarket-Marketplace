@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { resetPasswordSchema, usernameSchema } from "@workspace/validation";
+import { portalResetPasswordSchema, usernameSchema } from "@workspace/validation";
 import { vendorRegistrationSchema } from "@workspace/validation/vendor-profile";
 import { apiRequest } from "./api";
 import { PasswordInput } from "./AuthControls";
 import { supabase } from "./supabase";
+import { MobileVendorSignup } from "./MobileVendorSignup";
 
 type Registration = {
   username: string; name: string; ownerName: string; phone: string;
@@ -21,6 +22,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
   onCompleted?: () => void;
 }) {
   const [email, setEmail] = useState("");
+  const [legacyRegistration, setLegacyRegistration] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [fields, setFields] = useState<Registration>(() => ({
@@ -33,7 +35,8 @@ export function VendorSignup({ session, onBack, onCompleted }: {
 
   const begin = async (event: FormEvent) => {
     event.preventDefault();
-    const checked = resetPasswordSchema.safeParse(password);
+    if (!legacyRegistration) return;
+    const checked = portalResetPasswordSchema.safeParse(password);
     const name = usernameSchema.safeParse(fields.username);
     const shop = vendorRegistrationSchema.shape.name.safeParse(fields.name);
     if (!shop.success) {
@@ -86,6 +89,10 @@ export function VendorSignup({ session, onBack, onCompleted }: {
       autoComplete={autoComplete} value={fields[key]}
       onChange={event => { setFields(old => ({ ...old, [key]: event.target.value })); setError(""); }} /></label>
   );
+  if (!session && !legacyRegistration) return <MobileVendorSignup onBack={onBack} onLegacy={shopName => {
+    setFields(old => ({ ...old, name: shopName })); setLegacyRegistration(true);
+    setError(""); setMessage(""); setPassword(""); setConfirmation("");
+  }} />;
   return (
     <form className="auth-form" onSubmit={session ? finish : begin}>
       <p className="eyebrow">Local Basket · Vendor</p>
@@ -101,7 +108,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
       {!session ? <>
         <label>Email address<input type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} /></label>
         <label>Password<PasswordInput autoComplete="new-password" required maxLength={128} value={password} onChange={event => setPassword(event.target.value)} /></label>
-        <label>Confirm password<PasswordInput autoComplete="new-password" required maxLength={128} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label>
+        <label>Confirm Password<PasswordInput autoComplete="new-password" required maxLength={128} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label>
       </> : <>
         {input("ownerName", "Owner name", "name")}
         {input("phone", "Contact number", "tel")}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { indianMobileSchema } from "./mobile-auth.js";
 export { formatQuantity, formatVariantName, formatPrice } from "./variant-formatting.js";
 export { indianMobileSchema, mobileLoginSchema } from "./mobile-auth.js";
 
@@ -12,6 +13,15 @@ export const resetPasswordSchema = z.string().min(8, "Use at least 8 characters"
 export const portalResetPasswordSchema = resetPasswordSchema
   .regex(/\p{L}/u, "Include at least one letter.")
   .regex(/\d/, "Include at least one number.");
+// Form validation only: neither a valid number nor matching passwords proves
+// ownership. No mobile signup may consume this input before secure enrollment.
+export const mobileRegistrationSchema = z.object({
+  mobileNumber: indianMobileSchema,
+  password: portalResetPasswordSchema,
+  confirmation: z.string().min(1).max(128),
+}).strict().refine(value => value.password === value.confirmation, {
+  message: "Passwords must match.", path: ["confirmation"],
+});
 export function isPasswordOwner(
   auth: { userId?: string; role?: string } | undefined,
   userId: string | undefined,

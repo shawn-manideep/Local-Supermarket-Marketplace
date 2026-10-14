@@ -32,7 +32,7 @@ import {
 import { PhoneInput } from "./src/components/PhoneInput";
 import { ConfirmationDialog } from "./src/components/ConfirmationDialog";
 import { fontWeights } from "./src/theme";
-import { usernameSchema, indianMobileSchema } from "@workspace/validation";
+import { usernameSchema, indianMobileSchema, portalResetPasswordSchema } from "@workspace/validation";
 import { loginCustomerUsername, loginCustomerMobile } from "@workspace/api-client-react";
 import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/components/AuthControls";
 import { CustomerBrandingLogo } from "./src/components/CustomerBrandingLogo";
@@ -45,6 +45,7 @@ import { AccountPrivacyScreen } from "./src/AccountPrivacyScreen";
 import { addressStreetLines, isLegacyAddress } from "./src/lib/address-format";
 import { useLanguageScope, useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
+import { MobileRegistrationForm } from "./src/components/MobileRegistrationForm";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings" | "help" | "privacy" | "accountPrivacy" | "terms";
 
@@ -148,12 +149,21 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
   const [username, setUsername] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [legacyLogin, setLegacyLogin] = useState(false);
+  const [legacyRegistration, setLegacyRegistration] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(initialMessage);
 
   const submit = async () => {
+    if (mode === "signup") {
+      if (!legacyRegistration) return;
+      if (!portalResetPasswordSchema.safeParse(password).success) {
+        setMessage("Use at least 8 characters, including a letter and a number."); return;
+      }
+      if (password !== confirmation) { setMessage("Passwords must match."); return; }
+    }
     setBusy(true);
     setMessage("");
     try {
@@ -178,6 +188,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
       setMessage("Unable to authenticate. Check your details and try again.");
     } finally {
       setPassword("");
+      setConfirmation("");
       setBusy(false);
     }
   };
@@ -208,7 +219,12 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
           {t("Shop fresh. Shop local.")}
         </Text>
         <View style={styles.authForm}>
-          {mode === "recovery" ? <CustomerRecoveryForm initialIdentity={legacyLogin ? username : mobileNumber} identityType={legacyLogin ? "legacy" : "mobile"} onBack={() => setMode("signin")} /> : <>
+          {mode === "signup" && !legacyRegistration ? <>
+            <MobileRegistrationForm onLegacy={() => { setLegacyRegistration(true); setPassword(""); setConfirmation(""); setMessage(""); }} />
+            <Pressable accessibilityRole="button" onPress={() => { setMode("signin"); setMessage(""); }} style={styles.authOutline}>
+              <Text style={styles.authOutlineText}>{t("Back to sign in")}</Text>
+            </Pressable>
+          </> : mode === "recovery" ? <CustomerRecoveryForm initialIdentity={legacyLogin ? username : mobileNumber} identityType={legacyLogin ? "legacy" : "mobile"} onBack={() => setMode("signin")} /> : <>
           {mode === "signin" && !legacyLogin ? <>
           <Text style={typography.body}>{t("Mobile sign-in requires verified ownership. Existing customers can use their username below.")}</Text>
           <Field
@@ -248,6 +264,8 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
           />
+          {mode === "signup" && <PasswordField label={t("Confirm Password")} placeholder={t("Re-enter your password")}
+            autoComplete="new-password" onChangeText={setConfirmation} value={confirmation} />}
           {!!message && <Text style={styles.errorText}>{localizeCustomerMessage(message, t)}</Text>}
           <Pressable
             accessibilityRole="button"
@@ -271,6 +289,8 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
             onPress={() => {
               setMode(mode === "signin" ? "signup" : "signin");
               setPassword("");
+              setConfirmation("");
+              setLegacyRegistration(false);
               setMessage("");
             }}
             style={styles.authOutline}
