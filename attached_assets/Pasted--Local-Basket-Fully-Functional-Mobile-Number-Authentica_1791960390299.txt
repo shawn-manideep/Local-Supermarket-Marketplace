@@ -1,0 +1,158 @@
+# Local Basket — Fully Functional Mobile-Number Authentication for Customer, Vendor and Delivery Partner
+
+Implement a complete, secure mobile-number-and-password authentication experience across all three portals. The forms must perform real authentication and account creation—not just UI validation.
+
+Before changing code, inspect the current implementation, Supabase Auth configuration, existing account identities, registration flows, recovery routes, and role authorization. Build on the existing architecture and preserve existing accounts.
+
+## 1. Customer, Vendor and Delivery Partner Login
+
+Create a clean, consistent login page for each portal.
+
+Fields:
+- Mobile Number
+- Password
+
+Controls:
+- Show/hide password
+- Forgot Password?
+- Sign In
+- Sign Up
+
+Requirements:
+- Remove email-based login fields, email-login wording, and email login options from these three portals.
+- Accept valid Indian mobile numbers consistently, supporting 10 digits and the +91 prefix.
+- Normalize phone numbers consistently on registration and login.
+- Authenticate the correct existing account and preserve its Supabase Auth UUID.
+- Return clear, user-friendly errors for invalid credentials, unverified numbers, inactive accounts, and unauthorized roles.
+- Do not disclose whether a particular phone number belongs to an account.
+- Preserve Customer account restrictions, Vendor approval/document requirements, and Delivery Partner active/inactive restrictions.
+- Do not change Admin authentication, login, or recovery.
+
+## 2. Functional Sign Up
+
+Provide a working Sign Up option on the Customer and Vendor login pages.
+
+### Customer registration
+Fields:
+- Mobile Number
+- Password
+- Confirm Password
+- Create Account button
+
+### Vendor registration
+Fields:
+- Shop Name
+- Mobile Number
+- Password
+- Confirm Password
+- Create Account button
+
+Requirements:
+- Validate the mobile number, password strength, and matching passwords.
+- Create a real account through the supported authentication and backend registration flow.
+- Associate the correct role and existing profile/store architecture.
+- Prevent duplicate accounts and duplicate phone-number assignments.
+- Do not create fake email addresses or mark phone numbers verified without proof of ownership.
+- Require actual mobile-number ownership verification before trusting the number as a login identity.
+- New Vendors must remain subject to Admin approval and mandatory document verification.
+- Do not provide public Delivery Partner self-registration; partners remain Admin-provisioned.
+- Do not automatically approve a Vendor or activate an inactive Partner.
+- Preserve existing account IDs, stores, orders, inventory, and delivery assignments.
+
+## 3. Fully Functional Forgot Password
+
+The Forgot Password screen must contain:
+
+- New Password
+- Re-enter Password
+- Confirm Password button
+
+Do not ask for email or username in the visible reset form.
+
+Requirements:
+- Validate password strength and ensure both password values match.
+- The Confirm Password button must perform the actual password update after successful account-ownership verification.
+- Display success/failure messages and return the user to the relevant login page after success.
+- Do not allow password changes merely because someone knows or enters another person's mobile number.
+- Use a supported Supabase recovery/session mechanism or a properly verified recovery flow.
+- Do not bypass authentication, directly modify password hashes, or create an insecure password-reset API.
+- If account ownership verification requires a separate step, keep the requested password fields visible but prevent saving until verification succeeds.
+- Prevent a successful reset from accidentally granting the wrong role or account access.
+- Preserve Admin's existing recovery flow.
+
+## 4. Required Architecture Investigation
+
+The previous audit established that:
+- Supabase Phone Auth is currently disabled.
+- Existing registration and password authentication depend on email.
+- Vendor onboarding currently depends on an email-verified identity.
+- Existing users do not yet have verified Auth phone numbers.
+- The current mobile registration forms validate details but do not create accounts.
+
+Resolve these actual architectural blockers rather than making another UI-only change.
+
+Evaluate the supported Supabase Phone Auth and phone/password approach, existing-account enrollment, secure recovery, and provider requirements.
+
+Before enabling any provider:
+1. Confirm whether the connected development Supabase project is isolated from production.
+2. Do not experiment on a project that may serve production users.
+3. Determine the necessary development-only provider configuration and any associated cost.
+4. Keep existing password login available as a fallback until the new flow passes acceptance testing.
+
+Do not claim that email-free registration or recovery works unless it has been verified end to end.
+
+## 5. Security and Account Migration
+
+- Preserve existing Supabase Auth user IDs and role mappings.
+- Require verified phone ownership before associating a number with an account.
+- Do not substitute address recipient numbers or historical order contact numbers for login identities.
+- Enforce phone uniqueness and reject conflicts safely.
+- Do not automatically merge multiple accounts.
+- Do not allow role selection to grant authorization.
+- Enforce role, approval, suspension, document, and active-status checks on the backend.
+- Apply appropriate OTP/recovery rate limits, expiration, abuse protection, and generic error responses.
+- Keep service-role credentials and provider secrets server-side or in the provider's secure configuration.
+- Do not expose credentials in frontend variables or logs.
+
+## 6. Implementation and Acceptance Tests
+
+The implementation is complete only when all applicable checks pass:
+
+1. Existing enrolled Customers can log in using mobile number and password.
+2. Existing enrolled Vendors can log in without losing approval/document restrictions.
+3. Existing active Delivery Partners can log in using mobile number and password.
+4. A new Customer can register without entering an email address and subsequently log in.
+5. A new Vendor can register without entering an email address and remains pending approval.
+6. Invalid, duplicate, unverified, and conflicting phone numbers are handled safely.
+7. Forgot Password changes the real password only after valid account verification.
+8. The old password no longer works after a successful password change.
+9. The new password works after a successful password change.
+10. Expired recovery states and unauthorized reset attempts are rejected.
+11. Inactive Partners, suspended Vendors, and unauthorized roles remain blocked.
+12. Admin login and recovery remain unchanged.
+13. Existing accounts, stores, orders, stock, and delivery records remain intact.
+14. Relevant automated tests, typechecks, API builds, Customer exports, and Dashboard builds pass.
+
+I will perform manual browser testing myself. Do not run automated browser tests.
+
+## 7. Scope and Delivery Rules
+
+- Do not deploy to production.
+- Do not change production credentials or provider settings.
+- Do not modify unrelated projects.
+- Do not weaken authentication or role permissions.
+- Do not fabricate successful registrations or password resets.
+- Do not change unrelated business logic.
+- Use additive, forward-only migrations if genuinely required.
+- Do not configure paid services or incur charges without explicit approval.
+- If the isolated development environment or provider configuration is not ready, implement the safe portions and report the precise remaining blocker rather than bypassing security.
+
+At completion, report:
+- Files and migrations changed
+- Provider or environment setup required
+- Which registration, login, and recovery flows were actually tested end to end
+- Test and build results
+- Any remaining manual setup
+- Whether email-free account creation and password recovery are genuinely functional
+
+Stop after reporting and wait for manual acceptance before deployment.

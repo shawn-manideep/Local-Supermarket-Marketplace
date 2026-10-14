@@ -1,0 +1,45 @@
+# Local Basket — Improve Signup Feedback and Preview Access
+
+Make a focused UX improvement to the Customer and Vendor signup flows. Inspect the current implementation first and reuse existing navigation and public-preview functionality.
+
+## 1. Replace the confusing signup message
+
+Currently, when a user enters a new mobile number and password, the form displays a message such as “Check the current details.”
+
+Replace this with a clear, user-friendly message explaining that mobile-number registration is not yet available because secure phone verification has not been configured.
+
+Do not show a generic validation error when the entered details are valid but account creation is unavailable.
+
+## 2. Provide a Sign In option
+
+After a user submits valid signup details:
+- Display a clear explanation that no account has been created.
+- Show a prominent **Sign In** button that navigates to the existing login screen.
+- Preserve the existing legacy sign-in option for users who already have accounts.
+- Provide a **Back to Sign Up** option where appropriate.
+- Do not clear entered details unexpectedly during validation.
+- Do not create a duplicate account or display a false registration-success message.
+
+## 3. Allow public preview access where appropriate
+
+If the application already supports a public customer preview, allow visitors to navigate to it without creating an account.
+
+- Add a clearly labelled **Explore Preview** or **View Store Preview** option to the relevant signup/login screens.
+- Allow browsing of public store listings and product information that is already intended to be publicly accessible.
+- Keep checkout, placing orders, personal addresses, order history, account settings, and other protected features behind authentication.
+- Do not grant authenticated sessions or assign account roles to visitors.
+- Do not expose private vendor data, customer data, internal Admin functions, or protected API responses.
+- Do not create a new public-access backend route unless necessary and explicitly justified.
+
+For Vendor signup, do not grant access to protected vendor management, inventory, orders, documents, or store editing without an authorized Vendor account. If an existing vendor preview is available, it must remain read-only and use safe demo/public data.
+
+## 4. Scope and testing
+
+- Apply the appropriate changes to Customer and Vendor signup/login screens.
+- Do not change Admin authentication or Delivery Partner provisioning.
+- Do not enable WhatsApp OTP, modify Supabase provider settings, or create accounts.
+- Do not deploy or modify production configuration.
+- Run relevant existing tests, typechecks, and builds.
+- Do not run automated browser tests; I will test manually.
+
+Report the files changed, public-preview access behavior, security restrictions, and test results. Stop for manual verification.
