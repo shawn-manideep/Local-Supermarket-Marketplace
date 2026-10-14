@@ -1,0 +1,309 @@
+# Local Supermarket Marketplace — Consolidated Feature Enhancements
+
+## Project Instructions
+
+Work only on the existing **Local Supermarket Marketplace** project in this Replit workspace.
+
+Before making changes, inspect the existing frontend, backend APIs, database schema, migrations, authentication, permissions, Vendor portal, Customer portal, Delivery Partner portal, Admin portal, order workflow, notification system, and file-storage implementation.
+
+Implement the following requirements within the existing architecture. Reuse existing components, APIs, database tables, authentication, and workflows wherever possible.
+
+**Important restrictions:**
+- Do not modify unrelated projects or repositories.
+- Do not perform production deployment or change production configuration.
+- Do not introduce unnecessary new modules, dashboards, mappings, or complex workflows.
+- Do not weaken authentication, authorization, data isolation, or existing business rules.
+- Do not introduce OTP, SMS, WhatsApp, or paid notification providers without explicit approval.
+- Do not expose bank details, customer information, private documents, or delivery photographs to unauthorized users.
+- Use database migrations for necessary schema changes. Preserve existing data.
+- Do not run automated browser tests. I will manually test the application in the browser.
+- After implementation, report exactly what changed, which migrations were added, which tests/builds passed, and any remaining blockers.
+
+## 1. Vendor Orders — Date Filters and Downloadable PDF
+
+Enhance the Vendor Orders page with a date-filter dropdown containing:
+
+- Recent Orders
+- Last 1 Week
+- Last 15 Days
+- Last 30 Days
+- Custom Date Range
+- All Orders — display this option at the bottom of the dropdown.
+
+Selecting an option must filter orders using their actual order placement date and time. Custom Date Range must allow the vendor to select a start date and end date.
+
+Generate a downloadable, professionally formatted PDF containing the following information:
+
+- Order date and time
+- Order ID
+- Customer name and available customer contact details
+- Delivery address, where applicable
+- Product names
+- Product quantities and selling units
+- Individual item prices
+- Line-item totals
+- Order subtotal, applicable fees and final order total, where available
+- Order status
+- Delivery status
+- Vendor/store identification
+
+The PDF must respect the selected date filter. For Custom Date Range, include only orders within the selected range.
+
+**Access rules:**
+- Each Vendor can download PDFs only for their own store's orders.
+- Admin can download PDFs for any vendor/store and apply the same date filters.
+- Admin should be able to identify the store and vendor associated with each order.
+- Do not allow vendors to access another vendor's orders by changing URL parameters or API requests.
+
+Follow the existing project’s currency, timezone, PDF-generation, and order-total conventions. Avoid recalculating financial values differently from the authoritative order records.
+
+## 2. Store Profile — Admin-Only Fees and Exact Store Location
+
+Remove the Delivery Fee and Handling Fee fields from the Vendor Store Profile page.
+
+These fee settings must be configurable by Admin only. Vendors must not be able to view or modify these settings through the Vendor interface or direct API requests.
+
+Ensure the fees continue to be applied correctly during customer checkout and order-total calculation according to the existing business rules.
+
+Add an option for vendors to enter their exact store location. Prefer an address/location form that supports a map pin and latitude/longitude coordinates where the current technology supports it.
+
+Requirements:
+- Store location must be saved accurately and associated with the correct store.
+- Admin must be able to view and manage the store location.
+- Validate coordinates and address fields.
+- If map integration requires a new paid API or external service, do not enable it without approval. Provide a suitable manual location-entry fallback.
+- Do not expose private location data beyond the permissions required for store discovery, delivery, and administration.
+
+## 3. Vendor Documents and Mandatory Bank Details
+
+Update the Vendor profile/document section.
+
+### A. Vendor photo
+
+Change the vendor photo from mandatory to optional. A missing photo must not block vendor submission or Admin review.
+
+Do not make other mandatory documents optional unless explicitly specified.
+
+### B. Bank Details dropdown
+
+Add a clearly labeled **Bank Details** dropdown/expandable section in which the Vendor can enter and save the following fields:
+
+1. Bank Account Holder Name — required
+2. Labour License — required where applicable to the vendor's business; treat it as a required compliance document for this project unless an existing regulatory rule establishes otherwise
+3. Bank Account Number — required
+4. IFSC Code — required
+5. Bank Name — required
+6. Bank Branch — required
+7. Vendor Mobile Number — required
+
+Validate all fields appropriately. Validate the IFSC format and account-number input without assuming all bank account numbers have the same length.
+
+The Labour License must be handled as a compliance document, not mistakenly stored as a bank account field. If it is uploaded as a document, store it using the existing secure document-upload mechanism and show its submission/review status.
+
+### C. Vendor approval and access control
+
+A Vendor must not be permitted to access the operational catalog or receive new orders until:
+
+- All mandatory documents have been submitted.
+- All required bank details have been completed.
+- Admin has reviewed and approved the required documents and bank details.
+- The vendor/store is otherwise active and approved under the existing business rules.
+
+Implement server-side enforcement, not just disabled buttons in the UI.
+
+Before approval, the Vendor should still be able to sign in and access the profile, Bank Details, mandatory document submission, and approval-status information so they can complete pending requirements.
+
+Admin must be able to:
+- Review submitted documents and bank details.
+- Approve or reject the submission.
+- Record rejection reasons.
+- View the submission and approval status.
+- Request corrections and allow the Vendor to resubmit.
+- View the vendor's approval history where supported by the existing audit architecture.
+
+If bank details or mandatory documents change after approval, mark the relevant information as requiring review again. Apply a safe access policy so an unapproved change cannot silently bypass the approval requirement.
+
+Bank account numbers and other sensitive details must be masked in normal display wherever appropriate. Only authorized Admin users may view the full details. Never include full bank details in logs, public APIs, customer responses, or PDFs.
+
+Preserve existing vendor accounts and records. Add a migration only if required, with a safe and explicit treatment of existing vendors whose new approval status has not been reviewed.
+
+## 4. Delivery Partner — Capture and Securely Store Order Photograph
+
+Before a Delivery Partner picks up an order, provide a camera option to capture **one photograph of the complete order/package**.
+
+The workflow must:
+- Allow the partner to capture a photograph using a supported device camera.
+- Show a preview and allow recapture before submission.
+- Require the photograph before confirming pickup, unless an explicitly authorized exception mechanism already exists.
+- Associate the photograph with the correct order, delivery assignment, partner, and capture time.
+- Upload and store the image securely in the existing cloud storage architecture.
+- Display the saved photograph to the assigned Delivery Partner and authorized Admin users.
+- Allow Admin to inspect the photograph for security and operational oversight.
+- Prevent customers, unrelated vendors, unrelated delivery partners, and unauthenticated users from accessing private image URLs.
+
+Use private storage and authenticated access or short-lived signed URLs, as appropriate. Do not make the storage bucket public merely to simplify image display.
+
+Handle camera permission denial, upload failure, retry, and poor network connectivity safely. Do not mark an order as picked up if the required photograph has not been securely saved.
+
+Do not add product-by-product photography; one complete package photograph is sufficient.
+
+## 5. Order Notifications and Vendor/Customer Order Workflow
+
+### A. New order notification for Vendor
+
+When a customer places an order, notify the correct Vendor.
+
+When the Vendor portal is open, show an in-app popup/banner with a **View Order** action. Clicking it should open the relevant order details, including products, quantities, item prices, and order total.
+
+The Vendor should be able to Accept or Reject the order from the relevant order view.
+
+Keep the Vendor's main order actions conveniently accessible, using a sticky/fixed bottom action area where appropriate, so the Vendor does not need to scroll to the bottom of a long order page to accept the order or mark it ready.
+
+Ensure sticky controls do not cover important content or conflict with mobile navigation.
+
+### B. Background and closed-portal notifications
+
+The user requires notifications to reach Vendors and eligible Delivery Partners even when their portals are in the background or closed.
+
+Inspect the existing notification infrastructure first.
+
+- Implement in-app notifications for active sessions.
+- Use an existing supported push-notification mechanism if one is already configured.
+- If background/closed-app notifications require additional push infrastructure, credentials, service-worker setup, platform configuration, or a paid provider, clearly identify the requirements and implement only the parts supported by the existing project without secrets or provider access.
+- Do not claim that closed-app notifications work unless the complete mechanism is implemented and verified.
+- Do not add OTP, SMS, WhatsApp, or paid services without explicit approval.
+- Handle duplicate and delayed notifications safely. A notification must never cause the same order to be accepted or assigned twice.
+
+### C. Customer-visible order statuses
+
+The Customer portal must display these statuses in order:
+
+Placed → Accepted → Preparing → Ready → Out for Delivery → Delivered
+
+Rejected or cancelled orders must retain their appropriate separate terminal statuses and existing business rules.
+
+Maintain valid transitions in the database and APIs. Do not merely change displayed labels while leaving the underlying workflow inconsistent.
+
+### D. Simplified Vendor workflow
+
+The Vendor must not have a separate manual **Preparing** action.
+
+The intended Vendor workflow is:
+
+1. New order notification appears.
+2. Vendor opens the order and reviews the items and amounts.
+3. Vendor Accepts or Rejects.
+4. After accepting, the Vendor can proceed directly to the **Mark as Ready** action.
+5. Mark as Ready updates the order to Ready for the Customer and initiates delivery-partner assignment/notification.
+
+The Customer should still see the Preparing status between Accepted and Ready, even though the Vendor does not have to click a separate Preparing button.
+
+Represent Preparing consistently in the backend, order history, or status projection using the existing architecture. Do not fabricate an event timestamp or claim a state transition occurred when it did not. Preserve a clear, auditable sequence of status changes.
+
+Rejecting an order must follow existing authorization and stock-restoration rules.
+
+### E. Delivery Partner assignment
+
+When an order is marked Ready:
+- Notify eligible Delivery Partners.
+- Only active and eligible partners should be offered the delivery.
+- The first eligible partner who successfully accepts the assignment must win.
+- Implement assignment as an atomic server-side/database operation to prevent two partners from acquiring the same order during simultaneous acceptance.
+- Losing partners should receive a clear response that the delivery is no longer available.
+- Admin must be able to inspect the assignment and delivery history.
+
+Preserve the existing delivery workflow and valid states, including acceptance, pickup, Out for Delivery, and Delivered. Pickup must enforce the required package-photo step.
+
+Do not allow a partner to pick up or deliver an order assigned to someone else.
+
+## 6. Daily Delivery Report — Delivery Partner and Admin
+
+Provide a daily delivery report for each Delivery Partner.
+
+The report must contain:
+- Delivery Partner ID
+- Delivery/Order ID
+- Amount
+- Vendor ID
+- Delivery date/time and status, where available
+
+Each Delivery Partner must be able to generate and download a report containing only their own deliveries for a selected day.
+
+Admin must have access to reports for all Delivery Partners and must be able to select an individual partner and date, or view a consolidated report for all partners.
+
+Requirements:
+- Use the authoritative order/delivery records for report data.
+- Include only deliveries that actually belong to the selected partner and date.
+- Avoid duplicate entries when assignments are retried or statuses are updated.
+- Define the daily reporting date using the application's Asia/Kolkata timezone convention.
+- Use the existing PDF/export infrastructure if available; otherwise implement an appropriate downloadable report.
+- Do not expose another partner's deliveries through API manipulation or modified identifiers.
+- Admin access must be enforced on the server.
+
+## 7. Customer Checkout — Add New Address
+
+Add a clearly visible **+ Add New Address** option on the Customer Checkout page.
+
+The Customer should be able to:
+- Add a new delivery address without leaving checkout unnecessarily.
+- Enter the address using the existing structured-address fields and validation.
+- Save the new address to their own account.
+- Select the newly added address for the current order.
+- See the selected address clearly before placing the order.
+
+The new address must persist for future orders where appropriate.
+
+Preserve existing saved addresses, address-selection behavior, checkout calculations, delivery-fee rules, and order-placement validation.
+
+Enforce ownership server-side so a Customer cannot create, edit, select, or delete another Customer's address.
+
+Handle cancellation or validation errors without losing the current cart.
+
+## 8. Admin Oversight and Security
+
+Apply this security principle throughout the above features:
+
+**Admin must have appropriate oversight of the functionality and records available to Vendors and Delivery Partners, while each Vendor and Delivery Partner remains restricted to their own authorized data.**
+
+Admin access should include, where relevant:
+- Vendor order lists and order PDFs across stores.
+- Vendor documents, bank-detail review, and approval status.
+- Store profiles, location, and Admin-controlled fees.
+- Delivery photographs, assignments, and delivery status/history.
+- Daily delivery reports across partners.
+- Relevant notification and workflow status for troubleshooting.
+
+Admin oversight does not mean every Admin user may bypass all controls. Continue to require the existing authenticated Admin role and server-side authorization.
+
+Do not expose Vendor bank details, private documents, or delivery photographs to Customers or unrelated vendors/partners. Do not weaken row-level security or rely solely on frontend route guards.
+
+Keep an appropriate audit trail for sensitive approval decisions and important order/delivery transitions, using the existing audit mechanism wherever available.
+
+## 9. Implementation and Verification
+
+Before coding:
+1. Inspect the existing implementation and identify the relevant components, APIs, database objects, migrations, and authorization policies.
+2. Map each requirement to its actual implementation location.
+3. Identify dependencies or conflicts with the current order, inventory, and delivery workflow.
+4. Reuse existing patterns and avoid duplicate implementations.
+
+During implementation:
+- Add only necessary schema changes and migrations.
+- Preserve existing data and account identities.
+- Enforce important rules in backend/database logic, not only in the UI.
+- Keep fees, order totals, stock, and delivery assignments consistent.
+- Handle concurrent order acceptance and delivery assignment safely.
+- Ensure mobile layouts remain usable.
+- Do not introduce production changes or deployment steps.
+
+After implementation:
+1. Run relevant existing unit, integration, authorization, migration, and backend tests. Do not run automated browser tests.
+2. Run the appropriate frontend and backend builds.
+3. Review migration safety and confirm that existing records are preserved.
+4. Check role-based access paths, including Vendor, Delivery Partner, Customer, and Admin.
+5. Report which requirements are fully implemented, partially implemented, or blocked by missing configuration.
+6. List the exact files changed and migrations created.
+7. Clearly identify any additional configuration or credentials needed for background/closed-app notifications.
+8. Provide a short manual testing checklist for me to execute in the browser.
+
+**Do not report a feature as fully working merely because the UI exists. Verify its backend enforcement and implementation. Do not claim background push notifications are operational unless the required infrastructure is configured and working.**
