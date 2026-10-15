@@ -1,0 +1,70 @@
+## Additional Requirements — Local Supermarket Marketplace
+
+### 1. Store Location — Map Pinning Facility
+
+Replace the manual longitude and latitude input fields in the Vendor Store Profile with an interactive **map-pinning facility**.
+
+Requirements:
+- Display an interactive map where the Vendor can search for a location and pin the exact store location by clicking or tapping on the map.
+- Allow the Vendor to drag the pin to adjust the location.
+- Automatically capture and save the corresponding latitude and longitude from the selected pin in the backend. These coordinates must not need to be entered manually.
+- Display the selected address wherever supported by the existing map integration.
+- Allow the Vendor to review and update the pinned location.
+- Admin must be able to view the saved store location and coordinates.
+- Preserve the existing store-location data and provide a suitable migration if necessary.
+- Reuse an existing map provider if available. Do not introduce a paid map API or expose API secrets without approval. If map configuration is unavailable, clearly report the blocker and provide a suitable fallback rather than displaying a nonfunctional map.
+
+### 2. FSSAI Expiry Notifications for Vendors
+
+Notify Vendors when their FSSAI license is approaching its expiry date and when it expires.
+
+Requirements:
+- Capture and store the FSSAI expiry date against the correct vendor's compliance document.
+- Notify the Vendor before expiry, preferably 30 days and 7 days before the expiry date, and again on the expiry date.
+- If the license is already expired, display a prominent expired-license notification when the Vendor signs in and on the relevant Vendor dashboard.
+- Show the license expiry date and current status: Valid, Expiring Soon, or Expired.
+- Admin must be able to view the FSSAI expiry date and status for every Vendor.
+- Where an existing notification mechanism supports scheduled or background notifications, use it. Otherwise, implement an appropriate date-based status check and in-app notification, and clearly report any additional infrastructure required for scheduled or push notifications.
+- Prevent duplicate notifications for the same vendor and expiry milestone.
+- Use the Asia/Kolkata timezone consistently.
+- Enforce the existing compliance and approval rules server-side. An expired license must trigger the appropriate review or access restriction according to the project's compliance policy; do not silently treat an expired license as valid.
+- Do not fabricate expiry dates for existing records. Allow Vendors or Admins to provide the actual date.
+
+### 3. Automatic Delivery Assignment — First Eligible Partner to Accept
+
+When a Vendor marks an order as **Ready**, notify all eligible Delivery Partners about the available delivery.
+
+Requirements:
+- The Vendor must not manually select or assign a Delivery Partner.
+- Notify all eligible, active Delivery Partners through the supported notification mechanism.
+- Each notification should identify the available order sufficiently for the partner to decide whether to accept it, without exposing unnecessary customer or sensitive information before assignment.
+- The first eligible Delivery Partner to accept successfully must be assigned the order automatically.
+- Assignment must be atomic and enforced by the backend/database so simultaneous acceptance attempts cannot assign the same order to multiple partners.
+- Once assigned, mark the delivery as unavailable to other partners and update their interfaces or notify them that another partner accepted it.
+- The assigned partner can then follow the existing pickup, required package-photo capture, Out for Delivery, and Delivered workflow.
+- Admin must be able to view the assigned partner and delivery history.
+- Preserve stock, order-status, cancellation, and authorization rules.
+- Handle offline partners, delayed notifications, expired offers, and duplicate acceptance requests safely using the existing architecture.
+- Do not introduce paid notification providers or new credentials without approval.
+
+### 4. Vendor Notification When a Customer Places an Order
+
+Notify the relevant Vendor immediately after a Customer successfully places an order.
+
+Requirements:
+- Show an in-app popup or notification with a **View Order** action when the Vendor portal is open.
+- Clicking View Order must open the correct order details, including products, quantities, item prices, and order total.
+- Support notifications while the portal is in the background or closed only where the required push-notification infrastructure is configured and operational.
+- Ensure the notification is sent only after successful order creation. Failed or rolled-back orders must not trigger a new-order notification.
+- Prevent duplicate notifications for the same order.
+- Ensure the notification reaches only the Vendor associated with the order.
+- Admin must also be able to view the relevant order and notification status for oversight.
+- Keep the Vendor's Accept/Reject and Mark as Ready actions easily accessible on mobile and desktop.
+
+### Implementation Instructions
+
+Integrate these requirements into the existing implementation without removing or weakening any previously agreed functionality. Inspect the current map, FSSAI/document, notification, order, and delivery-assignment implementations before making changes.
+
+Make the smallest necessary changes, preserve existing data, add migrations only where needed, enforce security on the backend, run relevant non-browser tests and frontend/backend builds, and provide a precise report of implemented features and any configuration blockers.
+
+Do not claim that map pinning, scheduled expiry notifications, or background/closed-portal notifications are fully operational unless the necessary implementation and configuration are in place.

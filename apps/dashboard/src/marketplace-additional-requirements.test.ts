@@ -62,6 +62,8 @@ test("store profile uses a clickable draggable map and hidden form fields, not c
   assert.match(map, /MAP_PROVIDER\.attribution/);
   assert.match(map, /new URL\(MAP_PROVIDER\.reverse\)/);
   assert.match(map, /url\.searchParams\.set\("q", query\.trim\(\)\)/);
+  assert.match(map, /role="search"/);
+  assert.doesNotMatch(map, /<form/);
 });
 
 test("vendor compliance and persistent notification UI use server status and generated feed contracts", async () => {
@@ -80,6 +82,8 @@ test("vendor compliance and persistent notification UI use server status and gen
   assert.match(admin, /\/api\/admin\/vendors\/\$\{encodeURIComponent\(vendorId\)\}\/notifications/);
   assert.match(admin, /does not prove browser delivery/);
   assert.match(admin, /\/documents\/\$\{encodeURIComponent\(documentId\)\}\/expiry/);
+  assert.match(admin, /View order details/);
+  assert.match(admin, /onViewOrder\(notice\.orderId!\)/);
 });
 
 test("vendor assignment UI is read-only and partner offers use claim polling", async () => {

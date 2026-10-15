@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Map as LeafletMap, Marker } from "leaflet";
 
 export const MAP_PROVIDER = {
@@ -49,6 +49,7 @@ export function StoreLocationMap({ latitude, longitude, editable }: { latitude?:
   const [mapReady, setMapReady] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const reverseController = useRef<AbortController | null>(null);
   const stableInitial = useRef(`${latitude ?? ""}:${longitude ?? ""}`);
   useEffect(() => {
     const nextKey = `${latitude ?? ""}:${longitude ?? ""}`;
@@ -155,23 +156,34 @@ export function StoreLocationMap({ latitude, longitude, editable }: { latitude?:
     return () => { active = false; };
   }, [point]);
 
-  const locateLabel = async (coords: Coordinates) => {
+  const locateLabel = async (coords: Coordinates, signal: AbortSignal) => {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), MAP_PROVIDER.timeoutMs);
+    const abortLookup = () => controller.abort();
+    signal.addEventListener("abort", abortLookup, { once: true });
+    const timeout = window.setTimeout(abortLookup, MAP_PROVIDER.timeoutMs);
     try {
       const url = new URL(MAP_PROVIDER.reverse);
       url.searchParams.set("lat", String(coords.latitude));
       url.searchParams.set("lon", String(coords.longitude));
       const features = await photon(url, controller.signal);
-      if (features[0]) setLabel(placeLabel(features[0].properties) || "Pinned location");
+      if (!signal.aborted && features[0]) setLabel(placeLabel(features[0].properties) || "Pinned location");
     } catch {
-      setLabel("Pinned coordinates");
-    } finally { window.clearTimeout(timeout); }
+      if (!signal.aborted) setLabel("Pinned coordinates");
+    } finally {
+      window.clearTimeout(timeout);
+      signal.removeEventListener("abort", abortLookup);
+    }
   };
-  useEffect(() => { if (point) void locateLabel(point); }, [point?.latitude, point?.longitude]);
+  useEffect(() => {
+    reverseController.current?.abort();
+    if (!point) { setLabel(""); return; }
+    const controller = new AbortController();
+    reverseController.current = controller;
+    void locateLabel(point, controller.signal);
+    return () => controller.abort();
+  }, [point?.latitude, point?.longitude]);
 
-  const search = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const search = async () => {
     if (!query.trim() || busy) return;
     setBusy(true); setSearchError(""); setResults([]);
     const controller = new AbortController();
@@ -183,7 +195,7 @@ export function StoreLocationMap({ latitude, longitude, editable }: { latitude?:
       const features = await photon(url, controller.signal);
       const found = features.flatMap((feature) => {
         const coordinates = feature.geometry?.coordinates;
-        if (!coordinates || !Number.isFinite(coordinates[0]) || !Number.isFinite(coordinates[1])) return [];
+        if (!coordinates || !validCoordinates(coordinates[1], coordinates[0])) return [];
         return [{ coordinates: { longitude: coordinates[0], latitude: coordinates[1] }, label: placeLabel(feature.properties) || "Search result" }];
       });
       setResults(found);
@@ -202,11 +214,11 @@ export function StoreLocationMap({ latitude, longitude, editable }: { latitude?:
   return <div className="lb-store-location">
     {editable && <>
       <p className="lb-store-location-copy">Search for an address, then pin the precise storefront entrance. Tap or click to place the pin; drag it to refine.</p>
-      <form className="lb-location-search" onSubmit={(event) => void search(event)}>
+      <div className="lb-location-search" role="search">
         <label className="lb-sr-only" htmlFor="store-location-search">Search location</label>
-        <input id="store-location-search" aria-label="Search location" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search street, area, or landmark" />
-        <button type="submit" disabled={busy || !query.trim()}>{busy ? "Searching…" : "Search"}</button>
-      </form>
+        <input id="store-location-search" aria-label="Search location" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") { event.preventDefault(); void search(); } }} placeholder="Search street, area, or landmark" />
+        <button type="button" disabled={busy || !query.trim()} onClick={() => void search()}>{busy ? "Searching…" : "Search"}</button>
+      </div>
       {searchError && <p className="lb-location-error" role="status">{searchError}</p>}
       {results.length > 0 && <ul className="lb-location-results">{results.map((result, index) => <li key={`${result.coordinates.latitude}:${result.coordinates.longitude}`}><button type="button" onClick={() => chooseResult(result)}>{result.label || `Result ${index + 1}`}</button></li>)}</ul>}
     </>}

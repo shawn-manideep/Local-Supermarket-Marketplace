@@ -113,6 +113,7 @@ function headingFor(section: Section) {
 
 export function AdminPortal({ token, session, userId, onLogout }: Props) {
   const [section, setSection] = useState<Section>(sectionFromPath);
+  const [notificationOrderId, setNotificationOrderId] = useState<string | undefined>();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuButton = useRef<HTMLButtonElement>(null);
   const mobileSidebar = useRef<HTMLElement>(null);
@@ -331,7 +332,9 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
               {section !== "profile" && section !== "branding" && section !== "orders" && <button className="lb-admin-button" type="button" onClick={reload} disabled={section === "dashboard" && dashboardLoading}>{section === "dashboard" && dashboardLoading ? "Refreshing…" : "Refresh data"}</button>}
             </header>
             {section === "dashboard" && <Dashboard data={dashboard} loading={dashboardLoading} error={dashboardError} retry={reload} go={navigate} />}
-            {section === "orders" && <OrderOperations token={token} vendor={false} onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
+            {section === "orders" && <OrderOperations token={token} vendor={false} initialOrderId={notificationOrderId}
+              onInitialOrderHandled={() => setNotificationOrderId(undefined)}
+              onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
             {section === "master-catalog" && <AdminMasterCatalogPanel token={token} onMessage={(text, kind = "success") => setMessage({ text, kind })} />}
             {section === "branding" && <AdminBranding token={token} />}
             {(section === "vendors" || section === "customers" || section === "delivery-partners") && <AccountDirectory key={section} kind={section} token={token} revision={revision} onOpen={openDetail} onProvisioned={(text) => { setMessage({ text, kind: "success" }); reload(); }} />}
@@ -344,7 +347,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           <div className="lb-admin-detail-head"><div><p className="lb-admin-eyebrow">Account record</p><h2>{detail?.displayName || "Account details"}</h2></div><button className="lb-admin-close" type="button" onClick={closeDetail} aria-label="Close details">×</button></div>
           {detailLoading && <div className="lb-admin-loading" aria-label="Loading account details"><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /><div className="lb-admin-skeleton" /></div>}
           {detailError && <div className="lb-admin-message error" role="alert">{detailError}{detailTarget && <button className="lb-admin-row-action" type="button" onClick={() => openDetail(detailTarget.kind, detailTarget.id)}>Try again</button>}</div>}
-          {detail && (section === "vendors" || section === "customers" || section === "delivery-partners") && <AccountDetail kind={section} account={detail} token={token} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} onSaved={async () => { await refreshDetail(section, detail.id); reload(); setMessage({ text: "Vendor store profile saved.", kind: "success" }); }} />}
+          {detail && (section === "vendors" || section === "customers" || section === "delivery-partners") && <AccountDetail kind={section} account={detail} token={token} busy={statusBusy} onStatus={(status) => void changeStatus(section, detail, status)} onSaved={async () => { await refreshDetail(section, detail.id); reload(); setMessage({ text: "Vendor store profile saved.", kind: "success" }); }} onViewOrder={(orderId) => { setNotificationOrderId(orderId); setSection("orders"); }} />}
         </aside>
       </div>}
     </div>
@@ -518,7 +521,7 @@ function DocumentVerificationPill({ value }: { value: AdminRow["documentVerifica
   return <span className={`lb-admin-doc-directory-status lb-admin-doc-verification-${value.toLowerCase()}`}>{label}</span>;
 }
 
-function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind: AdminKind; account: AdminDetail; token: string; busy: boolean; onStatus: (status: string) => void; onSaved: () => void }) {
+function AccountDetail({ kind, account, token, busy, onStatus, onSaved, onViewOrder }: { kind: AdminKind; account: AdminDetail; token: string; busy: boolean; onStatus: (status: string) => void; onSaved: () => void; onViewOrder: (orderId: string) => void }) {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
   const noVendorStore = kind === "vendors" && !account.storeId;
@@ -574,7 +577,7 @@ function AccountDetail({ kind, account, token, busy, onStatus, onSaved }: { kind
     </div>
     {kind === "delivery-partners" && account.activeAssignments > 0 && <div className="lb-admin-message notice" style={{ marginTop: 17 }}>This partner has {account.activeAssignments} active assignment{account.activeAssignments === 1 ? "" : "s"}. Deactivation preserves existing duties and blocks partner operations; this portal will not cancel or reassign work.</div>}
     {kind === "vendors" && account.store && <VendorDetailGroups account={account} />}
-    {kind === "vendors" && <AdminVendorDocuments key={account.id} vendorId={account.id} token={token} />}
+    {kind === "vendors" && <AdminVendorDocuments key={account.id} vendorId={account.id} token={token} onViewOrder={onViewOrder} />}
     {kind === "vendors" && account.hours && account.hours.length > 0 && <section className="lb-admin-panel lb-admin-detail-hours"><div className="lb-admin-panel-head"><h3>Operations · operating hours</h3></div><div>{account.hours.slice().sort((a,b) => a.dayOfWeek-b.dayOfWeek).map((hour) => <div className="lb-admin-hour-line" key={hour.dayOfWeek}><strong>{["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][hour.dayOfWeek]}</strong><span>{hour.isClosed ? "Closed" : `${hour.opensAt?.slice(0,5) ?? "—"}–${hour.closesAt?.slice(0,5) ?? "—"}`}</span></div>)}</div></section>}
     {noVendorStore && <div className="lb-admin-message notice" style={{ marginTop: 17 }}>No store is linked to this vendor. Store status changes are unavailable until a store is associated.</div>}
     {!noVendorStore && account.allowedStatuses.length > 0 && <div className="lb-admin-detail-actions">{account.allowedStatuses.filter((status) => status !== account.status).map((status) => <button key={status} className={`lb-admin-button ${isDestructive(status) ? "danger" : "primary"}`} type="button" disabled={busy} onClick={() => onStatus(status)}>{busy ? "Updating…" : actionLabel(kind, account.status, status)}</button>)}</div>}

@@ -85,10 +85,8 @@ export function StoreProfileFields({ values = {}, disabled = false, variant = "a
       </div>
       <div className={vendor ? "vendor-address-group" : "lb-admin-address-group"}>
         <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Exact store location · optional</strong>
-        {vendor ? <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={!disabled} /> : <>
-          <p className="lb-admin-secondary">Coordinates are read-only in this profile form.</p>
-          <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={false} />
-        </>}
+        {!vendor && <p className="lb-admin-secondary">Review the saved pin or place/drag it to update the exact location.</p>}
+        <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={!disabled} />
       </div>
       {!vendor && <div className="lb-admin-address-group">
         <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Store operations</strong>

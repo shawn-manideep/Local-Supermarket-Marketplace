@@ -23,7 +23,7 @@ function errorMessage(error: unknown) {
   return "Vendor documents could not be loaded. Check your connection and try again.";
 }
 
-export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; token: string }) {
+export function AdminVendorDocuments({ vendorId, token, onViewOrder }: { vendorId: string; token: string; onViewOrder?: (orderId: string) => void }) {
   const [status, setStatus] = useState<VendorDocumentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -313,7 +313,9 @@ export function AdminVendorDocuments({ vendorId, token }: { vendorId: string; to
         <p>Feed mode: {notifications ? String(notifications.deliveryMode).replaceAll("_", " ") : "checking"}. Creation and read acknowledgement only; this does not prove browser delivery. Background delivery is not configured here.</p>
         {!notifications ? <p className="lb-admin-secondary">Notification feed is unavailable.</p> : notifications.notifications.length === 0
           ? <p className="lb-admin-secondary">No recent notification records.</p>
-          : <ul>{notifications.notifications.map((notice) => <li key={notice.id}><strong>{notice.kind === "NEW_ORDER" ? `Order ${notice.orderId ?? ""}` : "FSSAI expiry"}</strong><span>{notice.message}</span><small>Created {formatDate(notice.createdAt)} · {notice.readAt ? `Acknowledged ${formatDate(notice.readAt)}` : "Unread"}</small></li>)}</ul>}
+          : <ul>{notifications.notifications.map((notice) => <li key={notice.id}><strong>{notice.kind === "NEW_ORDER" ? `Order ${notice.orderId ?? ""}` : "FSSAI expiry"}</strong><span>{notice.message}</span><small>Created {formatDate(notice.createdAt)} · {notice.readAt ? `Acknowledged ${formatDate(notice.readAt)}` : "Unread"}</small>
+            {notice.kind === "NEW_ORDER" && notice.orderId && onViewOrder && <button className="lb-admin-button" type="button" onClick={() => onViewOrder(notice.orderId!)}>View order details</button>}
+          </li>)}</ul>}
       </section>
       {submittedForReview && <div className="lb-admin-doc-reject-form">
         <label>Rejection reason<textarea value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength={1000} rows={2} placeholder="Explain which mandatory document needs correction." /></label>

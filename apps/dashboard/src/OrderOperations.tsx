@@ -214,7 +214,7 @@ function AdminDetail({ detail, token, busy, onClose }: {
   );
 }
 
-function AdminOrderOperations({ token, stores: providedStores, storeId, onMessage }: { token: string; stores?: Array<Pick<Store, "id" | "name">>; storeId?: string; onMessage: (message: string, kind?: "success" | "error") => void; }) {
+function AdminOrderOperations({ token, stores: providedStores, storeId, initialOrderId, onInitialOrderHandled, onMessage }: { token: string; stores?: Array<Pick<Store, "id" | "name">>; storeId?: string; initialOrderId?: string; onInitialOrderHandled?: () => void; onMessage: (message: string, kind?: "success" | "error") => void; }) {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState("ALL");
@@ -286,6 +286,11 @@ function AdminOrderOperations({ token, stores: providedStores, storeId, onMessag
       }
     } finally { if (requestGeneration === detailGeneration.current) setDetailLoading(false); }
   };
+  useEffect(() => {
+    if (!initialOrderId) return;
+    void openDetail(initialOrderId);
+    onInitialOrderHandled?.();
+  }, [initialOrderId, onInitialOrderHandled]);
   return (
     <section className="order-section">
       <div className="section-heading"><div><p className="eyebrow">Platform operations</p><h2>Order oversight</h2><p className="muted">Read-only platform visibility across every store and order.</p></div><button className="secondary-button" data-testid="button-refresh-orders" disabled={loading} onClick={() => void load()} type="button">{loading ? "Refreshing…" : "Refresh orders"}</button></div>

@@ -75,7 +75,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
   const [documentStatus, setDocumentStatus] = useState<VendorDocumentStatus | null>(null);
   const [notifications, setNotifications] = useState<VendorNotification[]>([]);
   const [notificationError, setNotificationError] = useState("");
-  const [notificationDeliveryMode, setNotificationDeliveryMode] = useState<VendorNotificationFeed["deliveryMode"]>("IN_APP_POLLING");
+  const [notificationDeliveryMode, setNotificationDeliveryMode] = useState<VendorNotificationFeed["deliveryMode"]>("IN_APP_REALTIME_WITH_POLLING");
   const [initialOrderId, setInitialOrderId] = useState<string | undefined>();
   const surfacedNotificationIds = useRef<Set<string>>(new Set());
   const navigateVendor = (tab: Tab) => {

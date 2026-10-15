@@ -302,7 +302,7 @@ export function VendorDocumentsPanel({ token, onMessage, onChanged, currentStatu
                 disabled={Boolean(uploadingType) || verification === "SUBMITTED"}
                 inputRef={(element) => { fileInputs.current[item.type] = element; }}
                 onUpload={(file) => {
-                  if (file && verification === "APPROVED" && !window.confirm("Replacing an approved mandatory document will invalidate this approval and lock new-only catalog access until Admin reviews the replacement. Continue?")) return;
+                  if (file && verification === "APPROVED" && !window.confirm("Replacing an approved mandatory document will invalidate the current approval and lock catalog access and new orders until Admin reviews the replacement. Continue?")) return;
                   void uploadDocument(item.type, file);
                 }}
                 onChoose={() => fileInputs.current[item.type]?.click()}
