@@ -14,6 +14,7 @@ import type { CustomerShoppingCategory } from "./lib/api";
 import { canPurchaseVariant, cartItemInput, discoveryQuery, freshCartSelection, initialVariantId, retainedVariantId, shoppingError, matchingCustomerStores } from "./lib/shopping";
 import { HomeHistory } from "./HomeHistory";
 import { FavoriteControl } from "./components/FavoriteControl";
+import { isCustomerAppForeground, subscribeToCustomerForeground } from "./lib/app-lifecycle";
 import { useSavedItems } from "./SavedItemsContext";
 import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerBrandingLogo } from "./components/CustomerBrandingLogo";
@@ -228,6 +229,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     if (active) void savedItems.load(pincode || undefined);
   }, [active, pincode]);
   const refreshCart = useCallback(async () => {
+    if (cartSummaryInFlight.current) return;
+    cartSummaryInFlight.current = true;
     const generation = ++cartSummaryGeneration.current;
     try {
       await waitForCartQuantityWrites();
@@ -239,8 +242,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
       setCartSummaryError(false);
       onCartUnitsChange?.(count);
     } catch { setCartSummaryError(true); }
+    finally { cartSummaryInFlight.current = false; }
   }, [onCartUnitsChange]);
   const cartSummaryGeneration = useRef(0);
+  const cartSummaryInFlight = useRef(false);
   useEffect(() => {
     if (!cartUpdate) return;
     ++cartSummaryGeneration.current;
@@ -249,6 +254,16 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
     setCartSummaryError(false);
   }, [cartUpdate]);
   useEffect(() => { if (active) void refreshCart(); }, [refreshCart, active]);
+  useEffect(() => {
+    if (!active) return;
+    let mounted = true;
+    const refresh = () => {
+      if (mounted && isCustomerAppForeground()) void refreshCart();
+    };
+    const timer = setInterval(refresh, 12_000);
+    const unsubscribe = subscribeToCustomerForeground(refresh);
+    return () => { mounted = false; clearInterval(timer); unsubscribe(); };
+  }, [active, refreshCart]);
   useEffect(() => {
     let active = true;
     customerApi<{ profile: CustomerProfile }>("/api/customer/profile")
@@ -291,15 +306,15 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   }, [pincode]);
   useEffect(() => {
     if (!active || !store?.id || !pincode) return;
-    const refresh = () => { void refreshStoreMetadata(store.id); };
+    const refresh = () => {
+      if (isCustomerAppForeground()) void refreshStoreMetadata(store.id);
+    };
     refresh();
-    const timer = setInterval(refresh, 45_000);
-    const subscription = AppState.addEventListener("change", state => { if (state === "active") refresh(); });
-    if (Platform.OS === "web" && typeof window !== "undefined") window.addEventListener("focus", refresh);
+    const timer = setInterval(refresh, 15_000);
+    const unsubscribe = subscribeToCustomerForeground(refresh);
     return () => {
       clearInterval(timer);
-      subscription.remove();
-      if (Platform.OS === "web" && typeof window !== "undefined") window.removeEventListener("focus", refresh);
+      unsubscribe();
       ++storeMetadataGeneration.current;
     };
   }, [active, store?.id, pincode, refreshStoreMetadata]);
@@ -473,8 +488,8 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
   useEffect(() => {
     if (!active || !product || !store || !pincode) return;
     let cancelled = false;
-    const timer = setInterval(() => {
-      if (cartAddInFlight.current) return;
+    const refresh = () => {
+      if (cancelled || cartAddInFlight.current || !isCustomerAppForeground()) return;
       const generation = ++productRefreshGeneration.current;
       customerApi<{ product: CustomerProduct }>(`/api/customer/stores/${store.id}/products/${product.id}?pincode=${pincode}`)
         .then(result => {
@@ -485,8 +500,10 @@ export function MarketplaceScreen({ openAddresses, openCart, resetToken, onCartU
         .catch(reason => {
           if (!cancelled && generation === productRefreshGeneration.current) setError(shoppingError(reason, "Couldn't refresh availability. Please reopen this product."));
         });
-    }, 30_000);
-    return () => { cancelled = true; clearInterval(timer); };
+    };
+    const timer = setInterval(refresh, 12_000);
+    const unsubscribe = subscribeToCustomerForeground(refresh);
+    return () => { cancelled = true; clearInterval(timer); unsubscribe(); };
   }, [active, product?.id, store?.id, pincode]);
 
   const currentCartSelection = (listing: CustomerProduct, variantId: string, generation: number) => {

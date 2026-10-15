@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { keepVendorProfile, isCurrentSessionFailure } from "./vendor-session";
+import { keepVendorProfile, isCurrentSessionFailure, keepVerifiedPortalOnTransientCheckFailure } from "./vendor-session";
 import { readFile } from "node:fs/promises";
 import { vendorRegistrationSchema } from "@workspace/validation/vendor-profile";
 import { resetPasswordSchema } from "@workspace/validation";
@@ -15,6 +15,11 @@ test("refresh and tab rerenders keep only the same Vendor identity; logout and a
   assert.equal(keepVendorProfile({ ...vendor, role: "customer" }, "vendor-1"), false);
   assert.equal(isCurrentSessionFailure("old-token", "new-token"), false);
   assert.equal(isCurrentSessionFailure("current-token", "current-token"), true);
+  assert.equal(keepVerifiedPortalOnTransientCheckFailure("partner-1", "partner-1", 503), true);
+  assert.equal(keepVerifiedPortalOnTransientCheckFailure("partner-1", "partner-1", undefined), true);
+  assert.equal(keepVerifiedPortalOnTransientCheckFailure("partner-1", "partner-1", 401), false);
+  assert.equal(keepVerifiedPortalOnTransientCheckFailure("partner-1", "partner-1", 403), false);
+  assert.equal(keepVerifiedPortalOnTransientCheckFailure("partner-1", "partner-2", 503), false);
 });
 
 test("registration requires real store fields and rejects status, document bypass and pricing assignments", () => {
@@ -49,4 +54,14 @@ test("Vendor signup uses verified provider identity and pending store; recovery 
   assert.match(vendor, /hidden=\{currentTab !== "catalog"\}/);
   assert.match(controls, /supabase\.auth\.updateUser\(\{ password \}\)/);
   assert.match(controls, /password !== confirmation/);
+});
+
+test("portal focus revalidates authorization without treating transient API failures as logout", async () => {
+  const app = await read("./App.tsx");
+  assert.match(app, /window\.addEventListener\("focus", scheduleCheck\)/);
+  assert.match(app, /window\.addEventListener\("online", scheduleCheck\)/);
+  assert.match(app, /keepVerifiedPortalOnTransientCheckFailure\(profile\?\.userId, session\.user\.id, status\)/);
+  assert.match(app, /status === 401 \|\| status === 403/);
+  assert.match(app, /await supabase\?\.auth\.signOut\(\)/);
+  assert.match(app, /Retry access check/);
 });

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { randomUUID } from "expo-crypto";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { CustomerText as Text } from "./components/CustomerTypography";
 import { customerApi, type CustomerAddress, type CustomerOrderDetail, type CustomerOrderSummary, type RepeatOrderPreview, type RepeatOrderResult } from "./lib/api";
+import { isCustomerAppForeground, subscribeToCustomerForeground } from "./lib/app-lifecycle";
 import { colors, fontWeights, radius, spacing, typography, commonStyles, shadows } from "./theme";
 import { ConfirmationDialog } from "./components/ConfirmationDialog";
 import { reorderInput, reorderItemLabel, reorderPreviewQuery, reorderSummary } from "./lib/reorder";
@@ -47,18 +48,48 @@ export function OrdersScreen({ initialOrderId, onRepeatAdded, onContinueShopping
   };
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
+  const listInFlight = useRef(false);
+  const listController = useRef<AbortController | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async (background = false) => {
+    if (listInFlight.current && background) return;
+    if (listInFlight.current) listController.current?.abort();
+    listInFlight.current = true;
     const request = ++listGeneration.current;
-    setLoading(true); setError("");
+    const controller = new AbortController();
+    listController.current = controller;
+    if (!background) { setLoading(true); setError(""); }
     try {
-      const result = await customerApi<{ orders: CustomerOrderSummary[] }>("/api/customer/orders");
-      if (request === listGeneration.current) setOrders(result.orders);
+      const result = await customerApi<{ orders: CustomerOrderSummary[] }>("/api/customer/orders", { signal: controller.signal });
+      if (request === listGeneration.current) { setOrders(result.orders); setError(""); }
     }
-    catch (reason) { if (request === listGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load orders."); }
-    finally { if (request === listGeneration.current) setLoading(false); }
-  };
-  useEffect(() => { void load(); }, []);
+    catch (reason) { if (!controller.signal.aborted && request === listGeneration.current) setError(reason instanceof Error ? reason.message : "Unable to load orders."); }
+    finally {
+      if (listController.current === controller) {
+        listInFlight.current = false;
+        listController.current = null;
+      }
+      if (request === listGeneration.current) setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+    return () => {
+      ++listGeneration.current;
+      listController.current?.abort();
+      listController.current = null;
+      listInFlight.current = false;
+    };
+  }, [load]);
+  useEffect(() => {
+    if (selected) return;
+    const refresh = () => {
+      if (isCustomerAppForeground()) void load(true);
+    };
+    const timer = setInterval(refresh, 12_000);
+    const unsubscribe = subscribeToCustomerForeground(refresh);
+    return () => { clearInterval(timer); unsubscribe(); };
+  }, [load, selected?.id]);
 
   const open = async (id: string) => {
     const request = ++detailGeneration.current;
@@ -309,24 +340,36 @@ function OrderDetail({ order, back, refresh, onRepeat }: { order: CustomerOrderD
   useEffect(() => {
     setLocalOrder(order);
     const controller = new AbortController();
+    let active = true;
+    let refreshing = false;
     const refreshStatus = async () => {
-      if (cancelInFlight.current) return;
+      if (!active || refreshing || cancelInFlight.current || !isCustomerAppForeground()) return;
+      refreshing = true;
       const generation = ++refreshGeneration.current;
       try {
         const result = await customerApi<{ order: CustomerOrderDetail }>(`/api/customer/orders/${order.id}`, { signal: controller.signal });
-        if (!controller.signal.aborted && generation === refreshGeneration.current) {
+        if (active && !controller.signal.aborted && generation === refreshGeneration.current) {
           setLocalOrder(result.order);
           setError("");
         }
       } catch {
-        if (!controller.signal.aborted && generation === refreshGeneration.current) {
+        if (active && !controller.signal.aborted && generation === refreshGeneration.current) {
           setError("Could not refresh order status. Your last verified status is shown.");
         }
+      } finally {
+        refreshing = false;
       }
     };
-    const timer = setInterval(() => { void refreshStatus(); }, 45_000);
-    return () => { controller.abort(); clearInterval(timer); ++refreshGeneration.current; };
-  }, [order]);
+    const timer = setInterval(() => { void refreshStatus(); }, 12_000);
+    const unsubscribe = subscribeToCustomerForeground(() => { void refreshStatus(); });
+    return () => {
+      active = false;
+      controller.abort();
+      clearInterval(timer);
+      unsubscribe();
+      ++refreshGeneration.current;
+    };
+  }, [order.id]);
 
   const handleCancel = async () => {
     if (cancelInFlight.current) return;

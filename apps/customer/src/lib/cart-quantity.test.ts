@@ -39,7 +39,9 @@ function fixture(options: { fail?: boolean; delayed?: boolean } = {}) {
 }
 test("minus above one decrements exactly one and updates exact-money totals immediately", async () => {
   const f = fixture();
+  const initialVersion = f.controller.version();
   f.controller.adjust("line-a", -1);
+  assert.ok(f.controller.version() > initialVersion);
   const visible = f.changes.at(-1)!;
   assert.equal(visible!.items[0]!.quantity, 2);
   assert.equal(visible!.subtotal, "27.60"); assert.equal(visible!.total, "32.60");

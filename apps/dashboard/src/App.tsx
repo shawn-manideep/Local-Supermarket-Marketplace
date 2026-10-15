@@ -10,7 +10,7 @@ import { matchesAdminPath } from "./admin/route-access";
 import { usernameSchema, indianMobileSchema } from "@workspace/validation";
 import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
 import { VendorSignup } from "./VendorSignup";
-import { isCurrentSessionFailure, keepVendorProfile } from "./vendor-session";
+import { isCurrentSessionFailure, keepVendorProfile, keepVerifiedPortalOnTransientCheckFailure } from "./vendor-session";
 import { BrandingLogo } from "./BrandingLogo";
 
 type Role = "customer" | "vendor" | "admin" | "delivery_partner";
@@ -21,6 +21,7 @@ export default function App() {
   const [profile, setProfile] = useState<AuthProfile["auth"] | null>(null);
   const [authLoading, setAuthLoading] = useState(!supabaseConfigMissing);
   const [roleLoading, setRoleLoading] = useState(false);
+  const [profileCheckRevision, setProfileCheckRevision] = useState(0);
   const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [legacyVendorLogin, setLegacyVendorLogin] = useState(false);
@@ -78,7 +79,10 @@ export default function App() {
       if (event === "PASSWORD_RECOVERY") {
         setRecoveryMode(true);
         window.history.replaceState(null, "", `${window.location.pathname}?recovery=1`);
-      } else if (event === "SIGNED_IN" && !new URLSearchParams(window.location.search).has("recovery")) setRecoveryMode(false);
+      } else if (event === "SIGNED_IN" && !new URLSearchParams(window.location.search).has("recovery")) {
+        setRecoveryMode(false);
+        setAuthError("");
+      }
       const sameVendor = keepVendorProfile(vendorProfileRef.current, nextSession?.user.id);
       setSession(nextSession);
       if (!sameVendor) {
@@ -94,6 +98,27 @@ export default function App() {
     };
   }, []);
 
+  // Re-check authorization after a tab/app interruption or network recovery.
+  // Supabase owns secure token persistence and refresh; focus never signs out.
+  useEffect(() => {
+    if (!session?.user.id) return;
+    let timer: number | undefined;
+    const scheduleCheck = () => {
+      if (document.visibilityState !== "visible") return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => setProfileCheckRevision(value => value + 1), 200);
+    };
+    window.addEventListener("focus", scheduleCheck);
+    window.addEventListener("online", scheduleCheck);
+    document.addEventListener("visibilitychange", scheduleCheck);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      window.removeEventListener("focus", scheduleCheck);
+      window.removeEventListener("online", scheduleCheck);
+      document.removeEventListener("visibilitychange", scheduleCheck);
+    };
+  }, [session?.user.id]);
+
   useEffect(() => {
     if (!session?.access_token) {
       setProfile(null);
@@ -101,9 +126,10 @@ export default function App() {
       return;
     }
     let active = true;
-    if (vendorProfileRef.current?.userId !== session.user.id) setRoleLoading(true);
+    const controller = new AbortController();
+    if (profile?.userId !== session.user.id) setRoleLoading(true);
     setAuthError("");
-    void apiRequest<AuthProfile>("/api/auth/me", session.access_token)
+    void apiRequest<AuthProfile>("/api/auth/me", session.access_token, { signal: controller.signal })
       .then((response) => {
         if (active) {
           setProfile(response.auth);
@@ -126,12 +152,31 @@ export default function App() {
       .catch(async (error) => {
         if (!active) return;
         const message = error instanceof Error ? error.message : "Your session could not be verified.";
-        if (error instanceof ApiRequestError && error.status === 401 && isCurrentSessionFailure(session.access_token, latestSessionRef.current?.access_token)) {
+        const status = error instanceof ApiRequestError ? error.status : undefined;
+        if (status === 401 || status === 403) {
+          try {
+            const { data } = await supabase!.auth.getSession();
+            if (controller.signal.aborted) return;
+            if (data.session?.user.id === session.user.id && data.session.access_token !== session.access_token) {
+              latestSessionRef.current = data.session;
+              setSession(data.session);
+              return;
+            }
+          } catch {
+            // Use the latest session event below if storage could not be read.
+          }
+          if (!isCurrentSessionFailure(session.access_token, latestSessionRef.current?.access_token)) return;
+          vendorProfileRef.current = null;
+          setProfile(null);
+          setAuthError(status === 403
+            ? "This portal account is no longer active. Sign in again or contact your administrator."
+            : "Your session has expired. Sign in again to continue.");
           await supabase?.auth.signOut();
-          setAuthError("Your session expired. Sign in again to continue.");
-        } else if (error instanceof ApiRequestError && error.status === 401) {
-          // A stale token's failed request must not invalidate a refreshed session.
-          return;
+        } else if (keepVerifiedPortalOnTransientCheckFailure(profile?.userId, session.user.id, status)) {
+          // A temporary API/network outage is not an authentication failure.
+          // Keep the already verified same-user portal; protected APIs still
+          // enforce the current role and account status on every operation.
+          setAuthError("");
         } else {
           vendorProfileRef.current = null;
           setProfile(null);
@@ -143,8 +188,9 @@ export default function App() {
       });
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [session?.access_token]);
+  }, [session?.access_token, profileCheckRevision]);
 
   useEffect(() => {
     if (profile?.role !== "vendor") return;
@@ -282,7 +328,7 @@ export default function App() {
   }
 
   if (authError || !profile) {
-    return <main className="page"><div className="dashboard-shell"><AuthFrame><AuthState title="Could not verify access" message={authError || "The account permissions response was incomplete."} action={signOut} /></AuthFrame></div></main>;
+    return <main className="page"><div className="dashboard-shell"><AuthFrame><AuthState title="Could not verify access" message={authError || "The account permissions response was incomplete."} action={signOut} actionLabel="Sign out" retry={() => { setAuthError(""); setProfileCheckRevision(value => value + 1); }} retryLabel="Retry access check" /></AuthFrame></div></main>;
   }
 
   if (profile.role === "customer" && session.user.user_metadata?.vendor_signup === true && !adminMode && !partnerMode) {
@@ -356,6 +402,6 @@ function AuthFrame({ children }: { children: ReactNode }) {
   return <div className="auth-frame"><BrandingLogo className="auth-mark" />{children}</div>;
 }
 
-function AuthState({ title, message, action, actionLabel = "Return to sign in" }: { title: string; message: string; action?: () => void; actionLabel?: string }) {
-  return <div className="auth-state"><p className="eyebrow">Local Supermarket Marketplace</p><h1>{title}</h1><p className="muted">{message}</p>{action && <button className="secondary-button" onClick={action} type="button">{actionLabel}</button>}</div>;
+function AuthState({ title, message, action, actionLabel = "Return to sign in", retry, retryLabel = "Retry" }: { title: string; message: string; action?: () => void; actionLabel?: string; retry?: () => void; retryLabel?: string }) {
+  return <div className="auth-state"><p className="eyebrow">Local Supermarket Marketplace</p><h1>{title}</h1><p className="muted">{message}</p>{retry && <button className="text-button" onClick={retry} type="button">{retryLabel}</button>}{action && <button className="secondary-button" onClick={action} type="button">{actionLabel}</button>}</div>;
 }

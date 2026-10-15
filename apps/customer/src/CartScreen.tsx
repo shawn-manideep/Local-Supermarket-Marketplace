@@ -10,6 +10,7 @@ import { PlaceholderImage } from "./components/PlaceholderImage";
 import { shoppingError } from "./lib/shopping";
 import { addressStreetLines } from "./lib/address-format";
 import { createCartQuantityController, waitForCartQuantityWrites } from "./lib/cart-quantity";
+import { isCustomerAppForeground, subscribeToCustomerForeground } from "./lib/app-lifecycle";
 import { useTranslation, localizeCustomerMessage } from "@workspace/localization";
 import { CustomerAddressFields } from "./components/CustomerAddressForm";
 import { blankAddress, normalizeAddressInput, validateAddressInput } from "./lib/address-entry";
@@ -37,13 +38,27 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
   const [loadFailed, setLoadFailed] = useState(false);
   const [quantityBusy, setQuantityBusy] = useState(false);
   const mounted = useRef(true);
+  const publishedSummary = useRef<{ units: number; storeName: string } | null>(null);
+  const hasPublishedSummary = useRef(false);
   const quantityController = useRef<ReturnType<typeof createCartQuantityController> | null>(null);
   if (!quantityController.current) quantityController.current = createCartQuantityController({
     write: async (itemId, quantity) => (await customerApi<{ cart: CustomerCart | null }>(`/api/customer/cart/items/${itemId}`, {
       method: "PATCH", body: JSON.stringify({ quantity }),
     })).cart,
     read: async () => (await customerApi<{ cart: CustomerCart | null }>("/api/customer/cart")).cart,
-    onChange: value => { if (mounted.current) setCart(value); onCartChange?.(value); },
+    onChange: value => {
+      if (mounted.current) setCart(value);
+      const summary = {
+        units: value?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
+        storeName: value?.storeName ?? "",
+      };
+      const previous = publishedSummary.current;
+      if (!hasPublishedSummary.current || previous?.units !== summary.units || previous.storeName !== summary.storeName) {
+        hasPublishedSummary.current = true;
+        publishedSummary.current = summary;
+        onCartChange?.(value);
+      }
+    },
     onPending: value => { if (mounted.current) setQuantityBusy(value); },
     onError: (reason, syncFailed) => { if (mounted.current) {
       setMessage(shoppingError(reason, "Unable to update your cart. Please try again."));
@@ -57,27 +72,25 @@ export function CartScreen({ openAddresses, onOrderPlaced, continueShopping, onC
     const refreshPrices = async () => {
       if (refreshing || quantityController.current!.isPending() || checkoutInFlight.current) return;
       refreshing = true;
+      const version = quantityController.current!.version();
       try {
         const { cart: fresh } = await customerApi<{ cart: CustomerCart | null }>("/api/customer/cart");
-        if (!active || quantityController.current!.isPending() || checkoutInFlight.current) return;
-        setCart(current => current && fresh && current.id === fresh.id
-          && current.items.length === fresh.items.length
-          && current.items.every(item => fresh.items.some(next => next.id === item.id && next.quantity === item.quantity))
-          ? fresh : current);
+        if (!active || quantityController.current!.isPending() || checkoutInFlight.current
+          || quantityController.current!.version() !== version) return;
+        // Replace the controller's authoritative base as well as the rendered cart:
+        // another signed-in tab may have added, removed, or repriced cart lines.
+        quantityController.current!.reset(fresh);
       } catch (reason) {
         if (active) setMessage(shoppingError(reason));
       }
       finally { refreshing = false; }
     };
-    const timer = setInterval(() => { if (AppState.currentState === "active") void refreshPrices(); }, 30_000);
-    const subscription = AppState.addEventListener("change", state => { if (state === "active") void refreshPrices(); });
-    const onFocus = () => { void refreshPrices(); };
-    if (Platform.OS === "web" && typeof window !== "undefined") window.addEventListener("focus", onFocus);
+    const timer = setInterval(() => { if (isCustomerAppForeground()) void refreshPrices(); }, 12_000);
+    const unsubscribe = subscribeToCustomerForeground(() => { void refreshPrices(); });
     return () => {
       active = false;
       clearInterval(timer);
-      subscription.remove();
-      if (Platform.OS === "web" && typeof window !== "undefined") window.removeEventListener("focus", onFocus);
+      unsubscribe();
     };
   }, []);
   const [checkoutBusy, setCheckoutBusy] = useState(false);

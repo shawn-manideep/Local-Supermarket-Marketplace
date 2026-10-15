@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import {
+  AppState,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -12,6 +13,7 @@ import {
 import { CustomerText as Text, CustomerTextInput as TextInput, CustomerTypographyProvider } from "./src/components/CustomerTypography";
 import {
   customerApi,
+  CustomerRequestError,
   type AddressInput,
   type CustomerAddress,
   type CustomerProfile,
@@ -21,6 +23,7 @@ import { MarketplaceScreen } from "./src/MarketplaceScreen";
 import { CartScreen } from "./src/CartScreen";
 import { OrdersScreen } from "./src/OrdersScreen";
 import { customerWebShellBounds } from "./src/lib/viewport-layout";
+import { retainVerifiedCustomerAccess } from "./src/lib/customer-session";
 import {
   colors,
   radius,
@@ -900,20 +903,75 @@ export default function App() {
   const [customerAccess, setCustomerAccess] = useState<"checking" | "allowed" | "denied">("checking");
   const [accessError, setAccessError] = useState("");
   const verifiedCustomer = useRef<string | null>(null);
+  const currentSession = useRef<Session | null>(null);
+  const [accessCheckRevision, setAccessCheckRevision] = useState(0);
   useLanguageScope(session?.user.id ?? null);
   useEffect(() => {
-    void supabase.auth
-      .getSession()
-      .then(({ data }) => setSession(data.session));
+    let active = true;
+    let sessionEventSeen = false;
     const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      if (!active) return;
+      sessionEventSeen = true;
       if (event === "PASSWORD_RECOVERY") {
         setRecoveryMode(true);
         if (Platform.OS === "web") window.history.replaceState(null, "", `${window.location.pathname}?recovery=1`);
-      } else if (event === "SIGNED_IN") setRecoveryMode(false);
+      } else if (event === "SIGNED_IN") {
+        setRecoveryMode(false);
+        setAuthNotice("");
+      }
+      if (currentSession.current?.user.id !== next?.user.id) {
+        verifiedCustomer.current = null;
+        setCustomerAccess("checking");
+        setAccessError("");
+      }
+      currentSession.current = next;
       setSession(next);
     });
-    return () => data.subscription.unsubscribe();
+    void supabase.auth.getSession().then(({ data: restored }) => {
+      if (!active || sessionEventSeen) return;
+      if (currentSession.current?.user.id !== restored.session?.user.id) {
+        verifiedCustomer.current = null;
+        setCustomerAccess("checking");
+        setAccessError("");
+      }
+      currentSession.current = restored.session;
+      setSession(restored.session);
+    }).catch(() => {
+      if (active && !sessionEventSeen) {
+        currentSession.current = null;
+        setSession(null);
+        setAuthNotice("Your saved session could not be restored. Sign in again.");
+      }
+    });
+    return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!session?.user.id || recoveryMode) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleAccessCheck = () => {
+      if (Platform.OS === "web" && document.visibilityState !== "visible") return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setAccessCheckRevision(value => value + 1), 200);
+    };
+    const appState = AppState.addEventListener("change", state => {
+      if (state === "active") scheduleAccessCheck();
+    });
+    if (Platform.OS === "web") {
+      window.addEventListener("focus", scheduleAccessCheck);
+      window.addEventListener("online", scheduleAccessCheck);
+      document.addEventListener("visibilitychange", scheduleAccessCheck);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+      appState.remove();
+      if (Platform.OS === "web") {
+        window.removeEventListener("focus", scheduleAccessCheck);
+        window.removeEventListener("online", scheduleAccessCheck);
+        document.removeEventListener("visibilitychange", scheduleAccessCheck);
+      }
+    };
+  }, [session?.user.id, recoveryMode]);
 
   useEffect(() => {
     if (!session || recoveryMode) return;
@@ -924,13 +982,50 @@ export default function App() {
       .then(result => {
         if (controller.signal.aborted) return;
         if (result.auth.role === "customer") { verifiedCustomer.current = session.user.id; setCustomerAccess("allowed"); }
-        else { verifiedCustomer.current = null; setCustomerAccess("denied"); setAccessError("This portal is for Customer accounts. Sign out to use your Customer username."); }
+        else {
+          verifiedCustomer.current = null;
+          setCustomerAccess("denied");
+          setAccessError("This portal is for Customer accounts. Sign in with a Customer account.");
+          setAuthNotice("This portal is for Customer accounts. Sign in with a Customer account.");
+          void supabase.auth.signOut();
+        }
       })
-      .catch(() => {
-        if (!controller.signal.aborted) { verifiedCustomer.current = null; setCustomerAccess("denied"); setAccessError("Customer access is unavailable. Sign out and try again, or contact your administrator."); }
+      .catch(async reason => {
+        if (controller.signal.aborted) return;
+        const status = reason instanceof CustomerRequestError ? reason.status : undefined;
+        if (status === 401 || status === 403) {
+          try {
+            const { data } = await supabase.auth.getSession();
+            if (controller.signal.aborted) return;
+            if (data.session?.user.id === session.user.id && data.session.access_token !== session.access_token) {
+              currentSession.current = data.session;
+              setSession(data.session);
+              return;
+            }
+          } catch {
+            // The latest auth event remains authoritative if storage is unavailable.
+          }
+          verifiedCustomer.current = null;
+          setCustomerAccess("denied");
+          const message = status === 403
+            ? "Customer portal access is no longer active. Sign in with an active Customer account."
+            : "Your Customer session has expired. Sign in again to continue.";
+          setAccessError(message);
+          setAuthNotice(message);
+          await supabase.auth.signOut();
+        } else if (retainVerifiedCustomerAccess(verifiedCustomer.current, session.user.id, status)) {
+          // Preserve the same already-verified Customer through transient
+          // network/API failures. Every protected request still checks server auth.
+          setCustomerAccess("allowed");
+          setAccessError("");
+        } else {
+          verifiedCustomer.current = null;
+          setCustomerAccess("denied");
+          setAccessError("Customer access could not be checked. Check your connection and retry.");
+        }
       });
     return () => controller.abort();
-  }, [session?.access_token, recoveryMode]);
+  }, [session?.access_token, recoveryMode, accessCheckRevision]);
 
   if (session === undefined)
     return (
@@ -949,7 +1044,10 @@ export default function App() {
         if (Platform.OS === "web") window.history.replaceState(null, "", window.location.pathname);
         }} /> : session ? customerAccess === "allowed" && verifiedCustomer.current === session.user.id ? <SavedItemsProvider key={session.user.id}><CustomerApp /></SavedItemsProvider> :
         <View style={styles.center}>{customerAccess !== "denied" ? <><ActivityIndicator color={colors.accent} /><Text style={typography.body}>{t("Checking Customer access…")}</Text></> :
-          <><Text accessibilityRole="alert" style={typography.body}>{localizeCustomerMessage(accessError, t)}</Text><Pressable accessibilityRole="button" onPress={() => { void supabase.auth.signOut(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Sign out")}</Text></Pressable></>}</View>
+          <><Text accessibilityRole="alert" style={typography.body}>{localizeCustomerMessage(accessError, t)}</Text>
+            <Pressable accessibilityRole="button" onPress={() => setAccessCheckRevision(value => value + 1)} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Retry access check")}</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { void supabase.auth.signOut(); }} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>{t("Sign out")}</Text></Pressable>
+          </>}</View>
         : <AuthScreen initialMessage={authNotice || (recoveryMode ? "Your reset link is invalid or expired. Request new instructions." : "")} />}
     </CustomerTypographyProvider>
   );

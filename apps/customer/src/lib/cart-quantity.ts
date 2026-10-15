@@ -35,6 +35,7 @@ export function createCartQuantityController(options: {
   const targets = new Map<string, number>();
   let running: Promise<void> | null = null;
   let revision = 0;
+  let changeVersion = 0;
   const publish = () => options.onChange(projectCartQuantities(cart, targets));
   async function flush() {
     const version = revision;
@@ -79,12 +80,14 @@ export function createCartQuantityController(options: {
     if (current === 0) return; // A queued deletion must never be resurrected by stale presses.
     const next = remove ? 0 : Math.max(0, Math.min(999, current + delta));
     if (next === current) return;
+    changeVersion++;
     targets.set(itemId, next);
     publish();
     start();
   }
   return {
-    reset(value: CustomerCart | null) { revision++; targets.clear(); cart = value; publish(); },
+    reset(value: CustomerCart | null) { revision++; changeVersion++; targets.clear(); cart = value; publish(); },
+    version() { return changeVersion; },
     adjust(itemId: string, delta: -1 | 1) { change(itemId, delta); },
     remove(itemId: string) { change(itemId, 0, true); },
     async settled() { while (running) await running; },

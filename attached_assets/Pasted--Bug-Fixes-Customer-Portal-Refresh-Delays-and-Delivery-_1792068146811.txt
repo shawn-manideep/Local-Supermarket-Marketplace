@@ -1,0 +1,55 @@
+# Bug Fixes — Customer Portal Refresh Delays and Delivery Partner Session Logout
+
+Work only on the existing Local Supermarket Marketplace project. Investigate the root causes before making changes. Preserve all existing features, authentication rules, order workflows, and database records.
+
+## 1. Customer Portal — Real-Time Updates Without Manual Refresh
+
+**Problem:** Updates in the Customer portal are slow, and new information appears only after manually refreshing the page.
+
+### Required changes
+- Inspect the Customer portal's data-fetching logic, state management, caching, and API calls.
+- Ensure newly placed orders, order-status changes, delivery updates, cart changes, and other relevant customer-facing updates appear promptly without requiring a manual page refresh.
+- Use the existing real-time subscription mechanism, if available and appropriate. If not, implement a suitable approach such as Supabase Realtime subscriptions or controlled polling, based on the existing architecture.
+- Update the UI state when new data arrives. Do not require the customer to navigate away and return to see changes.
+- Prevent stale cached data from overwriting newer updates.
+- Clean up subscriptions and timers when components unmount to prevent duplicate requests and memory leaks.
+- Handle reconnects, network interruptions, and subscription failures gracefully, with a safe fallback to refetch the latest data.
+- Avoid excessive polling, unnecessary API requests, and additional infrastructure costs.
+- Ensure real-time updates respect customer authentication, order ownership, and existing Row Level Security policies.
+
+### Expected result
+When a Vendor accepts or marks an order ready, or a Delivery Partner updates its delivery status, the Customer portal should reflect the change promptly without manual refreshing.
+
+## 2. Delivery Partner Portal — Preserve Login When Switching Browser Tabs
+
+**Problem:** After logging in to the Delivery Partner portal, switching to another browser tab and returning causes the user to be logged out.
+
+### Required changes
+- Investigate why the authenticated session is being lost when the browser tab loses focus or becomes hidden.
+- Inspect Supabase Auth session persistence, token refresh, authentication guards, route initialization, application lifecycle events, and any focus/visibility listeners.
+- Preserve the authenticated Delivery Partner session when the user switches tabs, minimizes the browser, or returns to the portal.
+- Restore the existing session correctly when the tab becomes active again.
+- Handle expired access tokens through the existing secure refresh mechanism, where supported.
+- Do not clear the session merely because the tab becomes hidden, the window loses focus, or a component remounts.
+- Avoid duplicate authentication checks or race conditions that incorrectly redirect the user to the login page while session restoration is in progress.
+- Ensure the Delivery Partner's role, active status, and server-side authorization are still validated.
+- If the session is genuinely expired or revoked, redirect to login with a clear message rather than silently failing.
+- Do not disable authentication, weaken security, or store access tokens insecurely to keep the user logged in.
+- Check whether the same issue affects Customer and Vendor sessions, and fix the shared root cause if present.
+
+### Expected result
+A Delivery Partner can log in, switch between browser tabs, return to the portal, and continue working without being unexpectedly logged out. Legitimately expired or revoked sessions must still require reauthentication.
+
+## 3. Verification and Reporting
+
+Before modifying code, identify the root cause of both problems.
+
+After implementation:
+1. Run relevant existing unit and integration tests, without automated browser testing.
+2. Run the appropriate frontend and backend builds.
+3. Check the relevant authentication, session-restoration, data-fetching, and real-time subscription code paths.
+4. Confirm that no production configuration or unrelated project was modified.
+5. List the exact files changed and explain the root cause and fix for each issue.
+6. Identify any Supabase configuration or other infrastructure requirement that prevents a fix from being fully operational.
+
+Do not claim either issue is resolved solely because the code builds. I will manually verify the Customer updates and Delivery Partner tab-switching behavior in the browser.

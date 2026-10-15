@@ -8,3 +8,11 @@ export function keepVendorProfile(
 export function isCurrentSessionFailure(failedToken: string, currentToken: string | undefined): boolean {
   return Boolean(currentToken && failedToken === currentToken);
 }
+
+export function keepVerifiedPortalOnTransientCheckFailure(
+  profileUserId: string | undefined,
+  sessionUserId: string,
+  status: number | undefined,
+): boolean {
+  return profileUserId === sessionUserId && status !== 401 && status !== 403;
+}
