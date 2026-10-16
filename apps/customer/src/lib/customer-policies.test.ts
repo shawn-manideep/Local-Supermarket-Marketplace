@@ -27,6 +27,12 @@ test("Terms preserve all 21 source topics in their original order", () => {
     "payments", "returns", "vendors", "partners", "conduct", "content", "availability",
     "complaints", "suspension", "liability", "force", "changes", "law", "contact",
   ]);
+  for (const dictionary of [legalEn, legalTe]) {
+    assert.deepEqual(
+      customerPolicies.terms.sections.map((section) => Number(dictionary[section.title].match(/^(\d+)\./)?.[1])),
+      Array.from({ length: customerPolicies.terms.sections.length }, (_, index) => index + 1),
+    );
+  }
   assert.ok(customerPolicies.terms.sections.every(section => section.title && section.body));
   assert.match(legalEn["legal.terms.intro"], /TERMS.docx/);
   assert.doesNotMatch(Object.values(legalEn).join("\n"), /Blinkit|7801080990|mailto:|tel:/);
@@ -58,6 +64,8 @@ test("Terms limit descriptions to implemented COD, cancellation, delivery and ha
 });
 test("Privacy covers verified data uses, fulfilment sharing, storage and unresolved practices", () => {
   assert.equal(customerPolicies.privacy.sections.length, 12);
+  assert.match(policyScreen, /String\(index \+ 1\)/);
+  assert.doesNotMatch(policyScreen, /padStart\(2,\s*"0"\)/);
   assert.match(legalEn["legal.privacy.account.body"], /username.*authentication email/);
   assert.match(legalEn["legal.privacy.address.body"], /snapshot/);
   assert.match(legalEn["legal.privacy.shopping.body"], /cart items.*saved store-product listings/);

@@ -39,7 +39,7 @@ export function CustomerPolicyScreen({ kind, onBack }: CustomerPolicyScreenProps
             {policy.sections.map((section, index) => (
               <View key={section.id} style={styles.sectionCard}>
                 <View style={styles.sectionHeading}>
-                  {kind === "privacy" && <Text accessible={false} style={styles.sectionNumber}>{String(index + 1).padStart(2, "0")}</Text>}
+                  {kind === "privacy" && <Text accessible={false} style={styles.sectionNumber}>{String(index + 1)}</Text>}
                   <Text style={styles.sectionTitle}>{t(section.title)}</Text>
                 </View>
                 <Text style={styles.sectionBody}>{t(section.body)}</Text>

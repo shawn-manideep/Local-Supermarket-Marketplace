@@ -2,6 +2,7 @@ import { legalEn } from "../../../packages/localization/src/legal-copy";
 import {
   portalResourceIntro,
   portalResourceItems,
+  portalResourceSectionHeading,
   portalResourceSections,
   portalResourceTitle,
   type PortalResourceId,
@@ -137,7 +138,7 @@ export function PortalResourcePage({
             key={`${resource}-${index}`}
           >
             {section.draft && <p className="portal-resource-section-label">Draft addition · review required</p>}
-            <h3>{section.title}</h3>
+            <h3>{portalResourceSectionHeading(resource, section.title, index)}</h3>
             <p>{section.body}</p>
           </section>
         ))}

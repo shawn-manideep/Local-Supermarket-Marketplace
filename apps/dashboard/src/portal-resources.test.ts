@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { legalEn } from "../../../packages/localization/src/legal-copy";
-import { portalResourceItems, portalResourceSections } from "./portal-resource-content";
+import {
+  portalResourceItems,
+  portalResourceSectionHeading,
+  portalResourceSections,
+  type PortalResourceId,
+  type PortalResourceRole,
+} from "./portal-resource-content";
 
 const appText = (name: string) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
 
@@ -76,4 +82,41 @@ test("Terms reuse existing source paragraphs and label role-specific additions f
   const component = appText("PortalResources.tsx");
   assert.match(component, /No Vendor or Delivery Partner acceptance is recorded here/);
   assert.doesNotMatch(component, /acceptTerms|termsAccepted|recordAcceptance/);
+});
+
+test("role-specific Privacy and Terms sequences are complete, ordered, and numbered from one", () => {
+  const renderedHeadings = (role: PortalResourceRole, resource: PortalResourceId) =>
+    portalResourceSections(role, resource).map((section, index) =>
+      portalResourceSectionHeading(resource, section.title, index),
+    );
+
+  for (const role of ["vendor", "delivery_partner"] as const) {
+    for (const resource of ["privacy", "terms"] as const) {
+      const headings = renderedHeadings(role, resource);
+      assert.deepEqual(
+        headings.map((heading) => Number(heading.match(/^(\d+)\./)?.[1])),
+        Array.from({ length: headings.length }, (_, index) => index + 1),
+        `${role} ${resource}`,
+      );
+    }
+  }
+
+  assert.deepEqual(renderedHeadings("vendor", "terms").map((heading) => heading.replace(/^\d+\. /, "")), [
+    "About the platform",
+    "Listings, pack sizes, prices and availability",
+    "Order placement and vendor acceptance",
+    "Vendor responsibilities",
+    "Draft Vendor operational addition — review required",
+    "Complaints and grievance redressal",
+    "Contact details",
+  ]);
+  assert.deepEqual(renderedHeadings("delivery_partner", "terms").map((heading) => heading.replace(/^\d+\. /, "")), [
+    "About the platform",
+    "Delivery, addresses and availability",
+    "Pickup and handover verification",
+    "Delivery partner responsibilities",
+    "Draft Delivery Partner operational addition — review required",
+    "Complaints and grievance redressal",
+    "Contact details",
+  ]);
 });

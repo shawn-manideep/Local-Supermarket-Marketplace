@@ -58,9 +58,9 @@ const accountPrivacySections: PortalResourceSection[] = [
 
 const vendorTerms: PortalResourceSection[] = [
   { title: legalEn["legal.terms.platform.title"], body: legalEn["legal.terms.platform.body"] },
-  { title: legalEn["legal.terms.vendors.title"], body: legalEn["legal.terms.vendors.body"] },
   { title: legalEn["legal.terms.listings.title"], body: legalEn["legal.terms.listings.body"] },
   { title: legalEn["legal.terms.orders.title"], body: legalEn["legal.terms.orders.body"] },
+  { title: legalEn["legal.terms.vendors.title"], body: legalEn["legal.terms.vendors.body"] },
   { title: "Draft Vendor operational addition — review required", body: "Keep product information, prices and stock accurate; use the existing order actions to accept or reject orders and record preparation accurately; and keep required administrator-approved documents, applicable FSSAI information and submitted bank details current. These operational additions are proposals for business and legal review, not approved or accepted terms.", draft: true },
   { title: legalEn["legal.terms.complaints.title"], body: legalEn["legal.terms.complaints.body"] },
   { title: legalEn["legal.terms.contact.title"], body: legalEn["legal.terms.contact.body"] },
@@ -68,9 +68,9 @@ const vendorTerms: PortalResourceSection[] = [
 
 const partnerTerms: PortalResourceSection[] = [
   { title: legalEn["legal.terms.platform.title"], body: legalEn["legal.terms.platform.body"] },
-  { title: legalEn["legal.terms.partners.title"], body: legalEn["legal.terms.partners.body"] },
   { title: legalEn["legal.terms.delivery.title"], body: legalEn["legal.terms.delivery.body"] },
   { title: legalEn["legal.terms.verification.title"], body: legalEn["legal.terms.verification.body"] },
+  { title: legalEn["legal.terms.partners.title"], body: legalEn["legal.terms.partners.body"] },
   { title: "Draft Delivery Partner operational addition — review required", body: "Review an offer before claiming or accepting it; use customer and order details only for the assigned delivery; save the required complete-package photograph before pickup; and record pickup, delivery progress and completion accurately. Daily reports cover your own delivery records. These operational additions are proposals for business and legal review, not approved or accepted terms.", draft: true },
   { title: legalEn["legal.terms.complaints.title"], body: legalEn["legal.terms.complaints.body"] },
   { title: legalEn["legal.terms.contact.title"], body: legalEn["legal.terms.contact.body"] },
@@ -87,6 +87,12 @@ export function portalResourceSections(role: PortalResourceRole, resource: Porta
     case "accountPrivacy": return accountPrivacySections;
     case "terms": return role === "vendor" ? vendorTerms : partnerTerms;
   }
+}
+
+export function portalResourceSectionHeading(resource: PortalResourceId, title: string, index: number) {
+  if (resource !== "privacy" && resource !== "terms") return title;
+  const heading = title.replace(/^\s*\d+\.\s*/, "");
+  return `${index + 1}. ${heading}`;
 }
 
 export function portalResourceIntro(role: PortalResourceRole, resource: PortalResourceId) {
