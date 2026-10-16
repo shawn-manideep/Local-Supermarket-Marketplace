@@ -92,6 +92,6 @@ export { partnerLoginSchema as customerLoginSchema };
 
 export function recoveryRedirect(role: RecoveryInput["role"], origin: string) {
   const path = role === "customer" ? "/customer/" : role === "admin"
-    ? "/admin" : role === "delivery_partner" ? "/delivery-partner" : "/";
+    ? "/admin" : role === "delivery_partner" ? "/delivery/login" : "/vendor/login";
   return `${origin}${path}?recovery=1`;
 }

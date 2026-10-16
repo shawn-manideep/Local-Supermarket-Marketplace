@@ -10,7 +10,8 @@ test("partner login validates literal username input and uses Supabase session t
   assert.doesNotMatch(login, /username\.trim\(\)|localStorage|sessionStorage|signUp|password_hash/);
   assert.match(login, /\/api\/delivery-partner\/login/);
   assert.match(app, /supabase\.auth\.setSession\(tokens\)/);
-  assert.match(app, /response\.auth\.role === "delivery_partner"/);
+  assert.match(app, /profile\.role === "delivery_partner" && portalRoute === "delivery-dashboard"/);
+  assert.match(app, /portalRouteMatchesRole\(profile\.role, portalRoute\)/);
   assert.match(app, /<DeliveryPartnerPortal key=\{profile\.userId\}/);
   assert.match(app, /supabase\.auth\.signInWithPassword\(\{\s*email: email\.trim\(\),\s*password,/);
 });

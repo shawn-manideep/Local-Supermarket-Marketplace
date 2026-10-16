@@ -1,0 +1,104 @@
+# Local Supermarket Marketplace — Separate Vendor and Delivery Partner Portals
+
+The Vendor portal and Delivery Partner portal are currently part of the same portal structure. I want them separated into two distinct portals with independent entry points and user interfaces.
+
+**Important: The existing application is working well. This is a portal separation task, not a redesign or a rebuild. Preserve all existing functionality.**
+
+## 1. Create Two Separate Portals
+
+### A. Vendor Portal
+- Provide a dedicated Vendor portal URL and login page.
+- The Vendor login must open only the Vendor dashboard after successful authentication.
+- Keep all existing Vendor functionality, including:
+  - Store profile and store location
+  - Product catalog and inventory management
+  - Vendor documents, FSSAI details, and bank details
+  - Vendor approval status
+  - Order notifications
+  - Accepting and rejecting orders
+  - Marking orders as Ready
+  - Order history, date filters, and PDF downloads
+  - Other existing Vendor features
+- Preserve the current Vendor design and responsive layout unless a change is necessary to separate the portals.
+
+### B. Delivery Partner Portal
+- Provide a separate Delivery Partner portal URL and login page, independent of the Vendor portal.
+- The Delivery Partner login must open only the Delivery Partner dashboard after successful authentication.
+- Keep all existing Delivery Partner functionality, including:
+  - Viewing available delivery assignments
+  - Receiving new delivery notifications
+  - Accepting an available delivery, with the first valid acceptance winning atomically
+  - Viewing assigned order details
+  - Capturing and securely uploading the order/package photograph before pickup
+  - Pickup, Out for Delivery, and Delivered workflow
+  - Daily delivery reports for the authenticated partner's own deliveries
+  - Session persistence when switching browser tabs
+  - Other existing Delivery Partner features
+- Preserve the existing responsive layout and make sure the portal works on mobile and desktop.
+
+## 2. Separate URLs and Navigation
+
+Inspect the existing routing structure and establish clear, separate routes for each portal. For example:
+
+- `/vendor/login` — Vendor login
+- `/vendor/dashboard` — Vendor dashboard
+- `/delivery/login` — Delivery Partner login
+- `/delivery/dashboard` — Delivery Partner dashboard
+
+Adapt these paths to the existing routing conventions if needed.
+
+Requirements:
+- Vendor navigation must not contain Delivery Partner dashboard pages or delivery-only navigation.
+- Delivery Partner navigation must not contain Vendor store management, catalog management, or Vendor order-management pages.
+- Each portal must have its own appropriate dashboard layout, menu, and logout action.
+- Directly opening a portal URL must display the correct portal.
+- Refreshing a page must preserve the current route and authenticated session where valid.
+- Unauthenticated users must be redirected to the appropriate portal login page.
+
+## 3. Authentication and Role-Based Security
+
+Keep the existing authentication system and account identities. Do not create duplicate user accounts or introduce a new authentication provider.
+
+- Vendors must authenticate as Vendors.
+- Delivery Partners must authenticate as Delivery Partners.
+- A Vendor must not access Delivery Partner pages or APIs merely by changing the URL.
+- A Delivery Partner must not access Vendor pages or APIs merely by changing the URL.
+- Enforce role authorization on the backend, not only in the frontend.
+- Preserve existing Admin access to both portals' relevant records and functionality.
+- Preserve active/inactive account restrictions and existing approval rules.
+- Keep session persistence and token-refresh behavior working correctly.
+- Do not log users out merely because they switch tabs or refresh the page.
+
+If the same person has separate authorized accounts under different roles, preserve the existing account and role rules rather than merging accounts.
+
+## 4. Preserve Backend and Business Workflows
+
+Do not duplicate or unnecessarily modify the existing backend APIs, database tables, delivery assignments, order records, inventory, notifications, document storage, or reports.
+
+Both portals must continue to use the existing authoritative backend and database.
+
+Verify that:
+- Vendor order acceptance and Ready transitions continue to work.
+- Eligible Delivery Partners receive delivery offers when an order becomes Ready.
+- The first valid partner acceptance assigns the delivery atomically.
+- Required package-photo capture remains enforced before pickup.
+- Customer order-status updates continue to work without manual refresh.
+- Vendor and Delivery Partner notifications continue to function.
+- Each role sees only its authorized information.
+- Admin retains the required oversight.
+
+## 5. Implementation and Verification
+
+Before changing code, inspect the current route structure, login components, authentication guards, dashboard layouts, and role-based API permissions.
+
+Then:
+1. Separate the two portal entry points, layouts, navigation, and route guards.
+2. Reuse existing components and APIs wherever possible.
+3. Avoid unnecessary database migrations.
+4. Do not remove or regress any existing feature.
+5. Do not change production configuration or deploy the application.
+6. Run relevant existing non-browser tests and frontend/backend builds. Do not run automated browser tests.
+7. Provide a summary of changed files and explain how the two portals are separated.
+8. Give me the exact URLs to test manually and identify any remaining configuration requirements.
+
+**Acceptance criteria:** A Vendor can log in and use the Vendor portal independently. A Delivery Partner can log in and use the Delivery Partner portal independently. Neither role can access the other role's protected functionality, and Admin oversight and all existing workflows continue to work.

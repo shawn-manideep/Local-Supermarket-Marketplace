@@ -8,10 +8,9 @@ import { BrandingLogo } from "./BrandingLogo";
 
 type Props = {
   onAuthenticated: (session: { access_token: string; refresh_token: string }) => Promise<void>;
-  onCancel: () => void;
 };
 
-export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
+export function DeliveryPartnerLogin({ onAuthenticated }: Props) {
   const [username, setUsername] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [legacyLogin, setLegacyLogin] = useState(false);
@@ -77,7 +76,7 @@ export function DeliveryPartnerLogin({ onAuthenticated, onCancel }: Props) {
                 <PasswordInput id="lbp-password" data-testid="input-partner-password" autoComplete="current-password" maxLength={128} value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} required />
               </div>
               <button className="lbp-button lbp-button-primary" data-testid="button-partner-sign-in" disabled={busy} type="submit">{busy ? "Checking access…" : "Sign in"}</button>
-              <div className="lbp-login-footer"><span>Partner accounts are provided by an administrator.</span><button className="lbp-button lbp-button-quiet" data-testid="button-partner-login-cancel" onClick={onCancel} type="button">Cancel</button></div>
+              <div className="lbp-login-footer"><span>Partner accounts are provided by an administrator.</span></div>
             </form>
             <button type="button" className="text-button" disabled={busy} onClick={() => { setLegacyLogin(value => !value); setPassword(""); setError(""); }}>{legacyLogin ? "Use mobile number instead" : "Use administrator-issued username instead"}</button>
             <ForgotPassword key={legacyLogin ? "legacy" : "mobile"} role="delivery_partner" initialIdentity={legacyLogin ? username : mobileNumber} identityType={legacyLogin ? "legacy" : "mobile"} />

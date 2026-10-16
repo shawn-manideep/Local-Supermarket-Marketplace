@@ -65,9 +65,9 @@ test("recovery rejects role/redirect injection and uses artifact routes rather t
   assert.equal(recoveryInput.safeParse({ role: "superadmin", identity: "somebody" }).success, false);
   assert.equal(recoveryInput.safeParse({ role: "customer", identity: "somebody", redirectTo: "https://attacker.test" }).success, false);
   assert.equal(recoveryRedirect("customer", "https://portal.test"), "https://portal.test/customer/?recovery=1");
-  assert.equal(recoveryRedirect("vendor", "https://portal.test"), "https://portal.test/?recovery=1");
+  assert.equal(recoveryRedirect("vendor", "https://portal.test"), "https://portal.test/vendor/login?recovery=1");
   assert.equal(recoveryRedirect("admin", "https://portal.test"), "https://portal.test/admin?recovery=1");
-  assert.equal(recoveryRedirect("delivery_partner", "https://portal.test"), "https://portal.test/delivery-partner?recovery=1");
+  assert.equal(recoveryRedirect("delivery_partner", "https://portal.test"), "https://portal.test/delivery/login?recovery=1");
 });
 
 test("HTTP recovery protects origins, throttles requests and keeps timing independent of provider delivery", async () => {

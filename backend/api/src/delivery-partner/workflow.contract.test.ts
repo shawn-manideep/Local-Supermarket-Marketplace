@@ -8,8 +8,8 @@ test("customer delivery progress uses existing order status/history endpoint wit
   assert.match(detail, /\/api\/customer\/orders\/\$\{order\.id\}/);
   assert.match(detail, /signal: controller\.signal/);
   assert.match(detail, /generation === refreshGeneration\.current/);
-  assert.match(detail, /45_000/);
-  assert.match(detail, /controller\.abort\(\); clearInterval\(timer\)/);
+  assert.match(detail, /12_000/);
+  assert.match(detail, /controller\.abort\(\);[\s\S]*?clearInterval\(timer\)/);
   assert.match(detail, /localOrder\.statusHistory/);
   assert.doesNotMatch(detail, /\/delivery-partner\/|partner_user_id|partnerUsername|delivery_assignments/);
 });

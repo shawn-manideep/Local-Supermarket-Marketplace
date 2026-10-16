@@ -14,7 +14,7 @@ test("dedicated admin navigation supports root and artifact-prefixed child route
 });
 test("Admin route checks authoritative role before rendering other portals; retains email/password session flow", async () => {
   const app = await readFile(new URL("./App.tsx", import.meta.url), "utf8");
-  assert.ok(app.indexOf('if (adminMode && profile.role !== "admin")') < app.indexOf('if (profile.role === "delivery_partner")'));
+  assert.ok(app.indexOf('if (adminMode && profile.role !== "admin")') < app.indexOf('if (!portalRouteMatchesRole(profile.role, portalRoute))'));
   assert.match(app, /supabase\.auth\.signInWithPassword/);
   assert.match(app, /email: email\.trim\(\),\s+password,/);
   assert.match(app, /apiRequest<AuthProfile>\("\/api\/auth\/me"/);

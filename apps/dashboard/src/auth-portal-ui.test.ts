@@ -56,8 +56,24 @@ test("Vendor has no dedicated Delivery navigation/page, while READY summary open
   assert.match(vendor, /vendor-metric-card ready" onClick=\{\(\) => onNavigate\("orders"\)\}/);
   assert.match(vendor, /<OrderOperations/);
   const app = await source("./App.tsx");
-  assert.match(app, /profile\?\.role !== "vendor"/);
-  assert.match(app, /window\.history\.replaceState\(null, "", base \|\| "\/"\)/);
+  assert.match(app, /portalRouteMatchesRole\(profile\.role, portalRoute\)/);
+  assert.match(app, /profile\.role === "delivery_partner" && portalRoute === "delivery-dashboard"/);
+  assert.doesNotMatch(app, /Delivery Partner sign in/);
+});
+
+test("Vendor and Delivery Partner have independent direct entry and dashboard routes", async () => {
+  const [app, partner, routes] = await Promise.all([
+    source("./App.tsx"), source("./DeliveryPartnerLogin.tsx"), source("./portal-routes.ts"),
+  ]);
+  assert.match(routes, /"\/vendor\/login"/);
+  assert.match(routes, /"\/vendor\/dashboard"/);
+  assert.match(routes, /"\/delivery\/login"/);
+  assert.match(routes, /"\/delivery\/dashboard"/);
+  assert.match(app, /setPortalRoute/);
+  assert.match(app, /loginForDashboard\(portalRoute\)/);
+  assert.match(app, /!portalRouteMatchesRole\(profile\.role, portalRoute\)/);
+  assert.doesNotMatch(app, /selectPortal/);
+  assert.doesNotMatch(partner, /onCancel|button-partner-login-cancel/);
 });
 
 test("Partner UI uses existing real summary data without mislabelling all-time counters as today's deliveries", async () => {
