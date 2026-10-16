@@ -8,10 +8,10 @@ export function BrandingLogo({ className = "", decorative = false }: Props) {
   const src = brandingImageUrl(branding);
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
-  const label = decorative ? undefined : "Local Basket";
+  const label = decorative ? undefined : "Apna Local Basket";
   return (
     <span className={`lb-branding-logo ${className}`.trim()} aria-label={label} role={decorative ? undefined : "img"}>
-      {src && !failed ? <img src={src} alt="" onError={() => setFailed(true)} /> : <span aria-hidden="true">LB</span>}
+      {src && !failed ? <img src={src} alt="" onError={() => setFailed(true)} /> : <span aria-hidden="true">ALB</span>}
     </span>
   );
 }

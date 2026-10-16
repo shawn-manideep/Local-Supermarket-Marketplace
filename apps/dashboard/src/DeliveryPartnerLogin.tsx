@@ -53,7 +53,7 @@ export function DeliveryPartnerLogin({ onAuthenticated }: Props) {
           <section className="lbp-login-intro" aria-label="Delivery partner access">
             <div className="lbp-brand">
               <BrandingLogo className="lbp-mark" />
-              <div className="lbp-brand-copy"><strong>Local Basket</strong><span>Partner operations</span></div>
+              <div className="lbp-brand-copy"><strong>Apna Local Basket</strong><span>Partner operations</span></div>
             </div>
             <div>
               <p className="lbp-kicker">Delivery partner portal</p>
@@ -65,7 +65,7 @@ export function DeliveryPartnerLogin({ onAuthenticated }: Props) {
             <form className="lbp-login-form" onSubmit={submit}>
               <p className="lbp-kicker">Secure access</p>
               <h2>Partner sign in</h2>
-              <p>{legacyLogin ? "Use the username issued by your Local Basket administrator." : "Mobile sign-in requires verified ownership. Existing partners can use their administrator-issued username below."}</p>
+              <p>{legacyLogin ? "Use the username issued by your Apna Local Basket administrator." : "Mobile sign-in requires verified ownership. Existing partners can use their administrator-issued username below."}</p>
               {error && <div className="lbp-alert" role="alert" data-testid="status-partner-login-error">{error}</div>}
               <div className="lbp-field">
                 <label htmlFor="lbp-identity">{legacyLogin ? "Username" : "Mobile Number"}</label>

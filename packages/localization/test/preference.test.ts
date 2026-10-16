@@ -29,7 +29,7 @@ test("English is the default and missing Telugu translations fall back to Englis
 
 test("Telugu lookup and interpolation preserve dynamic content literally", () => {
   assert.equal(translate("te", "common.language"), "భాష");
-  assert.equal(translate("te", "common.greeting", { name: "Local Basket $& {name}" }), "నమస్కారం, Local Basket $& {name}!");
+  assert.equal(translate("te", "common.greeting", { name: "Apna Local Basket $& {name}" }), "నమస్కారం, Apna Local Basket $& {name}!");
   assert.equal(translate("en", "common.greeting", { name: 501 }), "Hello, 501!");
   assert.equal(translate("te", "common.greeting"), "నమస్కారం, {name}!");
 });

@@ -95,7 +95,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
   }} />;
   return (
     <form className="auth-form" onSubmit={session ? finish : begin}>
-      <p className="eyebrow">Local Basket · Vendor</p>
+      <p className="eyebrow">Apna Local Basket · Vendor</p>
       <h1>{session ? "Complete your store registration" : "Create a Vendor account"}</h1>
       <p className="muted">{session
         ? "Use your verified email to register a new store. Admin approval and document review are required before catalog access."

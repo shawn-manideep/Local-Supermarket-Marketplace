@@ -106,7 +106,7 @@ function headingFor(section: Section) {
   if (section === "dashboard") return ["Platform overview", "A clear view of the neighborhood marketplace."];
   if (section === "profile") return ["Admin profile", "Your verified platform identity. Profile details are read-only here."];
   if (section === "master-catalog") return ["Master Catalog", "Manage canonical grocery identities without changing store-owned prices or inventory."];
-  if (section === "branding") return ["Application Branding", "Set the shared Local Basket identity across customer and operations portals."];
+  if (section === "branding") return ["Application Branding", "Set the shared Apna Local Basket identity across customer and operations portals."];
   if (section === "orders") return ["Order oversight", "Review order timelines, delivery assignments, package photos, and downloadable reports."];
   return [kindLabel[section], section === "vendors" ? "Review neighborhood shops and manage their storefront access." : section === "customers" ? "Look up customer accounts and safely manage access." : "Provision and maintain delivery partner portal access."];
 }
@@ -313,7 +313,7 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
       <div className="lb-admin-layout">
         {mobileMenuOpen && <button className="lb-admin-backdrop" type="button" aria-label="Close admin navigation" onClick={() => { setMobileMenuOpen(false); window.requestAnimationFrame(() => mobileMenuButton.current?.focus()); }} />}
         <aside className={`lb-admin-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`} ref={mobileSidebar} id="admin-primary-navigation" aria-label="Admin navigation">
-          <div className="lb-admin-brand"><BrandingLogo className="lb-admin-mark" /><div><strong>Local Basket</strong><span>Platform office</span></div></div>
+          <div className="lb-admin-brand"><BrandingLogo className="lb-admin-mark" /><div><strong>Apna Local Basket</strong><span>Platform office</span></div></div>
           <div className="lb-admin-nav-label">OPERATIONS</div>
           <nav className="lb-admin-nav" aria-label="Admin navigation">
             {nav.map((item) => <button key={item.key} type="button" aria-current={section === item.key ? "page" : undefined} onClick={() => navigate(item.key)}><span className="nav-index">{item.number}</span>{item.label}</button>)}
@@ -324,8 +324,8 @@ export function AdminPortal({ token, session, userId, onLogout }: Props) {
           </div>
         </aside>
         <main className="lb-admin-main">
-          <div className="lb-admin-mobile-head"><button ref={mobileMenuButton} className="lb-admin-menu-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="admin-primary-navigation" onClick={() => setMobileMenuOpen(true)}>Admin menu</button><span className="lb-admin-mobile-brand"><BrandingLogo /> <strong>Local Basket · Admin</strong></span><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
-          <div className="lb-admin-top"><div className="lb-admin-breadcrumb">LOCAL BASKET <span aria-hidden="true">/</span> ADMIN / {heading[0].toUpperCase()}</div><div className="lb-admin-top-status"><i className="lb-admin-live-dot" /> Admin access verified</div></div>
+          <div className="lb-admin-mobile-head"><button ref={mobileMenuButton} className="lb-admin-menu-toggle" type="button" aria-expanded={mobileMenuOpen} aria-controls="admin-primary-navigation" onClick={() => setMobileMenuOpen(true)}>Admin menu</button><span className="lb-admin-mobile-brand"><BrandingLogo /> <strong>Apna Local Basket · Admin</strong></span><button onClick={() => void logout()} type="button" disabled={logoutBusy}>{logoutBusy ? "Signing out…" : "Logout"}</button></div>
+          <div className="lb-admin-top"><div className="lb-admin-breadcrumb">APNA LOCAL BASKET <span aria-hidden="true">/</span> ADMIN / {heading[0].toUpperCase()}</div><div className="lb-admin-top-status"><i className="lb-admin-live-dot" /> Admin access verified</div></div>
           {message && <div className={`lb-admin-message ${message.kind}`} role={message.kind === "error" ? "alert" : "status"}>{message.text}</div>}
           <section className="lb-admin-content" key={section}>
             <header className="lb-admin-heading"><div><p className="lb-admin-eyebrow">Platform administration</p><h1>{heading[0]}</h1><p className="lb-admin-subtitle">{heading[1]}</p></div>

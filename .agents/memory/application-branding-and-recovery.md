@@ -5,6 +5,14 @@ description: Platform logo scope, existing-storage reuse and the secure password
 The application logo is platform-wide branding, not a replacement for Vendor
 store identities, product images or private Vendor documents.
 
+The current platform display name is Apna Local Basket, abbreviated ALB. Use
+that name and abbreviation for app-owned visible branding across portals.
+
+**Why:** The user explicitly renamed the marketplace and its brand initials.
+
+**How to apply:** Update user-facing app labels, fallback marks and metadata;
+leave store-owned names and internal identifiers unchanged.
+
 **Why:** The user requested one application logo across all four portals while
 expressly preserving the other upload features.
 

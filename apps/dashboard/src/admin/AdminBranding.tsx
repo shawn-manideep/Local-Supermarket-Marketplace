@@ -62,7 +62,7 @@ export function AdminBranding({ token }: { token: string }) {
       <div className="lb-branding-panel-label">CURRENT APPLICATION MARK</div>
       <div className="lb-branding-current">
         <BrandingLogo className="lb-branding-logo-large" />
-        <div><strong>{current?.logoUrl ? "Custom logo active" : "Local Basket monogram"}</strong><span>Used across Local Basket portals</span></div>
+        <div><strong>{current?.logoUrl ? "Custom logo active" : "Apna Local Basket monogram"}</strong><span>Used across Apna Local Basket portals</span></div>
       </div>
       {configured && <img className="lb-branding-current-image" src={configured} alt="Current application logo" />}
       <p>Store identities and product imagery remain separate from this platform-wide mark.</p>

@@ -139,7 +139,7 @@ export function AdminDeliveryPartners({ token }: Props) {
   return (
     <main className="lbp">
       <div className="lbp-frame">
-        <header className="lbp-topline"><div className="lbp-brand"><span className="lbp-mark" aria-hidden="true">LB</span><div className="lbp-brand-copy"><strong>Local Basket</strong><span>Admin operations</span></div></div><button className="lbp-button" data-testid="button-refresh-partners" type="button" onClick={retry} disabled={loading}>{loading ? "Refreshing…" : "Refresh directory"}</button></header>
+        <header className="lbp-topline"><div className="lbp-brand"><span className="lbp-mark" aria-hidden="true">ALB</span><div className="lbp-brand-copy"><strong>Apna Local Basket</strong><span>Admin operations</span></div></div><button className="lbp-button" data-testid="button-refresh-partners" type="button" onClick={retry} disabled={loading}>{loading ? "Refreshing…" : "Refresh directory"}</button></header>
         <section className="lbp-heading-row"><div><p className="lbp-kicker">Access management</p><h1 className="lbp-title">Delivery partners</h1><p className="lbp-subtitle">Create and maintain partner portal accounts. Account access can be paused or restored here.</p></div></section>
         {error && <div className="lbp-alert" role="alert" data-testid="status-admin-partners-error">{error}</div>}
         {notice && <div className="lbp-alert lbp-alert-info" role="status" data-testid="status-admin-partners-notice">{notice}</div>}

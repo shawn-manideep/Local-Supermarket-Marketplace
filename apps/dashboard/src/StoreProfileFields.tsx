@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { StoreLocationMap } from "./StoreLocationMap";
+import { VendorStoreLocation } from "./vendor-store-location";
 
 export type StoreProfileValues = {
   name?: string | null;
@@ -53,9 +54,10 @@ type Props = {
   disabled?: boolean;
   variant?: "admin" | "vendor";
   children?: ReactNode;
+  onLocationBusyChange?: (busy: boolean) => void;
 };
 
-export function StoreProfileFields({ values = {}, disabled = false, variant = "admin", children }: Props) {
+export function StoreProfileFields({ values = {}, disabled = false, variant = "admin", children, onLocationBusyChange }: Props) {
   const vendor = variant === "vendor";
   const fieldClass = vendor ? "vendor-label" : "lb-admin-field";
   const textareaClass = vendor ? "vendor-textarea" : "";
@@ -72,22 +74,24 @@ export function StoreProfileFields({ values = {}, disabled = false, variant = "a
         <textarea className={textareaClass} name="description" defaultValue={values.description ?? ""} maxLength={2000} rows={3} disabled={disabled} />
       </label>
       {field("Store logo URL", "logoImageUrl", { type: "url", maxLength: 2048 })}
-      <div className={vendor ? "vendor-address-group" : "lb-admin-address-group"}>
-        <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Store location</strong>
-        <div className={vendor ? "vendor-profile-fields-grid" : "lb-admin-provision-grid"}>
-          {field("Address line 1", "addressLine1", { required: true, maxLength: 250 })}
-          {field("Address line 2 · optional", "addressLine2", { maxLength: 250 })}
-          {field("Area / locality", "locality", { required: true, maxLength: 120 })}
-          {field("City", "city", { required: true, maxLength: 120 })}
-          {field("State", "state", { required: true, maxLength: 120 })}
-          {field("Pincode", "pincode", { required: true })}
+      {vendor ? <VendorStoreLocation values={values} disabled={disabled} onBusyChange={onLocationBusyChange} /> : <>
+        <div className="lb-admin-address-group">
+          <strong className="lb-admin-form-subhead">Store location</strong>
+          <div className="lb-admin-provision-grid">
+            {field("Address line 1", "addressLine1", { required: true, maxLength: 250 })}
+            {field("Address line 2 · optional", "addressLine2", { maxLength: 250 })}
+            {field("Area / locality", "locality", { required: true, maxLength: 120 })}
+            {field("City", "city", { required: true, maxLength: 120 })}
+            {field("State", "state", { required: true, maxLength: 120 })}
+            {field("Pincode", "pincode", { required: true })}
+          </div>
         </div>
-      </div>
-      <div className={vendor ? "vendor-address-group" : "lb-admin-address-group"}>
-        <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Exact store location · optional</strong>
-        {!vendor && <p className="lb-admin-secondary">Review the saved pin or place/drag it to update the exact location.</p>}
-        <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={!disabled} />
-      </div>
+        <div className="lb-admin-address-group">
+          <strong className="lb-admin-form-subhead">Exact store location · optional</strong>
+          <p className="lb-admin-secondary">Review the saved pin or place/drag it to update the exact location.</p>
+          <StoreLocationMap latitude={values.latitude} longitude={values.longitude} editable={!disabled} />
+        </div>
+      </>}
       {!vendor && <div className="lb-admin-address-group">
         <strong className={vendor ? "vendor-address-title" : "lb-admin-form-subhead"}>Store operations</strong>
         <div className={vendor ? "vendor-profile-fields-grid" : "lb-admin-provision-grid"}>

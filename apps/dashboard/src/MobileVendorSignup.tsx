@@ -28,7 +28,7 @@ export function MobileVendorSignup({ onLegacy, onBack }: {
     // Never create a signup shell, profile or store before mobile verification.
   };
   return <form className="auth-form" onSubmit={validate} data-testid="vendor-mobile-registration" noValidate>
-    <p className="eyebrow">Local Basket · Vendor</p>
+    <p className="eyebrow">Apna Local Basket · Vendor</p>
     <h1>Create a Vendor account</h1>
     <p className="muted">Email-free registration is not yet available. Your mobile number must be verified before an account can be created.</p>
     <p className="muted">New stores still require Admin approval and mandatory document verification before catalog access.</p>

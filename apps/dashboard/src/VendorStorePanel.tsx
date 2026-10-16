@@ -201,7 +201,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
               getBrowserNotificationStorage(),
             );
             newOrders.forEach((notification) => showBackgroundBrowserNotification(
-              "New Local Basket order",
+              "New Apna Local Basket order",
               "A customer order is waiting for your review.",
               `vendor-order-${notification.id}`,
             ));
@@ -287,7 +287,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
       >Menu</button>
       {mobileMenuOpen && <button className="vendor-mobile-backdrop" type="button" aria-label="Close vendor navigation" onClick={() => { setMobileMenuOpen(false); window.requestAnimationFrame(() => mobileMenuButton.current?.focus()); }} />}
       <aside className={`vendor-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`} id="vendor-primary-navigation" ref={mobileSidebar} aria-label="Vendor navigation">
-        <div className="vendor-application-brand"><BrandingLogo className="vendor-application-mark" /><span>Local Basket</span></div>
+        <div className="vendor-application-brand"><BrandingLogo className="vendor-application-mark" /><span>Apna Local Basket</span></div>
         <div className="vendor-brand">
           <div className="vendor-brand-logo">{store.name.slice(0,1).toUpperCase()}</div>
           <div>
@@ -465,12 +465,13 @@ interface VendorStoreProfileProps {
 function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincodes, setHours, onMessage }: VendorStoreProfileProps) {
   const [newPincode, setNewPincode] = useState("");
   const [storeBusy, setStoreBusy] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
   const [pincodeBusy, setPincodeBusy] = useState(false);
   const [hoursBusyDay, setHoursBusyDay] = useState<number | null>(null);
 
   const updateStore = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (storeBusy) return;
+    if (storeBusy || locationBusy) return;
     setStoreBusy(true);
     const form = new FormData(event.currentTarget);
     const latitudeRaw = String(form.get("latitude") ?? "").trim();
@@ -588,9 +589,9 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
             </div>
             <span className={`vendor-status-badge vendor-status-${store.status.toLowerCase()}`}>{store.status.replaceAll("_", " ")}</span>
           </div>
-          <StoreProfileFields variant="vendor" disabled={storeBusy} values={store} />
+          <StoreProfileFields variant="vendor" disabled={storeBusy} values={store} onLocationBusyChange={setLocationBusy} />
           <div className="vendor-form-actions">
-            <button className="vendor-primary-button" type="submit" disabled={storeBusy}>{storeBusy ? "Saving..." : "Save Store Information"}</button>
+            <button className="vendor-primary-button" type="submit" disabled={storeBusy || locationBusy}>{storeBusy ? "Saving..." : "Save Store Information"}</button>
           </div>
         </form>
 

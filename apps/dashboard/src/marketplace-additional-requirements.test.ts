@@ -3,9 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { coordinatesForForm, validCoordinates } from "./StoreLocationMap";
+import { addressFromPhotonFeature, coordinatesForForm, validCoordinates } from "./StoreLocationMap";
 import { parseServerEvents } from "./refresh-event-stream";
 import { FssaiExpiryStatus } from "./FssaiExpiryStatus";
+import { StoreProfileFields } from "./StoreProfileFields";
 
 test("server-event parser handles split frames, CRLF, comments, and multiple data lines", () => {
   const first = parseServerEvents("event: refresh\r\ndata: {\"ok\":true}\r\n\r\n: heartbeat\n\nevent: update\ndata: first\ndata: second\n\npending");
@@ -48,10 +49,26 @@ test("FSSAI summary renders unknown, valid, and expired status without fabricati
   assert.match(expired, /Expired · compliance action required/);
 });
 
-test("store profile uses a clickable draggable map and hidden form fields, not coordinate text boxes", async () => {
-  const [fields, map] = await Promise.all([
+test("Photon reverse lookup maps detected address components into existing store fields", () => {
+  assert.deepEqual(addressFromPhotonFeature({ properties: {
+    name: "Green Heights", housenumber: "12-4", street: "Main Road", suburb: "Jubilee Hills",
+    city: "Hyderabad", state: "Telangana", postcode: "500033",
+  } }), {
+    label: "Green Heights, 12-4 Main Road, Jubilee Hills, Hyderabad, Telangana, 500033",
+    addressLine1: "12-4 Main Road",
+    addressLine2: "Green Heights",
+    locality: "Jubilee Hills",
+    city: "Hyderabad",
+    state: "Telangana",
+    pincode: "500033",
+  });
+});
+
+test("Admin keeps map editing while Vendor location uses manual address fields and click-triggered detection", async () => {
+  const [fields, map, vendorLocation] = await Promise.all([
     readFile(new URL("./StoreProfileFields.tsx", import.meta.url), "utf8"),
     readFile(new URL("./StoreLocationMap.tsx", import.meta.url), "utf8"),
+    readFile(new URL("./vendor-store-location.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(fields, /<StoreLocationMap latitude=\{values\.latitude\} longitude=\{values\.longitude\} editable=\{!disabled\}/);
   assert.doesNotMatch(fields, /field\("Latitude"|field\("Longitude"/);
@@ -64,6 +81,20 @@ test("store profile uses a clickable draggable map and hidden form fields, not c
   assert.match(map, /url\.searchParams\.set\("q", query\.trim\(\)\)/);
   assert.match(map, /role="search"/);
   assert.doesNotMatch(map, /<form/);
+  assert.match(fields, /vendor \? <VendorStoreLocation values=\{values\} disabled=\{disabled\}/);
+  assert.match(vendorLocation, /Use Current Location/);
+  assert.match(vendorLocation, /onClick=\{detectLocation\}/);
+  assert.match(vendorLocation, /onBusyChange\?\.\(true\)/);
+  assert.match(vendorLocation, /name=\{name\}/);
+  assert.match(vendorLocation, /reverseGeocodeAddress\(detected, controller\.signal\)/);
+  assert.doesNotMatch(vendorLocation, /<StoreLocationMap|type="number"/);
+  assert.match(vendorLocation, /window\.isSecureContext/);
+  const vendorHtml = renderToStaticMarkup(createElement(StoreProfileFields, { variant: "vendor" }));
+  assert.match(vendorHtml, /Use Current Location/);
+  assert.match(vendorHtml, /name="addressLine1"/);
+  assert.match(vendorHtml, /name="addressLine2"/);
+  assert.match(vendorHtml, /name="pincode"/);
+  assert.doesNotMatch(vendorHtml, /lb-location-map|store-location-search/);
 });
 
 test("vendor compliance and persistent notification UI use server status and generated feed contracts", async () => {

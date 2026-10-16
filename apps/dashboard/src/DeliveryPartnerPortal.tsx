@@ -228,7 +228,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
           if (!isVisible) {
             fresh.forEach((offer) => showBackgroundBrowserNotification(
               "New delivery offer",
-              "A ready delivery is available. Open Local Basket to review and accept it.",
+              "A ready delivery is available. Open Apna Local Basket to review and accept it.",
               `delivery-offer-${offer.orderId}`,
             ));
           }
@@ -510,11 +510,11 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
       )}
       <div className="lbp-frame">
         <header className="lbp-topline">
-          <div className="lbp-brand"><BrandingLogo className="lbp-mark" /><div className="lbp-brand-copy"><strong>Local Basket</strong><span>Delivery partner</span></div></div>
+          <div className="lbp-brand"><BrandingLogo className="lbp-mark" /><div className="lbp-brand-copy"><strong>Apna Local Basket</strong><span>Delivery partner</span></div></div>
           <button className="lbp-button" data-testid="button-partner-logout" type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
         </header>
         <section className="lbp-heading-row">
-          <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{isPortalResourceScreen(screen) ? portalResourceTitle(screen) : screen === "dashboard" ? `${timeOfDay()}, ${data.profile?.displayName || "partner"}` : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{isPortalResourceScreen(screen) ? portalResourceIntro("delivery_partner", screen) : screen === "dashboard" ? "Here’s your delivery activity for today." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Local Basket administration."}</p></div>
+          <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{isPortalResourceScreen(screen) ? portalResourceTitle(screen) : screen === "dashboard" ? `${timeOfDay()}, ${data.profile?.displayName || "partner"}` : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{isPortalResourceScreen(screen) ? portalResourceIntro("delivery_partner", screen) : screen === "dashboard" ? "Here’s your delivery activity for today." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Apna Local Basket administration."}</p></div>
           <div className="lbp-top-actions"><BrowserNotificationControl className="lbp-button" /><span className={`lbp-status ${data.profile?.status === "INACTIVE" ? "lbp-status-inactive" : ""}`} data-testid="status-partner-account">{data.profile ? prettyStatus(data.profile.status) : "Account check"}</span></div>
         </section>
         <nav className="lbp-nav" aria-label="Partner navigation">

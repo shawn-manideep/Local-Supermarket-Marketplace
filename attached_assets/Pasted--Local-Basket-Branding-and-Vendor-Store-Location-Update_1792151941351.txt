@@ -1,0 +1,81 @@
+# Local Basket — Branding and Vendor Store Location Updates
+
+Work only on the existing Local Supermarket Marketplace project. Make the following changes without affecting unrelated functionality, authentication, orders, inventory, delivery workflows, or existing data.
+
+## 1. Rename the Application Throughout the Project
+
+Update the application branding consistently:
+
+- Replace **Local Basket** with **Apna Local Basket** everywhere it is displayed to users.
+- Replace **LB** with **ALB** wherever it is used as the application's abbreviation, initials, logo text, or brand label.
+- Apply this across the Customer, Vendor, Delivery Partner, and Admin portals, including login pages, dashboards, navigation menus, headers, footers, settings, Help & Support, Privacy Policy, Terms & Conditions, notifications, and relevant page titles.
+- Update browser tab titles, application metadata, manifest/app display names, and other user-facing branding configuration where applicable.
+- Update existing logos or text-based branding where necessary to display the new name or initials.
+- Search for hardcoded references to the old name and abbreviation, including shared components and portal-specific files.
+- Do not replace unrelated occurrences of the letters `LB` where they represent something other than the application's branding.
+- Preserve existing functionality, design consistency, legal content, and database records.
+- Do not rename database tables, API routes, environment variables, repository names, or internal identifiers unless strictly necessary. Prefer changing user-facing labels and configuration only.
+
+## 2. Vendor Portal — Replace the Map With Current-Location Detection and Manual Address Entry
+
+Remove the existing interactive map and manual latitude/longitude entry interface from the Vendor Store Profile location section.
+
+Replace it with a simple **Store Location** section offering two options:
+
+### Option A: Use Current Location
+
+Display a button labeled **Use Current Location** or **Detect My Location**.
+
+When the Vendor clicks it:
+1. Request browser/device location permission if needed.
+2. Detect the device's current geographical coordinates using the browser Geolocation API.
+3. Automatically obtain a readable address from those coordinates using an existing configured reverse-geocoding service, if available.
+4. Display the detected address for the Vendor to review.
+5. Allow the Vendor to confirm and save the location.
+6. Save the address and coordinates to the existing store-location fields used by the application.
+
+Do not require the Vendor to enter latitude or longitude manually.
+
+Handle location permission denial, unavailable device location, timeout, insecure browser context, and reverse-geocoding failures with clear messages. Do not silently save an incorrect location.
+
+### Option B: Enter Location Manually
+
+Provide a manual-entry alternative directly below the current-location option.
+
+Include appropriate address fields, such as:
+- Store address or building/street
+- Area/locality
+- City
+- State
+- PIN code
+- Optional landmark
+
+Allow the Vendor to save the manually entered address even when current-location detection is unavailable.
+
+If the existing backend requires coordinates for store discovery or delivery calculations, support an appropriate address-to-coordinate lookup using an existing configured service. If coordinates cannot be obtained, clearly indicate the limitation and preserve the entered address without inventing coordinates.
+
+### Location Data and Security
+
+- Both location methods must save to the existing store profile and remain available when the Vendor returns to the page.
+- Admin must be able to view the saved store address and available coordinates.
+- Preserve existing location data and use the current database schema wherever possible.
+- Do not introduce a new paid maps/geocoding provider or require new API credentials without approval.
+- Do not request location permission automatically on page load. Request it only after the Vendor selects the current-location option.
+- Make the location form responsive and easy to use on mobile and desktop.
+- Do not alter Customer delivery addresses or other portal location functionality.
+
+## 3. Verification
+
+Before making changes, inspect the existing branding references, logos, application metadata, Vendor Store Profile, location APIs, database schema, and any configured geolocation or geocoding services.
+
+After implementation:
+1. Search for remaining user-facing instances of "Local Basket" and branded "LB".
+2. Confirm that the new name is "Apna Local Basket" and the branded abbreviation is "ALB".
+3. Verify that current-location detection requests permission only after the button is clicked.
+4. Verify that a successful location lookup displays a readable address and saves correctly.
+5. Verify that manual address entry works when permission is denied or location detection fails.
+6. Confirm that Admin can view the saved store location.
+7. Run relevant existing non-browser tests and frontend/backend builds. Do not run automated browser tests.
+8. List the files changed and identify any missing geolocation or geocoding configuration.
+
+Do not claim current-location detection is fully working if the required browser permissions or address-lookup service are unavailable.

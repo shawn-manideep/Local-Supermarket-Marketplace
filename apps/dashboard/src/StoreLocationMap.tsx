@@ -22,11 +22,46 @@ export function coordinatesForForm(value: Coordinates | null) {
   return { latitude: value?.latitude ?? "", longitude: value?.longitude ?? "" };
 }
 
-type PhotonFeature = { geometry?: { coordinates?: [number, number] }; properties?: { name?: string; street?: string; housenumber?: string; city?: string; district?: string; state?: string; country?: string; postcode?: string } };
+type PhotonFeature = { geometry?: { coordinates?: [number, number] }; properties?: { name?: string; street?: string; housenumber?: string; city?: string; district?: string; suburb?: string; neighbourhood?: string; county?: string; state?: string; country?: string; postcode?: string } };
 type SearchResult = { coordinates: Coordinates; label: string };
 function placeLabel(properties: PhotonFeature["properties"] = {}) {
-  return [properties?.name, properties?.street && properties.housenumber ? `${properties.housenumber} ${properties.street}` : properties?.street, properties?.district, properties?.city, properties?.state, properties?.postcode, properties?.country]
+  return [properties?.name, properties?.street && properties.housenumber ? `${properties.housenumber} ${properties.street}` : properties?.street, properties?.suburb || properties?.neighbourhood || properties?.district, properties?.city, properties?.state, properties?.postcode, properties?.country]
     .filter((part, index, all): part is string => Boolean(part) && all.indexOf(part) === index).join(", ");
+}
+
+export type ReverseGeocodedAddress = Coordinates & {
+  label: string;
+  addressLine1: string;
+  addressLine2: string;
+  locality: string;
+  city: string;
+  state: string;
+  pincode: string;
+};
+
+export function addressFromPhotonFeature(feature: PhotonFeature): Omit<ReverseGeocodedAddress, "latitude" | "longitude"> {
+  const properties = feature.properties ?? {};
+  const addressLine1 = [properties.housenumber, properties.street].filter(Boolean).join(" ") || properties.name || "";
+  return {
+    label: placeLabel(properties),
+    addressLine1,
+    addressLine2: properties.name && properties.name !== addressLine1 ? properties.name : "",
+    locality: properties.suburb || properties.neighbourhood || properties.district || properties.county || properties.city || "",
+    city: properties.city || properties.district || properties.county || "",
+    state: properties.state || "",
+    pincode: properties.postcode || "",
+  };
+}
+
+export async function reverseGeocodeAddress(coords: Coordinates, signal: AbortSignal): Promise<ReverseGeocodedAddress> {
+  const url = new URL(MAP_PROVIDER.reverse);
+  url.searchParams.set("lat", String(coords.latitude));
+  url.searchParams.set("lon", String(coords.longitude));
+  const feature = (await photon(url, signal))[0];
+  if (!feature) throw new Error("No address found for these coordinates.");
+  const address = addressFromPhotonFeature(feature);
+  if (!address.label) throw new Error("The location service did not return a readable address.");
+  return { ...coords, ...address };
 }
 
 async function photon(url: URL, signal: AbortSignal): Promise<PhotonFeature[]> {

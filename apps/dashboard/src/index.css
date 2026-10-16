@@ -1645,6 +1645,16 @@ a:focus-visible {
 .vendor-profile-fields .vendor-card-heading p { margin: 4px 0 0; }
 .vendor-profile-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .vendor-address-group { grid-column: 1 / -1; display: grid; gap: 10px; border-top: 1px solid var(--border-light); padding-top: 13px; }
+.vendor-location-detect { justify-self: start; min-height: 42px; }
+.vendor-location-status,
+.vendor-location-error,
+.vendor-location-coordinate-summary,
+.vendor-location-disclosure { margin: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.vendor-location-status { color: var(--primary); }
+.vendor-location-error { color: var(--danger); }
+.vendor-location-coordinate-summary,
+.vendor-location-disclosure { color: var(--text-muted); }
+.vendor-location-coordinate-summary code { font-size: 11px; }
 .vendor-address-title { color: var(--primary); font-size: 12px; }
 .vendor-profile-fields .lb-required-note { color: var(--text-muted); font-size: 10px; font-weight: 500; }
 .vendor-profile-fields .lb-required-mark { color: var(--primary); font-weight: 800; }
@@ -2360,6 +2370,7 @@ a:focus-visible {
 }
 
 @media (max-width: 620px) {
+  .vendor-location-detect { width: 100%; }
   .vendor-master-bulk-bar,
   .vendor-master-confirmation {
     align-items: stretch;
@@ -2421,7 +2432,7 @@ a:focus-visible {
   }
 }
 
-/* Shared Local Basket surface layer: all three operations portals use the same
+/* Shared Apna Local Basket surface layer: all three operations portals use the same
    blue identity while each keeps its existing navigation and task structure. */
 body {
   background: rgb(var(--lb-light-blue));

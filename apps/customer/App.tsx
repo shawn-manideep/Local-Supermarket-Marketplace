@@ -213,7 +213,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
       <View style={styles.authContainer}>
         <View style={styles.authBrand}>
           <BasketBrand />
-          <Text style={styles.brandName}>{t("LOCAL BASKET")}</Text>
+          <Text style={styles.brandName}>{t("APNA LOCAL BASKET")}</Text>
           <Text style={styles.brandSub}>{t("Fresh Groceries · Local Stores")}</Text>
         </View>
         <CustomerLanguageSelector />

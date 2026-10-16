@@ -49,7 +49,7 @@ test("Customer JSX has no unlocalized English text or user-facing literal attrib
     .map(path => `src/${path}`).filter(path => path.endsWith(".tsx") && !path.includes(".test."))];
   const findings: string[] = [];
   const displayAttributes = new Set(["accessibilityLabel", "placeholder", "label", "title", "confirmLabel", "cancelLabel", "message"]);
-  const allowedBranding = new Set(["Local Basket", "LOCAL BASKET"]);
+  const allowedBranding = new Set(["Apna Local Basket", "APNA LOCAL BASKET", "ALB"]);
   for (const path of paths) {
     const source = ts.createSourceFile(path, readFileSync(new URL(`apps/customer/${path}`, root), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const check = (node: ts.Node, value: string) => {

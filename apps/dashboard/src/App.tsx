@@ -326,7 +326,7 @@ export default function App() {
       <main className="page"><div className="dashboard-shell"><AuthFrame>
         {!adminMode && vendorSignup ? <VendorSignup onBack={() => setVendorSignup(false)} /> : <>
         <form className="auth-form" onSubmit={signIn}>
-          <p className="eyebrow">{adminMode ? "Local Basket · Admin" : "Vendor Portal"}</p>
+          <p className="eyebrow">{adminMode ? "Apna Local Basket · Admin" : "Vendor Portal"}</p>
           <h1>{adminMode ? "Admin Portal sign in" : "Vendor sign in"}</h1>
           <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : legacyVendorLogin ? "Use your existing account sign-in details until mobile ownership is verified." : "Mobile sign-in requires verified ownership. Existing vendors can use legacy sign-in below."}</p>
           {authError && <div className="auth-error" role="alert">{authError}</div>}
