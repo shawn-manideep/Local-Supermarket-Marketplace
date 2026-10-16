@@ -1564,6 +1564,8 @@ a:focus-visible {
 .vendor-primary-button:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
 .vendor-secondary-button { background: var(--bg-card); border: 1px solid var(--border-strong); color: var(--primary); }
 .vendor-secondary-button:hover:not(:disabled) { background: var(--success-bg); border-color: var(--primary); }
+.vendor-notification-control-wrap { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+.vendor-notification-control-wrap .vendor-secondary-button[role="status"] { cursor: default; }
 .vendor-danger-button { background: var(--danger-bg); border: 1px solid #f0c1b7; color: var(--danger); }
 .vendor-danger-button:hover:not(:disabled) { background: #fadeeb; border-color: var(--danger); }
 .vendor-text-button { background: transparent; border: 0; color: var(--primary); padding: 6px 12px; }

@@ -6,6 +6,8 @@ import { BrandingLogo } from "./BrandingLogo";
 import { runRefreshEventStream } from "./refresh-event-stream";
 import { PortalResourceMenu, PortalResourcePage, type PortalResourceId } from "./PortalResources";
 import { portalResourceIntro, portalResourceTitle } from "./portal-resource-content";
+import { getOfferNoticeStorage, readSeenOfferIds, rememberSeenOfferIds, unseenOffers } from "./delivery-offer-notifications";
+import { BrowserNotificationControl, browserNotificationsEnabled, showBackgroundBrowserNotification } from "./BrowserNotificationControl";
 
 type Props = { token: string; onSignOut: () => Promise<void> };
 type Screen = "dashboard" | "deliveries" | "profile" | PortalResourceId;
@@ -104,10 +106,12 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
   const [actionError, setActionError] = useState("");
   const [rejectConfirmation, setRejectConfirmation] = useState(false);
   const [offers, setOffers] = useState<AvailableOffer[]>([]);
+  const [offerNotifications, setOfferNotifications] = useState<AvailableOffer[]>([]);
   const [claimedOffer, setClaimedOffer] = useState("");
   const claimGate = useRef(false);
   const [offerError, setOfferError] = useState("");
   const claimedOffers = useRef<Set<string>>(new Set());
+  const seenOfferIds = useRef<Set<string>>(new Set());
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
   const [savedPhoto, setSavedPhoto] = useState("");
@@ -194,23 +198,67 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     claimedOffers.current.clear();
-    setOffers([]); setOfferError("");
-    const checkOffers = async () => {
-      if (controller.signal.aborted || document.visibilityState !== "visible") return;
+    setOffers([]); setOfferNotifications([]); setOfferError("");
+    const username = data.profile?.username;
+    if (!username || data.profile?.status !== "ACTIVE") {
+      seenOfferIds.current = new Set();
+      return () => controller.abort();
+    }
+    seenOfferIds.current = readSeenOfferIds(username, getOfferNoticeStorage());
+    let requestSequence = 0;
+    const checkOffers = async (allowBackgroundNotice = false) => {
+      const isVisible = document.visibilityState === "visible";
+      if (controller.signal.aborted || (!isVisible && (!allowBackgroundNotice || !browserNotificationsEnabled()))) return;
+      const requestId = ++requestSequence;
       try {
         const result = await apiRequest<{ deliveries: AvailableOffer[] }>("/api/delivery-partner/available-deliveries", token, { signal: controller.signal });
-        if (!controller.signal.aborted && scopeRef.current === token)
-          setOffers(result.deliveries.filter((offer) => !claimedOffers.current.has(offer.orderId)));
+        if (controller.signal.aborted || scopeRef.current !== token || requestId !== requestSequence) return;
+        const available = result.deliveries.filter((offer) => !claimedOffers.current.has(offer.orderId));
+        setOffers(available);
+        const availableIds = new Set(available.map((offer) => offer.orderId));
+        setOfferNotifications((current) => current.filter((offer) => availableIds.has(offer.orderId)));
+        const fresh = unseenOffers(available, seenOfferIds.current);
+        if (fresh.length) {
+          seenOfferIds.current = rememberSeenOfferIds(
+            username,
+            fresh.map((offer) => offer.orderId),
+            seenOfferIds.current,
+            getOfferNoticeStorage(),
+          );
+          if (!isVisible) {
+            fresh.forEach((offer) => showBackgroundBrowserNotification(
+              "New delivery offer",
+              "A ready delivery is available. Open Local Basket to review and accept it.",
+              `delivery-offer-${offer.orderId}`,
+            ));
+          }
+          setOfferNotifications((current) => {
+            const queued = new Set(current.map((offer) => offer.orderId));
+            return [...current, ...fresh.filter((offer) => !queued.has(offer.orderId))];
+          });
+        }
+        setOfferError("");
       } catch {
-        if (!controller.signal.aborted && scopeRef.current === token) setOfferError("Available offers could not refresh. Try again shortly.");
+        if (!controller.signal.aborted && scopeRef.current === token && requestId === requestSequence)
+          setOfferError("Available offers could not refresh. Try again shortly.");
       }
     };
     void checkOffers();
-    void runRefreshEventStream("/api/delivery-partner/events", token, controller.signal, () => { void checkOffers(); });
+    void runRefreshEventStream("/api/delivery-partner/events", token, controller.signal, () => { void checkOffers(true); });
     const timer = window.setInterval(() => void checkOffers(), OFFER_POLL_MS);
-    window.addEventListener("focus", checkOffers);
-    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", checkOffers); claimedOffers.current.clear(); };
-  }, [token]);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void checkOffers();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      claimedOffers.current.clear();
+    };
+  }, [token, data.profile?.status, data.profile?.username]);
 
   useEffect(() => {
     if (!photoPreview) return;
@@ -304,6 +352,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
       if (signal.aborted || scopeRef.current !== token) return;
       claimedOffers.current.add(offer.orderId);
       setOffers((current) => current.filter((item) => item.orderId !== offer.orderId));
+      setOfferNotifications((current) => current.filter((item) => item.orderId !== offer.orderId));
       await reload(signal);
       setScreen("deliveries");
       await openDelivery(result.assignment.id);
@@ -316,7 +365,12 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
       }
       try {
         const result = await apiRequest<{ deliveries: AvailableOffer[] }>("/api/delivery-partner/available-deliveries", token, { signal });
-        if (!signal.aborted) setOffers(result.deliveries.filter((item) => !claimedOffers.current.has(item.orderId)));
+        if (!signal.aborted) {
+          const available = result.deliveries.filter((item) => !claimedOffers.current.has(item.orderId));
+          const availableIds = new Set(available.map((item) => item.orderId));
+          setOffers(available);
+          setOfferNotifications((current) => current.filter((item) => availableIds.has(item.orderId)));
+        }
       } catch { /* keep the clear conflict message */ }
     } finally {
       claimGate.current = false;
@@ -431,6 +485,29 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
 
   return (
     <main className="lbp">
+      {offerNotifications[0] && (
+        <div className="lbp-offer-scrim">
+          <section className="lbp-offer-dialog" role="alertdialog" aria-modal="true" aria-labelledby="lbp-offer-title" aria-describedby="lbp-offer-description">
+            <p className="lbp-kicker">New delivery offer</p>
+            <h2 id="lbp-offer-title">{offerNotifications[0].orderReference}</h2>
+            <p id="lbp-offer-description">A ready order is available for delivery.</p>
+            <dl className="lbp-offer-details">
+              <div><dt>Store</dt><dd>{offerNotifications[0].storeName}</dd></div>
+              <div><dt>Order total</dt><dd>₹{Number(offerNotifications[0].orderTotal).toFixed(2)}</dd></div>
+              <div><dt>Delivery</dt><dd>{offerNotifications[0].deliveryMode === "SCHEDULED" && offerNotifications[0].scheduledStartAt
+                ? `Scheduled · ${dateTime(offerNotifications[0].scheduledStartAt)}`
+                : "Instant delivery"}</dd></div>
+            </dl>
+            {offerNotifications.length > 1 && <p className="lbp-offer-queue-note">{offerNotifications.length - 1} more new offer{offerNotifications.length === 2 ? "" : "s"} waiting.</p>}
+            <div className="lbp-offer-actions">
+              <button className="lbp-button" type="button" onClick={() => setOfferNotifications((current) => current.slice(1))}>Dismiss</button>
+              <button className="lbp-button lbp-button-primary" type="button" disabled={claimedOffer === offerNotifications[0].orderId || Boolean(claimedOffer)} onClick={() => void claimOffer(offerNotifications[0])}>
+                {claimedOffer === offerNotifications[0].orderId ? "Accepting…" : "Accept delivery"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <div className="lbp-frame">
         <header className="lbp-topline">
           <div className="lbp-brand"><BrandingLogo className="lbp-mark" /><div className="lbp-brand-copy"><strong>Local Basket</strong><span>Delivery partner</span></div></div>
@@ -438,12 +515,12 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
         </header>
         <section className="lbp-heading-row">
           <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{isPortalResourceScreen(screen) ? portalResourceTitle(screen) : screen === "dashboard" ? `${timeOfDay()}, ${data.profile?.displayName || "partner"}` : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{isPortalResourceScreen(screen) ? portalResourceIntro("delivery_partner", screen) : screen === "dashboard" ? "Here’s your delivery activity for today." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Local Basket administration."}</p></div>
-          <div className="lbp-top-actions"><span className={`lbp-status ${data.profile?.status === "INACTIVE" ? "lbp-status-inactive" : ""}`} data-testid="status-partner-account">{data.profile ? prettyStatus(data.profile.status) : "Account check"}</span></div>
+          <div className="lbp-top-actions"><BrowserNotificationControl className="lbp-button" /><span className={`lbp-status ${data.profile?.status === "INACTIVE" ? "lbp-status-inactive" : ""}`} data-testid="status-partner-account">{data.profile ? prettyStatus(data.profile.status) : "Account check"}</span></div>
         </section>
         <nav className="lbp-nav" aria-label="Partner navigation">
           {(["dashboard", "deliveries", "profile"] as const).map((tab) => <button key={tab} className="lbp-tab" aria-current={screen === tab || (tab === "profile" && isPortalResourceScreen(screen)) ? "page" : undefined} data-testid={`tab-partner-${tab}`} onClick={() => setScreen(tab)} type="button">{tab === "dashboard" ? "Dashboard" : tab === "deliveries" ? "My deliveries" : "Profile"}</button>)}
         </nav>
-        {offers.length > 0 && screen !== "dashboard" && !isPortalResourceScreen(screen) && <div className="lbp-alert lbp-offer-alert" role="status">
+        {offers.length > 0 && screen !== "dashboard" && <div className="lbp-alert lbp-offer-alert" role="status">
           <strong>{offers.length} delivery offer{offers.length === 1 ? "" : "s"} available</strong>
           <span>Offers refresh while this portal is open. Claiming is confirmed by the server.</span>
           <button className="lbp-button lbp-button-primary" type="button" onClick={() => setScreen("dashboard")}>Review offers</button>

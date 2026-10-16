@@ -1,0 +1,80 @@
+# URGENT BUG FIX — Vendor and Delivery Partner Notifications Not Working
+
+Work only on the existing Local Supermarket Marketplace project. The Vendor and Delivery Partner notifications were previously requested, but they are not working. Diagnose and fix the actual root cause in the existing implementation.
+
+**Do not just create notification popups in the UI. Notifications must be triggered by real order and delivery events.**
+
+## 1. Diagnose Before Changing Code
+
+Inspect:
+- Customer order-placement API and database transaction.
+- Vendor order dashboard and new-order event handling.
+- Vendor Mark as Ready API and order-status transitions.
+- Delivery Partner dashboard and available-delivery queries.
+- Existing Supabase Realtime subscriptions, WebSocket connections, polling, or notification infrastructure.
+- Authentication, role permissions, Row Level Security, and notification recipient selection.
+- Browser console errors, backend errors, failed network requests, subscription status, and relevant logs.
+- Whether separate Vendor and Delivery Partner portals are correctly connected to the same backend events.
+
+Identify precisely why notifications are failing. Do not assume the problem is only frontend UI.
+
+## 2. Vendor New-Order Notification
+
+When a Customer successfully places an order:
+- Create or publish a reliable new-order event only after the order has been successfully committed.
+- Notify the Vendor who owns the selected store.
+- Display an immediate in-app popup or notification when the Vendor portal is open.
+- Include a View Order action that opens the correct order details.
+- Update the Vendor order list without requiring manual refresh.
+- Prevent duplicate notifications when the page reconnects or reloads.
+- Do not notify Vendors about failed or rolled-back orders.
+
+## 3. Delivery Partner Notification
+
+When a Vendor successfully marks an order as Ready:
+- Make the delivery available to all eligible, active Delivery Partners.
+- Notify all eligible partners through the existing supported notification mechanism.
+- Show an in-app popup with order information and an Accept Delivery action.
+- Refresh the available-delivery list automatically.
+- Do not require partners to refresh the page or remain on a particular dashboard screen.
+- Do not allow the Vendor to select a Delivery Partner manually.
+
+**Critical:** Implement first-acceptance-wins behavior on the server/database. If two partners accept simultaneously, only one can receive the assignment. Other partners must see that the delivery is no longer available.
+
+Preserve the existing order statuses, delivery assignment workflow, required package-photo capture, and authorization rules.
+
+## 4. Make Real-Time Updates Reliable
+
+Use the existing Supabase Realtime or notification architecture if correctly configured. Otherwise, fix the existing implementation or use controlled polling as a fallback.
+
+- Subscribe to the correct order and delivery events.
+- Ensure subscriptions are established after authentication and are scoped to the correct role.
+- Verify that database changes actually reach the frontend.
+- Handle reconnections, expired sessions, component remounts, and browser tab switching.
+- Clean up duplicate subscriptions.
+- Prevent stale cached data from overwriting newer order states.
+- Respect Row Level Security and server-side authorization.
+- Avoid excessive polling and unnecessary database usage.
+
+## 5. Notifications When the Portal Is in the Background or Closed
+
+Check whether browser push notifications are already configured.
+
+- When a portal is open, implement reliable in-app notifications.
+- When a tab is in the background, use supported browser notifications if permission and infrastructure are configured.
+- When the browser is closed, use a properly configured Web Push mechanism and service worker if supported.
+- Do not claim closed-browser notifications work if push infrastructure, subscription storage, service-worker registration, or server-side push delivery is missing.
+- Do not introduce paid services, SMS, WhatsApp, OTP, or new provider credentials without approval.
+- If additional configuration is necessary, report the exact requirement and implement everything that can safely be completed without it.
+
+## 6. Verification
+
+After fixing the root cause:
+1. Run relevant existing backend, integration, and authorization tests. Do not run automated browser tests.
+2. Run frontend and backend builds.
+3. Verify the actual order-event and delivery-event paths, including recipient selection.
+4. Verify duplicate-event handling and simultaneous delivery acceptance.
+5. Confirm that notification subscriptions and permissions work for the separate Vendor and Delivery Partner portals.
+6. Report the root cause, exact files changed, tests performed, and any remaining configuration blockers.
+
+Do not report success merely because the UI builds or a notification component exists. Clearly distinguish verified in-app notifications, background-tab notifications, and closed-browser push notifications.

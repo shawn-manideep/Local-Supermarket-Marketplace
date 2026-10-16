@@ -129,6 +129,16 @@ test("vendor refresh is manual, periodic and visibility-aware without a second s
   assert.match(vendor, /setOrders\(\[\]\); setCounts\(\{\}\)/);
   assert.match(vendor, /renderedScope\.current !== scope/);
 });
+test("vendor notifications use committed feed events and opted-in background-tab alerts without duplicate system notices", async () => {
+  const source = await readFile(new URL("./VendorStorePanel.tsx", import.meta.url), "utf8");
+  assert.match(source, /\/api\/vendor\/notifications/);
+  assert.match(source, /runRefreshEventStream\("\/api\/vendor\/events"/);
+  assert.match(source, /check\(true\)/);
+  assert.match(source, /readBrowserNotificationIds\(`vendor:\$\{profile\.storeId\}`/);
+  assert.match(source, /rememberBrowserNotificationIds/);
+  assert.match(source, /BrowserNotificationControl className="vendor-secondary-button"/);
+  assert.match(source, /activeNotification\.orderId/);
+});
 test("vendor errors omit raw diagnostics and stale detail prevents actions", async () => {
   const source = await readFile(new URL("./OrderOperations.tsx", import.meta.url), "utf8");
   const vendor = source.slice(source.indexOf("function VendorOrderOperations"));

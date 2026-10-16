@@ -15,6 +15,14 @@ import { VendorDocumentsPanel, type VendorDocumentStatus } from "./VendorDocumen
 import { PortalResourceMenu, PortalResourcePage, type PortalResourceId } from "./PortalResources";
 import type { VendorNotification, VendorNotificationFeed } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { runRefreshEventStream } from "./refresh-event-stream";
+import {
+  BrowserNotificationControl,
+  browserNotificationsEnabled,
+  getBrowserNotificationStorage,
+  readBrowserNotificationIds,
+  rememberBrowserNotificationIds,
+  showBackgroundBrowserNotification,
+} from "./BrowserNotificationControl";
 
 const dayNames = [
   "Sunday",
@@ -80,6 +88,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
   const [notificationDeliveryMode, setNotificationDeliveryMode] = useState<VendorNotificationFeed["deliveryMode"]>("IN_APP_REALTIME_WITH_POLLING");
   const [initialOrderId, setInitialOrderId] = useState<string | undefined>();
   const surfacedNotificationIds = useRef<Set<string>>(new Set());
+  const browserNotifiedIds = useRef<Set<string>>(new Set());
   const navigateVendor = (tab: Tab) => {
     setPortalResource(null);
     setCurrentTab(tab);
@@ -171,13 +180,33 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
     setNotifications([]);
     setNotificationError("");
     surfacedNotificationIds.current.clear();
-    const check = async () => {
-      if (!active || controller.signal.aborted || document.visibilityState !== "visible") return;
+    browserNotifiedIds.current = readBrowserNotificationIds(`vendor:${profile.storeId}`, getBrowserNotificationStorage());
+    let requestSequence = 0;
+    const check = async (allowBackgroundNotice = false) => {
+      const isVisible = document.visibilityState === "visible";
+      if (!active || controller.signal.aborted || (!isVisible && (!allowBackgroundNotice || !browserNotificationsEnabled()))) return;
+      const requestId = ++requestSequence;
       try {
         const result = await apiRequest<VendorNotificationFeed>("/api/vendor/notifications", token, { signal: controller.signal });
-        if (!active || controller.signal.aborted) return;
+        if (!active || controller.signal.aborted || requestId !== requestSequence) return;
         setNotificationDeliveryMode(result.deliveryMode);
         const unread = result.notifications.filter((notification) => !notification.readAt && !surfacedNotificationIds.current.has(notification.id));
+        if (!isVisible) {
+          const newOrders = unread.filter((notification) => notification.kind === "NEW_ORDER" && !browserNotifiedIds.current.has(notification.id));
+          if (newOrders.length) {
+            browserNotifiedIds.current = rememberBrowserNotificationIds(
+              `vendor:${profile.storeId}`,
+              newOrders.map((notification) => notification.id),
+              browserNotifiedIds.current,
+              getBrowserNotificationStorage(),
+            );
+            newOrders.forEach((notification) => showBackgroundBrowserNotification(
+              "New Local Basket order",
+              "A customer order is waiting for your review.",
+              `vendor-order-${notification.id}`,
+            ));
+          }
+        }
         unread.forEach((notification) => surfacedNotificationIds.current.add(notification.id));
         if (unread.length) setNotifications((current) => {
           const queued = new Set(current.map((notification) => notification.id));
@@ -185,14 +214,18 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
             .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
         });
         setNotificationError("");
-      } catch { setNotificationError("Vendor notifications could not refresh. The next in-app check will retry."); }
+      } catch {
+        if (active && !controller.signal.aborted && requestId === requestSequence)
+          setNotificationError("Vendor notifications could not refresh. The next in-app check will retry.");
+      }
+      if (!isVisible) return;
       try {
         const latestDocuments = await apiRequest<VendorDocumentStatus>("/api/vendor/documents", token, { signal: controller.signal });
         if (active && !controller.signal.aborted) setDocumentStatus(latestDocuments);
       } catch { /* Keep the last verified expiry status visible until the next poll. */ }
     };
     void check();
-    void runRefreshEventStream("/api/vendor/events", token, controller.signal, () => { void check(); });
+    void runRefreshEventStream("/api/vendor/events", token, controller.signal, () => { void check(true); });
     const timer = window.setInterval(() => void check(), 12_000);
     const refreshOnVisible = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", refreshOnVisible);
@@ -275,6 +308,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
       </aside>
       
       <main className="vendor-main">
+        <div className="vendor-notification-control-wrap"><BrowserNotificationControl className="vendor-secondary-button" /></div>
         {activeNotification && <div className="vendor-notice vendor-new-order-banner" role="status" data-testid={`vendor-notification-${activeNotification.id}`}>
           <span><strong>{activeNotification.kind === "NEW_ORDER" && activeNotification.orderId ? `New order #${activeNotification.orderId.slice(0, 8).toUpperCase()}` : activeNotification.kind === "FSSAI_EXPIRY" ? "FSSAI license reminder" : "Vendor update"}</strong> · {activeNotification.message}</span>
           {activeNotification.kind === "NEW_ORDER" && activeNotification.orderId
