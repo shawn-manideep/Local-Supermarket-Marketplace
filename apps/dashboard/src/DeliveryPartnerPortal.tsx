@@ -4,9 +4,11 @@ import { ApiRequestError, apiAuthorizationHeaders, apiRequest, apiUrl } from "./
 import "./partner.css";
 import { BrandingLogo } from "./BrandingLogo";
 import { runRefreshEventStream } from "./refresh-event-stream";
+import { PortalResourceMenu, PortalResourcePage, type PortalResourceId } from "./PortalResources";
+import { portalResourceIntro, portalResourceTitle } from "./portal-resource-content";
 
 type Props = { token: string; onSignOut: () => Promise<void> };
-type Screen = "dashboard" | "deliveries" | "profile";
+type Screen = "dashboard" | "deliveries" | "profile" | PortalResourceId;
 type DataState = { profile: PartnerProfileOutcome["partner"] | null; summary: PartnerDashboardOutcome["summary"] | null; deliveries: PartnerDeliveriesOutcome["deliveries"] | null };
 type AvailableOffer = { orderId: string; orderReference: string; storeId: string; storeName: string; orderTotal: string | number; deliveryMode: "INSTANT" | "SCHEDULED"; scheduledStartAt?: string | null; scheduledEndAt?: string | null };
 
@@ -23,6 +25,10 @@ const deliveryActions: Partial<Record<DeliveryAssignment["status"], Array<{ acti
 
 function prettyStatus(status: string) {
   return status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function isPortalResourceScreen(screen: Screen): screen is PortalResourceId {
+  return screen === "help" || screen === "privacy" || screen === "accountPrivacy" || screen === "terms";
 }
 
 function timeOfDay() {
@@ -431,20 +437,32 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
           <button className="lbp-button" data-testid="button-partner-logout" type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
         </header>
         <section className="lbp-heading-row">
-          <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{screen === "dashboard" ? `${timeOfDay()}, ${data.profile?.displayName || "partner"}` : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{screen === "dashboard" ? "Here’s your delivery activity for today." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Local Basket administration."}</p></div>
+          <div><p className="lbp-kicker">Partner workspace</p><h1 className="lbp-title">{isPortalResourceScreen(screen) ? portalResourceTitle(screen) : screen === "dashboard" ? `${timeOfDay()}, ${data.profile?.displayName || "partner"}` : screen === "deliveries" ? "My deliveries" : "Your profile"}</h1><p className="lbp-subtitle">{isPortalResourceScreen(screen) ? portalResourceIntro("delivery_partner", screen) : screen === "dashboard" ? "Here’s your delivery activity for today." : screen === "deliveries" ? "Status and timing only. Customer and order details are not shown here." : "Your partner details are managed by Local Basket administration."}</p></div>
           <div className="lbp-top-actions"><span className={`lbp-status ${data.profile?.status === "INACTIVE" ? "lbp-status-inactive" : ""}`} data-testid="status-partner-account">{data.profile ? prettyStatus(data.profile.status) : "Account check"}</span></div>
         </section>
         <nav className="lbp-nav" aria-label="Partner navigation">
-          {(["dashboard", "deliveries", "profile"] as const).map((tab) => <button key={tab} className="lbp-tab" aria-current={screen === tab ? "page" : undefined} data-testid={`tab-partner-${tab}`} onClick={() => setScreen(tab)} type="button">{tab === "dashboard" ? "Dashboard" : tab === "deliveries" ? "My deliveries" : "Profile"}</button>)}
+          {(["dashboard", "deliveries", "profile"] as const).map((tab) => <button key={tab} className="lbp-tab" aria-current={screen === tab || (tab === "profile" && isPortalResourceScreen(screen)) ? "page" : undefined} data-testid={`tab-partner-${tab}`} onClick={() => setScreen(tab)} type="button">{tab === "dashboard" ? "Dashboard" : tab === "deliveries" ? "My deliveries" : "Profile"}</button>)}
         </nav>
-        {offers.length > 0 && screen !== "dashboard" && <div className="lbp-alert lbp-offer-alert" role="status">
+        {offers.length > 0 && screen !== "dashboard" && !isPortalResourceScreen(screen) && <div className="lbp-alert lbp-offer-alert" role="status">
           <strong>{offers.length} delivery offer{offers.length === 1 ? "" : "s"} available</strong>
           <span>Offers refresh while this portal is open. Claiming is confirmed by the server.</span>
           <button className="lbp-button lbp-button-primary" type="button" onClick={() => setScreen("dashboard")}>Review offers</button>
         </div>}
         {error && <div className={`lbp-alert ${!denied ? "lbp-alert-info" : ""}`} role="alert" data-testid="status-partner-portal-error">{error}{denied ? <div style={{ marginTop: 10 }}><button className="lbp-button" type="button" onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button></div> : <div style={{ marginTop: 10 }}><button className="lbp-button" type="button" onClick={() => { const signal = activeController.current?.signal; if (signal && !signal.aborted) { setLoading(!data.profile); void reload(signal); } }} disabled={loading}>{loading ? "Retrying…" : "Try again"}</button></div>}</div>}
         {offerError && <div className="lbp-alert lbp-alert-info" role="alert">{offerError}<button className="lbp-button" type="button" onClick={() => setOfferError("")}>Dismiss</button></div>}
-        {loading && !data.profile ? <div aria-label="Loading partner workspace" data-testid="loading-partner-workspace"><div className="lbp-skeleton" /><div className="lbp-skeleton" /></div> : denied ? <div className="lbp-empty"><strong>Partner access unavailable</strong><span>Your private partner information has been cleared.</span></div> : screen === "dashboard" ? (
+         {loading && !data.profile ? <div aria-label="Loading partner workspace" data-testid="loading-partner-workspace"><div className="lbp-skeleton" /><div className="lbp-skeleton" /></div> : denied ? <div className="lbp-empty"><strong>Partner access unavailable</strong><span>Your private partner information has been cleared.</span></div> : isPortalResourceScreen(screen) ? (
+           <PortalResourcePage
+             role="delivery_partner"
+             resource={screen}
+             account={data.profile ? {
+               displayName: data.profile.displayName,
+               username: data.profile.username,
+               contactNumber: data.profile.contactNumber,
+               status: data.profile.status,
+             } : null}
+             onBack={() => setScreen("profile")}
+           />
+         ) : screen === "dashboard" ? (
            <div className="lbp-dashboard-content">
              <section className="lbp-overview" aria-label="Delivery activity summary">
                <div className="lbp-panel lbp-count-panel">
@@ -527,6 +545,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
              {visibleDeliveries.length ? <div className="lbp-delivery-list">{visibleDeliveries.map((delivery) => <article className="lbp-delivery-row" key={delivery.id}><div><div className="lbp-delivery-ref">{delivery.orderReference}</div><div className="lbp-delivery-time">{delivery.storeName} · Updated {dateTime(delivery.updatedAt)}</div><div className="lbp-delivery-schedule">{scheduledLabel(delivery)}</div></div><span className={`lbp-status lbp-status-${delivery.status.toLowerCase()}`}>{prettyStatus(delivery.status)}</span><button className="lbp-button lbp-button-quiet lbp-open-delivery" type="button" onClick={() => void openDelivery(delivery.id)}>View delivery</button></article>)}</div> : <div className="lbp-empty"><strong>{filter === "ALL" ? "No deliveries assigned yet" : "No deliveries in this status"}</strong><span>{filter === "ALL" ? "When delivery activity is recorded, it will appear here." : "Try another status filter to see delivery activity."}</span></div>}
           </section>
         ) : (
+          <>
           <section className="lbp-panel lbp-content-panel">
             <div className="lbp-section-head"><h2>Partner details</h2><span className="lbp-date-note">Read only</span></div>
             <div className="lbp-profile-grid">
@@ -536,6 +555,8 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
               <div className="lbp-profile-item"><span>Account status</span><strong>{data.profile ? prettyStatus(data.profile.status) : "—"}</strong></div>
             </div>
           </section>
+          <PortalResourceMenu role="delivery_partner" onOpen={(resource) => setScreen(resource)} />
+          </>
         )}
       </div>
     </main>

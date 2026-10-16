@@ -12,6 +12,7 @@ import { CatalogManagementPanel } from "./CatalogManagementPanel";
 import { OrderOperations } from "./OrderOperations";
 import { StoreProfileFields } from "./StoreProfileFields";
 import { VendorDocumentsPanel, type VendorDocumentStatus } from "./VendorDocumentsPanel";
+import { PortalResourceMenu, PortalResourcePage, type PortalResourceId } from "./PortalResources";
 import type { VendorNotification, VendorNotificationFeed } from "../../../lib/api-client-react/src/generated/api.schemas";
 import { runRefreshEventStream } from "./refresh-event-stream";
 
@@ -60,10 +61,11 @@ interface VendorStorePanelProps {
   onDismissNotice: () => void;
 }
 
-type Tab = "dashboard" | "store" | "catalog" | "orders" | "settings" | "documents";
+type Tab = "dashboard" | "store" | "catalog" | "orders" | "settings" | "documents" | "resource";
 
 export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice, onDismissNotice }: VendorStorePanelProps) {
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
+  const [portalResource, setPortalResource] = useState<PortalResourceId | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuButton = useRef<HTMLButtonElement>(null);
   const mobileSidebar = useRef<HTMLElement>(null);
@@ -79,10 +81,16 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
   const [initialOrderId, setInitialOrderId] = useState<string | undefined>();
   const surfacedNotificationIds = useRef<Set<string>>(new Set());
   const navigateVendor = (tab: Tab) => {
+    setPortalResource(null);
     setCurrentTab(tab);
     setMobileMenuOpen(false);
     if (window.matchMedia("(max-width: 900px)").matches)
       window.requestAnimationFrame(() => mobileMenuButton.current?.focus());
+  };
+  const openPortalResource = (resource: PortalResourceId) => {
+    setPortalResource(resource);
+    setCurrentTab("resource");
+    setMobileMenuOpen(false);
   };
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -262,7 +270,7 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
           <button type="button" aria-current={currentTab === "store" ? "page" : undefined} className={currentTab === "store" ? "active" : ""} onClick={() => navigateVendor("store")}>Store Profile</button>
         </nav>
         <div className="vendor-sidebar-bottom">
-          <button type="button" aria-current={currentTab === "settings" ? "page" : undefined} className={currentTab === "settings" ? "active" : ""} onClick={() => navigateVendor("settings")}>Account & Settings</button>
+          <button type="button" aria-current={currentTab === "settings" || currentTab === "resource" ? "page" : undefined} className={currentTab === "settings" || currentTab === "resource" ? "active" : ""} onClick={() => navigateVendor("settings")}>Account & Settings</button>
         </div>
       </aside>
       
@@ -309,7 +317,8 @@ export function VendorStorePanel({ token, profile, onMessage, onSignOut, notice,
           {currentTab === "catalog" && !documentStatus?.canManageCatalog && <p role="alert">Complete your document verification before managing your catalog.</p>}
           {currentTab === "documents" && <VendorDocumentsPanel token={token} currentStatus={documentStatus} onMessage={onMessage} onChanged={setDocumentStatus} />}
           {currentTab === "orders" && <OrderOperations token={token} vendor vendorView="orders" storeId={store.id} initialOrderId={initialOrderId} onInitialOrderHandled={() => setInitialOrderId(undefined)} onMessage={onMessage} />}
-          {currentTab === "settings" && <VendorSettings profile={profile} onSignOut={onSignOut} />}
+          {currentTab === "settings" && <VendorSettings onSignOut={onSignOut} onOpenResource={openPortalResource} />}
+          {currentTab === "resource" && portalResource && <PortalResourcePage role="vendor" resource={portalResource} account={{ storeName: store.name, storeStatus: store.status }} onBack={() => navigateVendor("settings")} />}
         </div>
       </main>
     </div>
@@ -658,11 +667,11 @@ function VendorStoreProfile({ token, store, pincodes, hours, setStore, setPincod
 // VendorSettings
 // -----------------------------------------------------------------------------
 interface VendorSettingsProps {
-  profile: { role: string; userId: string; storeId: string | null };
   onSignOut: () => void;
+  onOpenResource: (resource: PortalResourceId) => void;
 }
 
-function VendorSettings({ profile, onSignOut }: VendorSettingsProps) {
+function VendorSettings({ onSignOut, onOpenResource }: VendorSettingsProps) {
   return (
     <div className="vendor-settings-profile">
       <div className="vendor-section-header">
@@ -677,12 +686,13 @@ function VendorSettings({ profile, onSignOut }: VendorSettingsProps) {
          </div>
          <div className="vendor-detail-list" style={{ display: "grid", gap: "12px", borderTop: "1px solid var(--border-light)", paddingTop: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}><dt style={{ color: "var(--text-muted)", fontSize: "12px" }}>Role</dt><dd style={{ margin: 0, fontWeight: 600 }}>Vendor Workspace</dd></div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><dt style={{ color: "var(--text-muted)", fontSize: "12px" }}>Session Status</dt><dd style={{ margin: 0, fontWeight: 600, color: "var(--success)" }}>Active and Verified</dd></div>
+             <div style={{ display: "flex", justifyContent: "space-between" }}><dt style={{ color: "var(--text-muted)", fontSize: "12px" }}>Session Status</dt><dd style={{ margin: 0, fontWeight: 600, color: "var(--success)" }}>Signed in</dd></div>
          </div>
          <div className="vendor-form-actions" style={{ marginTop: '24px' }}>
             <button className="vendor-danger-button" onClick={onSignOut} type="button">Sign out safely</button>
          </div>
       </div>
+      <PortalResourceMenu role="vendor" onOpen={onOpenResource} />
     </div>
   );
 }

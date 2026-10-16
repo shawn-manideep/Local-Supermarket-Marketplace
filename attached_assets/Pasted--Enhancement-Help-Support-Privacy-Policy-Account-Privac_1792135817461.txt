@@ -1,0 +1,97 @@
+# Enhancement: Help & Support, Privacy Policy, Account Privacy, and Terms & Conditions
+
+Update the existing Local Supermarket Marketplace application to include the following four options in both the **Vendor portal and Delivery Partner portal**, using the same clean, simple list-style design shown in the reference image.
+
+- Help & Support
+- Privacy Policy
+- Account Privacy
+- Terms & Conditions
+
+Before implementation, inspect the existing Customer portal, Vendor portal, Delivery Partner portal, Admin portal, routing, and current legal/help pages. Reuse existing pages and content wherever appropriate instead of creating duplicate implementations.
+
+## 1. Help & Support
+
+Add a Help & Support option to both the Vendor and Delivery Partner portals.
+
+Requirements:
+- Open a dedicated Help & Support page.
+- Provide relevant guidance for the current role, including login, account access, profile completion, approvals, and common portal workflows.
+- Vendor guidance should cover store management, catalog, inventory, orders, documents, bank details, and FSSAI compliance.
+- Delivery Partner guidance should cover delivery availability, accepting assignments, order pickup, package-photo capture, delivery status updates, and delivery reports.
+- Provide the existing support contact details or support channels if already configured.
+- Do not invent phone numbers, email addresses, or support channels.
+- If no support contact is configured, provide a clear support-request form or identify the configuration needed to enable it.
+- Keep the page responsive and easy to use on mobile devices.
+
+## 2. Privacy Policy
+
+Add a Privacy Policy option to both portals.
+
+Requirements:
+- Reuse the existing Privacy Policy page and approved content if available.
+- Ensure the policy is accessible without requiring the user to navigate to the Customer portal.
+- Review whether the existing policy covers Vendor and Delivery Partner data, including contact details, store information, bank details, compliance documents, delivery assignments, and delivery photographs.
+- Where relevant information is missing, identify the required additions and prepare accurate role-specific content for review.
+- Do not claim that the application follows a particular certification, legal standard, or privacy practice unless supported by the existing implementation and approved policy.
+
+## 3. Account Privacy
+
+Add an Account Privacy option to both portals.
+
+Requirements:
+- Open a dedicated page explaining the account information available to the logged-in user and the privacy controls currently supported.
+- Show only information belonging to the authenticated Vendor or Delivery Partner.
+- Provide supported account-data access or privacy-request options where the existing architecture permits.
+- If account deletion, data export, or privacy-request submission is not currently supported, do not display fake or nonfunctional controls. Clearly identify the missing functionality.
+- If account deletion or deactivation is implemented, preserve order history, financial records, audit history, and other records that must be retained under existing business rules.
+- Never expose passwords, authentication tokens, full bank details, private documents, or another user's personal information.
+- Admin must retain appropriate authorized oversight, without giving one Vendor or Delivery Partner access to another user's private information.
+
+## 4. Terms & Conditions
+
+Add a Terms & Conditions option to both portals.
+
+Requirements:
+- Reuse the existing approved Terms & Conditions page or content where available.
+- Ensure the page is accessible from both portals.
+- Review whether the existing terms appropriately cover Vendor responsibilities and Delivery Partner responsibilities.
+- Vendor-specific topics may include product accuracy, pricing, inventory, order acceptance, compliance documents, and fulfillment responsibilities.
+- Delivery Partner-specific topics may include assignment acceptance, secure handling of customer orders, required package photographs, delivery status updates, and appropriate use of customer information.
+- If role-specific terms are missing, identify the gap and prepare draft additions for business/legal review.
+- Do not silently replace approved legal content with newly invented terms.
+- If acceptance of updated terms is required by the existing business rules, record acceptance securely with the appropriate user identity, terms version, and timestamp.
+
+## 5. UI and Navigation
+
+Use the reference image as the design guide:
+- Four clear, vertically arranged menu rows.
+- Appropriate icons for each option.
+- Right-facing chevron indicating navigation.
+- Consistent spacing, typography, and styling.
+- Accessible touch targets and responsive mobile layout.
+- Consistent appearance across Vendor and Delivery Partner portals.
+
+Keep these options in a suitable Settings, Profile, or Account section according to the existing navigation structure. Do not mix Vendor and Delivery Partner business workflows.
+
+## 6. Admin and Existing Portal Consistency
+
+- Admin must be able to inspect the relevant support requests and privacy-related requests if those features are implemented.
+- Preserve the existing Customer portal versions of these pages.
+- If a shared page can safely serve multiple roles, reuse it with role-specific content where needed.
+- Apply server-side authorization to private account information and submitted support requests.
+- Do not create duplicate legal pages or contradictory policy versions.
+- Do not change unrelated features, authentication, order workflows, or database records.
+
+## 7. Verification
+
+Before making changes, identify which of these pages already exist and what content they contain.
+
+After implementation:
+1. List which pages were reused, updated, or newly created.
+2. Run relevant existing non-browser tests and frontend/backend builds.
+3. Do not run automated browser tests.
+4. Confirm that each portal displays all four options and that each link opens the correct page.
+5. Verify role-based access to account information and support requests.
+6. Identify any missing support contact configuration or legal content that requires approval.
+
+Do not report a page as complete if it is only a visual placeholder or contains nonfunctional controls.
