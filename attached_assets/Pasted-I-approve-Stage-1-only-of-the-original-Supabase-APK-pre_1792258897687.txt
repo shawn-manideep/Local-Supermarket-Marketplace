@@ -1,0 +1,39 @@
+I approve **Stage 1 only** of the original-Supabase APK preparation plan.
+
+Target original Supabase project: `gkwcolipeavxnuzqlamb`.
+
+### Authorized implementation scope
+
+1. Implement the fixed, code-defined API target-profile map in `backend/api/src/api-only/target-guard.ts`.
+   - Add the explicitly named original-project Customer APK profile.
+   - Preserve the isolated-project profile separately.
+   - Reject missing/unknown profiles and every mismatched project, URL/key claim, database host, username, port, mode, TLS setting, timeout, or storage namespace.
+   - Do not allow arbitrary environment values to select an arbitrary target.
+
+2. Update `backend/api/src/api-only/target-guard.test.ts` with synthetic regression tests for both profiles, mismatches, invalid profiles, TLS, timeout and existing read-only startup protections.
+
+3. Update the Customer native build checks in:
+   - `apps/customer/src/lib/native-readiness.mjs`
+   - `apps/customer/scripts/check-native-config.mjs`
+   - `apps/customer/src/lib/native-readiness.test.ts`
+
+   Require an exact approved profile-to-project mapping, reject missing or unknown profiles, validate the API HTTPS origin, and reject privileged keys. Validate JWT key claims where available; do not accept opaque keys without an explicitly safe verification method.
+
+4. Update documentation only as needed to distinguish the original-project APK profile from the isolated-project profile.
+
+5. Run the focused synthetic tests, relevant TypeScript/build checks that do not start services, and `git diff --check`.
+
+### Explicitly NOT authorized
+
+- No Supabase calls or PostgreSQL connections.
+- No API startup or workflow restart.
+- No Secrets inspection or changes.
+- No database migration, seed, SQL execution or schema changes.
+- No storage bucket creation, object copying, deletion or reference changes.
+- No deployment, publishing or APK build.
+- No changes to existing portal runtime configuration or the ordinary API startup path.
+- No unrelated dependency upgrades.
+
+### Completion report
+
+List every changed file, tests and build results, any remaining blockers, and the exact Git diff. Stop after Stage 1 for review. Do not begin the shared-storage workstream or read-only database preflight without separate authorization.

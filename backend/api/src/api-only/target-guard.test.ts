@@ -12,41 +12,135 @@ import {
   type ReadOnlyIdentityClient,
 } from "./startup.js";
 import {
-  API_ONLY_PROJECT_REF,
+  API_ONLY_TARGET_PROFILES,
   assertApiOnlyTarget,
-  PROTECTED_PROJECT_REF,
+  type ApiOnlyTargetProfile,
 } from "./target-guard.js";
 
-function jwt(ref = API_ONLY_PROJECT_REF, role = "anon") {
+function jwt(ref: string, role = "anon") {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(JSON.stringify({ ref, role })).toString("base64url");
   return `${header}.${payload}.synthetic-signature`;
 }
 
-function validEnv(): NodeJS.ProcessEnv {
-  const host = `db.${API_ONLY_PROJECT_REF}.supabase.co`;
+function validEnv(
+  targetProfile: ApiOnlyTargetProfile = "isolated-native-preview",
+): NodeJS.ProcessEnv {
+  const profile = API_ONLY_TARGET_PROFILES[targetProfile];
   return {
+    API_ONLY_TARGET_PROFILE: targetProfile,
     API_OBJECT_STORAGE_PROVIDER: "replit-app-storage",
-    SUPABASE_URL: `https://${API_ONLY_PROJECT_REF}.supabase.co`,
-    SUPABASE_ANON_KEY: jwt(API_ONLY_PROJECT_REF, "anon"),
-    SUPABASE_SERVICE_ROLE_KEY: jwt(API_ONLY_PROJECT_REF, "service_role"),
-    SUPABASE_DB_URL: `postgresql://postgres:synthetic-password@${host}:5432/postgres?sslmode=verify-full&connect_timeout=10`,
+    SUPABASE_URL: profile.supabaseUrl,
+    SUPABASE_ANON_KEY: jwt(profile.projectRef, "anon"),
+    SUPABASE_SERVICE_ROLE_KEY: jwt(profile.projectRef, "service_role"),
+    SUPABASE_DB_URL: `postgresql://${profile.databaseUsername}:synthetic-password@${profile.databaseHost}:${profile.databasePort}/postgres?sslmode=verify-full&connect_timeout=${profile.connectTimeoutSeconds}`,
     SESSION_SECRET: "synthetic-session-secret-with-more-than-32-characters",
     MASTER_CATALOG_REVIEW_TOKEN_SECRET: "synthetic-master-catalog-secret-with-more-than-32-characters",
-    API_ONLY_EXPECTED_DB_HOST: host,
-    API_ONLY_EXPECTED_DB_USERNAME: "postgres",
-    API_ONLY_EXPECTED_DB_PORT: "5432",
-    API_ONLY_EXPECTED_DB_MODE: "direct",
+    API_ONLY_EXPECTED_DB_HOST: profile.databaseHost,
+    API_ONLY_EXPECTED_DB_USERNAME: profile.databaseUsername,
+    API_ONLY_EXPECTED_DB_PORT: profile.databasePort,
+    API_ONLY_EXPECTED_DB_MODE: profile.databaseMode,
     PRIVATE_OBJECT_DIR: "private",
     PUBLIC_OBJECT_SEARCH_PATHS: "public",
   };
 }
 
-test("API-only guard accepts only the isolated project and explicit SDK mode", () => {
-  assert.equal(assertApiOnlyTarget(validEnv()), 10_000);
+test("API-only guard accepts only the two fixed project profiles and explicit SDK mode", () => {
+  assert.equal(assertApiOnlyTarget(validEnv("isolated-native-preview")), 10_000);
+  assert.equal(assertApiOnlyTarget(validEnv("original-customer-apk")), 10_000);
   assert.throws(
     () => assertApiOnlyTarget({ ...validEnv(), API_OBJECT_STORAGE_PROVIDER: undefined }),
     /explicitly select replit-app-storage/,
+  );
+});
+
+test("original Supabase target is accepted only by its explicitly named profile", () => {
+  const original = validEnv("original-customer-apk");
+  assert.equal(assertApiOnlyTarget(original), 10_000);
+
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, API_ONLY_TARGET_PROFILE: "isolated-native-preview" }),
+    /SUPABASE_URL does not match/,
+  );
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, API_ONLY_TARGET_PROFILE: "unapproved-profile" }),
+    /code-defined target profile/,
+  );
+  assert.throws(
+    () => {
+      const missing = { ...original };
+      delete missing.API_ONLY_TARGET_PROFILE;
+      assertApiOnlyTarget(missing);
+    },
+    /code-defined target profile/,
+  );
+});
+
+test("target profiles reject cross-project URL and key claims", () => {
+  const original = validEnv("original-customer-apk");
+  const isolated = validEnv("isolated-native-preview");
+
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, SUPABASE_URL: isolated.SUPABASE_URL }),
+    /SUPABASE_URL does not match/,
+  );
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, SUPABASE_ANON_KEY: isolated.SUPABASE_ANON_KEY }),
+    /API key does not match/,
+  );
+  assert.throws(
+    () => assertApiOnlyTarget({
+      ...original,
+      SUPABASE_SERVICE_ROLE_KEY: jwt(
+        API_ONLY_TARGET_PROFILES["original-customer-apk"].projectRef,
+        "anon",
+      ),
+    }),
+    /API key does not match/,
+  );
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, SUPABASE_URL: original.SUPABASE_URL }),
+    /SUPABASE_URL does not match/,
+  );
+});
+
+test("original database host, username, port, and mode are fixed by its profile", () => {
+  const original = validEnv("original-customer-apk");
+  const connection = new URL(original.SUPABASE_DB_URL!);
+
+  const wrongHost = new URL(connection);
+  wrongHost.hostname = "aws-1-ap-south-1.pooler.supabase.com";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, SUPABASE_DB_URL: wrongHost.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+
+  const wrongUser = new URL(connection);
+  wrongUser.username = "postgres.otherproject";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, SUPABASE_DB_URL: wrongUser.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+
+  const wrongPort = new URL(connection);
+  wrongPort.port = "6543";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, SUPABASE_DB_URL: wrongPort.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+  const missingPort = new URL(connection);
+  missingPort.port = "";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, SUPABASE_DB_URL: missingPort.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, API_ONLY_EXPECTED_DB_MODE: "direct" }),
+    /metadata does not match/,
+  );
+  assert.throws(
+    () => assertApiOnlyTarget({ ...original, API_ONLY_EXPECTED_DB_HOST: "other.pooler.supabase.com" }),
+    /metadata does not match/,
   );
 });
 
@@ -151,47 +245,20 @@ test("a statement-timeout error rolls back and releases the transaction client w
   assert.equal(released, 1);
 });
 
-test("API-only guard rejects protected or mismatched Supabase projects", () => {
-  assert.throws(
-    () =>
-      assertApiOnlyTarget({
-        ...validEnv(),
-        SUPABASE_URL: `https://${PROTECTED_PROJECT_REF}.supabase.co`,
-      }),
-    /not the allowlisted isolated project/,
-  );
-  assert.throws(
-    () => assertApiOnlyTarget({ ...validEnv(), SUPABASE_ANON_KEY: jwt(PROTECTED_PROJECT_REF) }),
-    /API key does not identify the isolated project/,
-  );
-  assert.throws(
-    () =>
-      assertApiOnlyTarget({
-        ...validEnv(),
-        SUPABASE_DB_URL: `postgresql://postgres:synthetic-password@db.${PROTECTED_PROJECT_REF}.supabase.co:5432/postgres?sslmode=verify-full&connect_timeout=10`,
-        API_ONLY_EXPECTED_DB_HOST: `db.${PROTECTED_PROJECT_REF}.supabase.co`,
-      }),
-    /protected project/,
-  );
-});
-
 test("API-only guard rejects unverified TLS, endpoint overrides, and unbounded connects", () => {
+  const original = validEnv("original-customer-apk");
   const cases = [
-    "postgresql://postgres:synthetic-password@db.nrnigsznectrgbgafwme.supabase.co:5432/postgres?sslmode=require&connect_timeout=10",
-    "postgresql://postgres:synthetic-password@db.nrnigsznectrgbgafwme.supabase.co:5432/postgres?sslmode=verify-full&connect_timeout=60",
-    "postgresql://postgres:synthetic-password@db.nrnigsznectrgbgafwme.supabase.co:5432/postgres?sslmode=verify-full&connect_timeout=10&host=evil.example",
+    "postgresql://postgres.gkwcolipeavxnuzqlamb:synthetic-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require&connect_timeout=10",
+    "postgresql://postgres.gkwcolipeavxnuzqlamb:synthetic-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&connect_timeout=9",
+    "postgresql://postgres.gkwcolipeavxnuzqlamb:synthetic-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&connect_timeout=30",
+    "postgresql://postgres.gkwcolipeavxnuzqlamb:synthetic-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&connect_timeout=10&host=evil.example",
   ];
   for (const SUPABASE_DB_URL of cases) {
-    assert.throws(() => assertApiOnlyTarget({ ...validEnv(), SUPABASE_DB_URL }));
+    assert.throws(() => assertApiOnlyTarget({ ...original, SUPABASE_DB_URL }));
   }
   assert.throws(
-    () =>
-      assertApiOnlyTarget({
-        ...validEnv(),
-        API_ONLY_EXPECTED_DB_HOST: "unverified.example",
-        API_ONLY_EXPECTED_DB_MODE: "direct",
-      }),
-    /owner-confirmed isolated endpoint/,
+    () => assertApiOnlyTarget({ ...original, SUPABASE_DB_URL: undefined }),
+    /SUPABASE_DB_URL is required/,
   );
 });
 
@@ -217,7 +284,7 @@ test("startup rejects invalid configuration before loading the API app", async (
         return "loaded";
       },
     ),
-    /not the allowlisted isolated project/,
+    /does not match the selected API-only target profile/,
   );
   assert.equal(loadCalls, 0);
 

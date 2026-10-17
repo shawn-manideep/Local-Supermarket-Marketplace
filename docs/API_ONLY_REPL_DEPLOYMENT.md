@@ -4,6 +4,14 @@ This is a source and local-test preparation document. It does not create a
 Replit project, set Secrets, contact Supabase or App Storage, run migrations,
 publish, or build a mobile app.
 
+There are two code-defined API-only target profiles:
+
+- `original-customer-apk` targets the original Customer Supabase project.
+- `isolated-native-preview` targets the isolated preview project.
+
+The profile name selects a fixed code map. Environment variables cannot select
+an arbitrary Supabase project.
+
 ## Deployment boundary
 
 Use the canonical `backend/api` package from the
@@ -71,9 +79,9 @@ pnpm --filter @workspace/api run start:api-only
 Set the new project service's build step to the first three commands and its
 run step to the final command. Replit supplies `PORT`; the API binds to
 `0.0.0.0`. The ordinary `start` script and `backend/api/src/index.ts` remain
-the existing path. `start:api-only` validates the isolated target, opens its
-read-only database identity check, and only then dynamically loads the shared
-API app.
+the existing path. `start:api-only` requires `API_ONLY_TARGET_PROFILE` to
+select one of the fixed profiles, validates that profile, opens its read-only
+database identity check, and only then dynamically loads the shared API app.
 
 ## Required configuration in the separate project
 
@@ -90,19 +98,16 @@ never commit them or put server credentials in `EXPO_PUBLIC_*` variables.
 - `MASTER_CATALOG_REVIEW_TOKEN_SECRET` (at least 32 characters)
 
 `FRESH_DB_URL` and `FRESH_SUPABASE_URL` are not fallbacks and are not read by
-the API-only entry point. `SUPABASE_DB_URL` must be the isolated project's
-owner-provided connection string; the API uses no `DATABASE_URL`, old
-development URL, or protected-project fallback.
+the API-only entry point. `SUPABASE_DB_URL` must match the selected
+code-defined profile; the API uses no `DATABASE_URL`, old development URL, or
+cross-project fallback.
 
 **Non-secret allowlist/configuration**
 
+- `API_ONLY_TARGET_PROFILE=original-customer-apk` for the original Customer APK
+  API, or `isolated-native-preview` for the isolated preview target. Missing
+  and unknown profiles fail startup.
 - `API_OBJECT_STORAGE_PROVIDER=replit-app-storage` — required, explicit opt-in.
-- `API_ONLY_EXPECTED_DB_HOST`, `API_ONLY_EXPECTED_DB_USERNAME`,
-  `API_ONLY_EXPECTED_DB_PORT`, and `API_ONLY_EXPECTED_DB_MODE` — must match
-  connection details confirmed by the project owner. `direct` is accepted only
-  for `db.nrnigsznectrgbgafwme.supabase.co`. A pooler is accepted only with
-  mode `session`, a `*.pooler.supabase.com` hostname, and a username containing
-  the isolated project reference. Do not guess any pooler value.
 - `PRIVATE_OBJECT_DIR=private`.
 - `PUBLIC_OBJECT_SEARCH_PATHS=public`.
 - `CORS_ALLOWED_ORIGINS` — leave empty for native-only requests. If a browser
@@ -111,23 +116,45 @@ development URL, or protected-project fallback.
   slashes. Do not add portal origins that should remain on the existing API.
 - `PORT` is provided by the Replit service.
 
-The startup guard rejects the protected reference, a Supabase URL/key whose
-JWT `ref` or `role` claims do not match, unexpected database host/user/port,
-host overrides, non-`verify-full` TLS, and missing or unbounded
-`connect_timeout` (must be 1–30 seconds). After those checks it opens one
-database session, runs `BEGIN READ ONLY`, checks `current_database()`, and
-rolls back. Its three individual queries use five-second client timeouts. A
-failed connection or identity check prevents the API app from loading or
-listening. The check is implemented only in `start:api-only` and has not been
-run against Supabase here. It never prints values. JWT claim checks are a
-configuration mismatch guard, not signature verification; Supabase verifies
-tokens when requests are made.
+The original Customer APK profile is fixed to the following owner-confirmed
+database endpoint:
+
+| Setting | Required value |
+| --- | --- |
+| Project reference | `gkwcolipeavxnuzqlamb` |
+| Supabase URL | `https://gkwcolipeavxnuzqlamb.supabase.co` |
+| Database | `postgres` |
+| Connection mode | Session pooler |
+| Host | `aws-0-ap-south-1.pooler.supabase.com` |
+| Port | `5432` |
+| Username | `postgres.gkwcolipeavxnuzqlamb` |
+| TLS | `sslmode=verify-full` |
+| Connection timeout | 10 seconds |
+
+The isolated preview profile remains separate and accepts only its exact
+direct endpoint, `db.nrnigsznectrgbgafwme.supabase.co`, port `5432`, database
+`postgres`, and database user `postgres`. Its unconfirmed pooler endpoint is
+not accepted.
+
+The guard checks the selected profile's Supabase URL and JWT `ref`/`role`
+claims, exact database host/user/port/mode, TLS, connection timeout and storage
+namespaces. It rejects host overrides and any connection timeout other than
+the profile's fixed 10 seconds. Legacy `API_ONLY_EXPECTED_DB_*` values, if
+present, are comparison-only and cannot select or override a target.
+
+After those checks it opens one database session, runs `BEGIN READ ONLY`,
+checks `current_database()`, and rolls back. Its individual queries use
+five-second client timeouts. A failed connection or identity check prevents the
+API app from loading or listening. The check is implemented only in
+`start:api-only` and has not been run against Supabase here. It never prints
+values. JWT claim checks are a configuration mismatch guard, not signature
+verification; Supabase verifies tokens when requests are made.
 
 After that check, the API-only entrypoint initializes the shared pool before
 loading the app with:
 
-- `connectionTimeoutMillis`: the validated `connect_timeout` value, converted
-  to milliseconds (allowed range 1–30 seconds).
+- `connectionTimeoutMillis`: the selected profile's validated 10-second
+  `connect_timeout`, converted to milliseconds.
 - `statement_timeout`: 60 seconds, sent as a PostgreSQL server-side setting.
 - `query_timeout`: 65 seconds, as a client-side safeguard.
 
@@ -160,6 +187,12 @@ existing authenticated API routes remain the only read path. Product and
 branding images also remain API-mediated; no object URL or public bucket
 access is added. Existing GCS code remains the default.
 
+The original-project profile still requires App Storage in the separate API
+Replit project. That bucket is not shared with the existing portal project's
+GCS sidecar bucket, so this profile alone does not provide the existing assets.
+Shared storage, object copying, and synchronization are a separate blocked
+workstream; no storage data is copied or exposed by this preparation.
+
 ## Deployment and verification sequence (not performed)
 
 1. The owner creates a separate Replit project from the approved repository
@@ -169,19 +202,34 @@ access is added. Existing GCS code remains the default.
 2. In the new project, explicitly set up its own App Storage bucket. Confirm
    that the API-only service uses the `replit-app-storage` provider and the
    `private/` and `public/` namespaces. Do not copy the old bucket or objects.
-3. Obtain the exact session-pooler endpoint from the owner’s Supabase project
-   connection details. The current repository records the required values as:
+3. Select the fixed target profile. The original Customer APK profile uses the
+   owner-confirmed endpoint below:
+
+   | Setting | Required value |
+   | --- | --- |
+   | Project reference | `gkwcolipeavxnuzqlamb` |
+   | Database | `postgres` |
+   | Connection mode | `session` |
+   | Hostname | `aws-0-ap-south-1.pooler.supabase.com` |
+   | Port | `5432` |
+   | Username | `postgres.gkwcolipeavxnuzqlamb` |
+   | TLS | `sslmode=verify-full` |
+   | Connection timeout | `connect_timeout=10` seconds |
+
+   The isolated profile remains separately fixed to this direct endpoint; its
+   session-pooler endpoint is not accepted until owner-confirmed and added to
+   the code-defined profile:
 
    | Setting | Required value |
    | --- | --- |
    | Project reference | `nrnigsznectrgbgafwme` |
    | Database | `postgres` |
-   | Connection mode | `session` |
-   | Hostname | **Owner must supply the exact hostname. It is not recorded here; do not guess.** |
+   | Connection mode | `direct` |
+   | Hostname | `db.nrnigsznectrgbgafwme.supabase.co` |
    | Port | `5432` |
-   | Username | `postgres.nrnigsznectrgbgafwme` |
+   | Username | `postgres` |
    | TLS | `sslmode=verify-full`; do not disable certificate or hostname verification |
-   | Connection timeout | `connect_timeout=10` seconds (guard accepts 1–30 seconds) |
+   | Connection timeout | `connect_timeout=10` seconds |
 
    The connection URL may include only the guard-approved query settings:
    `sslmode`, optional reviewed `sslrootcert`, and `connect_timeout`; do not
@@ -195,9 +243,10 @@ access is added. Existing GCS code remains the default.
    pooler hostname is still unknown, so its DNS and TCP reachability have not
    been checked.
 4. Add the API-only Secrets and non-secret allowlist settings in the new
-   project's Tools → Secrets/environment controls. Confirm that the Supabase
-   URL and API-key claims identify only `nrnigsznectrgbgafwme`. Never copy
-   values from the current Repl.
+   project's Tools → Secrets/environment controls. Set
+   `API_ONLY_TARGET_PROFILE` to the intended code-defined profile and confirm
+   that the Supabase URL and API-key claims match it. Never copy values from
+   the current Repl.
 5. Run the local build and tests. Starting `start:api-only` requires a separate
    approval because it opens a database session for the read-only identity
    check. It must fail closed if the owner-confirmed URL, username, port, mode,
@@ -209,18 +258,20 @@ access is added. Existing GCS code remains the default.
    `curl -i "https://<generated-API-origin>/health"`. These are process
    liveness checks only, not proof of database, Auth, or storage readiness.
 7. Perform a separately authorized read-only Supabase identity/schema
-   preflight, then obtain separate approval for schema initialization and
-   functional testing. The isolated database is currently uninitialized, so
-   API health alone cannot enable login, catalog, cart, checkout, or order
-   flows.
+   preflight, then obtain separate approval for any schema initialization or
+   functional testing. The isolated database is currently uninitialized; the
+   original database must be verified as-is. Do not run the fresh database
+   migration runner against the original project.
 8. After App Storage is provisioned, verify private-document and
    delivery-photo authorization, product-image active-listing/vendor access,
    and branding responses. No remote storage verification has been performed.
 
-The Customer Expo app must later receive the actual stable HTTPS API URL as
-`EXPO_PUBLIC_API_URL`; its existing public Supabase URL and anon key must refer
-to this same isolated project. Never put the service-role key or database URL
-in the mobile app.
+The Customer Expo `preview` APK profile is mapped to the original project.
+After a stable HTTPS API origin exists and the separate storage blocker is
+resolved, configure `EXPO_PUBLIC_API_URL`,
+`EXPO_PUBLIC_SUPABASE_URL=https://gkwcolipeavxnuzqlamb.supabase.co`, and the
+matching public JWT anon key in the EAS preview environment. Never put the
+service-role key or database URL in the mobile app.
 
 ## Local checks
 

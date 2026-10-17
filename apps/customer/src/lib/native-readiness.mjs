@@ -1,4 +1,12 @@
 /** Public configuration validation shared by the native client and EAS hook. */
+export const DEFAULT_CUSTOMER_NATIVE_BUILD_PROFILE = "preview";
+export const CUSTOMER_NATIVE_BUILD_TARGETS = Object.freeze({
+  preview: Object.freeze({
+    projectRef: "gkwcolipeavxnuzqlamb",
+    supabaseUrl: "https://gkwcolipeavxnuzqlamb.supabase.co",
+  }),
+});
+
 function publicHttpsUrl(value) {
   try {
     const url = new URL(value);
@@ -18,14 +26,13 @@ function publicHttpsUrl(value) {
   }
 }
 
-export function isPublicSupabaseKey(key) {
-  if (typeof key !== "string") return false;
-  if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) return true;
+export function isPublicSupabaseKey(key, expectedProjectRef) {
+  if (typeof key !== "string" || typeof expectedProjectRef !== "string") return false;
   try {
     const parts = key.split(".");
     if (parts.length !== 3 || !parts[0] || !parts[2]) return false;
     const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return claims.role === "anon";
+    return claims.role === "anon" && claims.ref === expectedProjectRef;
   } catch {
     return false;
   }
@@ -36,17 +43,30 @@ export function isPublicSupabaseKey(key) {
  * identity. Those require a separately authorized real-backend verification.
  * Never include configuration values in returned errors.
  */
-export function nativeConfigurationIssues({ apiUrl, supabaseUrl, anonKey }) {
+export function nativeConfigurationIssues({
+  apiUrl,
+  supabaseUrl,
+  anonKey,
+  profile = DEFAULT_CUSTOMER_NATIVE_BUILD_PROFILE,
+}) {
   const issues = [];
-  if (!publicHttpsUrl(apiUrl)) {
-    issues.push("Configure a stable public HTTPS API URL for the native app, not localhost or a workspace preview URL.");
+  const target =
+    typeof profile === "string" ? CUSTOMER_NATIVE_BUILD_TARGETS[profile] : undefined;
+  if (!target) {
+    issues.push("Select an explicitly approved Customer native build profile.");
+  }
+  const apiBaseUrl = publicHttpsUrl(apiUrl);
+  if (!apiBaseUrl || apiBaseUrl.pathname !== "/") {
+    issues.push("Configure a stable public HTTPS API origin, not localhost or a workspace preview URL.");
   }
   const authUrl = publicHttpsUrl(supabaseUrl);
   if (!authUrl || authUrl.pathname !== "/") {
     issues.push("Configure the public HTTPS Supabase project URL for the native app.");
+  } else if (target && authUrl.origin !== target.supabaseUrl) {
+    issues.push("The Supabase URL does not match the selected Customer native build profile.");
   }
-  if (!isPublicSupabaseKey(anonKey)) {
-    issues.push("Configure only a Supabase anon or publishable key. Never use a service-role or secret key in the app.");
+  if (!target || !isPublicSupabaseKey(anonKey, target.projectRef)) {
+    issues.push("Configure only a JWT anon key whose project and role claims match the selected profile.");
   }
   return issues;
 }

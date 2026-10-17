@@ -2,22 +2,38 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { nativeConfigurationIssues, isPublicSupabaseKey } from "./native-readiness.mjs";
+import {
+  CUSTOMER_NATIVE_BUILD_TARGETS,
+  nativeConfigurationIssues,
+  isPublicSupabaseKey,
+} from "./native-readiness.mjs";
 import { CUSTOMER_NATIVE_AUTH_REDIRECT, parseNativeAuthCallback } from "./native-auth";
 
 // Synthetic values are unit-test inputs only; never application configuration.
 const publicConfig = {
   apiUrl: "https://api.example.com",
-  supabaseUrl: "https://example.supabase.co",
-  anonKey: "sb_publishable_unit_test",
+  supabaseUrl: CUSTOMER_NATIVE_BUILD_TARGETS.preview.supabaseUrl,
+  anonKey: "",
+  profile: "preview",
 };
-const jwt = (role: string) => `header.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.signature`;
+const projectRef = CUSTOMER_NATIVE_BUILD_TARGETS.preview.projectRef;
+const jwt = (role: string, ref = projectRef) =>
+  `header.${Buffer.from(JSON.stringify({ role, ref })).toString("base64url")}.signature`;
 
-test("native configuration accepts public HTTPS and only public Supabase key types", () => {
-  assert.deepEqual(nativeConfigurationIssues(publicConfig), []);
-  assert.equal(isPublicSupabaseKey(jwt("anon")), true);
-  for (const key of [jwt("service_role"), jwt("authenticated"), "sb_secret_unit_test", "", undefined]) {
-    assert.equal(isPublicSupabaseKey(key), false);
+test("native configuration accepts only the approved profile and matching public JWT anon key", () => {
+  const config = { ...publicConfig, anonKey: jwt("anon") };
+  assert.deepEqual(nativeConfigurationIssues(config), []);
+  assert.equal(isPublicSupabaseKey(config.anonKey, projectRef), true);
+  for (const key of [
+    jwt("service_role"),
+    jwt("authenticated"),
+    jwt("anon", "other-project"),
+    "sb_publishable_unit_test",
+    "sb_secret_unit_test",
+    "",
+    undefined,
+  ]) {
+    assert.equal(isPublicSupabaseKey(key, projectRef), false);
     assert.ok(nativeConfigurationIssues({ ...publicConfig, anonKey: key }).length);
   }
 });
@@ -26,12 +42,28 @@ test("native configuration rejects missing, local, temporary, credentialed and n
   for (const apiUrl of [undefined, "", "/api", "http://api.example.com", "https://localhost",
     "https://127.0.0.1", "https://10.1.2.3", "https://192.168.1.2", "https://172.16.1.1",
     "https://[::1]", "https://workspace.replit.dev", "https://workspace.repl.co",
-    "https://user:password@api.example.com", "https://api.example.com?token=sensitive"]) {
+    "https://user:password@api.example.com", "https://api.example.com?token=sensitive",
+    "https://api.example.com/api"]) {
     const issues = nativeConfigurationIssues({ ...publicConfig, apiUrl });
     assert.ok(issues.length, String(apiUrl));
     assert.doesNotMatch(JSON.stringify(issues), /sensitive|user:password/);
   }
-  assert.ok(nativeConfigurationIssues({ ...publicConfig, supabaseUrl: "https://example.supabase.co/auth" }).length);
+  assert.ok(nativeConfigurationIssues({
+    ...publicConfig,
+    supabaseUrl: `${CUSTOMER_NATIVE_BUILD_TARGETS.preview.supabaseUrl}/auth`,
+  }).length);
+  assert.ok(nativeConfigurationIssues({
+    ...publicConfig,
+    supabaseUrl: "https://other-project.supabase.co",
+  }).length);
+  assert.ok(nativeConfigurationIssues({
+    ...publicConfig,
+    profile: "unapproved-profile",
+  }).length);
+  assert.ok(nativeConfigurationIssues({
+    ...publicConfig,
+    profile: null,
+  }).length);
 });
 
 test("the preview check fails closed without public variables and never consumes server credentials", () => {
@@ -48,6 +80,33 @@ test("the preview check fails closed without public variables and never consumes
   assert.equal(result.status, 1);
   assert.match(result.stderr, /NOT READY/);
   assert.doesNotMatch(result.stdout + result.stderr, /must-not-be-used|never-print-this/);
+});
+
+test("EAS build check accepts only preview mapped to the original project", () => {
+  const script = new URL("../../scripts/check-native-config.mjs", import.meta.url).pathname;
+  const validEnv = {
+    PATH: process.env.PATH,
+    EAS_BUILD_PROFILE: "preview",
+    EXPO_PUBLIC_API_URL: "https://api.example.com",
+    EXPO_PUBLIC_SUPABASE_URL: CUSTOMER_NATIVE_BUILD_TARGETS.preview.supabaseUrl,
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: jwt("anon"),
+  };
+  const valid = spawnSync(process.execPath, [script], { env: validEnv, encoding: "utf8" });
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.match(valid.stdout, /checks passed/);
+  assert.doesNotMatch(valid.stdout + valid.stderr, /synthetic-signature|api\.example\.com/);
+
+  for (const env of [
+    { ...validEnv, EAS_BUILD_PROFILE: "other" },
+    { ...validEnv, EAS_BUILD_PROFILE: undefined },
+    { ...validEnv, EXPO_PUBLIC_SUPABASE_URL: "https://other-project.supabase.co" },
+    { ...validEnv, EXPO_PUBLIC_SUPABASE_ANON_KEY: jwt("anon", "other-project") },
+  ]) {
+    const rejected = spawnSync(process.execPath, [script], { env, encoding: "utf8" });
+    assert.equal(rejected.status, 1);
+    assert.match(rejected.stderr, /NOT READY/);
+    assert.doesNotMatch(rejected.stdout + rejected.stderr, /synthetic-signature|api\.example\.com/);
+  }
 });
 
 test("only the exact native callback route accepts complete signup/recovery pairs", () => {
