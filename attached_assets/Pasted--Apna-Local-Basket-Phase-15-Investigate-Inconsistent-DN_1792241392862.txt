@@ -1,0 +1,34 @@
+**Apna Local Basket — Phase 15: Investigate Inconsistent DNS Resolution**
+
+Continue on branch `development/fresh-supabase-runner`.
+
+Target project: `nrnigsznectrgbgafwme`  
+Expected database hostname: `db.nrnigsznectrgbgafwme.supabase.co`  
+Expected API hostname: `nrnigsznectrgbgafwme.supabase.co`  
+Protected project: `gkwcolipeavxnuzqlamb`
+
+Phase 14's single authorized connection attempt failed with `ENOTFOUND`, although an earlier DNS-only check resolved the database hostname.
+
+### Objective
+Investigate inconsistent DNS resolution without connecting to PostgreSQL.
+
+### Allowed checks
+1. Use the same development execution environment and resolver context as the failed preflight.
+2. Inspect the database hostname extracted from `FRESH_DB_URL` without displaying the Secret or connection string.
+3. Run DNS-only checks for the exact database and API hostnames. Record timestamps, resolver errors, and A/AAAA lookup results where available.
+4. Repeat DNS-only lookups a small, bounded number of times to determine whether resolution is intermittent.
+5. Compare system resolver results with any available DNS diagnostic tools, without installing packages or changing resolver configuration.
+6. Check whether environment-specific proxy, DNS, or network restrictions could explain the discrepancy. Report evidence, not assumptions.
+7. Distinguish DNS resolution failures from TCP reachability, TLS negotiation, authentication, and database availability. Do not test the latter in this phase.
+
+### Strict restrictions
+- Do not open a PostgreSQL connection or make an authenticated request.
+- Do not change or print Secrets.
+- Do not guess alternate database hosts or ports.
+- Do not disable TLS or change DNS configuration.
+- Do not access the protected project.
+- Do not modify files, database objects, storage, deployments, or application behavior.
+- Do not run migrations.
+
+### Report
+Provide the exact hostname comparison, timestamped DNS-only results, the error codes, and the most likely explanation supported by evidence. If the environment cannot reliably resolve the endpoint, recommend a safe next step without attempting a database connection.
