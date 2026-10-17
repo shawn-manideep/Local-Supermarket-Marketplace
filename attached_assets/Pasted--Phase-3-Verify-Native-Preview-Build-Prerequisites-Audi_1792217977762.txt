@@ -1,0 +1,32 @@
+## Phase 3 — Verify Native Preview Build Prerequisites (Audit First)
+
+The Customer EAS project is now created and linked successfully.
+
+- Owner: `apna-local-basket`
+- Project slug: `local-supermarket-marketplace`
+- EAS project ID: `7c05eb94-461f-4ca5-ba66-45aa8311cdc5`
+- Directory: `apps/customer/`
+- Preview profile: internal Android APK in `apps/customer/eas.json`
+
+### Tasks
+
+1. Inspect the current `app.json`, `eas.json`, Customer API client, authentication configuration, backend routes, and deployment configuration.
+2. Verify that `app.json` contains the correct EAS project ID and intended owner. Do not overwrite existing settings unnecessarily.
+3. Determine whether a stable, public HTTPS backend API URL actually exists and is deployed. Verify the endpoint without exposing credentials. Do not use localhost, a temporary preview hostname, or an invented URL.
+4. Identify the intended Supabase project for preview builds and determine where its public URL and anon key can be retrieved safely. Do not print or copy secret values into the report.
+5. Verify that `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, and `EXPO_PUBLIC_SUPABASE_ANON_KEY` will be configured in the EAS **preview** environment and will match the intended backend and Supabase project.
+6. Inspect native password recovery and login flows. Report blockers, but do not change authentication behavior in this phase.
+7. Review the Android signing configuration and report whether EAS-managed signing is available and appropriate. Do not create or replace credentials.
+8. Run safe configuration and static validation checks where possible.
+
+### Strict boundaries
+
+- Audit first; do not modify files, database records, production settings, authentication behavior, or environment variables.
+- Do not run `eas build`, create signing credentials, install unnecessary packages, or generate an APK.
+- Never print secrets, service-role keys, database credentials, access tokens, or passwords.
+- Do not change any Vendor, Delivery Partner, Admin, or other project.
+- Clearly distinguish verified facts from unresolved assumptions.
+
+### Report
+
+Return a checklist of verified prerequisites, blockers, exact configuration sources, and the safest next action. Do not claim a production endpoint or successful native login unless verified.

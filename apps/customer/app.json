@@ -5,7 +5,11 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "scheme": "apnalocalbasket-customer",
     "android": {
       "package": "com.apnalocalbasket.customer"
@@ -15,6 +19,12 @@
     },
     "experiments": {
       "baseUrl": "/customer"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7c05eb94-461f-4ca5-ba66-45aa8311cdc5"
+      }
+    },
+    "owner": "apna-local-basket"
   }
 }
