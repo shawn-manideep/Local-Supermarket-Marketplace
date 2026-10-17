@@ -1,0 +1,33 @@
+## Phase 7 — Prepare an Isolated Development Environment and Storage Implementation Plan
+
+Project: Apna Local Basket (ALB)
+
+### Confirmed decisions
+- EAS project is linked under `apna-local-basket`.
+- Railway is the intended backend host for development testing.
+- Supabase Storage is the preferred future storage provider.
+- The current GCS provider must remain the default for the existing Replit application.
+- Production and existing business data must remain untouched.
+- Existing storage references and file access controls must be preserved.
+
+### Tasks
+
+1. Identify the minimum steps to create an isolated development dataset using synthetic data without copying personal or confidential production data.
+2. Determine whether a separate Supabase project is required or whether an independently isolated test schema/project can be used safely. Explain the trade-offs; do not create either.
+3. Review how the existing database schema, authentication roles, storage references, and backend configuration could support isolated testing.
+4. Prepare a proposed implementation sequence for the provider-neutral storage interface and Supabase adapter.
+5. Identify how legacy GCS references will remain readable and how both Replit and Railway would resolve references during transition.
+6. Specify tests for permissions, publication gating, private documents, delivery photos, transaction rollback, concurrency, and deletion safety.
+7. Identify required environment variables by name only, without printing values.
+8. Identify which steps require owner approval and which can be performed safely in a development branch.
+
+### Strict boundaries
+- Do not modify files or install packages.
+- Do not create a Supabase project, schema, bucket, or storage object.
+- Do not run migrations, seeds, or database writes.
+- Do not access or display personal records or file contents.
+- Do not change Replit, Railway, EAS, or production settings.
+- Do not deploy or build an APK.
+
+### Deliverable
+Return a phased implementation plan with prerequisites, risks, validation criteria, and explicit approval gates. Clearly distinguish verified facts from recommendations and unresolved questions.
