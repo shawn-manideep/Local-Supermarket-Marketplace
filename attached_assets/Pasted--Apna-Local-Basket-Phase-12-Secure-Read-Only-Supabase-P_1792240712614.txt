@@ -1,0 +1,57 @@
+## Apna Local Basket — Phase 12: Secure Read-Only Supabase Preflight
+
+Continue from the current branch `development/fresh-supabase-runner`.
+
+### Target project
+- Project name: `apna-local-basket-native-preview-dev`
+- Project reference: `nrnigsznectrgbgafwme`
+- Region: Mumbai (`ap-south-1`)
+- PostgreSQL: 17.11
+- Protected existing project: `gkwcolipeavxnuzqlamb`
+
+I have now added these two development Secrets:
+- `FRESH_DB_URL`
+- `FRESH_SUPABASE_URL`
+
+### Step 1 — Verify configuration safely
+1. Check that both Secrets exist and are available to the intended development process.
+2. Do not print, log, reveal, or copy their values into source code, terminal output, reports, or Git.
+3. Confirm that the API URL corresponds exactly to `https://nrnigsznectrgbgafwme.supabase.co`.
+4. Never fall back to existing database variables or connect to the protected project.
+5. If either Secret is missing, malformed, or points to another project, stop and report the issue.
+
+### Step 2 — Review the preflight script
+Before connecting, inspect the proposed script and its imports. Verify that it:
+- Cannot invoke the migration CLI or `runFresh`.
+- Cannot execute DDL, DML, migrations, seeds, or storage modifications.
+- Uses certificate-verified TLS.
+- Uses a read-only transaction and bounded connection/query timeouts.
+- Redacts credentials and suppresses sensitive connection errors.
+- Validates the target project and rejects the protected project reference.
+
+Do not weaken any existing safeguards. If the script is unsafe or the database driver's TLS behavior cannot be verified, stop and report the blocker.
+
+### Step 3 — Run the read-only preflight
+Only after Steps 1 and 2 pass, connect exclusively to the new project and inspect:
+
+- Actual database identity, endpoint, PostgreSQL version, TLS status, and read-only transaction status.
+- Existing schemas and application objects.
+- Migration history and whether the database is genuinely suitable for a fresh bootstrap.
+- Custom Auth triggers and Auth users.
+- Storage buckets and storage objects.
+- Required roles, schema/database privileges, `auth.uid()`, relevant ownership/default grants, and required extensions.
+
+Use read-only catalog queries. Do not create temporary tables or modify managed Supabase objects. If any query needs write privileges or a check cannot be performed safely, report it as NOT VERIFIED rather than bypassing the check.
+
+### Step 4 — Report results
+For every check, report PASS, FAIL, or NOT VERIFIED, with a brief explanation.
+
+If any critical check fails, stop. Do not execute migrations or attempt a different database connection.
+
+### Strict restrictions
+- Do not run `migrate:fresh --apply` or any migration command that connects to the database.
+- Do not change files, secrets, existing databases, storage, application behavior, deployment settings, or EAS configuration.
+- Do not seed data, create fixtures, deploy, or build an APK.
+- Do not ask me to paste secrets into chat.
+
+Finish with the preflight findings and the exact recommended next step. No database changes are authorized in this phase.
