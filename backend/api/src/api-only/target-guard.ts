@@ -50,7 +50,7 @@ function exactHttpsProjectUrl(value: string | undefined) {
   }
 }
 
-export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): void {
+export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
   if (env.API_OBJECT_STORAGE_PROVIDER !== "replit-app-storage") {
     fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage.");
   }
@@ -152,4 +152,9 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): void {
   ) {
     fail("API-only App Storage must use the isolated private/ and public/ namespaces.");
   }
+
+  // node-postgres does not translate the libpq-style connect_timeout URL
+  // parameter into PoolConfig.connectionTimeoutMillis. Return it explicitly
+  // so the API-only startup path can pass the validated value to pg.
+  return Number(connectTimeout) * 1_000;
 }

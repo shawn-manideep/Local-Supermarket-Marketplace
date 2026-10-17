@@ -34,11 +34,13 @@ export async function verifyReadOnlyDatabaseIdentity(
   }
 }
 
-export async function verifyApiOnlyDatabaseIdentity(): Promise<void> {
+export async function verifyApiOnlyDatabaseIdentity(
+  connectionTimeoutMillis: number,
+): Promise<void> {
   let client: ReadOnlyIdentityClient;
   try {
     const { getPool } = await import("@workspace/db");
-    client = await getPool().connect();
+    client = await getPool({ connectionTimeoutMillis }).connect();
   } catch {
     throw new Error("API-only startup refused: isolated database connection could not be established.");
   }
@@ -47,10 +49,10 @@ export async function verifyApiOnlyDatabaseIdentity(): Promise<void> {
 
 export async function loadApiOnlyApp<T>(
   env: NodeJS.ProcessEnv,
-  verifyDatabase: () => Promise<void>,
+  verifyDatabase: (connectionTimeoutMillis: number) => Promise<void>,
   loadApp: () => Promise<T>,
 ): Promise<T> {
-  assertApiOnlyTarget(env);
-  await verifyDatabase();
+  const connectionTimeoutMillis = assertApiOnlyTarget(env);
+  await verifyDatabase(connectionTimeoutMillis);
   return loadApp();
 }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import pg from "pg";
 import {
   loadApiOnlyApp,
   verifyReadOnlyDatabaseIdentity,
@@ -37,10 +38,46 @@ function validEnv(): NodeJS.ProcessEnv {
 }
 
 test("API-only guard accepts only the isolated project and explicit SDK mode", () => {
-  assert.doesNotThrow(() => assertApiOnlyTarget(validEnv()));
+  assert.equal(assertApiOnlyTarget(validEnv()), 10_000);
   assert.throws(
     () => assertApiOnlyTarget({ ...validEnv(), API_OBJECT_STORAGE_PROVIDER: undefined }),
     /explicitly select replit-app-storage/,
+  );
+});
+
+test("validated connect_timeout is applied through pg's connectionTimeoutMillis option", () => {
+  const connectionString = validEnv().SUPABASE_DB_URL!;
+  const connectionTimeoutMillis = assertApiOnlyTarget(validEnv());
+
+  // The installed driver ignores connect_timeout in the URL. Without the
+  // explicit PoolConfig option, its client has no connection timeout.
+  const urlOnlyPool = new pg.Pool({ connectionString });
+  const urlOnlyClient = new pg.Client({ connectionString });
+  assert.equal(
+    (urlOnlyPool as unknown as { options: { connectionTimeoutMillis?: number } })
+      .options.connectionTimeoutMillis,
+    undefined,
+  );
+  assert.equal(
+    (urlOnlyClient as unknown as { _connectionTimeoutMillis: number })
+      ._connectionTimeoutMillis,
+    0,
+  );
+
+  const boundedPool = new pg.Pool({ connectionString, connectionTimeoutMillis });
+  const boundedClient = new pg.Client({
+    connectionString,
+    connectionTimeoutMillis,
+  });
+  assert.equal(
+    (boundedPool as unknown as { options: { connectionTimeoutMillis: number } })
+      .options.connectionTimeoutMillis,
+    10_000,
+  );
+  assert.equal(
+    (boundedClient as unknown as { _connectionTimeoutMillis: number })
+      ._connectionTimeoutMillis,
+    10_000,
   );
 });
 
@@ -117,8 +154,9 @@ test("startup rejects invalid configuration before loading the API app", async (
   let identityChecks = 0;
   const loaded = await loadApiOnlyApp(
     validEnv(),
-    async () => {
+    async (connectionTimeoutMillis) => {
       identityChecks += 1;
+      assert.equal(connectionTimeoutMillis, 10_000);
     },
     async () => {
       loadCalls += 1;
@@ -132,7 +170,7 @@ test("startup rejects invalid configuration before loading the API app", async (
   await assert.rejects(
     loadApiOnlyApp(
       validEnv(),
-      async () => {
+      async (_connectionTimeoutMillis) => {
         throw new Error("synthetic database connection failure");
       },
       async () => {

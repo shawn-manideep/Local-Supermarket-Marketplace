@@ -1,11 +1,13 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import pg, { type PoolConfig } from "pg";
 import * as schema from "./schema/index.js";
 
 const { Pool } = pg;
 let pool: pg.Pool | undefined;
 
-export function getPool() {
+export function getPool(
+  options: Pick<PoolConfig, "connectionTimeoutMillis"> = {},
+) {
   if (pool) {
     return pool;
   }
@@ -17,7 +19,7 @@ export function getPool() {
     );
   }
 
-  pool = new Pool({ connectionString });
+  pool = new Pool({ connectionString, ...options });
   return pool;
 }
 
