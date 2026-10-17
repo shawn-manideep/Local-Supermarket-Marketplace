@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import {
+  API_ONLY_QUERY_TIMEOUT_MS,
+  API_ONLY_STATEMENT_TIMEOUT_MS,
+  apiOnlyPoolOptions,
   loadApiOnlyApp,
   verifyReadOnlyDatabaseIdentity,
   type ReadOnlyIdentityClient,
@@ -79,6 +84,71 @@ test("validated connect_timeout is applied through pg's connectionTimeoutMillis 
       ._connectionTimeoutMillis,
     10_000,
   );
+});
+
+test("API-only pool applies server statement and client query timeouts; default pool options remain unset", () => {
+  const connectionString = validEnv().SUPABASE_DB_URL!;
+  const options = apiOnlyPoolOptions(assertApiOnlyTarget(validEnv()));
+  const defaultPool = new pg.Pool({ connectionString });
+  const apiOnlyPool = new pg.Pool({ connectionString, ...options });
+  const apiOnlyClient = new pg.Client({ connectionString, ...options });
+  const connectionParameters = (apiOnlyClient as unknown as {
+    connectionParameters: { statement_timeout: number; query_timeout: number };
+  }).connectionParameters;
+
+  assert.equal(defaultPool.options.statement_timeout, undefined);
+  assert.equal(defaultPool.options.query_timeout, undefined);
+  assert.equal(apiOnlyPool.options.connectionTimeoutMillis, 10_000);
+  assert.equal(apiOnlyPool.options.statement_timeout, API_ONLY_STATEMENT_TIMEOUT_MS);
+  assert.equal(apiOnlyPool.options.query_timeout, API_ONLY_QUERY_TIMEOUT_MS);
+  assert.equal(connectionParameters.statement_timeout, 60_000);
+  assert.equal(connectionParameters.query_timeout, 65_000);
+});
+
+test("a statement-timeout error rolls back and releases the transaction client without retry", async () => {
+  const statements: string[] = [];
+  let released = 0;
+  let timedOutStatementCount = 0;
+  const timeoutError = Object.assign(
+    new Error("canceling statement due to statement timeout"),
+    { code: "57014" },
+  );
+  const client = {
+    async query(config: string | { text?: string }) {
+      const text = typeof config === "string" ? config : config.text ?? "";
+      statements.push(text);
+      if (text === "SELECT timeout_probe") {
+        timedOutStatementCount += 1;
+        throw timeoutError;
+      }
+      return { rows: [], rowCount: 0 };
+    },
+    release() {
+      released += 1;
+    },
+  };
+  class FakePool {
+    async connect() {
+      return client;
+    }
+  }
+  const database = drizzle(new FakePool() as unknown as pg.Pool);
+
+  await assert.rejects(
+    database.transaction(async (transaction) => {
+      await transaction.execute(sql.raw("SELECT timeout_probe"));
+    }),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error.cause as { code?: string } | undefined)?.code === "57014",
+  );
+  assert.deepEqual(statements, [
+    "begin",
+    "SELECT timeout_probe",
+    "rollback",
+  ]);
+  assert.equal(timedOutStatementCount, 1, "timed-out writes or statements must not be retried");
+  assert.equal(released, 1);
 });
 
 test("API-only guard rejects protected or mismatched Supabase projects", () => {

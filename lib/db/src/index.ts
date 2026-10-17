@@ -6,7 +6,10 @@ const { Pool } = pg;
 let pool: pg.Pool | undefined;
 
 export function getPool(
-  options: Pick<PoolConfig, "connectionTimeoutMillis"> = {},
+  options: Pick<
+    PoolConfig,
+    "connectionTimeoutMillis" | "statement_timeout" | "query_timeout"
+  > = {},
 ) {
   if (pool) {
     return pool;

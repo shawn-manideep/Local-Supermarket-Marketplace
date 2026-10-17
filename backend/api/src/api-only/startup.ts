@@ -1,5 +1,16 @@
 import { assertApiOnlyTarget } from "./target-guard.js";
 
+export const API_ONLY_STATEMENT_TIMEOUT_MS = 60_000;
+export const API_ONLY_QUERY_TIMEOUT_MS = 65_000;
+
+export function apiOnlyPoolOptions(connectionTimeoutMillis: number) {
+  return {
+    connectionTimeoutMillis,
+    statement_timeout: API_ONLY_STATEMENT_TIMEOUT_MS,
+    query_timeout: API_ONLY_QUERY_TIMEOUT_MS,
+  };
+}
+
 export interface ReadOnlyIdentityClient {
   query(config: {
     text: string;
@@ -40,7 +51,7 @@ export async function verifyApiOnlyDatabaseIdentity(
   let client: ReadOnlyIdentityClient;
   try {
     const { getPool } = await import("@workspace/db");
-    client = await getPool({ connectionTimeoutMillis }).connect();
+    client = await getPool(apiOnlyPoolOptions(connectionTimeoutMillis)).connect();
   } catch {
     throw new Error("API-only startup refused: isolated database connection could not be established.");
   }
