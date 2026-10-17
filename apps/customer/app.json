@@ -6,11 +6,15 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "platforms": ["ios", "android", "web"],
+    "scheme": "apnalocalbasket-customer",
+    "android": {
+      "package": "com.apnalocalbasket.customer"
+    },
+    "ios": {
+      "bundleIdentifier": "com.apnalocalbasket.customer"
+    },
     "experiments": {
       "baseUrl": "/customer"
-      "android": {
-        "package": "com.apnalocalbasket.customer"
-      }
     }
   }
 }
