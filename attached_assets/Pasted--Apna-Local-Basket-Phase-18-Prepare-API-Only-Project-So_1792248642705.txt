@@ -1,0 +1,25 @@
+**Apna Local Basket — Phase 18: Prepare API-Only Project Source**
+
+Proceed with implementation preparation for a separate API-only Replit project. My goal remains a fully functional, downloadable Android Customer APK.
+
+### Scope
+Use the existing backend from `shawn-manideep/Local-Supermarket-Marketplace`. Do not create a second backend implementation.
+
+1. Identify the minimal source files, workspace configuration, lockfile, and shared packages required for a separate project that runs `@workspace/api`.
+2. Prepare a reproducible API-only project layout and document the exact build and start commands.
+3. Implement a narrowly scoped, fail-closed Supabase target guard that requires the intended isolated project `nrnigsznectrgbgafwme` and rejects the protected project `gkwcolipeavxnuzqlamb`. Verify the database endpoint against owner-confirmed connection details; do not guess pooler hosts or usernames.
+4. Review database connection TLS verification and timeouts. Never disable certificate verification or silently fall back to existing database variables.
+5. Prepare the storage adapter migration to Replit's supported project-specific App Storage SDK. Preserve private access controls for vendor compliance documents and delivery photos, and existing API-mediated access to product and branding images. Do not copy objects from the existing project.
+6. Add focused tests for target rejection, environment validation, storage access boundaries, and startup behavior.
+7. Document the exact server-side Secrets needed and the safe setup procedure. Never print or commit secret values.
+8. Keep the existing Customer, Vendor, Delivery Partner, and Admin portals untouched.
+
+### Restrictions
+- Do not create or publish a Replit project yet.
+- Do not configure or change Secrets.
+- Do not connect to Supabase, run migrations, create storage buckets, or modify remote data.
+- Do not change production services or build the APK in this phase.
+- Avoid unrelated refactoring and unnecessary dependencies.
+
+### Deliverable
+Implement only the isolated, reviewable source changes needed for the API-only project preparation. Run local tests and report changed files, results, unresolved blockers, and the exact next approval required. If a required change could affect the existing application, stop and request approval first.
