@@ -1,0 +1,46 @@
+## Phase 5 — Verify Development Data Isolation and Recommend Storage Architecture
+
+We are preparing the Apna Local Basket Customer app for an Android preview build.
+
+### Confirmed context
+- Development Supabase project: `supermarket-marketplace-dev`
+- Project reference: `gkwcolipeavxnuzqlamb`
+- Intended backend hosting: Railway, development environment only
+- EAS owner: `apna-local-basket`
+- No Railway deployment has been created.
+- The backend currently uses Replit-specific credential services in:
+  - `backend/api/src/branding/storage.ts`
+  - `backend/api/src/product-images/storage.ts`
+  - `backend/api/src/vendor-documents/storage.ts`
+
+### Part A — Data isolation
+
+1. Inspect repository configuration and deployment references to determine whether any production service could use the development Supabase project.
+2. Identify which available evidence can establish whether the 23 auth accounts, 14 customers, 7 stores, and 34 orders are test data or real business data.
+3. Do not assume that a project name proves isolation.
+4. Do not query or print personal records, customer details, order contents, credentials, or secret values.
+5. Do not modify database records, authentication users, schema, or project settings.
+6. Report what can be verified from existing configuration and what requires owner confirmation.
+
+### Part B — Storage architecture
+
+1. Trace how branding images, product images, vendor compliance documents, and delivery package photos are uploaded, retrieved, and authorized.
+2. Determine whether the current object references are tied to Replit-specific storage.
+3. Compare the smallest viable options for a development backend hosted outside Replit:
+   - Existing Supabase Storage, if compatible with current access controls.
+   - An external object-storage provider, if necessary.
+4. Prefer reusing existing storage infrastructure where feasible, but do not migrate data or change providers without approval.
+5. Preserve public/private boundaries. Vendor documents and delivery photos must not become publicly accessible.
+6. Identify any signed URL, upload, download, deletion, and authorization behavior that must remain intact.
+7. Do not print secrets, change code, install packages, or create storage buckets.
+
+### Part C — Report
+
+Return:
+- Evidence for or against development/production isolation.
+- Whether the existing records can safely be used for testing.
+- Storage flow by file type and access requirements.
+- The recommended minimal storage solution and required code changes.
+- Risks, blockers, and validation steps.
+
+Audit only. No deployment, code changes, migrations, data writes, or credential changes.
