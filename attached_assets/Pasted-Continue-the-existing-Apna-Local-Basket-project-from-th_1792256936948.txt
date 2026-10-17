@@ -1,0 +1,38 @@
+Continue the existing Apna Local Basket project from this original Replit workspace. We are changing the deployment approach: the Android APK must use the original Supabase project already configured for the existing application.
+
+Original Supabase project:
+- Name: `supermarket-marketplace-dev`
+- Project reference: `gkwcolipeavxnuzqlamb`
+
+### First: inspect and report
+
+1. Identify the current Git branch and commit.
+2. Inspect the existing Customer app, Dashboard, backend API, Supabase configuration, and storage implementation.
+3. Inspect the API-only implementation and deployment guide available in Git history or the authenticated repository, if accessible.
+4. Compare the backend's expected schema with the original application's schema and identify any compatibility gaps.
+5. Determine whether the existing backend can safely serve the native Customer APK without changing the existing web portals.
+6. Identify how to build the Customer Expo app and configure its EAS preview environment to use the original project's public Supabase URL and anon key, plus the API's HTTPS URL when available.
+7. Identify the remaining requirements for native password recovery, session persistence, and storage.
+
+### Safety requirements
+
+- Preserve the original Supabase data, schema, users, stores, products, and orders.
+- Do not reset, migrate, seed, or write to the original database.
+- Do not expose secret values or place server secrets in the mobile app.
+- Do not change the existing production or development configuration yet.
+- Do not publish, deploy, or build an APK yet.
+- Do not start a service that connects to Supabase.
+- Do not upgrade unrelated packages or change business logic.
+- If the authenticated Git repository or API-only files are unavailable, report that blocker instead of recreating security-sensitive files.
+
+### Required report
+
+Provide:
+- Current branch and commit.
+- Existing application architecture.
+- Original Supabase compatibility findings.
+- Whether the current API-only guard blocks the original project.
+- Missing dependencies and safe repair options.
+- Exact remaining steps to build a functional Customer APK against the original database.
+
+Stop after the read-only assessment and make no configuration or database changes.

@@ -36,3 +36,4 @@
 - [Supabase IPv6 DNS](supabase-ipv6-dns.md) — Node ADDRCONFIG can reject an IPv6-only host that resolves normally; management-API inspection does not prove driver connectivity.
 - [Supabase pooler security](supabase-pooler-security.md) — external TLS and the pooler’s upstream hop are separate; verify session settings rather than trusting startup options.
 - [Replit deployment isolation](replit-deployment-isolation.md) — publishing is project-wide; each project owns its App Storage bucket and should use the supported SDK.
+- [Native Customer backend target](native-customer-backend-target.md) — the Android Customer APK should use the existing original Supabase project, not the isolated preview project.
