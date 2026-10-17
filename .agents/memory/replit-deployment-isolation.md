@@ -7,4 +7,4 @@ Replit publishes all artifacts in a project together. Each Replit project owns a
 
 **Why:** Replit documentation specifies whole-project publishing, project-exclusive App Storage, and SDK-managed credentials.
 
-**How to apply:** For an API-only deployment, use a separate project containing only the API service and its workspace dependencies. Provision that project's own storage bucket and adapt storage access to the supported SDK; do not publish a mixed portal project or copy its storage settings.
+**How to apply:** For an API-only deployment, use a separate project containing only the API service and its workspace dependencies. Provision that project's own storage bucket and adapt storage access to the supported SDK; do not publish a mixed portal project or copy its storage settings. If the SDK lacks object metadata or generations, store MIME metadata alongside product images and use versioned branding objects plus an active manifest.
