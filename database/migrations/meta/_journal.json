@@ -120,6 +120,69 @@
       "when": 1791651000000,
       "tag": "0023_store_handling_fee",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792222702990,
+      "tag": "0016_catalog_excel_import_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792222702991,
+      "tag": "0017_vendor_store_profile_location",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792222702992,
+      "tag": "0018_customer_usernames",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792222702993,
+      "tag": "0019_vendor_documents_and_local_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792222702994,
+      "tag": "0020_customer_saved_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792222702995,
+      "tag": "0021_orderability_delivery_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792222702996,
+      "tag": "0022_customer_structured_addresses",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792222702997,
+      "tag": "0024_vendor_compliance_and_delivery_photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792222702998,
+      "tag": "0025_fssai_expiry_and_vendor_notifications",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,58 @@
+## Phase 10 — Implement and Test the Fresh Supabase Migration Runner
+
+Use the Phase 9 audit as the baseline.
+
+### Scope
+
+Implement the audited five-file patch:
+
+1. `database/migrations/meta/_journal.json`
+2. `lib/db/scripts/migrate-fresh.mjs` — new
+3. `lib/db/scripts/migrate-fresh.test.mjs` — new
+4. `lib/db/package.json`
+5. `docs/FRESH_SUPABASE_BOOTSTRAP.md` — new
+
+### Requirements
+
+- Preserve all existing SQL migration files and existing journal entries.
+- Register the nine omitted migrations in the audited dependency-valid order.
+- Preserve existing journal metadata; do not backdate entries or rewrite an existing database ledger.
+- Add a distinct `migrate:fresh` command. Do not change the behavior of the existing `migrate` command or production deployment commands.
+- Implement per-file transactions so migration `0012` commits before migration `0013` uses the new enum value.
+- Record successful migration history in the same transaction as that migration's SQL.
+- Implement exact target approval, protected-project rejection, project/connection identity verification, migration-history and hash checks, exclusive locking, and safe resume behavior.
+- Reject unknown, changed, inconsistent, or ambiguous migration history rather than attempting automatic repair.
+- Never silently fall back to another database or storage provider.
+- Do not include seed scripts, demo resets, test-account scripts, or storage provisioning in bootstrap.
+
+### Testing
+
+Use temporary, disposable PostgreSQL infrastructure only. Bind it to loopback and ensure all connections are explicitly directed to that temporary cluster.
+
+Test the actual new runner, not just a filename-based migration loop.
+
+Verify:
+- Every migration file is registered exactly once.
+- Fresh bootstrap and required schema objects.
+- The `0012`/`0013` transaction boundary.
+- Rerun safety and valid-prefix resume.
+- Rollback of a failed migration and its history entry.
+- Rejection of changed hashes, unknown history, wrong targets, and concurrent runners.
+- Representative RLS and trigger behavior with synthetic fixtures.
+- Existing migration commands and GCS behavior remain unchanged.
+
+If managed-Supabase behavior cannot be reproduced locally, document it as an unresolved validation gate.
+
+### Strict boundaries
+
+- Work on a dedicated development branch.
+- Do not create a Supabase project.
+- Do not connect to or write to any remote database.
+- Never use `gkwcolipeavxnuzqlamb` for testing or migration execution.
+- Do not change production configuration, credentials, existing storage, or other portals.
+- Do not install unnecessary packages or expose secrets in logs.
+- If any requirement cannot be implemented safely, stop and report the blocker instead of weakening the guard.
+
+### Report
+
+Return changed files, implementation details, exact test commands and results, and any unresolved risks. Clearly distinguish executed tests from proposed tests. Do not deploy, create buckets, seed data, configure EAS, or build an APK.
