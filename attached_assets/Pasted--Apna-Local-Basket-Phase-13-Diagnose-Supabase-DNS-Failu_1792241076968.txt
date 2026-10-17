@@ -1,0 +1,37 @@
+## Apna Local Basket — Phase 13: Diagnose Supabase DNS Failure
+
+Continue on `development/fresh-supabase-runner`.
+
+New Supabase project:
+- Reference: `nrnigsznectrgbgafwme`
+- API URL: `https://nrnigsznectrgbgafwme.supabase.co`
+- Region: `ap-south-1`
+- PostgreSQL: 17.11
+
+Protected project: `gkwcolipeavxnuzqlamb`.
+
+The Phase 12 preflight passed configuration and script-safety checks but failed before authentication with `ENOTFOUND` while resolving the configured database endpoint.
+
+### Objective
+Identify why the development environment cannot resolve the configured hostname.
+
+### Allowed checks
+1. Inspect the connection URL locally without printing its username, password, or complete value.
+2. Extract only the hostname and compare it with the exact connection details shown in the new project's Supabase Connect panel.
+3. Perform DNS-only diagnostics against that exact hostname using available system tools. Record the resolver result and error code.
+4. Check whether DNS resolution works for the project's public API hostname, `nrnigsznectrgbgafwme.supabase.co`, without making an authenticated API or database request.
+5. Determine whether the failure appears to be an incorrect endpoint, unavailable DNS, or a development-environment networking limitation. Do not claim a cause that the evidence does not establish.
+6. Review Supabase's current connection guidance only if necessary, distinguishing documented facts from observations in this environment.
+
+### Restrictions
+- Do not access or print Secret values in logs or reports.
+- Do not edit or replace Secrets.
+- Do not try alternate, guessed, or unrelated database hosts.
+- Do not attempt another PostgreSQL connection.
+- Do not disable TLS or certificate verification.
+- Do not connect to the protected project.
+- Do not modify files, databases, storage, deployments, or application behavior.
+- Do not run migrations.
+
+### Report
+Provide the hostname comparison result, DNS-only test results, likely cause with evidence, and the safest next action. If the exact endpoint cannot be verified, stop and ask for the connection details to be checked in the Supabase Dashboard.
