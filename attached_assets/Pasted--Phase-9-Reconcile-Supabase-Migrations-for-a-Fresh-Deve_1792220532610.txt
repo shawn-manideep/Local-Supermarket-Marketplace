@@ -1,0 +1,44 @@
+## Phase 9 — Reconcile Supabase Migrations for a Fresh Development Project
+
+### Project context
+- Product: Apna Local Basket (ALB)
+- Intended new project: `apna-local-basket-native-preview-dev`
+- Intended Supabase organization: `shawn-manideep's Org`
+- Intended region: Mumbai (`ap-south-1`)
+- Cost preference: Free tier only; stop if unavailable.
+- Existing protected Supabase project: `gkwcolipeavxnuzqlamb`
+- Existing Replit backend and GCS storage must remain unchanged.
+
+### Objective
+Audit and prepare a safe, reproducible migration sequence for a completely empty Supabase project.
+
+The previous audit found 26 numbered SQL migration files but only 17 Drizzle journal entries. Nine migration files are absent from the journal. Verify these findings independently.
+
+### Tasks
+1. Inventory every migration file, its ordering, dependencies, and whether it is referenced by the migration journal or scripts.
+2. Identify the nine reportedly unjournaled files and determine whether they are required, superseded, intentionally standalone, or unsafe to replay. Do not guess.
+3. Inspect SQL for dependencies on `auth.users`, Supabase roles, extensions, triggers, RLS policies, functions, storage tables, and existing data.
+4. Identify destructive operations, data backfills, assumptions about existing records, and SQL that cannot safely run on an empty project.
+5. Determine how the current migration runner interprets the journal and migration history.
+6. Propose the smallest forward-only changes needed for a reproducible fresh-project bootstrap.
+7. Define a validation strategy using disposable local infrastructure or another isolated test target. Never use the existing populated Supabase project for migration testing.
+8. Identify how to enforce an exact approved project-reference guard before any future migration or fixture write.
+
+### Strict boundaries
+- Audit and propose only. Do not modify migration files, journals, application code, or configuration.
+- Do not create the Supabase project.
+- Do not execute migrations, seeds, SQL writes, or schema pushes.
+- Do not change the existing database, storage, credentials, or production settings.
+- Do not print secrets or personal records.
+- Do not start Railway deployment, EAS configuration, or APK builds.
+
+### Deliverables
+Return:
+- Complete migration inventory and dependency order.
+- Explanation for each unjournaled migration.
+- Risks and required corrections.
+- Proposed patch plan with exact files to change.
+- Disposable validation plan and acceptance criteria.
+- Explicit approval gates before any write operation.
+
+Make no changes in this phase.
