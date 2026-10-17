@@ -1,0 +1,31 @@
+## Phase 6 — Production Reference and Storage Compatibility Audit
+
+The Phase 5 audit recommends Supabase Storage with private buckets, while preserving the existing Express API authorization rules.
+
+### Confirmed constraints
+- Development Supabase project reference: `gkwcolipeavxnuzqlamb`.
+- Production isolation remains unverified.
+- Existing GCS-backed file storage must continue working in the current Replit environment.
+- No storage buckets or objects have been created or migrated.
+- Railway deployment is not authorized yet.
+
+### Tasks
+
+1. Inspect all repository deployment manifests, environment-variable references, CI/CD workflows, hosting configuration, and deployment documentation for references to Supabase project URLs or project IDs.
+2. Determine which references can be verified from repository evidence and which external hosting services require owner-side confirmation.
+3. Do not print secrets or full connection strings.
+4. Inspect the existing storage adapter boundaries and identify the smallest provider-neutral interface that can support both current GCS storage and future Supabase Storage.
+5. Propose a backward-compatible design for logo revisions, product-image publication gating, vendor-document versions, delivery-photo replacement, transaction rollback, and deletion.
+6. Identify how the current backend and Railway backend could safely read the same file references during a transition. If compatibility cannot be guaranteed, recommend an isolated approved test dataset instead.
+7. Define tests for authorization, private caching, publication checks, cross-store access denial, cross-assignment denial, and failed database transactions.
+8. Do not modify code, query personal records, create buckets, migrate objects, change credentials, deploy services, or run database writes.
+
+### Output
+
+Return:
+- Repository evidence for production/development project references.
+- Remaining external checks requiring owner confirmation.
+- Recommended storage interface and transition plan.
+- Test plan and unresolved risks.
+
+Audit only. Make no changes.
