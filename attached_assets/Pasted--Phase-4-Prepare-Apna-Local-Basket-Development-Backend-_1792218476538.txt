@@ -1,0 +1,43 @@
+## Phase 4 — Prepare Apna Local Basket Development Backend for Native Preview
+
+### Confirmed decisions
+- Product: Apna Local Basket (ALB)
+- Customer app: `apps/customer/`
+- EAS owner: `apna-local-basket`
+- EAS project ID: `7c05eb94-461f-4ca5-ba66-45aa8311cdc5`
+- Use the existing development Supabase project for testing, subject to a safety/readiness audit.
+- Intended architecture: Railway backend, Supabase development database/authentication, EAS preview Android APK.
+- Production must remain separate and unchanged.
+
+### Phase A: Audit only
+
+1. Inspect the existing Express/TypeScript backend, its package scripts, build process, start command, health endpoint, database access, authentication, CORS, and required environment variables.
+2. Identify the correct backend entry point and deployment root. Check whether the repository is already compatible with Railway.
+3. Verify the development Supabase project reference expected by the workspace is `gkwcolipeavxnuzqlamb`. Do not print URL/key values.
+4. Inspect whether migrations or startup scripts could modify existing data. Do not execute migrations or database writes.
+5. Check whether `/api/health` can be served independently of authenticated routes and whether the backend listens on the hosting platform's assigned port.
+6. Identify every environment variable required to start the backend. Clearly separate public configuration from server-only secrets.
+7. Check CORS and authentication configuration for native requests. Do not weaken authentication or remove existing origin restrictions globally.
+8. Identify the safest way to deploy an isolated development backend on Railway using the development Supabase project.
+
+### Strict boundaries
+
+- Do not deploy anything yet.
+- Do not create a Railway project or change Railway settings.
+- Do not change Supabase settings, database records, migrations, or production configuration.
+- Do not change app code, install packages, or modify other portals during this audit.
+- Do not print credentials, tokens, service-role keys, database URLs, or other secrets.
+- Do not use temporary Replit preview URLs as the permanent native API endpoint.
+- Do not assume the development Supabase project is safe for testing until its purpose and data isolation are verified.
+
+### Return
+
+Provide:
+- Backend root directory and exact build/start commands.
+- Required environment variables, with secret values omitted.
+- Development Supabase isolation findings.
+- Health endpoint and port readiness.
+- Railway deployment blockers and any required code changes.
+- A minimal, ordered deployment plan that does not touch production.
+
+This phase is an audit only. Make no changes and do not claim deployment success.
