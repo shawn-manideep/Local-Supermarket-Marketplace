@@ -22,6 +22,7 @@
     "check": "drizzle-kit check --config ./drizzle.config.ts",
     "migrate": "drizzle-kit migrate --config ./drizzle.config.ts",
     "migrate:fresh": "node ./scripts/migrate-fresh.mjs",
+    "preflight:fresh": "node ./scripts/preflight-fresh.mjs",
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
   },

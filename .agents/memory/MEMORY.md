@@ -34,3 +34,4 @@
 - [Application branding and recovery](application-branding-and-recovery.md) — platform logo stays separate from store imagery; password-only recovery still requires verified ownership.
 - [Mobile login transition](mobile-login-transition.md) — approved phased mobile/password sign-in retains legacy access and email-dependent registration until secure phone enrollment exists.
 - [Supabase IPv6 DNS](supabase-ipv6-dns.md) — Node ADDRCONFIG can reject an IPv6-only host that resolves normally; management-API inspection does not prove driver connectivity.
+- [Supabase pooler security](supabase-pooler-security.md) — external TLS and the pooler’s upstream hop are separate; verify session settings rather than trusting startup options.

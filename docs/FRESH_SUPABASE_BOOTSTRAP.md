@@ -25,6 +25,7 @@ From the repository root:
 ```sh
 pnpm --filter @workspace/db run migrate:fresh --check
 node --test lib/db/scripts/migrate-fresh.test.mjs
+node --test lib/db/scripts/fresh-connection-safety.test.mjs
 ```
 
 The suite requires installed PostgreSQL 17 binaries. Its default is the existing
@@ -70,6 +71,8 @@ or shell commands containing a password:
 | --- | --- |
 | `FRESH_DB_URL` | New project's admin PostgreSQL connection; no URL query options |
 | `FRESH_SUPABASE_URL` | Exact `https://<approved-project-ref>.supabase.co` |
+| `FRESH_DB_CA_CERT_PATH` | Optional absolute path to an owner-verified public root CA certificate; never a private key |
+| `FRESH_DB_CA_SHA256` | Required with a CA path: independently reviewed SHA-256 certificate fingerprint |
 
 There is **no fallback** to `SUPABASE_DB_URL`, `DATABASE_URL`, Supabase service
 keys, PG defaults, a preview URL or another storage provider.
@@ -77,10 +80,73 @@ keys, PG defaults, a preview URL or another storage provider.
 Allowed connections: direct `db.<ref>.supabase.co:5432` as `postgres`, or verified
 session pooler `aws-<number>-<region>.pooler.supabase.com:5432` as `postgres.<ref>`.
 Database must be `postgres`. Transaction pooling/port 6543 and custom/ambiguous
-hosts are rejected. Remote TLS uses certificate verification; supply appropriate
-trusted system certificates if needed, never disable verification. Networking,
-pooler startup-option compatibility and managed permissions remain validation
-gates; the runner has no fallback.
+hosts are rejected. Remote TLS always verifies the certificate chain and hostname.
+A provided CA must be a currently valid, self-signed root CA, contain no private
+key, and match the explicit SHA-256 pin. Trust applies only to that client, not
+the operating system or other application processes. Without an explicit CA,
+Node's ordinary trusted roots are used. There is no insecure fallback.
+
+### Explicit TLS boundary for session poolers
+
+The client inspects its actual TLS socket, requires an authorized certificate
+chain and checks the peer certificate against the exact configured hostname.
+Direct connections **also** require `pg_stat_ssl.ssl=true` on the database.
+
+For Supavisor, `pg_stat_ssl` describes the **pooler-to-database** hop, not the
+external client-to-pooler TLS socket. Session-pooler use therefore requires the
+separate `--acknowledge-pooler-tls-boundary` flag. This acknowledges verified TLS
+to the trusted Supabase pooler; it **does not claim upstream encryption** when
+the backend reports `ssl=false`. That state is explicitly reported. An absent
+or uninspectable backend TLS result is still refused. Direct connections cannot
+use the pooler acknowledgement to bypass their backend TLS check.
+
+If policy requires TLS on both hops, do not acknowledge this boundary. Use the
+direct endpoint from an IPv6-capable environment or separately investigate a
+provider-supported encrypted-upstream configuration. Do not disable verification,
+change SSL enforcement, or buy an IPv4 add-on as an automatic workaround.
+
+The runner sets and verifies fixed **session** limits after connection instead
+of trusting startup options: 30s statement, 3s lock and 20s idle-in-transaction.
+It reapplies and verifies transaction-local limits before bootstrap metadata and
+each complete SQL file. Read-only preflight uses 15s/3s/20s, sets the session
+default to read-only, and explicitly begins a read-only transaction. These are
+connection-local settings, not `ALTER ROLE` / `ALTER DATABASE` changes.
+Ignored settings or a failed read-back are fatal. Client-side query and
+connection deadlines remain enabled as additional bounds.
+
+### Separate read-only preflight
+
+`preflight-fresh.mjs` imports only Node utilities, `pg`, and the connection-safety
+helper. Neither it nor that helper imports the migration runner, loads SQL files,
+creates schemas/history, or can invoke `runFresh`. Allowed operations are fixed
+session/transaction settings, read-only catalog/count queries and rollback.
+It makes one connection attempt and has no alternate-host or reconnect path.
+It requires explicit project approval and either `--check` (configuration only,
+no connection) or `--read-only` (one connection). `--apply` is rejected.
+
+Prepare the public CA path/pin as dedicated **process-local** inputs when a
+separately approved connection is ready; do not edit existing application Secrets
+or put the database URI/password in commands. The owner-uploaded CA is not
+automatically trusted merely because a file exists.
+
+The following is the proposed next read-only command, **not executed by the
+offline implementation/tests**. It requires new connection approval and the
+dedicated inputs above:
+
+```sh
+pnpm --filter @workspace/db run preflight:fresh \
+  --project-ref nrnigsznectrgbgafwme \
+  --approve-project-ref nrnigsznectrgbgafwme \
+  --acknowledge-pooler-tls-boundary \
+  --read-only
+```
+
+Replace `--read-only` with `--check` for offline input/CA validation only.
+The preflight rejects existing application objects/data/history, custom Auth
+triggers, unknown schemas, missing roles/helpers/columns, RLS-filtered emptiness
+checks and insufficient required privileges. It inspects owners/default ACLs
+and pgcrypto availability. Successful catalog inspection does not prove later
+DDL, Auth, PostgREST or Storage runtime behavior.
 
 **Only after those gates**, the owner-approved future command is:
 
@@ -92,6 +158,10 @@ pnpm --filter @workspace/db run migrate:fresh \
 ```
 
 The placeholders are intentionally not executable references.
+For a session-pooler migration command, also include
+`--acknowledge-pooler-tls-boundary` after separately accepting that boundary.
+This flag is not migration authorization: exact project approval and `--apply`
+remain mandatory, and all identity/empty-target/history safeguards remain.
 
 ## History, locking, failures and resume
 
