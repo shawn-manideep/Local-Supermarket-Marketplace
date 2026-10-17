@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AccountRecoveryInputClient } from './accountRecoveryInputClient';
 import type { AccountRecoveryInputIdentityType } from './accountRecoveryInputIdentityType';
 import type { AccountRecoveryInputRole } from './accountRecoveryInputRole';
 
@@ -17,4 +18,6 @@ export interface AccountRecoveryInput {
   identity: string;
   /** Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin. */
   identityType?: AccountRecoveryInputIdentityType;
+  /** Customer-only native recovery. Uses the fixed app callback, never a caller-supplied redirect. */
+  client?: AccountRecoveryInputClient;
 }

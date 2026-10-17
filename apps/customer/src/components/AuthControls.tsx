@@ -46,7 +46,10 @@ export function CustomerRecoveryForm({ initialIdentity = "", identityType = "leg
     if (!parsed.success) { setError(identityType === "mobile" ? "Enter a valid registered Indian mobile number." : "Enter a valid username."); return; }
     setBusy(true); setError(""); setMessage("");
     try {
-      await requestAccountRecovery({ role: "customer", identity: parsed.data, identityType });
+      await requestAccountRecovery({
+        role: "customer", identity: parsed.data, identityType,
+        ...(Platform.OS !== "web" ? { client: "customer_native" as const } : {}),
+      });
       setPassword(""); setConfirmation("");
       setMessage(RECOVERY_CONFIRMATION);
     } catch { setError("Reset instructions could not be requested. Please wait and try again."); }

@@ -79,3 +79,18 @@ test("HTTP recovery protects origins, throttles requests and keeps timing indepe
   assert.match(route, /res\.status\(202\)\.json\(\{ message: RECOVERY_MESSAGE \}\)/);
   assert.doesNotMatch(route, /console\./);
 });
+
+test("native recovery is opt-in, Customer-only and never accepts arbitrary callbacks", () => {
+  assert.equal(recoveryInput.safeParse({
+    role: "customer", identity: "customer_user", client: "customer_native",
+  }).success, true);
+  for (const role of ["vendor", "delivery_partner", "admin"]) {
+    assert.equal(recoveryInput.safeParse({ role, identity: "existing_user", client: "customer_native" }).success, false);
+  }
+  assert.equal(recoveryInput.safeParse({
+    role: "customer", identity: "customer_user", client: "customer_native", redirectTo: "https://attacker.test",
+  }).success, false);
+  assert.equal(recoveryInput.safeParse({ role: "customer", identity: "customer_user", client: "untrusted" }).success, false);
+  assert.equal(recoveryRedirect("customer", "https://ignored.test", "customer_native"), "apnalocalbasket-customer://auth/callback");
+  assert.equal(recoveryRedirect("vendor", "https://portal.test"), "https://portal.test/vendor/login?recovery=1");
+});

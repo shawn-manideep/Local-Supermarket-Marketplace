@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
+import { Platform } from "react-native";
+import { nativeConfigurationIssues } from "./native-readiness.mjs";
 export type { CustomerShoppingCategory } from "../../../../lib/api-client-react/src/generated/api.schemas";
 
 export type CustomerDeliveryMode = "INSTANT" | "SCHEDULED";
@@ -263,6 +265,13 @@ const apiUrl = (
   process.env.EXPO_PUBLIC_API_URL ??
   (domain ? `https://${domain}` : "")
 ).replace(/\/+$/, "");
+// Web retains its existing same-origin transport. Native requests must never
+// silently resolve relative URLs or ship a privileged Supabase credential.
+export const nativeConfigurationError = Platform.OS === "web" ? "" : nativeConfigurationIssues({
+  apiUrl,
+  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+}).join(" ");
 setBaseUrl(apiUrl || null);
 setAuthTokenGetter(async () => {
   const { data } = await supabase.auth.getSession();
@@ -277,6 +286,7 @@ export function customerImageUri(imageUrl: string | null | undefined): string | 
 }
 
 export async function customerApi<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (nativeConfigurationError) throw new Error(nativeConfigurationError);
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Please sign in again.");

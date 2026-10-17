@@ -1985,6 +1985,10 @@ components:
           type: string
           enum: [mobile, legacy]
           description: Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin.
+        client:
+          type: string
+          enum: [customer_native]
+          description: Customer-only native recovery. Uses the fixed app callback, never a caller-supplied redirect.
     AccountRecoveryOutcome:
       type: object
       required: [message]

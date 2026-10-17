@@ -7,6 +7,7 @@
  */
 
 export * from './accountRecoveryInput';
+export * from './accountRecoveryInputClient';
 export * from './accountRecoveryInputIdentityType';
 export * from './accountRecoveryInputRole';
 export * from './accountRecoveryOutcome';

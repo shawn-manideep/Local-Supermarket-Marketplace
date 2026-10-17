@@ -700,6 +700,16 @@ export const AccountRecoveryInputIdentityType = {
   legacy: 'legacy',
 } as const;
 
+/**
+ * Customer-only native recovery. Uses the fixed app callback, never a caller-supplied redirect.
+ */
+export type AccountRecoveryInputClient = typeof AccountRecoveryInputClient[keyof typeof AccountRecoveryInputClient];
+
+
+export const AccountRecoveryInputClient = {
+  customer_native: 'customer_native',
+} as const;
+
 export interface AccountRecoveryInput {
   role: AccountRecoveryInputRole;
   /**
@@ -709,6 +719,8 @@ export interface AccountRecoveryInput {
   identity: string;
   /** Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin. */
   identityType?: AccountRecoveryInputIdentityType;
+  /** Customer-only native recovery. Uses the fixed app callback, never a caller-supplied redirect. */
+  client?: AccountRecoveryInputClient;
 }
 
 export interface AccountRecoveryOutcome {

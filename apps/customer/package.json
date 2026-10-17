@@ -6,7 +6,9 @@
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:native-config": "node scripts/check-native-config.mjs",
+    "eas-build-post-install": "node scripts/check-native-config.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

@@ -33,7 +33,10 @@ authRouter.post("/api/auth/recovery", asyncHandler(async (req, res) => {
   if (!input.success) throw new HttpError(400, "Enter a valid recovery identity.");
   const origins = (process.env.CORS_ALLOWED_ORIGINS ?? "").split(",").map(value => value.trim()).filter(Boolean);
   const origin = req.header("origin") ?? "";
-  if (!origins.includes(origin)) throw new HttpError(403, "Origin is not allowed");
+  // Native has no browser Origin. The strict Customer-only marker permits only
+  // the fixed app callback; it never authorizes a supplied redirect or role.
+  const nativeCustomer = input.data.client === "customer_native" && input.data.role === "customer";
+  if (!nativeCustomer && !origins.includes(origin)) throw new HttpError(403, "Origin is not allowed");
   const now = Date.now();
   for (const [key, entry] of recoveryAttempts) if (entry.until < now) recoveryAttempts.delete(key);
   const key = `${req.ip ?? req.socket.remoteAddress}:${input.data.role}`;
@@ -45,7 +48,7 @@ authRouter.post("/api/auth/recovery", asyncHandler(async (req, res) => {
   recoveryAttempts.set(key, attempts);
   // Do not make response timing depend on whether the provider delivers mail.
   // requestRecovery handles every lookup/provider failure internally.
-  void requestRecovery(input.data, recoveryRedirect(input.data.role, origin));
+  void requestRecovery(input.data, recoveryRedirect(input.data.role, origin, input.data.client));
   await new Promise(resolve => setTimeout(resolve, 1200));
   res.status(202).json({ message: RECOVERY_MESSAGE });
 }));

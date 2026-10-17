@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AppState,
   ActivityIndicator,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import {
 import { CustomerText as Text, CustomerTextInput as TextInput, CustomerTypographyProvider } from "./src/components/CustomerTypography";
 import {
   customerApi,
+  nativeConfigurationError,
   CustomerRequestError,
   type AddressInput,
   type CustomerAddress,
@@ -51,6 +53,7 @@ import { CustomerLanguageSelector } from "./src/components/LanguageSelector";
 import { MobileRegistrationForm } from "./src/components/MobileRegistrationForm";
 import { CustomerAddressFields } from "./src/components/CustomerAddressForm";
 import { blankAddress, editableAddress, normalizeAddressInput, validateAddressInput } from "./src/lib/address-entry";
+import { CUSTOMER_NATIVE_AUTH_REDIRECT, parseNativeAuthCallback } from "./src/lib/native-auth";
 
 type Screen = "home" | "cart" | "orders" | "account" | "profile" | "addresses" | "saved" | "settings" | "help" | "privacy" | "accountPrivacy" | "terms";
 
@@ -160,6 +163,9 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(initialMessage);
+  useEffect(() => {
+    if (initialMessage) setMessage(initialMessage);
+  }, [initialMessage]);
 
   const submit = async () => {
     if (mode === "signup") {
@@ -184,7 +190,10 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
       } else {
         const result = await supabase.auth.signUp({
           email: email.trim(), password,
-          options: { data: { customer_signup: true, username: parsed.data } },
+          options: {
+            data: { customer_signup: true, username: parsed.data },
+            ...(Platform.OS !== "web" ? { emailRedirectTo: CUSTOMER_NATIVE_AUTH_REDIRECT } : {}),
+          },
         });
         if (result.error) throw new Error();
         if (!result.data.session) setMessage("Check your registered email to confirm your account, then sign in with your chosen username.");
@@ -198,12 +207,12 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
     }
   };
 
-  if (!supabaseConfigured)
+  if (!supabaseConfigured || nativeConfigurationError)
     return (
       <View style={styles.center}>
         <Text style={typography.title1}>{t("Configuration required")}</Text>
         <Text style={typography.body}>
-          {t("Add the public Expo Supabase environment variables to use customer authentication.")}
+          {nativeConfigurationError || t("Add the public Expo Supabase environment variables to use customer authentication.")}
         </Text>
       </View>
     );
@@ -904,6 +913,8 @@ export default function App() {
   const [accessError, setAccessError] = useState("");
   const verifiedCustomer = useRef<string | null>(null);
   const currentSession = useRef<Session | null>(null);
+  const nativeRecoveryPending = useRef(false);
+  const [nativeAuthPending, setNativeAuthPending] = useState(false);
   const [accessCheckRevision, setAccessCheckRevision] = useState(0);
   useLanguageScope(session?.user.id ?? null);
   useEffect(() => {
@@ -916,7 +927,7 @@ export default function App() {
         setRecoveryMode(true);
         if (Platform.OS === "web") window.history.replaceState(null, "", `${window.location.pathname}?recovery=1`);
       } else if (event === "SIGNED_IN") {
-        setRecoveryMode(false);
+        setRecoveryMode(nativeRecoveryPending.current);
         setAuthNotice("");
       }
       if (currentSession.current?.user.id !== next?.user.id) {
@@ -944,6 +955,57 @@ export default function App() {
       }
     });
     return () => { active = false; data.subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || nativeConfigurationError || !supabaseConfigured) return;
+    let active = true;
+    let processing = false;
+    let lastUrl: string | null = null;
+    const receive = async (value: string | null) => {
+      if (!active || !value || processing || value === lastUrl) return;
+      const callback = parseNativeAuthCallback(value);
+      if (!callback) return;
+      if (callback.kind === "invalid") {
+        setAuthNotice("Your reset link is invalid or expired. Request new instructions.");
+        return;
+      }
+      processing = true;
+      setNativeAuthPending(true);
+      lastUrl = value;
+      nativeRecoveryPending.current = callback.kind === "recovery";
+      try {
+        // Supabase validates the credentials; parsing a callback never grants
+        // application access. Existing API role/ownership checks still apply.
+        const { error } = await supabase.auth.setSession({
+          access_token: callback.access_token,
+          refresh_token: callback.refresh_token,
+        });
+        if (error) throw new Error("Invalid authentication callback.");
+        if (active) {
+          setRecoveryMode(callback.kind === "recovery");
+          setAuthNotice("");
+        }
+      } catch {
+        if (active) {
+          setRecoveryMode(false);
+          setAuthNotice("Your reset link is invalid or expired. Request new instructions.");
+        }
+      } finally {
+        nativeRecoveryPending.current = false;
+        processing = false;
+        if (active) setNativeAuthPending(false);
+      }
+    };
+    const linkSubscription = Linking.addEventListener("url", event => { void receive(event.url); });
+    void Linking.getInitialURL().then(receive).catch(() => {
+      if (active) setAuthNotice("Your reset link is invalid or expired. Request new instructions.");
+    });
+    return () => {
+      active = false;
+      nativeRecoveryPending.current = false;
+      linkSubscription.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -1027,7 +1089,7 @@ export default function App() {
     return () => controller.abort();
   }, [session?.access_token, recoveryMode, accessCheckRevision]);
 
-  if (session === undefined)
+  if (session === undefined || nativeAuthPending)
     return (
       <CustomerTypographyProvider>
         <View style={styles.center}>

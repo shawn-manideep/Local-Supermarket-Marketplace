@@ -1436,7 +1436,8 @@ export const requestAccountRecoveryBodyIdentityMax = 254;
 export const RequestAccountRecoveryBody = zod.object({
   "role": zod.enum(['customer', 'vendor', 'delivery_partner', 'admin']),
   "identity": zod.string().min(1).max(requestAccountRecoveryBodyIdentityMax),
-  "identityType": zod.enum(['mobile', 'legacy']).optional().describe('Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin.')
+  "identityType": zod.enum(['mobile', 'legacy']).optional().describe('Defaults to legacy. Mobile requires a unique Auth-confirmed phone and is not available for Admin.'),
+  "client": zod.enum(['customer_native']).optional().describe('Customer-only native recovery. Uses the fixed app callback, never a caller-supplied redirect.')
 })
 
 export const RequestAccountRecoveryResponse = zod.object({

@@ -15,7 +15,9 @@ export const recoveryInput = z.object({
   role: z.enum(["customer", "vendor", "delivery_partner", "admin"]),
   identity: z.string().min(1).max(254),
   identityType: z.enum(["mobile", "legacy"]).optional(),
-}).strict().refine(input => input.identityType !== "mobile"
+  client: z.literal("customer_native").optional(),
+}).strict().refine(input => !input.client || input.role === "customer",
+  "Native recovery is available only for Customers.").refine(input => input.identityType !== "mobile"
   || (input.role !== "admin" && indianMobileSchema.safeParse(input.identity).success),
   "Enter a valid mobile number for a supported portal.");
 export type RecoveryInput = z.infer<typeof recoveryInput>;
@@ -90,7 +92,8 @@ export async function loginCustomer(
 }
 export { partnerLoginSchema as customerLoginSchema };
 
-export function recoveryRedirect(role: RecoveryInput["role"], origin: string) {
+export function recoveryRedirect(role: RecoveryInput["role"], origin: string, client?: RecoveryInput["client"]) {
+  if (role === "customer" && client === "customer_native") return "apnalocalbasket-customer://auth/callback";
   const path = role === "customer" ? "/customer/" : role === "admin"
     ? "/admin" : role === "delivery_partner" ? "/delivery/login" : "/vendor/login";
   return `${origin}${path}?recovery=1`;
