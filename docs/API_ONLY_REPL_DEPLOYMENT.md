@@ -12,16 +12,50 @@ Replit publishes the artifacts registered in a project, so the Customer,
 Dashboard, and other portal artifacts must remain in their existing project.
 The future deployment must be a separate Replit project whose only registered
 service is the API. The API package—not `artifacts/api-server`'s web preview
-wrapper—is the source of truth. Replit's artifact registry is project-scoped,
-and publishing the current project is not an API-only operation.
+wrapper—is the source of truth. The current wrapper runs the separate
+`@workspace/api-server` package and is not the guarded `@workspace/api`
+entrypoint. Replit's artifact registry is project-scoped, and publishing the
+current project is not an API-only operation.
 
-For the first setup, use the full repository checkout on the approved branch:
-the frozen workspace lockfile includes all workspace importers. Build and start
-only `@workspace/api`. The new Replit project must be checked before publishing
-to ensure its artifact registry contains no Customer, Dashboard, or other
-portal services. If import auto-registers those artifacts, stop and resolve
-that project setup rather than publishing them. Do not prune the source tree
-against the existing lockfile or fork a second API implementation.
+### Repository and workspace layout
+
+Use the repository root and the full checkout on the approved branch. The
+existing frozen lockfile has importers for the monorepo workspace; deleting
+portal/artifact directories to make a smaller checkout would make that lockfile
+inconsistent. The checkout may contain other source files, but the new Replit
+project must register and run only the API service.
+
+The API package and its required workspace packages are:
+
+| Path | Workspace package | Purpose |
+| --- | --- | --- |
+| `backend/api/` | `@workspace/api` | Existing Express API, API-only entrypoint, routes, fonts, and storage adapters |
+| `lib/db/` | `@workspace/db` | PostgreSQL pool, Drizzle schema, and database package |
+| `packages/validation/` | `@workspace/validation` | API request and domain validation schemas |
+| `packages/shared-types/` | `@workspace/shared-types` | Shared role/types imported by API authentication code |
+
+Keep the root `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.npmrc`,
+and `tsconfig.base.json`. The API build script builds Validation and DB; on a
+fresh checkout, build `shared-types` first because the API typecheck resolves
+its generated declaration file from `packages/shared-types/dist/`.
+
+Do not copy the current root `.replit` workflow configuration into the new
+project unchanged: it starts multiple existing portal/preview workflows and
+contains project-specific bindings. Configure the new project's run/build
+settings to start only `@workspace/api` with `start:api-only`. Do not reuse
+`artifacts/api-server/.replit-artifact/artifact.toml`; that manifest targets
+the preview wrapper, not the API-only entrypoint. Before publishing, verify
+that the new project's artifact/service registry contains only the API. If
+the import process registers other portal services and they cannot be excluded
+project-locally, stop rather than publishing.
+
+The checked-in root `.replit` will arrive with a repository import. The new
+project therefore needs a project-local configuration that does not start its
+portal workflows or inherit the current project's environment/storage bindings.
+Keep that override in the new project only; do not commit it to the shared
+branch. If Replit cannot keep the API-only configuration separate from the
+shared branch, stop and have the owner prepare an isolated deployment branch
+or source copy before proceeding.
 
 ## Commands
 
@@ -29,14 +63,17 @@ Run from the repository/workspace root:
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm --filter @workspace/shared-types run build
 pnpm --filter @workspace/api run build
 pnpm --filter @workspace/api run start:api-only
 ```
 
-The Replit service must use the same build and start commands. Replit supplies
-`PORT`; the API binds to `0.0.0.0`. The ordinary `start` script and
-`backend/api/src/index.ts` remain the existing path. `start:api-only` validates
-the isolated target before it dynamically loads the shared API app.
+Set the new project service's build step to the first three commands and its
+run step to the final command. Replit supplies `PORT`; the API binds to
+`0.0.0.0`. The ordinary `start` script and `backend/api/src/index.ts` remain
+the existing path. `start:api-only` validates the isolated target, opens its
+read-only database identity check, and only then dynamically loads the shared
+API app.
 
 ## Required configuration in the separate project
 
@@ -79,27 +116,40 @@ JWT `ref` or `role` claims do not match, unexpected database host/user/port,
 host overrides, non-`verify-full` TLS, and missing or unbounded
 `connect_timeout` (must be 1–30 seconds). After those checks it opens one
 database session, runs `BEGIN READ ONLY`, checks `current_database()`, and
-rolls back. Each query has a five-second client timeout; a failed connection or
-check prevents the API app from loading/listening. This read-only preflight is
-implemented only in `start:api-only` and was not run against Supabase here.
-It never prints values. JWT claim checks are a configuration mismatch guard,
-not signature verification; Supabase verifies tokens when requests are made.
+rolls back. Its three individual queries use five-second client timeouts. A
+failed connection or identity check prevents the API app from loading or
+listening. The check is implemented only in `start:api-only` and has not been
+run against Supabase here. It never prints values. JWT claim checks are a
+configuration mismatch guard, not signature verification; Supabase verifies
+tokens when requests are made.
 
-The current `lib/db` pool uses the connection string and has no explicit
-statement/query timeout. This change does not alter pool or TLS options.
-Connection timeout is bounded by the validated connection-string setting;
-the API-only startup identity query has a per-query timeout, but ordinary
-application queries do not.
+After that check, the API-only entrypoint initializes the shared pool before
+loading the app with:
+
+- `connectionTimeoutMillis`: the validated `connect_timeout` value, converted
+  to milliseconds (allowed range 1–30 seconds).
+- `statement_timeout`: 60 seconds, sent as a PostgreSQL server-side setting.
+- `query_timeout`: 65 seconds, as a client-side safeguard.
+
+All API routes using `getDb()` in the API-only process share this pool. A
+timeout error is propagated; the API does not retry timed-out statements or
+writes. Existing normal API startup calls `getPool()` without these options, so
+its default behavior is unchanged. Per-statement limits do not impose a total
+transaction-duration limit.
 
 ## Storage and access boundaries
 
 Unset `API_OBJECT_STORAGE_PROVIDER` continues to use the current Replit GCS
 sidecar implementation. Only the exact value `replit-app-storage` enables the
 new SDK adapter; an unknown value fails rather than switching providers.
-Replit App Storage credentials are supplied by the SDK/project integration,
-not by copying the existing sidecar credentials. Each Replit project owns its
-own bucket; begin with the new project's empty bucket and do not copy old
-objects.
+The new project must explicitly set
+`API_OBJECT_STORAGE_PROVIDER=replit-app-storage` and provision App Storage from
+that project's App Storage setup. Replit creates a project-scoped bucket only
+after explicit setup; each project owns its own bucket. SDK credentials are
+provided by the new project's integration. Do not copy the existing project's
+`DEFAULT_OBJECT_STORAGE_BUCKET_ID`, GCS sidecar credentials, or any objects.
+Use `PRIVATE_OBJECT_DIR=private` and `PUBLIC_OBJECT_SEARCH_PATHS=public` in the
+new project.
 
 The SDK does not expose the existing GCS content metadata/generation fields.
 Product-image MIME types are stored in companion metadata objects. Branding
@@ -112,31 +162,60 @@ access is added. Existing GCS code remains the default.
 
 ## Deployment and verification sequence (not performed)
 
-1. Create a separate Replit project connected to the approved source branch;
-   verify it has only the API service registered, and that the existing portal
-   project remains untouched.
-2. Confirm the exact new-project Supabase API key format and owner-provided DB
-   host, username, port, and connection mode. The code intentionally refuses
-   unconfirmed values. The prior direct endpoint was confirmed, but direct
-   connectivity previously failed in this environment; no pooler values are
-   known here.
-3. Add the listed API-only Secrets/configuration to the separate project.
-   Confirm `SUPABASE_URL` and both API-key claims identify only
-   `nrnigsznectrgbgafwme`. Do not reuse Secrets from the current Repl.
-4. Build and start the API service. Before publishing, validate startup
-   configuration and run the local checks below.
-5. After a separately approved publish, use the generated HTTPS URL (do not
-   invent one) for `GET /health` and `GET /api/health`, for example with
+1. The owner creates a separate Replit project from the approved repository
+   branch. Keep the existing portal project untouched. Configure only the API
+   service to run; Replit publishes the whole new project, not one selected
+   artifact.
+2. In the new project, explicitly set up its own App Storage bucket. Confirm
+   that the API-only service uses the `replit-app-storage` provider and the
+   `private/` and `public/` namespaces. Do not copy the old bucket or objects.
+3. Obtain the exact session-pooler endpoint from the owner’s Supabase project
+   connection details. The current repository records the required values as:
+
+   | Setting | Required value |
+   | --- | --- |
+   | Project reference | `nrnigsznectrgbgafwme` |
+   | Database | `postgres` |
+   | Connection mode | `session` |
+   | Hostname | **Owner must supply the exact hostname. It is not recorded here; do not guess.** |
+   | Port | `5432` |
+   | Username | `postgres.nrnigsznectrgbgafwme` |
+   | TLS | `sslmode=verify-full`; do not disable certificate or hostname verification |
+   | Connection timeout | `connect_timeout=10` seconds (guard accepts 1–30 seconds) |
+
+   The connection URL may include only the guard-approved query settings:
+   `sslmode`, optional reviewed `sslrootcert`, and `connect_timeout`; do not
+   add host/user/password overrides. The separate migration runner's
+   `FRESH_DB_URL` instructions are not the API's `SUPABASE_DB_URL` and are not
+   fallback values.
+
+   The known direct host `db.nrnigsznectrgbgafwme.supabase.co` currently resolves
+   only to IPv6 in this environment; the TCP probe to port 5432 failed with
+   `EAFNOSUPPORT` before any database connection was made. The actual session
+   pooler hostname is still unknown, so its DNS and TCP reachability have not
+   been checked.
+4. Add the API-only Secrets and non-secret allowlist settings in the new
+   project's Tools → Secrets/environment controls. Confirm that the Supabase
+   URL and API-key claims identify only `nrnigsznectrgbgafwme`. Never copy
+   values from the current Repl.
+5. Run the local build and tests. Starting `start:api-only` requires a separate
+   approval because it opens a database session for the read-only identity
+   check. It must fail closed if the owner-confirmed URL, username, port, mode,
+   or project identity does not match.
+6. Publishing the separate project requires separate approval. Use only the
+   generated HTTPS URL after publishing; do not invent one. For a directly
+   called mobile API, do not embed a Replit private-access token in the APK.
+   Check `GET /health` and `GET /api/health`, for example:
    `curl -i "https://<generated-API-origin>/health"`. These are process
-   liveness checks only; they do not prove database, Auth, or storage
-   readiness.
-6. Perform a separately authorized read-only Supabase identity/schema
-   preflight, then authorize schema initialization and functional testing as
-   distinct steps. The isolated database is currently uninitialized, so API
-   health alone cannot enable login, catalog, cart, checkout, or order flows.
-7. Verify private-document and delivery-photo authorization, product-image
-   active-listing/vendor access, and branding's API response after the new
-   bucket is available. No remote storage verification has been performed.
+   liveness checks only, not proof of database, Auth, or storage readiness.
+7. Perform a separately authorized read-only Supabase identity/schema
+   preflight, then obtain separate approval for schema initialization and
+   functional testing. The isolated database is currently uninitialized, so
+   API health alone cannot enable login, catalog, cart, checkout, or order
+   flows.
+8. After App Storage is provisioned, verify private-document and
+   delivery-photo authorization, product-image active-listing/vendor access,
+   and branding responses. No remote storage verification has been performed.
 
 The Customer Expo app must later receive the actual stable HTTPS API URL as
 `EXPO_PUBLIC_API_URL`; its existing public Supabase URL and anon key must refer
