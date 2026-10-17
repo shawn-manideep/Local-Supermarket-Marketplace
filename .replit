@@ -48,3 +48,6 @@ SUPABASE_URL = "https://gkwcolipeavxnuzqlamb.supabase.co"
 CORS_ALLOWED_ORIGINS = "https://85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.replit.dev,https://85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.repl.co"
 
 [nix]
+
+[objectStorage]
+defaultBucketID = "replit-objstore-aa7da188-390f-472f-82c7-d810f3ef913a"
