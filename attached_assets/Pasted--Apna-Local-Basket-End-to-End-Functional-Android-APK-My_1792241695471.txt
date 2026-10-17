@@ -1,0 +1,114 @@
+# Apna Local Basket — End-to-End Functional Android APK
+
+## My goal
+
+I need a complete, installable Android APK for Apna Local Basket that supports real login and working application features. I do not want an APK that merely installs or displays a demo.
+
+Take ownership of the technical investigation and implementation. Work through the existing project systematically, reuse working code, minimize unnecessary changes and Replit credit usage, and report concrete results at each stage.
+
+## Project context
+
+- Repository: `shawn-manideep/Local-Supermarket-Marketplace`
+- Current development branch: `development/fresh-supabase-runner`
+- Native Customer app: `apps/customer/`
+- Backend: `backend/api/`
+- Existing Vendor, Delivery Partner and Admin web portals must remain working.
+- EAS project: `@apna-local-basket/local-supermarket-marketplace`
+- Android package: `com.apnalocalbasket.customer`
+- Intended isolated development Supabase project: `nrnigsznectrgbgafwme`
+- Protected existing Supabase project: `gkwcolipeavxnuzqlamb`
+
+## Stage 1 — Audit and establish the working path
+
+Inspect the existing source code, Expo configuration, EAS preview profile, authentication, backend routes, database schema, and environment configuration.
+
+Identify the fastest safe path to a genuinely functional Customer APK. Reuse the existing implementation wherever possible.
+
+Verify whether the development API has a stable, reachable HTTPS endpoint. Do not invent or guess URLs. Diagnose the intermittent DNS issue only as needed to establish a reliable connection.
+
+Verify which database the current backend actually uses. Do not assume that the new Supabase project is already initialized or that the existing project is safe to modify.
+
+## Stage 2 — Backend and database readiness
+
+The APK must use a real, reachable backend and the correct database.
+
+- Verify the API and health endpoints.
+- Verify Supabase configuration, authentication, session persistence and authorization.
+- Verify that database schema and required application data are available.
+- Ensure customer, vendor, delivery-partner and admin permissions remain enforced by the server.
+- Keep credentials server-side and never expose service-role keys in the mobile application.
+- Use the isolated development project for new testing infrastructure.
+- Never reset, migrate, or modify the protected project `gkwcolipeavxnuzqlamb`.
+- Do not create mock login success, fake products, or simulated successful orders as substitutes for real functionality.
+
+If database migrations are required, first verify the new project's identity, connection, initial state and migration prerequisites. Present the exact migration command, the expected changes and the safeguards for separate explicit approval. Do not execute migrations without that approval.
+
+If an external account, credential or infrastructure action is required, identify the exact blocker and ask only for the necessary action. Never ask me to paste secrets into chat.
+
+## Stage 3 — Customer application functionality
+
+Review and fix the existing native Customer app as needed so that these flows work against the real configured backend:
+
+1. Customer registration and login using the existing supported authentication methods.
+2. Persistent authenticated sessions and logout.
+3. Store discovery and store selection.
+4. Product categories, product search and available products for the selected store.
+5. Product details, quantities, selling units and prices.
+6. Cart additions, quantity updates, removals and correct totals.
+7. Address selection and adding a new delivery address.
+8. Checkout and real order placement.
+9. Correct stock validation and prevention of overselling on the server.
+10. Order history, order details and status updates.
+11. Loading, empty, network-error and authentication-expiry states.
+12. Password recovery and navigation appropriate for a standalone native Android app.
+
+Do not claim a flow works merely because its screen renders. Check the API and authentication integration for each flow. Preserve the existing business rules and security controls.
+
+## Stage 4 — Build the Android APK
+
+After the required configuration and functionality are ready:
+
+- Validate the Expo configuration and production bundle.
+- Use the existing EAS project and Android preview APK profile.
+- Resolve build blockers without unrelated dependency upgrades or destructive configuration changes.
+- Build an installable Android APK, not an Android App Bundle when a downloadable APK is required.
+- Verify the EAS build result and locate the actual generated APK download link.
+- Do not claim the build succeeded until EAS confirms success.
+- Do not build iOS or deploy web portals as part of this task.
+
+## Stage 5 — Manual verification
+
+Provide a concise checklist for me to test on my Android phone:
+
+- Install and open the APK.
+- Register or log in with a valid test account.
+- Browse real stores and products.
+- Add items to the cart and verify quantities and prices.
+- Complete checkout and place a test order.
+- Verify that the order appears correctly and that status updates work.
+- Log out and log in again to check session behavior.
+
+Do not use a real customer transaction or payment. Use an approved test account and test order process.
+
+## Safety and execution rules
+
+- Preserve existing application behavior unless a change is necessary for the agreed functionality.
+- Keep the Vendor, Delivery Partner and Admin web portals intact.
+- Do not modify the protected database, delete data, weaken authorization, or expose credentials.
+- Do not bypass migration approval.
+- Avoid unrelated refactoring, unnecessary package installation and broad configuration changes.
+- Do not stop at an audit if a safe, authorized implementation step is available.
+- If a blocker requires my approval or an external action, explain exactly what is needed and continue with independent safe work.
+
+## Final report
+
+Report:
+1. What was already working.
+2. What was fixed.
+3. What remains blocked and why.
+4. Whether real backend authentication and customer flows were verified.
+5. EAS build status.
+6. The actual APK download link if the build succeeded.
+7. Any manual tests I must complete on my phone.
+
+My priority is a functional Android APK, not merely a successful build.
