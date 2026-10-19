@@ -1,0 +1,53 @@
+# APNA LOCAL BASKET — CUSTOMER APK READINESS AUDIT (READ-ONLY)
+
+Act as a senior React Native, Expo EAS, authentication and deployment engineer.
+
+## Objective
+Determine the exact remaining blockers to building a functional Android Customer APK for Apna Local Basket. Shared GCS implementation is deferred.
+
+## Confirmed project decisions
+- The APK must use the original Supabase project: `gkwcolipeavxnuzqlamb`.
+- The original database and all existing records must remain unchanged.
+- Existing Customer, Vendor, Delivery Partner and Admin web portals must continue working.
+- Customer app location: `apps/customer`.
+- API source: `backend/api`.
+- EAS project ID: `7c05eb94-461f-4ca5-ba66-45aa8311cdc5`.
+- Android package: `com.apnalocalbasket.customer`.
+- URL scheme: `apnalocalbasket-customer`.
+- The EAS `preview` profile is intended to build an internal Android APK.
+- Native password recovery callback: `apnalocalbasket-customer://auth/callback`.
+- No stable production HTTPS API URL has been confirmed.
+- Shared external GCS is deferred. Do not implement storage changes.
+
+## Inspect read-only
+1. Review `apps/customer/app.json`, `apps/customer/eas.json`, package scripts and dependencies, native-readiness validation files, API client configuration, authentication/session handling, deep-link handling and build hooks.
+2. Check whether EAS preview configuration targets the original Supabase project and correctly validates the expected public Supabase key without printing the key.
+3. Identify every required environment variable and whether its presence/configuration can be verified without reading or printing Secrets.
+4. Determine the exact stable HTTPS API URL requirement and identify which API endpoints the Customer app needs.
+5. Inspect whether the API currently supports those endpoints and identify dependencies on original Replit GCS storage that could affect Customer functionality.
+6. Review phone/password login, session persistence, logout, password recovery, and error handling. Distinguish implemented behavior from unverified behavior.
+7. Check whether package scripts and existing test/typecheck/build commands are available. Run only safe, non-network, non-mutating checks that will not start or restart workflows or services. Do not install dependencies.
+8. Inspect Git status and current branch/commit without modifying the working tree.
+9. Identify what can be completed without database access, API startup, publishing, storage access or an APK build.
+
+## Strict restrictions
+- Do not inspect, print, export or modify Secrets or credentials.
+- Do not connect to Supabase, GCS or other external services.
+- Do not start/restart workflows, servers or services.
+- Do not install packages or modify the lockfile.
+- Do not change code, configuration, database schema, data or storage.
+- Do not publish/deploy or build the APK.
+- Do not use the isolated preview Supabase project as the APK database.
+- Do not implement shared GCS or change existing web portal behavior.
+
+## Required report
+Return:
+- Current branch and commit.
+- Readiness status: ready, blocked or partially ready.
+- Confirmed configuration versus settings that remain unverified.
+- Exact blockers, ranked by importance.
+- Minimum safe next actions, naming the exact files that would need changes.
+- Which checks can be completed without starting services or connecting to production.
+- A clear distinction between source-verified facts and assumptions.
+
+Stop after the report. Do not implement anything.
