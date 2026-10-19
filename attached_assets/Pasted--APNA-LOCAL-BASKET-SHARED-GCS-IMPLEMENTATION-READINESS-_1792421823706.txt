@@ -1,0 +1,35 @@
+## APNA LOCAL BASKET — SHARED GCS IMPLEMENTATION READINESS REVIEW
+
+Perform a strictly read-only review of the proposed dedicated external Google Cloud Storage bucket shared by the existing web application's API and the new API-only Replit project.
+
+### Non-negotiable constraints
+- Keep the original Supabase project `gkwcolipeavxnuzqlamb` as the application database.
+- Preserve the existing Customer, Vendor, Delivery Partner and Admin portals and their behavior.
+- Preserve existing API routes, database records and object references.
+- Do not publish or deploy either Replit project.
+- Do not start or restart workflows or services.
+- Do not inspect Secrets, environment values containing credentials, or private key material.
+- Do not connect to the database or storage provider.
+- Do not create buckets, provision credentials, copy objects, run migrations, or modify files.
+- Do not build the APK.
+
+### Review tasks
+1. Identify the exact existing GCS storage adapter and every API route that reads, writes, replaces or deletes stored objects.
+2. Identify how product images, staged/unlinked images, vendor document versions, delivery photos and branding are referenced and stored.
+3. Identify the smallest safe changes required to let both APIs use a dedicated shared GCS bucket while preserving the existing GCS sidecar as the default and rollback path.
+4. Specify a legacy-reference mapping strategy that does not require rewriting database records.
+5. Propose a least-privilege server identity and configuration approach. Do not request or print credentials.
+6. Explain how MIME metadata, object replacement, cleanup, retries, partial failures and synchronization reconciliation should work.
+7. List the exact files likely to change and the tests required before cutover.
+8. Identify blockers and distinguish facts verified in the repository from assumptions requiring owner confirmation.
+
+### Required output
+Return a concise readiness report with:
+- Current architecture
+- Proposed architecture
+- Exact files and routes involved
+- Security and compatibility risks
+- Staged implementation and rollback plan
+- Unresolved owner decisions
+
+Stop after the report. Do not implement anything.
