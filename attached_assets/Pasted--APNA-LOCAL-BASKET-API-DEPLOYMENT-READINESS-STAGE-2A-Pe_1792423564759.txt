@@ -1,0 +1,29 @@
+## APNA LOCAL BASKET — API DEPLOYMENT READINESS, STAGE 2A
+
+Perform a read-only assessment to identify the safest way to provide a stable HTTPS API endpoint for the Customer APK without publishing the existing mixed web application.
+
+### Preserve these decisions
+- Keep the original Supabase project `gkwcolipeavxnuzqlamb` as the application database.
+- Continue using the separate `apna-local-basket-api-preview` Replit project for API-only work.
+- Defer shared GCS implementation.
+- Preserve all existing portals, database records and storage objects.
+- Do not build the APK yet.
+
+### Review
+1. Inspect the current API-only entry point, startup guard, deployment documentation, Replit configuration and workflow definitions.
+2. Determine whether the API can be independently deployed without publishing the existing mixed application or exposing the development workspace URL.
+3. Identify every blocker to a stable HTTPS endpoint, including missing dependencies or build prerequisites already documented in the repository.
+4. Explain which configuration checks can be performed statically and which require explicit authorization to start the service or connect to external systems.
+5. Identify the minimum server-side configuration needed for the original Supabase target, without inspecting Secrets or printing credential values.
+6. Explain the current product-image and branding limitation while shared storage remains deferred. Do not implement a workaround.
+7. Recommend the smallest next step and list any owner decisions needed.
+
+### Strict limits
+- Do not inspect Secrets or environment values containing credentials.
+- Do not connect to Supabase, GCS or other external services.
+- Do not start or restart workflows, servers or services.
+- Do not install dependencies or modify source/configuration files.
+- Do not run migrations, seed data, publish, deploy or build the APK.
+- Do not switch branches or commit changes.
+
+Return verified findings, file paths, blockers and a staged recommendation. Clearly separate repository facts from assumptions. Stop after the report.
