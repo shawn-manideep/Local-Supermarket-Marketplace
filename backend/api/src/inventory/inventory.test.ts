@@ -4,9 +4,9 @@ import { readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { main } from "./cli.js";
-import { NAMESPACES, PROJECTIONS, type ListedObject, type Policy } from "./contracts.js";
+import { LIMIT_CAPS, NAMESPACES, PROJECTIONS, type ListedObject, type Policy } from "./contracts.js";
 import { syntheticPolicy, validatePolicy } from "./policy.js";
-import { serializeReport } from "./report.js";
+import { finishReport, newReport, serializeReport } from "./report.js";
 import { runMetadataInventory, validatePolicyOnly } from "./runner.js";
 import {
   createSyntheticSession, emptySyntheticDataset, resolveSyntheticAuthorization,
@@ -227,6 +227,135 @@ test("unsupported references are not followed, and aggregate reports are immutab
   assert.ok(!serializeReport(result).includes(canary));
   assert.ok(Object.isFrozen(result.classes["product-images"]));
   assert.ok(!serializeReport({ failure: canary } as never).includes(canary));
+});
+
+function rejectedReport(candidate: unknown) {
+  assert.throws(() => finishReport(candidate), {
+    name: "Error", message: "INVALID_SOURCE_METADATA",
+  });
+  const output = serializeReport(candidate as never);
+  assert.equal(JSON.parse(output).failure, "INVALID_SOURCE_METADATA");
+  assert.ok(!output.includes(canary));
+}
+
+test("importing callers cannot register arbitrary strings in any report field", () => {
+  for (const key of Object.keys(newReport("metadata-only"))) {
+    const candidate = { ...newReport("metadata-only"), [key]: canary };
+    rejectedReport(candidate);
+    assert.equal(Object.isFrozen(candidate), false, "invalid input was not frozen or registered");
+  }
+});
+
+test("report schema rejects extra, missing, symbolic and hidden fields at every level", () => {
+  for (const level of ["report", "classes", "counts"] as const) {
+    for (const mutation of ["extra", "missing", "symbol", "hidden", "toJSON"] as const) {
+      const candidate = structuredClone(newReport("metadata-only"));
+      const target = level === "report" ? candidate
+        : level === "classes" ? candidate.classes : candidate.classes["product-images"];
+      const key = Object.keys(target)[0]!;
+      if (mutation === "extra") Object.assign(target, { unexpected: canary });
+      if (mutation === "missing") Reflect.deleteProperty(target, key);
+      if (mutation === "symbol") Object.defineProperty(target, Symbol(canary), { value: canary });
+      if (mutation === "hidden") Object.defineProperty(target, key, { value: canary, enumerable: false });
+      if (mutation === "toJSON") Object.defineProperty(target, "toJSON", {
+        value: () => canary, enumerable: false,
+      });
+      rejectedReport(candidate);
+    }
+  }
+});
+
+test("malformed report nesting, arrays, objects, accessors and proxies fail without execution", () => {
+  for (const value of [null, undefined, [], [canary], canary, new Date(0), new Map(),
+    Object.create({ inherited: canary })]) {
+    rejectedReport(value);
+    rejectedReport({ ...newReport("metadata-only"), classes: value });
+    rejectedReport({ ...newReport("metadata-only"), classes: {
+      ...newReport("metadata-only").classes, "product-images": value,
+    } });
+  }
+  let executed = 0;
+  for (const level of ["report", "classes", "counts"] as const) {
+    const candidate = structuredClone(newReport("metadata-only"));
+    const target = level === "report" ? candidate
+      : level === "classes" ? candidate.classes : candidate.classes["product-images"];
+    Object.defineProperty(target, Object.keys(target)[0]!, { enumerable: true,
+      get() { executed++; throw new Error(canary); } });
+    rejectedReport(candidate);
+  }
+  rejectedReport(new Proxy(newReport("metadata-only"), {
+    getPrototypeOf() { executed++; throw new Error(canary); },
+  }));
+  assert.equal(executed, 0);
+});
+
+test("aggregate counts reject coercions and unsafe values and accept exact inclusive bounds", () => {
+  const caps = {
+    dbRows: LIMIT_CAPS.maxDbRows, objects: LIMIT_CAPS.maxObjects,
+    dbRequests: LIMIT_CAPS.maxDbRequests, storageRequests: LIMIT_CAPS.maxStorageRequests,
+    concurrentChanges: LIMIT_CAPS.maxDbRows + 2 * LIMIT_CAPS.maxObjects
+      + LIMIT_CAPS.maxDbRequests + LIMIT_CAPS.maxStorageRequests,
+    mappingCollisions: LIMIT_CAPS.maxObjects, unreferencedCandidates: LIMIT_CAPS.maxObjects,
+  };
+  const badValues = [-1, -0, 0.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1,
+    "0", canary, null, undefined, true, {}, [], 0n];
+  for (const [key, cap] of Object.entries(caps)) {
+    for (const value of [...badValues, cap + 1]) {
+      rejectedReport({ ...newReport("metadata-only"), [key]: value });
+    }
+    for (const value of [0, cap]) {
+      const report = finishReport({ ...newReport("metadata-only"), [key]: value });
+      assert.equal(JSON.parse(serializeReport(report))[key], value);
+    }
+  }
+  for (const asset of Object.keys(newReport("metadata-only").classes)) {
+    for (const key of Object.keys(newReport("metadata-only").classes["product-images"])) {
+      const cap = LIMIT_CAPS.maxDbRows + 1;
+      for (const value of [...badValues, cap + 1, 0, cap]) {
+        const candidate = structuredClone(newReport("metadata-only"));
+        Object.assign(candidate.classes[asset as keyof typeof candidate.classes], { [key]: value });
+        if (value === 0 && !Object.is(value, -0) || value === cap) {
+          assert.equal(JSON.parse(serializeReport(finishReport(candidate))).classes[asset][key], value);
+        } else rejectedReport(candidate);
+      }
+    }
+  }
+});
+
+test("report enums and completion semantics are strict while incomplete warnings remain valid", () => {
+  for (const patch of [
+    { complete: "false" }, { complete: 0 }, { mode: {} }, { status: [] },
+    { failure: {} }, { failure: false }, { source: {} }, { consistency: null },
+    { complete: true }, { status: "synthetic-complete" },
+    { complete: true, status: "validated-offline" },
+    { complete: true, status: "synthetic-complete", source: "synthetic-in-memory",
+      consistency: "non-atomic", failure: "TIMEOUT" },
+  ]) rejectedReport({ ...newReport("metadata-only"), ...patch });
+  for (const failure of [null, "INVALID_POLICY", "EXECUTION_NOT_AUTHORIZED",
+    "LIVE_EXECUTION_UNAVAILABLE", "BUDGET_EXCEEDED", "TIMEOUT", "PERMISSION_DENIED",
+    "INVALID_SOURCE_METADATA", "READER_FAILED"]) {
+    const report = finishReport({ ...newReport("metadata-only"), failure,
+      source: "synthetic-in-memory", consistency: "non-atomic", concurrentChanges: 2 });
+    const output = JSON.parse(serializeReport(report));
+    assert.equal(output.complete, false);
+    assert.equal(output.failure, failure);
+    assert.equal(output.concurrentChanges, 2);
+  }
+});
+
+test("registration snapshots valid data and serialization refuses unregistered lookalikes", () => {
+  const input = structuredClone(newReport("metadata-only"));
+  const registered = finishReport(input);
+  assert.notEqual(registered, input);
+  assert.notEqual(registered.classes, input.classes);
+  Object.assign(input, { failure: canary });
+  Object.assign(input.classes["product-images"], { references: canary });
+  assert.equal(JSON.parse(serializeReport(registered)).failure, null);
+  assert.ok(!serializeReport(registered).includes(canary));
+  rejectedReport(input);
+  assert.equal(JSON.parse(serializeReport(structuredClone(registered))).failure, "INVALID_SOURCE_METADATA");
+  assert.ok(Object.isFrozen(registered.classes["product-images"]));
+  assert.throws(() => Object.assign(registered, { failure: canary }), TypeError);
 });
 
 test("CLI validation is offline; metadata cannot be unlocked by stdin or extra flags", async () => {

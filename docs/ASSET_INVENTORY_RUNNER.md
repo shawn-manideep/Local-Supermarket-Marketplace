@@ -100,10 +100,18 @@ Repeated cursors, unexpected namespaces/columns and malformed metadata fail
 closed. Timeouts signal cancellation. Limits exhausted before all namespaces
 finish yield incomplete results, not truncated success.
 
-All error paths are fixed categories, never SDK errors or input values. Reports
-are immutable, registered internal aggregates; serialization refuses arbitrary
-unregistered report objects. Raw identifiers, paths, URLs, checksums, filenames
-and metadata stay out of reports. Inventory modules use no logger.
+All error paths are fixed categories, never SDK errors or input values. Report
+registration validates the complete runtime schema before taking a detached,
+deeply frozen snapshot. Serialization requires registration and independently
+revalidates the output schema. Unknown/missing/hidden/symbol fields, accessors,
+proxies, custom prototypes, invalid enums and malformed nested values fail
+closed without echoing input. Counts must be nonnegative safe integers (negative
+zero is rejected): row/object/request counts use their policy caps; collisions
+and unreferenced candidates are capped at 10,000; each class counter at 10,001;
+concurrent changes at 30,115 (rows, two change flags per object, and page flags).
+These are schema ceilings, not permission to exceed the selected scan policy.
+Raw identifiers, paths, URLs, checksums, filenames and metadata stay out of
+reports. Inventory modules use no logger.
 
 The fixture launcher strips inherited environment variables and blocks all
 network connections (including loopback), fetch, common DNS/HTTP transports, and
@@ -150,7 +158,7 @@ EAS updates or APK building.
 
 ## Verification results
 
-- Inventory synthetic checks: **21 passed**, zero failures or skips.
+- Inventory synthetic checks: **27 passed**, zero failures or skips.
 - Existing storage/configuration compatibility checks: **28 passed**.
 - API TypeScript check: passed.
 - Working-tree whitespace check: passed.
