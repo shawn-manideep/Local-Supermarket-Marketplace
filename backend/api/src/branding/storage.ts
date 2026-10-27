@@ -1,4 +1,5 @@
 import { Storage } from "@google-cloud/storage";
+import { getExternalAssets } from "../storage/external-assets.js";
 import { randomUUID } from "node:crypto";
 import { getApiObjectStorageProvider } from "../storage/provider.js";
 import {
@@ -32,6 +33,9 @@ async function appStorage() {
 }
 export const brandingStorage = {
   async metadata() {
+    if (getApiObjectStorageProvider() === "external-gcs") {
+      return (await getExternalAssets()).branding.metadata();
+    }
     if (getApiObjectStorageProvider() === "replit-app-storage") {
       return (await appStorage()).metadata();
     }
@@ -44,6 +48,9 @@ export const brandingStorage = {
     }
   },
   async put(bytes: Buffer, mimeType: string) {
+    if (getApiObjectStorageProvider() === "external-gcs") {
+      return (await getExternalAssets()).branding.put(bytes, mimeType);
+    }
     if (getApiObjectStorageProvider() === "replit-app-storage") {
       await (await appStorage()).put(bytes, mimeType);
       return;
@@ -53,6 +60,9 @@ export const brandingStorage = {
       metadata: { contentType: mimeType, cacheControl: "no-store" } });
   },
   async get() {
+    if (getApiObjectStorageProvider() === "external-gcs") {
+      return (await getExternalAssets()).branding.get();
+    }
     if (getApiObjectStorageProvider() === "replit-app-storage") {
       return (await appStorage()).get();
     }

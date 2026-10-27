@@ -10,6 +10,10 @@ import type { Server } from "node:http";
 import pg from "pg";
 import { validateDocument, MAX_DOCUMENT_BYTES } from "./files.js";
 import { documentStorage } from "./storage.js";
+import { productImageStorage } from "../product-images/storage.js";
+import { createExternalAssets } from "../storage/external-assets.js";
+import { createGcsObjectStore } from "../storage/external-gcs.js";
+import { FakeGcs } from "../storage/fixtures/fake-gcs.js";
 
 const exec = promisify(execFile);
 const postgres = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
@@ -24,6 +28,10 @@ let directory = "", pool: pg.Pool, server: Server, base = "", createdProduct = "
 let baseline: unknown;
 let failStorage = false;
 const objects = new Map<string, Buffer>();
+const externalClient = new FakeGcs();
+const externalAssets = createExternalAssets(createGcsObjectStore(externalClient, "synthetic-destination"), {
+  privateRoot: "qa-private-bucket/private", publicRoot: "qa-public-bucket/public",
+});
 const originalFetch = globalThis.fetch;
 const provider = { ...documentStorage };
 
@@ -94,6 +102,14 @@ before(async () => {
     return bytes;
   };
   documentStorage.discard = async ref => { objects.delete(ref); };
+  if (process.env.RUN_EXTERNAL_GCS_FIXTURES === "1") {
+    Object.assign(documentStorage, externalAssets.documents, {
+      put: async (ref: string, bytes: Buffer, mime: string) => {
+        if (failStorage) throw new Error("Synthetic provider failure");
+        await externalAssets.documents.put(ref, bytes, mime);
+      },
+    });
+  }
   const { createApp } = await import("../app.js");
   server = createApp().listen(0, "127.0.0.1");
   await new Promise<void>(resolve => server.once("listening", resolve));
@@ -184,7 +200,7 @@ test("uploads reject invalid extensions, MIME, empty, corrupt, oversize and unkn
     assert.ok([400, 413].includes(response.status), `${name}: ${response.status}`);
   }
   assert.equal((await pool.query("SELECT count(*)::integer AS n FROM vendor_documents")).rows[0].n, 0);
-  assert.equal(objects.size, 0);
+  assert.equal(process.env.RUN_EXTERNAL_GCS_FIXTURES === "1" ? externalClient.objects.size : objects.size, 0);
 });
 test("optional uploads and four mandatory uploads remain locked until submission and Admin approval", async () => {
   const optional = await upload(vendorA, "gst");
@@ -706,4 +722,81 @@ test("quantity decrement and zero-removal persist exact variants, totals and emp
   assert.equal((await pool.query("SELECT status FROM carts WHERE id=$1", [original.id])).rows[0].status, "ABANDONED");
   assert.deepEqual((await (await request(customerB, "/api/customer/cart")).json()).cart, otherCart);
   assert.deepEqual((await pool.query("SELECT stock_quantity FROM product_variants WHERE id=ANY($1::uuid[])", [[v1, v2, otherVariant]])).rows.map((row: any) => row.stock_quantity), [5, 5, 5]);
+});
+
+test("GCS-backed product routes preserve published visibility, owning Vendor access and denied-read invariants", async () => {
+  const previous = { ...productImageStorage };
+  const pngBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j0ZkAAAAASUVORK5CYII=", "base64");
+  const imageId = randomUUID(), productId = randomUUID();
+  const path = `/api/product-images/${storeA}/${imageId}`;
+  Object.assign(productImageStorage, externalAssets.products);
+  try {
+    await externalAssets.products.put(storeA, imageId, pngBytes, "image/png");
+    await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeA]);
+    await pool.query(`INSERT INTO products(id,store_id,name,price,stock_quantity,image_url,is_active)
+      VALUES($1,$2,'Synthetic image visibility',5,1,$3,true)`, [productId, storeA, path]);
+    for (const actor of [null, customer, vendorB]) {
+      const response = await request(actor, path);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), "image/png");
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), pngBytes);
+    }
+    await pool.query("UPDATE products SET is_active=false WHERE id=$1", [productId]);
+    const before = externalClient.operations.length;
+    for (const [actor, status] of [[null, 401], [customer, 403], [vendorB, 404], [admin, 403], [delivery, 403]] as const) {
+      assert.equal((await request(actor, path)).status, status);
+    }
+    assert.equal(externalClient.operations.length, before, "denied requests must not read storage");
+    const owner = await request(vendorA, path);
+    assert.equal(owner.status, 200);
+    assert.deepEqual(Buffer.from(await owner.arrayBuffer()), pngBytes);
+    assert.equal((await pool.query("SELECT image_url,is_active FROM products WHERE id=$1", [productId])).rows[0].image_url, path);
+
+    await pool.query("UPDATE products SET is_active=true WHERE id=$1", [productId]);
+    await pool.query("UPDATE stores SET status='SUSPENDED' WHERE id=$1", [storeA]);
+    assert.equal((await request(null, path)).status, 401, "unavailable stores do not expose published images");
+    await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeA]);
+    const categoryId = randomUUID();
+    await pool.query("INSERT INTO categories(id,store_id,name,is_active) VALUES($1,$2,'Synthetic hidden category',false)", [categoryId, storeA]);
+    await pool.query("UPDATE products SET category_id=$2 WHERE id=$1", [productId, categoryId]);
+    assert.equal((await request(null, path)).status, 401, "inactive categories do not expose images");
+    assert.equal((await request(vendorA, path)).status, 200);
+
+    // Only this disposable cluster is updated to make the fixture Vendor eligible.
+    const submission = randomUUID();
+    await pool.query(`UPDATE stores SET document_verification_status='APPROVED',
+      document_submission_id=$2,documents_submitted_at=now(),documents_reviewed_at=now(),documents_reviewed_by=$3
+      WHERE id=$1`, [storeA, submission, admin]);
+    await pool.query(`UPDATE vendor_documents SET verification_status='APPROVED',submission_id=$2,
+      expiry_date=CASE WHEN document_type='fssai' THEN '2099-12-31'::date ELSE expiry_date END
+      WHERE store_id=$1 AND is_current`, [storeA, submission]);
+    const uploadImage = (actor: string | null, selectedProduct = productId, bytes = pngBytes) =>
+      originalFetch(`${base}/api/vendor/product-images?fileName=fixture.png&productId=${selectedProduct}`, {
+        method: "POST", headers: { ...(actor ? { Authorization: `Bearer ${actor}` } : {}),
+          "Content-Type": "image/png", "X-Forwarded-For": actorIp(actor) },
+        body: Uint8Array.from(bytes),
+      });
+    for (const [actor, status] of [[null, 401], [customer, 403], [admin, 403], [delivery, 403]] as const) {
+      assert.equal((await uploadImage(actor)).status, status);
+    }
+    assert.equal((await uploadImage(vendorA, protectedProduct)).status, 404);
+    assert.equal((await uploadImage(vendorA, productId, Buffer.from("corrupt"))).status, 400);
+    const uploaded = await uploadImage(vendorA);
+    assert.equal(uploaded.status, 201);
+    const uploadedPath = (await uploaded.json() as { imageUrl: string }).imageUrl;
+    assert.ok(uploadedPath.startsWith(`/api/product-images/${storeA}/`));
+    assert.equal((await request(null, uploadedPath)).status, 401);
+    assert.equal((await request(vendorB, uploadedPath)).status, 404);
+    assert.equal((await request(vendorA, uploadedPath)).status, 200);
+    const objectCount = externalClient.objects.size;
+    externalClient.failure = { operation: "write", code: 503 };
+    assert.equal((await uploadImage(vendorA)).status, 503);
+    assert.equal(externalClient.objects.size, objectCount);
+    assert.equal((await pool.query("SELECT image_url FROM products WHERE id=$1", [productId])).rows[0].image_url, path);
+  } finally {
+    Object.assign(productImageStorage, previous);
+    await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeA]);
+  }
 });

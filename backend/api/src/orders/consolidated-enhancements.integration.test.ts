@@ -15,6 +15,9 @@ import { pickupPhotoStorage } from "../delivery-partner/photos.js";
 import { orderReportRows,dailyReportRows } from "./reports.js";
 import { dailyBounds,indiaDate,orderDateBounds } from "./report-dates.js";
 import type { Server } from "node:http";
+import { createExternalAssets } from "../storage/external-assets.js";
+import { createGcsObjectStore } from "../storage/external-gcs.js";
+import { FakeGcs } from "../storage/fixtures/fake-gcs.js";
 
 const exec = promisify(execFile), binary = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
 const admin=randomUUID(),customer=randomUUID(),vendorA=randomUUID(),vendorB=randomUUID(),partnerA=randomUUID(),partnerB=randomUUID();
@@ -25,6 +28,10 @@ type FixtureResponse=Omit<Awaited<ReturnType<typeof originalFetch>>,"json"> & {j
 let pool:pg.Pool,server:Server,dir:string,base:string,readyOrder:string,assignment:string,winner:string,loser:string;
 let failStorage=false;
 const objects=new Map<string,Buffer>();
+const externalClient = new FakeGcs();
+const externalAssets = createExternalAssets(createGcsObjectStore(externalClient, "synthetic-destination"), {
+  privateRoot: "fixture/private", publicRoot: "fixture/public",
+});
 const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZAAAAABJRU5ErkJggg==","base64");
 const bank={accountHolderName:"Fixture Vendor",accountNumber:"00123456789012",ifsc:"SBIN0001234",bankName:"Fixture Bank",bankBranch:"Hyderabad",vendorMobileNumber:"9876543210"};
 async function call(path:string,actor?:string,body?:unknown,method?:string) {
@@ -107,6 +114,16 @@ before(async()=>{
     storage.put=async(ref,bytes)=>{if(failStorage)throw new Error("Simulated unavailable cloud storage");objects.set(ref,bytes);};
     storage.get=async(ref)=>{const bytes=objects.get(ref);if(!bytes)throw new Error("Missing fixture object");return bytes;};
     storage.discard=async(ref)=>{objects.delete(ref);};
+  }
+  if (process.env.RUN_EXTERNAL_GCS_FIXTURES === "1") {
+    for (const [storage, fixture] of [[documentStorage, externalAssets.documents], [pickupPhotoStorage, externalAssets.photos]] as const) {
+      Object.assign(storage, fixture, {
+        put: async (ref: string, bytes: Buffer, mime: string) => {
+          if (failStorage) throw new Error("Synthetic provider failure");
+          await fixture.put(ref, bytes, mime);
+        },
+      });
+    }
   }
   server=createApp().listen(0,"127.0.0.1");await new Promise<void>(r=>server.once("listening",r));
   base=`http://127.0.0.1:${(server.address() as net.AddressInfo).port}`;
@@ -208,7 +225,16 @@ test("pickup requires durable private photo; denied users and failed uploads lea
   assert.equal((await pool.query("SELECT status FROM delivery_assignments WHERE id=$1",[assignment])).rows[0].status,"ACCEPTED");
   const saved=await upload(path,winner);assert.equal(saved.status,201);
   const metadata=await saved.json();assert.equal("objectRef" in metadata.photo,false);
+  assert.equal((await call(path)).status,401);
+  assert.equal((await call(path,customer)).status,403);
+  assert.equal((await call(path,vendorA)).status,403);
   assert.equal((await call(path,loser)).status,404);
+  const ownerPhoto = await call(path,winner);
+  assert.equal(ownerPhoto.status,200);
+  assert.equal(ownerPhoto.headers.get("content-type"),"image/png");
+  assert.equal(ownerPhoto.headers.get("x-content-type-options"),"nosniff");
+  assert.equal(ownerPhoto.headers.get("cache-control"),"private, no-store");
+  assert.deepEqual(Buffer.from(await ownerPhoto.arrayBuffer()),png);
   assert.equal((await call(`/api/admin/deliveries/${assignment}/photo`,vendorA)).status,403);
   assert.equal((await call(`/api/admin/deliveries/${assignment}/photo`,customer)).status,403);
   const authorized=await call(`/api/admin/deliveries/${assignment}/photo`,admin);assert.equal(authorized.status,200);

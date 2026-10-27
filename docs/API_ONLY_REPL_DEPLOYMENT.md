@@ -1,5 +1,11 @@
 # API-only Replit deployment preparation
 
+**Current preparation:** an owner-controlled external GCS compatibility adapter
+is available behind explicit, complete configuration and a runtime approval
+guard. It is not activated. See [External GCS preparation](EXTERNAL_GCS_PREPARATION.md).
+The App Storage setup sequence below remains an alternative, not an instruction
+to provision storage or copy any data.
+
 This is a source and local-test preparation document. It does not create a
 Replit project, set Secrets, contact Supabase or App Storage, run migrations,
 publish, or build a mobile app.
@@ -107,9 +113,11 @@ cross-project fallback.
 - `API_ONLY_TARGET_PROFILE=original-customer-apk` for the original Customer APK
   API, or `isolated-native-preview` for the isolated preview target. Missing
   and unknown profiles fail startup.
-- `API_OBJECT_STORAGE_PROVIDER=replit-app-storage` — required, explicit opt-in.
-- `PRIVATE_OBJECT_DIR=private`.
-- `PUBLIC_OBJECT_SEARCH_PATHS=public`.
+- `API_OBJECT_STORAGE_PROVIDER` — required, explicit selection of
+  `replit-app-storage` or `external-gcs`. External GCS has additional mandatory
+  guards and reference mappings documented separately.
+- `PRIVATE_OBJECT_DIR=private` for the Replit App Storage option only.
+- `PUBLIC_OBJECT_SEARCH_PATHS=public` for the Replit App Storage option only.
 - `CORS_ALLOWED_ORIGINS` — leave empty for native-only requests. If a browser
   Customer client is intentionally moved to this API, set only its confirmed
   HTTPS origin(s), as comma-separated origins without paths or trailing
@@ -167,9 +175,10 @@ transaction-duration limit.
 ## Storage and access boundaries
 
 Unset `API_OBJECT_STORAGE_PROVIDER` continues to use the current Replit GCS
-sidecar implementation. Only the exact value `replit-app-storage` enables the
-new SDK adapter; an unknown value fails rather than switching providers.
-The new project must explicitly set
+sidecar implementation. The exact value `replit-app-storage` enables the
+SDK adapter; `external-gcs` requires the separately documented complete
+configuration and approval guard. Unknown values fail rather than falling back.
+For the Replit App Storage option, the new project must explicitly set
 `API_OBJECT_STORAGE_PROVIDER=replit-app-storage` and provision App Storage from
 that project's App Storage setup. Replit creates a project-scoped bucket only
 after explicit setup; each project owns its own bucket. SDK credentials are
@@ -187,8 +196,8 @@ existing authenticated API routes remain the only read path. Product and
 branding images also remain API-mediated; no object URL or public bucket
 access is added. Existing GCS code remains the default.
 
-The original-project profile still requires App Storage in the separate API
-Replit project. That bucket is not shared with the existing portal project's
+When using the Replit App Storage option, the original-project profile requires
+App Storage in the separate API Replit project. That bucket is not shared with the existing portal project's
 GCS sidecar bucket, so this profile alone does not provide the existing assets.
 Shared storage, object copying, and synchronization are a separate blocked
 workstream; no storage data is copied or exposed by this preparation.

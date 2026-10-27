@@ -3,6 +3,7 @@ import test from "node:test";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { syntheticExternalEnv } from "../storage/fixtures/fake-gcs.js";
 import {
   API_ONLY_QUERY_TIMEOUT_MS,
   API_ONLY_STATEMENT_TIMEOUT_MS,
@@ -74,6 +75,20 @@ test("original Supabase target is accepted only by its explicitly named profile"
     },
     /code-defined target profile/,
   );
+});
+
+test("external GCS requires complete explicit configuration without weakening original DB and auth guards", () => {
+  const valid = { ...validEnv("original-customer-apk"), ...syntheticExternalEnv() };
+  assert.equal(assertApiOnlyTarget(valid), 10_000);
+  for (const key of ["EXTERNAL_GCS_RUNTIME_APPROVAL", "EXTERNAL_GCS_BUCKET", "EXTERNAL_GCS_PRIVATE_KEY"]) {
+    const invalid = { ...valid };
+    delete invalid[key];
+    assert.throws(() => assertApiOnlyTarget(invalid), /External GCS/);
+  }
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_URL: "https://other.invalid" }), /SUPABASE_URL/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_ANON_KEY: jwt("other") }), /API key/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SESSION_SECRET: undefined }), /signing secrets/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_DB_URL: valid.SUPABASE_DB_URL!.replace("verify-full", "disable") }), /TLS/);
 });
 
 test("target profiles reject cross-project URL and key claims", () => {

@@ -1,3 +1,5 @@
+import { externalGcsConfig } from "../storage/external-gcs-config.js";
+
 export const API_ONLY_TARGET_PROFILES = {
   "original-customer-apk": {
     projectRef: "gkwcolipeavxnuzqlamb",
@@ -95,9 +97,10 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
     fail("The selected code-defined profile has an invalid database endpoint.");
   }
 
-  if (env.API_OBJECT_STORAGE_PROVIDER !== "replit-app-storage") {
-    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage.");
+  if (!["replit-app-storage", "external-gcs"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
+    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage or external-gcs.");
   }
+  if (env.API_OBJECT_STORAGE_PROVIDER === "external-gcs") externalGcsConfig(env);
 
   exactHttpsProjectUrl(env.SUPABASE_URL, profile.supabaseUrl);
 
@@ -184,8 +187,10 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
   }
 
   if (
+    env.API_OBJECT_STORAGE_PROVIDER === "replit-app-storage" && (
     env.PRIVATE_OBJECT_DIR?.replace(/^\/+|\/+$/g, "") !== "private" ||
     env.PUBLIC_OBJECT_SEARCH_PATHS?.split(",").map((value) => value.trim()).filter(Boolean).join(",") !== "public"
+    )
   ) {
     fail("API-only App Storage must use the isolated private/ and public/ namespaces.");
   }

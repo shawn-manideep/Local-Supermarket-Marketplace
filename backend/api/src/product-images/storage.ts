@@ -1,4 +1,5 @@
 import { Storage } from "@google-cloud/storage";
+import { getExternalAssets } from "../storage/external-assets.js";
 import { getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createProductImageStorageAdapter,
@@ -31,6 +32,9 @@ async function appStorage() {
 }
 export const productImageStorage = {
   async put(storeId: string, imageId: string, bytes: Buffer, mimeType: string) {
+    if (getApiObjectStorageProvider() === "external-gcs") {
+      return (await getExternalAssets()).products.put(storeId, imageId, bytes, mimeType);
+    }
     if (getApiObjectStorageProvider() === "replit-app-storage") {
       await (await appStorage()).put(storeId, imageId, bytes, mimeType);
       return;
@@ -39,6 +43,9 @@ export const productImageStorage = {
       metadata: { contentType: mimeType, cacheControl: "no-store", metadata: { visibility: "published-product" } } });
   },
   async get(storeId: string, imageId: string) {
+    if (getApiObjectStorageProvider() === "external-gcs") {
+      return (await getExternalAssets()).products.get(storeId, imageId);
+    }
     if (getApiObjectStorageProvider() === "replit-app-storage") {
       return (await appStorage()).get(storeId, imageId);
     }
@@ -48,6 +55,9 @@ export const productImageStorage = {
     return { bytes, mimeType: metadata.contentType ?? "application/octet-stream" };
   },
   async discard(storeId: string, imageId: string) {
+    if (getApiObjectStorageProvider() === "external-gcs") {
+      return (await getExternalAssets()).products.discard(storeId, imageId);
+    }
     if (getApiObjectStorageProvider() === "replit-app-storage") {
       await (await appStorage()).discard(storeId, imageId);
       return;

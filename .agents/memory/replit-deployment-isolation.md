@@ -7,4 +7,4 @@ Replit publishes all artifacts in a project together. Each Replit project owns a
 
 **Why:** Replit documentation specifies whole-project publishing, project-exclusive App Storage, and SDK-managed credentials.
 
-**How to apply:** For an API-only deployment, use a separate project containing only the API service and its workspace dependencies. Provision that project's own storage bucket and adapt storage access to the supported SDK; do not publish a mixed portal project or copy its storage settings. If the SDK lacks object metadata or generations, store MIME metadata alongside product images and use versioned branding objects plus an active manifest.
+**How to apply:** For an API-only deployment, use a separate project containing only the API service and its workspace dependencies. If choosing Replit App Storage, its own bucket and supported SDK are required; neither provides the original project's files. Do not publish the mixed portal project or copy its storage bindings. The owner now prefers external private GCS; follow the separately approved [storage direction](external-storage-direction.md), not automatic provisioning of a new Replit bucket.
