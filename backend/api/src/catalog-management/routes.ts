@@ -29,8 +29,8 @@ import { requireCatalogDocuments } from "../vendor-documents/service.js";
 
 export const catalogManagementRouter = Router();
 catalogManagementRouter.use(["/api/vendor/products", "/api/vendor/categories"], (request, response, next) => {
-  // There are deliberately no hard-delete endpoints. Preserve their 404
-  // behavior, and gate every supported catalog mutation including child routes.
+  // There are deliberately no hard-delete endpoints. The app-level auth and
+  // compliance gates still run; eligible DELETE requests then fall through to 404.
   if (!["POST", "PATCH", "PUT"].includes(request.method)) { next(); return; }
   requireRole("vendor")(request, response, error => {
     if (error) { next(error); return; }

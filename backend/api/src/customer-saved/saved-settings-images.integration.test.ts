@@ -12,16 +12,17 @@ import { productImageStorage } from "../product-images/storage.js";
 import { validateProductImage, MAX_PRODUCT_IMAGE_BYTES } from "../product-images/validation.js";
 import { passwordProvider, changePasswordInput } from "../customer-settings/routes.js";
 import { vendorProductImageSchema } from "@workspace/validation";
+import { approvedFixtureBank, approvedFixtureDocuments } from "../test-fixture-compliance.js";
 
 const exec = promisify(execFile);
 const postgres = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
-const customerA = randomUUID(), customerB = randomUUID(), vendorA = randomUUID(), vendorB = randomUUID();
+const customerA = randomUUID(), customerB = randomUUID(), vendorA = randomUUID(), vendorB = randomUUID(), admin = randomUUID();
 const storeA = randomUUID(), storeB = randomUUID(), productA = randomUUID(), productB = randomUUID(), master = randomUUID();
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6SsAAAAASUVORK5CYII=", "base64");
 const jpeg = Buffer.concat([Buffer.from([255,216,255]),Buffer.alloc(20),Buffer.from([255,217])]);
 const webp = Buffer.alloc(30); webp.write("RIFF"); webp.writeUInt32LE(22,4); webp.write("WEBPVP8X",8); webp.writeUInt32LE(10,16);
 let pool: pg.Pool, server: Server, directory = "", base = "", imageReference = "";
-let beforeCommercial: unknown, storageFailure = false, passwordCalls = 0;
+let beforeCommercial: unknown, beforeCompliance: unknown, storageFailure = false, passwordCalls = 0;
 const images = new Map<string, { bytes: Buffer; mimeType: string }>();
 const provider = { ...productImageStorage }, passwords = { ...passwordProvider }, originalFetch = globalThis.fetch;
 before(async () => {
@@ -42,10 +43,10 @@ before(async () => {
   for (const file of (await readdir(migrations)).filter(name => /^\d{4}_.*\.sql$/.test(name)).sort()) {
     await pool.query(await readFile(new URL(file,migrations),"utf8"));
   }
-  for (const [id,role] of [[customerA,"customer"],[customerB,"customer"],[vendorA,"vendor"],[vendorB,"vendor"]]) {
+  for (const [id,role] of [[customerA,"customer"],[customerB,"customer"],[vendorA,"vendor"],[vendorB,"vendor"],[admin,"admin"]]) {
     await pool.query("INSERT INTO auth.users(id,email) VALUES($1,$2)",[id,`${id}@qa.invalid`]);
-    if (role === "vendor") {
-      await pool.query("UPDATE user_profiles SET role='vendor' WHERE id=$1",[id]);
+    if (role !== "customer") {
+      await pool.query("UPDATE user_profiles SET role=$2::app_role WHERE id=$1",[id,role]);
       await pool.query("DELETE FROM customers WHERE id=$1",[id]);
     } else {
       await pool.query("INSERT INTO identity_usernames(user_id,normalized_username) VALUES($1,$2) ON CONFLICT DO NOTHING",[id,id===customerA?"shopper_a":"shopper_b"]);
@@ -57,7 +58,11 @@ before(async () => {
     await pool.query("INSERT INTO stores(id,owner_user_id,name,status,documents_required) VALUES($1,$2,'Test shop','ACTIVE',false)",[id,owner]);
     await pool.query("INSERT INTO store_service_pincodes(store_id,pincode) VALUES($1,'500090')",[id]);
     await pool.query("INSERT INTO store_operating_hours(store_id,day_of_week,is_closed,opens_at,closes_at) SELECT $1,generate_series(0,6),false,'00:00','23:59'",[id]);
+    await approvedFixtureBank(pool,id,admin);
+    await approvedFixtureDocuments(pool,id,admin);
+    assert.equal((await pool.query("SELECT public.vendor_compliance_approved($1) AS approved",[id])).rows[0].approved,true);
   }
+  beforeCompliance = await complianceSnapshot();
   await pool.query("INSERT INTO master_products(id,name,brand,image,is_active) VALUES($1,'Mapped sample','Canonical','https://example.invalid/master.png',true)",[master]);
   for (const [id,storeId] of [[productA,storeA],[productB,storeB]]) {
     await pool.query("INSERT INTO products(id,store_id,name,brand,price,stock_quantity,is_active) VALUES($1,$2,'Local sample','Local brand',25,12,true)",[id,storeId]);
@@ -106,6 +111,52 @@ async function upload(actor:string,bytes:Buffer,mime:string,fileName:string,prod
   return originalFetch(base+`/api/vendor/product-images?fileName=${encodeURIComponent(fileName)}${productId?`&productId=${productId}`:""}`,
     {method:"POST",headers:{Authorization:`Bearer ${actor}`,"Content-Type":mime},body:new Uint8Array(bytes)});
 }
+async function complianceSnapshot() {
+  return (await pool.query(`SELECT
+    (SELECT jsonb_agg(to_jsonb(d) ORDER BY id) FROM vendor_documents d) AS documents,
+    (SELECT jsonb_agg(to_jsonb(b) ORDER BY store_id) FROM vendor_bank_details b) AS banks`)).rows;
+}
+async function freshImage() {
+  const response=await upload(vendorA,png,"image/png","sample.png",productA);
+  assert.equal(response.status,201);
+  return (await response.json()).imageUrl as string;
+}
+test("missing, pending, rejected and expired compliance blocks uploads and nested catalog mutations without writes",async () => {
+  const beforeImages=images.size;
+  const beforeProducts=(await pool.query("SELECT * FROM products ORDER BY id")).rows;
+  const beforeVariants=(await pool.query("SELECT * FROM product_variants ORDER BY id")).rows;
+  const cases=[
+    "UPDATE vendor_documents SET is_current=false WHERE store_id=$1 AND document_type='pan'",
+    "UPDATE vendor_bank_details SET status='SUBMITTED' WHERE store_id=$1",
+    "UPDATE vendor_documents SET verification_status='REJECTED',rejection_reason='Synthetic rejection' WHERE store_id=$1 AND document_type='pan'",
+    "UPDATE vendor_documents SET expiry_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date WHERE store_id=$1 AND document_type='fssai'",
+  ];
+  for(const change of cases) {
+    // These changes and restoration are confined to the disposable local fixture.
+    const docs=(await pool.query("SELECT * FROM vendor_documents WHERE store_id=$1",[storeA])).rows;
+    const bank=(await pool.query("SELECT * FROM vendor_bank_details WHERE store_id=$1",[storeA])).rows[0];
+    try {
+      await pool.query(change,[storeA]);
+      const denied=await upload(vendorA,png,"image/png","sample.png",productA);
+      assert.equal(denied.status,403);
+      assert.equal((await denied.json()).code,"VENDOR_DOCUMENTS_REQUIRED");
+      for(const [path,method,body] of [
+        [`/api/vendor/products/${productA}`,"PATCH",{imageUrl:"https://example.invalid/image.png"}],
+        [`/api/vendor/products/${productA}/variants`,"POST",{}],
+        [`/api/vendor/products/${productA}/variants/batch`,"PUT",{variants:[]}],
+      ] as const) assert.equal((await request(vendorA,path,method,body)).status,403);
+      assert.equal(images.size,beforeImages);
+      assert.deepEqual((await pool.query("SELECT * FROM products ORDER BY id")).rows,beforeProducts);
+      assert.deepEqual((await pool.query("SELECT * FROM product_variants ORDER BY id")).rows,beforeVariants);
+    } finally {
+      for(const doc of docs) await pool.query(`UPDATE vendor_documents SET is_current=$2,verification_status=$3,
+        rejection_reason=$4,expiry_date=$5 WHERE id=$1`,[doc.id,doc.is_current,doc.verification_status,doc.rejection_reason,doc.expiry_date]);
+      await pool.query("UPDATE vendor_bank_details SET status=$2 WHERE store_id=$1",[storeA,bank.status]);
+    }
+  }
+  // Restoring fixture fields must also restore the real eligibility predicate.
+  assert.equal((await pool.query("SELECT public.vendor_compliance_approved($1) AS approved",[storeA])).rows[0].approved,true);
+});
 test("saved items enforce roles and own address, accept repeated saves without duplicate records",async () => {
   assert.equal((await request(null,"/api/customer/saved-items")).status,401);
   assert.equal((await request(vendorA,"/api/customer/saved-items")).status,403);
@@ -209,6 +260,7 @@ test("image upload isolates ownership; bytes unavailable before publish except t
   assert.equal((await pool.query("SELECT image_url FROM products WHERE id=$1",[productA])).rows[0].image_url,null);
 });
 test("own image saves to existing listing field; Customer catalog sees image; Master canonical image unchanged",async () => {
+  imageReference=await freshImage();
   assert.equal((await request(vendorA,`/api/vendor/products/${productA}`,"PATCH",{imageUrl:imageReference})).status,200);
   assert.equal((await request(vendorB,`/api/vendor/products/${productA}`,"PATCH",{imageUrl:imageReference})).status,403);
   const catalog=await (await request(customerA,`/api/customer/stores/${storeA}/products/${productA}?pincode=500090`)).json();
@@ -222,12 +274,13 @@ test("own image saves to existing listing field; Customer catalog sees image; Ma
   await pool.query("UPDATE products SET is_active=true WHERE id=$1",[productA]);
 });
 test("uploaded reference works in new store-local product creation without Master writes",async () => {
+  const imageReference=await freshImage();
   const created=await request(vendorA,"/api/vendor/products","POST",{
     name:"Unique new image listing",brand:"Synthetic new",price:30,imageUrl:imageReference,
     variants:[{quantityValue:1,quantityUnit:"pack",price:30,stockQuantity:4,availability:true,isActive:true}],
   });
   assert.equal(created.status,201); assert.equal((await created.json()).product.imageUrl,imageReference);
   assert.equal((await pool.query("SELECT count(*)::integer n FROM master_products")).rows[0].n,1);
-  assert.equal((await pool.query("SELECT count(*)::integer n FROM vendor_documents")).rows[0].n,0);
+  assert.deepEqual(await complianceSnapshot(),beforeCompliance);
   assert.deepEqual((await pool.query("SELECT id,price,stock_quantity FROM product_variants WHERE product_id IN ($1,$2) ORDER BY id",[productA,productB])).rows,beforeCommercial);
 });

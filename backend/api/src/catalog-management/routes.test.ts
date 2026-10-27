@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { createApp } from "../app.js";
 import { HttpError } from "../http.js";
+import { localApiFixture } from "../test-fixtures/local-api.js";
 import {
   ensureBatchVariantIdsBelongToProduct,
   ensureBatchVariantExpectedVersionsCurrent,
@@ -195,8 +196,26 @@ test("catalog hard-delete endpoints do not exist", async () => {
       `${baseUrl}/api/vendor/products/11111111-1111-4111-8111-111111111111/variants/22222222-2222-4222-8222-222222222222`,
       { method: "DELETE" },
     );
-    assert.equal(categoryResponse.status, 404);
-    assert.equal(productResponse.status, 404);
-    assert.equal(variantResponse.status, 404);
+    assert.equal(categoryResponse.status, 401);
+    assert.equal(productResponse.status, 401);
+    assert.equal(variantResponse.status, 401);
   });
+});
+test("eligible vendor DELETE requests have no handlers and leave catalog parents and children unchanged", async () => {
+  const fixture = await localApiFixture();
+  try {
+    const categoryId = crypto.randomUUID();
+    await fixture.pool.query("INSERT INTO categories(id,store_id,name) VALUES($1,$2,'Fixture Category')", [categoryId,fixture.stores[0]]);
+    const snapshot = async () => (await fixture.pool.query(`SELECT
+      (SELECT jsonb_agg(to_jsonb(p) ORDER BY id) FROM products p) AS products,
+      (SELECT jsonb_agg(to_jsonb(v) ORDER BY id) FROM product_variants v) AS variants,
+      (SELECT jsonb_agg(to_jsonb(c) ORDER BY id) FROM categories c) AS categories`)).rows;
+    const before = await snapshot();
+    for (const path of [
+      `/api/vendor/categories/${categoryId}`,
+      `/api/vendor/products/${fixture.products[0]}`,
+      `/api/vendor/products/${fixture.products[0]}/variants/${fixture.variants[0]}`,
+    ]) assert.equal((await fixture.request(path, fixture.vendors[0], undefined, "DELETE")).status, 404);
+    assert.deepEqual(await snapshot(), before);
+  } finally { await fixture.close(); }
 });

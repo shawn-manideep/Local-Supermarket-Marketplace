@@ -31,8 +31,8 @@ const categories = (w: ExcelJS.Workbook) => w.getWorksheet("MASTER_CATEGORIES")!
 test("export contains current canonical IDs, two editing sheets, identity metadata, no master variants or vendor fields", async () => {
   const w = await loadWorkbook(await exportWorkbook(snapshot()));
   assert.deepEqual(w.worksheets.map(s => s.name), ["MASTER_CATEGORIES", "MASTER_PRODUCTS", "CATALOG_METADATA", "INSTRUCTIONS"]);
-  assert.deepEqual(categories(w).getRow(1).values, [undefined, ...CATEGORY_HEADERS]);
-  assert.deepEqual(products(w).getRow(1).values, [undefined, ...PRODUCT_HEADERS]);
+  assert.deepEqual((categories(w).getRow(1).values as ExcelJS.CellValue[]).slice(1), CATEGORY_HEADERS);
+  assert.deepEqual((products(w).getRow(1).values as ExcelJS.CellValue[]).slice(1), PRODUCT_HEADERS);
   assert.equal(products(w).getCell("A2").value, productId);
   assert.equal(products(w).getCell("B3").value, "");
   assert.equal(products(w).getCell("D2").value, "Basmati Rice");
@@ -99,13 +99,25 @@ for (const [name, mutate, message] of [
 }
 test("empty workbook and corrupt non-XLSX bytes rejected without writes", async () => {
   const bytes = await edit(w => {
-    categories(w).spliceRows(2, 2);
-    products(w).spliceRows(2, 2);
+    for (const sheet of [categories(w), products(w)])
+      sheet.eachRow((row, index) => { if (index > 1) row.values = []; });
   });
+  const reloaded = await loadWorkbook(bytes);
+  for (const sheet of [categories(reloaded), products(reloaded)])
+    sheet.eachRow((row, index) => { if (index > 1) assert.equal(row.hasValues, false); });
   const plan = await validateWorkbook(bytes, snapshot());
   assert.equal(plan.valid, false);
   assert.match(plan.errors[0].message, /no catalog data/);
-  assert.equal((await validateWorkbook(Buffer.from("not an excel file"), snapshot())).valid, false);
+  assert.deepEqual(plan.categoryUpdates, []);
+  assert.deepEqual(plan.productUpdates, []);
+  assert.deepEqual(plan.changes, []);
+});
+test("corrupt non-XLSX bytes independently reject with an empty write plan", async () => {
+  const plan = await validateWorkbook(Buffer.from("not an excel file"), snapshot());
+  assert.equal(plan.valid, false);
+  assert.deepEqual(plan.categoryUpdates, []);
+  assert.deepEqual(plan.productUpdates, []);
+  assert.deepEqual(plan.changes, []);
 });
 test("canonical duplicate collision rejects rather than merging archived identities", async () => {
   const bytes = await edit(w => {
