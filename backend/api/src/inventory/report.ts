@@ -51,7 +51,7 @@ function checkedReport(input: unknown): Report {
     || !["not-checked", "non-atomic"].includes(value.consistency as string)
     || (value.failure !== null && !["INVALID_POLICY", "EXECUTION_NOT_AUTHORIZED",
       "LIVE_EXECUTION_UNAVAILABLE", "BUDGET_EXCEEDED", "TIMEOUT", "PERMISSION_DENIED",
-      "INVALID_SOURCE_METADATA", "READER_FAILED"].includes(value.failure as string))) return invalid();
+      "INVALID_SOURCE_METADATA", "READER_FAILED", "RECONCILIATION_REQUIRED"].includes(value.failure as string))) return invalid();
   if (value.complete !== (value.status !== "incomplete")
     || (value.complete && value.failure !== null)
     || (value.status === "validated-offline" && (value.mode !== "validate-policy-only"
@@ -70,6 +70,9 @@ function checkedReport(input: unknown): Report {
     for (const key of countKeys) counts[key] = count(rawCounts[key], classCountCap);
     classes[asset] = counts;
   }
+  if (value.status === "synthetic-complete" && (aggregates.mappingCollisions > 0 ||
+      aggregates.concurrentChanges > 0 || Object.values(classes).some(c =>
+        c.unsupported > 0 || c.external > 0 || c.missingCandidates > 0 || c.metadataMismatches > 0))) return invalid();
   // Every field above is checked before the typed, detached snapshot is created.
   return { mode: value.mode, complete: value.complete, status: value.status,
     failure: value.failure, source: value.source, consistency: value.consistency,

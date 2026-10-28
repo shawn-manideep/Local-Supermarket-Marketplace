@@ -2,7 +2,7 @@ import {
   InventoryFailure, NAMESPACES, PROJECTIONS, type Failure, type ListedObject,
   type Page, type Policy, type Report, type Row, type Table,
 } from "./contracts.js";
-import { validatePolicy } from "./policy.js";
+import { plainData, validatePolicy } from "./policy.js";
 import { failedReport, finishReport, newReport, type MutableReport } from "./report.js";
 import { checkObject, checkRow, reconcile, referencesForRows } from "./reconcile.js";
 import { resolveSyntheticAuthorization } from "./synthetic.js";
@@ -36,10 +36,11 @@ export async function runMetadataInventory(input: unknown, session?: object, aut
     async function bounded<T>(operation: (signal: AbortSignal) => Promise<T>, end: number): Promise<T> {
       const duration = Math.min(policy.limits.requestTimeoutMs, end - Date.now());
       if (duration <= 0) throw new InventoryFailure("TIMEOUT");
+      const requestEnd = Date.now() + duration;
       const controller = new AbortController();
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        return await Promise.race([
+        const result = await Promise.race([
           operation(controller.signal),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => {
@@ -48,10 +49,17 @@ export async function runMetadataInventory(input: unknown, session?: object, aut
             }, duration);
           }),
         ]);
+        // Timer callbacks can be delayed by synchronous work in a reader.
+        if (Date.now() >= end || Date.now() >= requestEnd) throw new InventoryFailure("TIMEOUT");
+        return result;
       } finally { if (timer) clearTimeout(timer); controller.abort(); }
     }
     function checkPage<T>(page: Page<T>, limit: number, cursors: Set<string>) {
-      if (!page || !Array.isArray(page.items) || page.items.length > limit ||
+      let fields: Record<string, unknown>;
+      try { fields = plainData(page); }
+      catch { throw new InventoryFailure("INVALID_SOURCE_METADATA"); }
+      if (Reflect.ownKeys(fields).some(key => !["items", "nextCursor", "changed"].includes(String(key))) ||
+          !Array.isArray(page.items) || page.items.length > limit ||
           typeof page.changed !== "boolean" ||
           (page.nextCursor !== undefined && (typeof page.nextCursor !== "string" ||
             !page.nextCursor || page.nextCursor.length > 1024 || cursors.has(page.nextCursor)))) {
@@ -84,6 +92,7 @@ export async function runMetadataInventory(input: unknown, session?: object, aut
         cursor = page.nextCursor;
       } while (cursor !== undefined);
     }
+    if (Date.now() >= dbDeadline) throw new InventoryFailure("TIMEOUT");
     const refs = referencesForRows(rows, binding, report);
     for (const namespace of NAMESPACES) {
       let cursor: string | undefined;
@@ -115,6 +124,11 @@ export async function runMetadataInventory(input: unknown, session?: object, aut
     }
     reconcile(refs, objects, report);
     if (Date.now() >= deadline) throw new InventoryFailure("TIMEOUT");
+    if (report.mappingCollisions || report.concurrentChanges ||
+        Object.values(report.classes).some(c => c.unsupported || c.external ||
+          c.missingCandidates || c.metadataMismatches)) {
+      throw new InventoryFailure("RECONCILIATION_REQUIRED");
+    }
     report.complete = true;
     report.status = "synthetic-complete";
     return finishReport(report);

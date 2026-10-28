@@ -30,7 +30,7 @@ function dataset(): SyntheticDataset {
   ];
   data.tables.master_products = [{ id: "fixture-master",
     image: "/api/product-images/fixture-store/fixture-image", is_active: false, updated_at: stamp }];
-  data.tables.stores = [{ id: "fixture-store", logo_image_url: `https://fixture.invalid/${canary}`, updated_at: stamp }];
+  data.tables.stores = [{ id: "fixture-store", logo_image_url: null, updated_at: stamp }];
   data.tables.vendor_documents = [
     { id: "fixture-document-old", store_id: "fixture-store", document_type: "pan",
       object_ref: "/fixture-private/vendor-documents/fixture-store/fixture-document-old",
@@ -144,7 +144,7 @@ test("all four namespaces, inactive and historical rows, separate assets and nul
   assert.equal(result.classes["product-images"].matched, 1);
   assert.equal(result.classes["product-images"].empty, 1);
   assert.equal(result.classes["master-images"].matched, 1);
-  assert.equal(result.classes["store-logos"].external, 1);
+  assert.equal(result.classes["store-logos"].empty, 1);
   assert.equal(result.classes["application-branding"].matched, 1);
   assert.equal(result.classes["vendor-documents"].matched, 2);
   assert.equal(result.classes["delivery-photos"].matched, 1);
@@ -183,12 +183,13 @@ test("timeouts cancel stalled readers and repeated cursors cannot loop indefinit
   assert.equal((await scan({ ...dataset(), fault: "repeated-cursor" })).result.failure, "INVALID_SOURCE_METADATA");
 });
 
-test("concurrent generations and source changes are aggregate warnings, not atomic verification", async () => {
+test("concurrent generations and source changes require reconciliation, never completed verification", async () => {
   const data = dataset();
   data.changed = true;
   data.objects["product-images"].push({ ...data.objects["product-images"][0]!, generation: "2" });
   const { result } = await scan(data);
-  assert.equal(result.complete, true);
+  assert.equal(result.complete, false);
+  assert.equal(result.failure, "RECONCILIATION_REQUIRED");
   assert.equal(result.consistency, "non-atomic");
   assert.ok(result.concurrentChanges > 0);
 });
@@ -203,6 +204,8 @@ test("mapping collisions, missing objects and MIME/size/private-metadata mismatc
     ...data.objects["vendor-documents"][0]!, contentType: "image/png", size: 11, cacheControl: "public",
   };
   const { result } = await scan(data);
+  assert.equal(result.complete, false);
+  assert.equal(result.failure, "RECONCILIATION_REQUIRED");
   assert.equal(result.mappingCollisions, 1);
   assert.equal(result.classes["delivery-photos"].missingCandidates, 1);
   assert.equal(result.classes["vendor-documents"].metadataMismatches, 1);
@@ -223,10 +226,77 @@ test("unsupported references are not followed, and aggregate reports are immutab
   const data = dataset();
   data.tables.products[0] = { ...data.tables.products[0]!, image_url: `javascript:${canary}` };
   const { result } = await scan(data);
+  assert.equal(result.complete, false);
+  assert.equal(result.failure, "RECONCILIATION_REQUIRED");
   assert.equal(result.classes["product-images"].unsupported, 1);
   assert.ok(!serializeReport(result).includes(canary));
   assert.ok(Object.isFrozen(result.classes["product-images"]));
   assert.ok(!serializeReport({ failure: canary } as never).includes(canary));
+});
+
+test("external references are counted without fetching and block completed reconciliation", async () => {
+  const data = dataset();
+  data.tables.stores[0] = { ...data.tables.stores[0]!, logo_image_url: `https://fixture.invalid/${canary}` };
+  const { result } = await scan(data);
+  assert.equal(result.status, "incomplete");
+  assert.equal(result.failure, "RECONCILIATION_REQUIRED");
+  assert.equal(result.classes["store-logos"].external, 1);
+  assert.ok(!serializeReport(result).includes(canary));
+});
+
+test("unexpected page schema and oversized pages fail closed in both phases", async () => {
+  for (const faultAt of ["database", "storage"] as const) {
+    for (const fault of ["extra-page-field", "oversized-page"] as const) {
+      const { result } = await scan({ ...dataset(), fault, faultAt });
+      assert.equal(result.status, "incomplete");
+      assert.equal(result.failure, "INVALID_SOURCE_METADATA");
+      assert.ok(!serializeReport(result).includes("SYNTHETIC-PRIVATE"));
+    }
+  }
+});
+
+test("each missing, mismatched or colliding object independently blocks completion", async () => {
+  for (const anomaly of ["missing", "mismatched", "collision"] as const) {
+    const data = dataset();
+    if (anomaly === "missing") data.objects["delivery-photos"] = [];
+    if (anomaly === "mismatched") data.objects["vendor-documents"][0] = {
+      ...data.objects["vendor-documents"][0]!, cacheControl: "public",
+    };
+    if (anomaly === "collision") data.objects["product-images"].push({
+      ...data.objects["product-images"][0]!, key: `/${data.objects["product-images"][0]!.key}`,
+    });
+    const { result } = await scan(data);
+    assert.equal(result.status, "incomplete");
+    assert.equal(result.failure, "RECONCILIATION_REQUIRED");
+  }
+});
+
+test("request, database and overall deadlines reject delayed synchronous results", async () => {
+  for (const limits of [
+    { requestTimeoutMs: 1 }, { maxDbDurationMs: 1 }, { maxDurationMs: 1 },
+  ]) {
+    const { result, fixture } = await scan({ ...dataset(), fault: "synchronous-delay" }, policy(limits));
+    assert.equal(result.failure, "TIMEOUT");
+    assert.equal(result.status, "incomplete");
+    assert.equal(fixture.stats().databasePages, 1);
+  }
+  const lateStorage = await scan({ ...dataset(), fault: "synchronous-delay", faultAt: "storage" },
+    policy({ requestTimeoutMs: 1 }));
+  assert.equal(lateStorage.result.failure, "TIMEOUT");
+  assert.equal(lateStorage.fixture.stats().storagePages, 1);
+});
+
+test("report registration cannot label unresolved reference anomalies complete", () => {
+  for (const field of ["unsupported", "external", "missingCandidates", "metadataMismatches"] as const) {
+    const value = structuredClone(newReport("metadata-only"));
+    value.classes["product-images"][field] = 1;
+    rejectedReport({ ...value, complete: true, status: "synthetic-complete",
+      source: "synthetic-in-memory", consistency: "non-atomic" });
+  }
+  for (const field of ["mappingCollisions", "concurrentChanges"]) {
+    rejectedReport({ ...newReport("metadata-only"), [field]: 1, complete: true,
+      status: "synthetic-complete", source: "synthetic-in-memory", consistency: "non-atomic" });
+  }
 });
 
 function rejectedReport(candidate: unknown) {

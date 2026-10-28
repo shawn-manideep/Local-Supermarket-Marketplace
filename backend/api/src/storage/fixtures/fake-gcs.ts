@@ -14,6 +14,8 @@ export class FakeGcs implements GcsClient {
   readonly operations: Array<{ operation: string; key: string; generation?: string | 0 }> = [];
   private sequence = 0;
   failure?: { operation: string; code: number; message?: string };
+  /** Lost response AFTER commit; fixture only, never installed in runtime clients. */
+  afterCommitFailure?: "write" | "delete";
   beforeSave?: () => void;
   beforeDownload?: () => void;
 
@@ -67,6 +69,10 @@ export class FakeGcs implements GcsClient {
           ...(saveOptions.metadata.contentDisposition === undefined ? {} : { contentDisposition: saveOptions.metadata.contentDisposition }),
           ...(saveOptions.metadata.contentEncoding === undefined ? {} : { contentEncoding: saveOptions.metadata.contentEncoding }),
           ...(saveOptions.metadata.contentLanguage === undefined ? {} : { contentLanguage: saveOptions.metadata.contentLanguage }) });
+        if (this.afterCommitFailure === "write") {
+          this.afterCommitFailure = undefined;
+          throw { code: 503 };
+        }
       },
       delete: async deleteOptions => {
         this.operations.push({ operation: "delete", key, generation: deleteOptions.ifGenerationMatch });
@@ -75,6 +81,10 @@ export class FakeGcs implements GcsClient {
         if (!current) throw { code: 404 };
         if (current.generation !== deleteOptions.ifGenerationMatch) throw { code: 412 };
         this.objects.delete(key);
+        if (this.afterCommitFailure === "delete") {
+          this.afterCommitFailure = undefined;
+          throw { code: 503 };
+        }
       },
     }) };
   }

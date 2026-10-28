@@ -2,6 +2,11 @@
 
 ## Release state
 
+Current offline inventory/recovery safeguards and remaining implementation gates
+are documented in `SHARED_STORAGE_OFFLINE_SAFEGUARDS.md`. The broad-suite failure
+counts below describe the original preparation run; subsequent approved offline
+remediation verified 479 passing, zero failing, four skipped live-auth checks.
+
 This is dormant implementation preparation, not migration or runtime approval.
 The unset provider remains the existing Replit GCS sidecar. Existing App Storage
 selection is unchanged. No environment, EAS, database record, storage object,

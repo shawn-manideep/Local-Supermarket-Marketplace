@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { createGcsObjectStore } from "./external-gcs.js";
 import { createExternalAssets } from "./external-assets.js";
 import { externalGcsConfig } from "./external-gcs-config.js";
@@ -138,4 +139,70 @@ test("synthetic rehearsal verifies four asset classes, checksums, metadata and a
   for (const forbidden of ["privateKey", "clientEmail", "synthetic-source", "bytes", "object_ref"]) {
     assert.equal(serialized.includes(forbidden), false);
   }
+});
+
+// Recovery exercises use in-memory objects only; this is NOT a migration executor.
+for (const operation of ["upload", "replacement", "deletion"] as const) {
+  for (const committed of [false, true]) {
+    test(`recovery reconciles ${committed ? "ambiguous committed" : "failed"} ${operation} without retry or source deletion`, async () => {
+      const source = new FakeGcs(), destination = new FakeGcs();
+      const key = "fixture-private/vendor-documents/fixture-store/fixture-document";
+      source.seed(key, Buffer.from("original"), meta);
+      const before = JSON.stringify([...source.objects]);
+      const store = createGcsObjectStore(destination, "fixture-destination");
+      if (operation !== "upload") destination.seed(key, Buffer.from("original"), meta);
+      const prior = await store.head(key);
+      const sdkOperation = operation === "deletion" ? "delete" : "write";
+      if (committed) destination.afterCommitFailure = sdkOperation;
+      else destination.failure = { operation: sdkOperation, code: 503 };
+      // Either transport error is UNKNOWN until observed state is reconciled.
+      await assert.rejects(operation === "deletion" ? store.remove(key, prior!.generation)
+        : store.write(key, png, meta, prior?.generation ?? 0), /unavailable/);
+      assert.equal(destination.operations.filter(op => op.operation === sdkOperation).length, 1);
+      const observed = await store.head(key);
+      if (operation === "deletion") assert.equal(observed === null, committed);
+      else if (committed) {
+        const bytes = (await store.read(key)).bytes;
+        assert.equal(createHash("sha256").update(bytes).digest("hex"),
+          createHash("sha256").update(png).digest("hex"));
+        assert.deepEqual(destination.objects.get(key)!.metadata, meta);
+      } else assert.equal(observed?.generation ?? null, prior?.generation ?? null);
+      assert.equal(JSON.stringify([...source.objects]), before, "source is never mutated by forward recovery");
+    });
+  }
+}
+
+test("rollback rehearsal preserves destination writes and uses source generation preconditions", async () => {
+  const source = new FakeGcs(), destination = new FakeGcs();
+  const key = "fixture-public/application-branding/active-logo";
+  source.seed(key, Buffer.from("old-logo"), meta);
+  // Destination generation numbering intentionally differs.
+  destination.seed("fixture-padding", png, meta);
+  destination.seed(key, Buffer.from("new-logo"), meta);
+  const from = createGcsObjectStore(destination, "fixture-destination");
+  const to = createGcsObjectStore(source, "fixture-source");
+  const destinationBefore = JSON.stringify([...destination.objects]);
+  const originalRevision = (await to.head(key))!.generation;
+  const object = await from.read(key);
+  assert.notEqual(object.metadata.generation, originalRevision);
+  const { generation: _destinationGeneration, ...metadata } = object.metadata;
+  await to.write(key, object.bytes, metadata, originalRevision);
+  assert.equal((await to.read(key)).bytes.toString(), "new-logo");
+  assert.notEqual((await to.head(key))!.generation, originalRevision);
+  assert.equal(JSON.stringify([...destination.objects]), destinationBefore);
+  // A stale rollback cannot overwrite a subsequent source update.
+  await assert.rejects(to.write(key, Buffer.from("stale"), metadata, originalRevision), /conflict/);
+  assert.equal((await to.read(key)).bytes.toString(), "new-logo");
+});
+
+test("rollback rehearsal restores new destination uploads without overwriting concurrent source objects", async () => {
+  const source = new FakeGcs();
+  const key = "fixture-private/delivery-photos/fixture-assignment/fixture-photo";
+  const store = createGcsObjectStore(source, "fixture-source");
+  await store.write(key, png, meta, 0);
+  assert.deepEqual((await store.read(key)).bytes, png);
+  // Reconciliation must not turn a resumed create into an unconditional overwrite.
+  source.seed(key, Buffer.from("concurrent"), meta);
+  await assert.rejects(store.write(key, png, meta, 0), /conflict/);
+  assert.equal((await store.read(key)).bytes.toString(), "concurrent");
 });

@@ -2,6 +2,10 @@
 
 ## Release boundary
 
+For the current anomaly-completion rules, protected journal design, coordinated
+writer-pause checklist and recovery scope, see
+`SHARED_STORAGE_OFFLINE_SAFEGUARDS.md`.
+
 No live database or storage reader is implemented or authorized. No inventory
 module is imported by the application, provider selection or deployment startup.
 The existing sidecar default and external-GCS adapter are unchanged.
@@ -124,7 +128,10 @@ candidates; they never cause deletion. Shared references are not collisions.
 Distinct source names mapping to one key are counted as mapping collisions.
 Changed generations/metagenerations, provider change flags or timestamps during
 the scan are counted as concurrent changes. No cross-service atomic snapshot is
-claimed. A complete scan can contain anomalies and concurrency warnings.
+claimed. Unsupported/external references, mapping collisions, concurrent changes,
+missing candidates and metadata mismatches now yield `RECONCILIATION_REQUIRED`
+with `complete: false` and `status: incomplete`. A finished traversal is not a
+successful reconciliation when these anomalies remain.
 
 The runner does not download content, validate file signatures, independently
 recompute byte checksums, recover deleted history, change references, copy
@@ -169,8 +176,9 @@ environment markers, not actual credentials. They cover bounded input, grant
 binding/expiry/replay, inaccessible byte/admin operations, namespace and column
 rejection, budgets, timeouts, concurrency, redaction and source immutability.
 
-The broader application suite was not rerun. Its previously documented ten
-failures and four skipped live-auth checks remain unresolved release gates.
+The original results above are historical. Subsequent offline remediation
+verified 479 API checks passing, zero failing, with four live-auth checks still
+skipped. The current focused preparation does not rerun those live checks.
 No live database, storage, external URL, credential or cloud resource was
 accessed by this preparation. No actual inventory, API startup/deployment,
 provider activation, EAS update or APK build was performed.

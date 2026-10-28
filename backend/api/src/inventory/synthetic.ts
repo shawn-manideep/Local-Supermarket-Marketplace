@@ -7,7 +7,8 @@ import { policyDigest, validatePolicy } from "./policy.js";
 export interface SyntheticDataset {
   tables: Record<Table, Row[]>;
   objects: Record<Namespace, ListedObject[]>;
-  fault?: "permission" | "sdk-error" | "stall" | "repeated-cursor";
+  fault?: "permission" | "sdk-error" | "stall" | "repeated-cursor" |
+    "extra-page-field" | "oversized-page" | "synchronous-delay";
   faultAt?: "database" | "storage";
   changed?: boolean;
 }
@@ -52,9 +53,14 @@ export function createSyntheticSession(policyInput: unknown, input: SyntheticDat
     }
     const start = Number(request.cursor ?? "0");
     const next = start + request.limit;
+    if (fault === "synchronous-delay") {
+      const end = Date.now() + 15;
+      while (Date.now() < end) { /* Fixture: delay the timer callback deliberately. */ }
+    }
     return {
-      items: items.slice(start, next),
+      items: fault === "oversized-page" ? Array(request.limit + 1).fill(items[0]) : items.slice(start, next),
       changed: data.changed ?? false,
+      ...(fault === "extra-page-field" ? { unexpected: "SYNTHETIC-PRIVATE" } : {}),
       ...(fault === "repeated-cursor" ? { nextCursor: "0" }
         : next < items.length ? { nextCursor: String(next) } : {}),
     };

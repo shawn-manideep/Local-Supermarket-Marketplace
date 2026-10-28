@@ -1,15 +1,16 @@
 import { createHash } from "node:crypto";
+import { types } from "node:util";
 import { InventoryFailure, LIMIT_CAPS, NAMESPACES, type Policy } from "./contracts.js";
 
 /** Reject executable properties and unexpected data instead of reflecting it. */
 export function plainData(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" ||
+  if (!value || typeof value !== "object" || types.isProxy(value) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
     throw new InventoryFailure("INVALID_POLICY");
   }
   const descriptors = Object.getOwnPropertyDescriptors(value);
   if (Reflect.ownKeys(value).some(key => typeof key !== "string") ||
-      Object.values(descriptors).some(d => d.get || d.set)) {
+      Object.values(descriptors).some(d => d.get || d.set || !d.enumerable)) {
     throw new InventoryFailure("INVALID_POLICY");
   }
   return value as Record<string, unknown>;

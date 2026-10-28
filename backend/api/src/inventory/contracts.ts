@@ -65,7 +65,8 @@ export interface Policy {
 }
 export type Failure = "INVALID_POLICY" | "EXECUTION_NOT_AUTHORIZED" |
   "LIVE_EXECUTION_UNAVAILABLE" | "BUDGET_EXCEEDED" | "TIMEOUT" |
-  "PERMISSION_DENIED" | "INVALID_SOURCE_METADATA" | "READER_FAILED";
+  "PERMISSION_DENIED" | "INVALID_SOURCE_METADATA" | "READER_FAILED" |
+  "RECONCILIATION_REQUIRED";
 export interface Counts {
   references: number;
   empty: number;
