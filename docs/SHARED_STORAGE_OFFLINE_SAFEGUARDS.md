@@ -2,6 +2,11 @@
 
 ## Release boundary
 
+Additional isolated reader wrappers, cancellation, journal replay and pure
+coordination-gate preparation are documented in
+`RESTRICTED_INVENTORY_PREPARATION.md`. They do not install live transports,
+journal persistence or production pause hooks.
+
 The existing marketplace, original Supabase target and all four portals are
 unchanged. No live inventory reader, migration executor, durable journal,
 writer-pause mechanism or provider cutover is implemented by this work.

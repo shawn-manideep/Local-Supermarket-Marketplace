@@ -10,6 +10,7 @@ if (process.argv.length !== 2) {
   const child = spawn(process.execPath, [
     "--import", guard, "--import", "tsx", "--test", "--test-concurrency=1",
     "src/inventory/inventory.test.ts",
+    "src/inventory/preparation.test.ts",
   ], {
     cwd: root,
     env: {}, // No application variables, proxy settings, HOME, ADC or credentials.

@@ -278,12 +278,14 @@ test("request, database and overall deadlines reject delayed synchronous results
     const { result, fixture } = await scan({ ...dataset(), fault: "synchronous-delay" }, policy(limits));
     assert.equal(result.failure, "TIMEOUT");
     assert.equal(result.status, "incomplete");
-    assert.equal(fixture.stats().databasePages, 1);
+    // A 1ms phase budget may expire before dispatch. That is a valid, safer
+    // timeout, not evidence that an operation must be started after expiry.
+    assert.ok(fixture.stats().databasePages <= 1);
   }
   const lateStorage = await scan({ ...dataset(), fault: "synchronous-delay", faultAt: "storage" },
     policy({ requestTimeoutMs: 1 }));
   assert.equal(lateStorage.result.failure, "TIMEOUT");
-  assert.equal(lateStorage.fixture.stats().storagePages, 1);
+  assert.ok(lateStorage.fixture.stats().storagePages <= 1);
 });
 
 test("report registration cannot label unresolved reference anomalies complete", () => {

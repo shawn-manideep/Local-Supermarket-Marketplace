@@ -5,6 +5,8 @@
 For the current anomaly-completion rules, protected journal design, coordinated
 writer-pause checklist and recovery scope, see
 `SHARED_STORAGE_OFFLINE_SAFEGUARDS.md`.
+Additional offline reader/journal/coordination components and live-access
+permission gates are in `RESTRICTED_INVENTORY_PREPARATION.md`.
 
 No live database or storage reader is implemented or authorized. No inventory
 module is imported by the application, provider selection or deployment startup.

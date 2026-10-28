@@ -20,6 +20,21 @@ export function exactKeys(value: Record<string, unknown>, keys: readonly string[
     throw new InventoryFailure("INVALID_POLICY");
   }
 }
+/** Reject sparse, executable or extended arrays before iteration/copying. */
+export function plainArray(value: unknown, maxLength: number): readonly unknown[] {
+  if (!Array.isArray(value) || types.isProxy(value) ||
+      Object.getPrototypeOf(value) !== Array.prototype || value.length > maxLength) {
+    throw new InventoryFailure("INVALID_POLICY");
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  if (Reflect.ownKeys(value).length !== value.length + 1 ||
+      Reflect.ownKeys(value).some(key => typeof key !== "string" ||
+        (key !== "length" && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length))) ||
+      Object.entries(descriptors).some(([key, d]) => !("value" in d) || (key !== "length" && !d.enumerable))) {
+    throw new InventoryFailure("INVALID_POLICY");
+  }
+  return value;
+}
 export function validatePolicy(input: unknown): Policy {
   const value = plainData(input);
   exactKeys(value, ["version", "target", "history", "namespaces", "limits"]);
