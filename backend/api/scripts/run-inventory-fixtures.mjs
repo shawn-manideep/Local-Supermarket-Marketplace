@@ -11,6 +11,7 @@ if (process.argv.length !== 2) {
     "--import", guard, "--import", "tsx", "--test", "--test-concurrency=1",
     "src/inventory/inventory.test.ts",
     "src/inventory/preparation.test.ts",
+    "src/inventory/prepared-transports.test.ts",
   ], {
     cwd: root,
     env: {}, // No application variables, proxy settings, HOME, ADC or credentials.

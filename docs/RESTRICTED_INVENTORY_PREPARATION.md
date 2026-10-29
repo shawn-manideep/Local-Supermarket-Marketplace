@@ -2,6 +2,10 @@
 
 ## Current release boundary
 
+Prepared fixed-query/metadata adapters and signed fixture-approval binding are
+described in `RESTRICTED_TRANSPORTS_AND_APPROVAL.md`. They remain disconnected
+from live drivers, credential loading, the CLI and production routes.
+
 The original Supabase project and current storage remain unchanged. No live
 transport, credential loader, database query, Google client, journal persistence
 backend or live writer pause is installed here. The CLI remains synthetic-only
