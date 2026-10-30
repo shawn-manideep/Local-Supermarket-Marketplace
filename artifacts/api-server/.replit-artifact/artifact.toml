@@ -16,17 +16,17 @@ run = "CORS_ALLOWED_ORIGINS=\"${CORS_ALLOWED_ORIGINS:-https://$REPLIT_DEV_DOMAIN
 [services.production]
 
 [services.production.build]
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
+args = ["sh", "-c", "pnpm install --frozen-lockfile --prod=false && pnpm --filter @workspace/shared-types run build && pnpm --filter @workspace/api run build"]
 
 [services.production.build.env]
 NODE_ENV = "production"
 
 [services.production.run]
-args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+args = ["pnpm", "--filter", "@workspace/api", "run", "start"]
 
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
 
 [services.production.health.startup]
-path = "/api/healthz"
+path = "/api/health"
