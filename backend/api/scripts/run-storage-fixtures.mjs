@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const guard = fileURLToPath(new URL("./fixture-network-guard.mjs", import.meta.url));
@@ -27,23 +27,49 @@ if (process.argv.length !== 3 || !["unit", "routes", "regression", "rehearsal"].
     ));
     return groups.flat().sort();
   }
+  const discovered = mode === "regression" ? await testFiles(resolve(root, "src")) : [];
+  const inventoryRoot = `${resolve(root, "src/inventory")}${sep}`;
+  const inventoryFiles = discovered.filter(file => file.startsWith(inventoryRoot));
+  const otherFiles = discovered.filter(file => !file.startsWith(inventoryRoot));
+  if (mode === "regression" && (inventoryFiles.length === 0 || otherFiles.length === 0)) {
+    throw new Error("Regression discovery requires both fixture groups.");
+  }
   const args = mode === "rehearsal"
     ? ["src/storage/rehearsal-cli.ts", "--synthetic-only"]
     : ["--test", "--test-concurrency=2", ...(mode === "unit" ? unitFiles
-      : mode === "routes" ? routeFiles : await testFiles(resolve(root, "src")))];
+      : mode === "routes" ? routeFiles : otherFiles)];
   // Do not inherit production configuration, secrets, ADC paths or proxy settings.
-  const child = spawn(process.execPath, ["--import", "tsx", ...args], {
-    cwd: root,
-    env: {
-      PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "",
-      NODE_OPTIONS: `--import=${guard}`,
-      ...(mode === "routes" ? { RUN_EXTERNAL_GCS_FIXTURES: "1" } : {}),
-    },
-    stdio: "inherit",
-  });
-  child.on("error", () => {
-    process.stderr.write("Fixture verification could not start.\n");
-    process.exitCode = 1;
-  });
-  child.on("exit", code => { process.exitCode = code ?? 1; });
+  const fixtureEnv = {
+    PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "",
+    NODE_OPTIONS: `--import=${guard}`,
+    ...(mode === "routes" ? { RUN_EXTERNAL_GCS_FIXTURES: "1" } : {}),
+  };
+  async function runGroup(label, childArgs, env) {
+    process.stdout.write(`Fixture group: ${label}\n`);
+    return new Promise(resolveResult => {
+      const child = spawn(process.execPath, childArgs, {
+        cwd: root, env, stdio: "inherit",
+      });
+      child.on("error", () => {
+        process.stderr.write("Fixture verification could not start.\n");
+        resolveResult(false);
+      });
+      child.on("close", code => { resolveResult(code === 0); });
+    });
+  }
+  const fixturePassed = await runGroup(
+    mode === "regression" ? `non-inventory (${otherFiles.length} files)` : mode,
+    ["--import", "tsx", ...args], fixtureEnv,
+  );
+  let inventoryPassed = true;
+  if (mode === "regression") {
+    const inventoryGuard = fileURLToPath(new URL("./inventory-no-io-guard.mjs", import.meta.url));
+    inventoryPassed = await runGroup(
+      `inventory (${inventoryFiles.length} files)`,
+      ["--import", inventoryGuard, "--import", "tsx", "--test",
+        "--test-concurrency=1", ...inventoryFiles],
+      {},
+    );
+  }
+  process.exitCode = fixturePassed && inventoryPassed ? 0 : 1;
 }
