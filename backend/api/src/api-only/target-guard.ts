@@ -95,8 +95,12 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
     fail("The selected code-defined profile has an invalid database endpoint.");
   }
 
-  if (!["replit-app-storage", "external-gcs", "supabase-storage"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
-    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage, external-gcs or supabase-storage.");
+  if (!["replit-app-storage", "external-gcs", "supabase-storage", "disabled"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
+    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage, external-gcs, supabase-storage or disabled.");
+  }
+  if (env.API_OBJECT_STORAGE_PROVIDER === "disabled" &&
+    requestedProfile !== "isolated-native-preview") {
+    fail("Disabled storage requires the isolated-native-preview target profile.");
   }
   if (env.API_OBJECT_STORAGE_PROVIDER === "external-gcs") externalGcsConfig(env);
   if (env.API_OBJECT_STORAGE_PROVIDER === "supabase-storage") supabaseStorageConfig(env);

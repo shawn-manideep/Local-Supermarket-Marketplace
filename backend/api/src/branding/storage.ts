@@ -2,7 +2,7 @@ import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
 import { randomUUID } from "node:crypto";
-import { getApiObjectStorageProvider } from "../storage/provider.js";
+import { assertStorageOperationsEnabled, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createBrandingStorageAdapter,
   getReplitObjectStore,
@@ -34,6 +34,7 @@ async function appStorage() {
 }
 export const brandingStorage = {
   async metadata() {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().branding.metadata();
     }
@@ -52,6 +53,7 @@ export const brandingStorage = {
     }
   },
   async put(bytes: Buffer, mimeType: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().branding.put(bytes, mimeType);
     }
@@ -67,6 +69,7 @@ export const brandingStorage = {
       metadata: { contentType: mimeType, cacheControl: "no-store" } });
   },
   async get() {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().branding.get();
     }

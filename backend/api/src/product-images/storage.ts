@@ -1,7 +1,7 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
-import { getApiObjectStorageProvider } from "../storage/provider.js";
+import { assertStorageOperationsEnabled, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createProductImageStorageAdapter,
   getReplitObjectStore,
@@ -33,6 +33,7 @@ async function appStorage() {
 }
 export const productImageStorage = {
   async put(storeId: string, imageId: string, bytes: Buffer, mimeType: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().products.put(storeId, imageId, bytes, mimeType);
     }
@@ -47,6 +48,7 @@ export const productImageStorage = {
       metadata: { contentType: mimeType, cacheControl: "no-store", metadata: { visibility: "published-product" } } });
   },
   async get(storeId: string, imageId: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().products.get(storeId, imageId);
     }
@@ -62,6 +64,7 @@ export const productImageStorage = {
     return { bytes, mimeType: metadata.contentType ?? "application/octet-stream" };
   },
   async discard(storeId: string, imageId: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().products.discard(storeId, imageId);
     }

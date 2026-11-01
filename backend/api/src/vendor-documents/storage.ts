@@ -1,7 +1,7 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
-import { getApiObjectStorageProvider } from "../storage/provider.js";
+import { assertStorageOperationsEnabled, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createPrivateObjectStorageAdapter,
   getReplitObjectStore,
@@ -33,6 +33,7 @@ async function appStorage(area: "vendor-documents" | "delivery-photos") {
 }
 export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       const assets = getSupabaseAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
@@ -50,6 +51,7 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
         metadata: { visibility: "private" } } });
   },
   async get(ref: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       const assets = getSupabaseAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).get(ref);
@@ -64,6 +66,7 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
     return (await file(ref, area).download())[0];
   },
   async discard(ref: string) {
+    assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       const assets = getSupabaseAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).discard(ref);
