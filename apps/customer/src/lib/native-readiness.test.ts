@@ -10,15 +10,36 @@ import {
 import { CUSTOMER_NATIVE_AUTH_REDIRECT, parseNativeAuthCallback } from "./native-auth";
 
 // Synthetic values are unit-test inputs only; never application configuration.
+const isolatedProjectRef = "nrnigsznectrgbgafwme";
+const isolatedSupabaseUrl = "https://nrnigsznectrgbgafwme.supabase.co";
+const protectedProjectRef = "gkwcolipeavxnuzqlamb";
+const protectedSupabaseUrl = "https://gkwcolipeavxnuzqlamb.supabase.co";
 const publicConfig = {
   apiUrl: "https://api.example.com",
-  supabaseUrl: CUSTOMER_NATIVE_BUILD_TARGETS.preview.supabaseUrl,
+  supabaseUrl: isolatedSupabaseUrl,
   anonKey: "",
   profile: "preview",
 };
-const projectRef = CUSTOMER_NATIVE_BUILD_TARGETS.preview.projectRef;
+const projectRef = isolatedProjectRef;
 const jwt = (role: string, ref = projectRef) =>
   `header.${Buffer.from(JSON.stringify({ role, ref })).toString("base64url")}.signature`;
+
+test("Customer preview explicitly targets the isolated project and rejects the protected original", () => {
+  assert.deepEqual(CUSTOMER_NATIVE_BUILD_TARGETS.preview, {
+    projectRef: isolatedProjectRef,
+    supabaseUrl: isolatedSupabaseUrl,
+  });
+  assert.deepEqual(nativeConfigurationIssues({ ...publicConfig, anonKey: jwt("anon"), profile: undefined }), []);
+  assert.equal(isPublicSupabaseKey(jwt("anon", protectedProjectRef), projectRef), false);
+  for (const config of [
+    { ...publicConfig, supabaseUrl: protectedSupabaseUrl, anonKey: jwt("anon") },
+    { ...publicConfig, anonKey: jwt("anon", protectedProjectRef) },
+    { ...publicConfig, supabaseUrl: protectedSupabaseUrl, anonKey: jwt("anon", protectedProjectRef) },
+  ]) {
+    assert.ok(nativeConfigurationIssues(config).length);
+    assert.doesNotMatch(JSON.stringify(nativeConfigurationIssues(config)), /gkwcolipeavxnuzqlamb|signature/);
+  }
+});
 
 test("native configuration accepts only the approved profile and matching public JWT anon key", () => {
   const config = { ...publicConfig, anonKey: jwt("anon") };
@@ -82,13 +103,13 @@ test("the preview check fails closed without public variables and never consumes
   assert.doesNotMatch(result.stdout + result.stderr, /must-not-be-used|never-print-this/);
 });
 
-test("EAS build check accepts only preview mapped to the original project", () => {
+test("EAS build check accepts only preview mapped to the isolated project", () => {
   const script = new URL("../../scripts/check-native-config.mjs", import.meta.url).pathname;
   const validEnv = {
     PATH: process.env.PATH,
     EAS_BUILD_PROFILE: "preview",
     EXPO_PUBLIC_API_URL: "https://api.example.com",
-    EXPO_PUBLIC_SUPABASE_URL: CUSTOMER_NATIVE_BUILD_TARGETS.preview.supabaseUrl,
+    EXPO_PUBLIC_SUPABASE_URL: isolatedSupabaseUrl,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: jwt("anon"),
   };
   const valid = spawnSync(process.execPath, [script], { env: validEnv, encoding: "utf8" });
@@ -101,11 +122,19 @@ test("EAS build check accepts only preview mapped to the original project", () =
     { ...validEnv, EAS_BUILD_PROFILE: undefined },
     { ...validEnv, EXPO_PUBLIC_SUPABASE_URL: "https://other-project.supabase.co" },
     { ...validEnv, EXPO_PUBLIC_SUPABASE_ANON_KEY: jwt("anon", "other-project") },
+    { ...validEnv, EXPO_PUBLIC_SUPABASE_URL: protectedSupabaseUrl },
+    { ...validEnv, EXPO_PUBLIC_SUPABASE_ANON_KEY: jwt("anon", protectedProjectRef) },
+    {
+      ...validEnv,
+      EXPO_PUBLIC_SUPABASE_URL: protectedSupabaseUrl,
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: jwt("anon", protectedProjectRef),
+    },
   ]) {
     const rejected = spawnSync(process.execPath, [script], { env, encoding: "utf8" });
     assert.equal(rejected.status, 1);
     assert.match(rejected.stderr, /NOT READY/);
     assert.doesNotMatch(rejected.stdout + rejected.stderr, /synthetic-signature|api\.example\.com/);
+    assert.doesNotMatch(rejected.stdout + rejected.stderr, /gkwcolipeavxnuzqlamb/);
   }
 });
 

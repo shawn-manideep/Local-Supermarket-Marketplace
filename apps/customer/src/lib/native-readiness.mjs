@@ -2,8 +2,8 @@
 export const DEFAULT_CUSTOMER_NATIVE_BUILD_PROFILE = "preview";
 export const CUSTOMER_NATIVE_BUILD_TARGETS = Object.freeze({
   preview: Object.freeze({
-    projectRef: "gkwcolipeavxnuzqlamb",
-    supabaseUrl: "https://gkwcolipeavxnuzqlamb.supabase.co",
+    projectRef: "nrnigsznectrgbgafwme",
+    supabaseUrl: "https://nrnigsznectrgbgafwme.supabase.co",
   }),
 });
 

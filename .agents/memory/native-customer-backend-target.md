@@ -1,10 +1,10 @@
 ---
 name: Native Customer backend target
-description: The selected Supabase project for the Apna Local Basket Customer Android APK.
+description: The selected isolated Supabase target for the Customer native preview profile.
 ---
 
-The user changed the deployment approach: the Customer Android APK must use the existing Apna Local Basket Supabase project, `supermarket-marketplace-dev` (`gkwcolipeavxnuzqlamb`), rather than the isolated native-preview project.
+The Customer native `preview` profile must target the approved isolated Supabase project `nrnigsznectrgbgafwme`, not the protected original project `gkwcolipeavxnuzqlamb`.
 
-**Why:** the user explicitly selected the original project already used by the existing application.
+**Why:** the user explicitly approved the isolated native-preview target and required correcting the previous original-project preview mapping.
 
-**How to apply:** For Customer APK backend and EAS planning, target the existing project. Do not assume the isolated-project setup is still the desired target.
+**How to apply:** Use the isolated target for Customer preview readiness and EAS planning. Preserve the backend's separate protected-original and isolated-project guards. Do not change the protected original project's configuration.
