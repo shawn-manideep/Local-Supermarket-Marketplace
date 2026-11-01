@@ -1,5 +1,6 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
+import { getSupabaseAssets } from "../storage/supabase-assets.js";
 import { randomUUID } from "node:crypto";
 import { getApiObjectStorageProvider } from "../storage/provider.js";
 import {
@@ -33,6 +34,9 @@ async function appStorage() {
 }
 export const brandingStorage = {
   async metadata() {
+    if (getApiObjectStorageProvider() === "supabase-storage") {
+      return getSupabaseAssets().branding.metadata();
+    }
     if (getApiObjectStorageProvider() === "external-gcs") {
       return (await getExternalAssets()).branding.metadata();
     }
@@ -48,6 +52,9 @@ export const brandingStorage = {
     }
   },
   async put(bytes: Buffer, mimeType: string) {
+    if (getApiObjectStorageProvider() === "supabase-storage") {
+      return getSupabaseAssets().branding.put(bytes, mimeType);
+    }
     if (getApiObjectStorageProvider() === "external-gcs") {
       return (await getExternalAssets()).branding.put(bytes, mimeType);
     }
@@ -60,6 +67,9 @@ export const brandingStorage = {
       metadata: { contentType: mimeType, cacheControl: "no-store" } });
   },
   async get() {
+    if (getApiObjectStorageProvider() === "supabase-storage") {
+      return getSupabaseAssets().branding.get();
+    }
     if (getApiObjectStorageProvider() === "external-gcs") {
       return (await getExternalAssets()).branding.get();
     }

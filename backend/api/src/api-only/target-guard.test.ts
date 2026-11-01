@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { syntheticExternalEnv } from "../storage/fixtures/fake-gcs.js";
+import { syntheticSupabaseEnv } from "../storage/fixtures/fake-supabase-storage.js";
 import {
   API_ONLY_QUERY_TIMEOUT_MS,
   API_ONLY_STATEMENT_TIMEOUT_MS,
@@ -23,6 +24,19 @@ function jwt(ref: string, role = "anon") {
   const payload = Buffer.from(JSON.stringify({ ref, role })).toString("base64url");
   return `${header}.${payload}.synthetic-signature`;
 }
+
+test("Supabase prototype preserves target/TLS/key guards and always refuses live startup", () => {
+  const valid: NodeJS.ProcessEnv = { ...validEnv("isolated-native-preview"), ...syntheticSupabaseEnv() };
+  assert.throws(() => assertApiOnlyTarget(valid), /Supabase Storage live operations are disabled/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_STORAGE_BUCKET: undefined }), /Invalid offline Supabase/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, API_ONLY_TARGET_PROFILE: "original-customer-apk" }),
+    /SUPABASE_URL does not match/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_ANON_KEY: jwt("wrong") }), /API key/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SESSION_SECRET: undefined }), /signing secrets/);
+  assert.throws(() => assertApiOnlyTarget({
+    ...valid, SUPABASE_DB_URL: valid.SUPABASE_DB_URL!.replace("verify-full", "disable"),
+  }), /TLS/);
+});
 
 function validEnv(
   targetProfile: ApiOnlyTargetProfile = "isolated-native-preview",

@@ -1,5 +1,6 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
+import { getSupabaseAssets } from "../storage/supabase-assets.js";
 import { getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createPrivateObjectStorageAdapter,
@@ -32,6 +33,10 @@ async function appStorage(area: "vendor-documents" | "delivery-photos") {
 }
 export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
+    if (getApiObjectStorageProvider() === "supabase-storage") {
+      const assets = getSupabaseAssets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
+    }
     if (getApiObjectStorageProvider() === "external-gcs") {
       const assets = await getExternalAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
@@ -45,6 +50,10 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
         metadata: { visibility: "private" } } });
   },
   async get(ref: string) {
+    if (getApiObjectStorageProvider() === "supabase-storage") {
+      const assets = getSupabaseAssets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).get(ref);
+    }
     if (getApiObjectStorageProvider() === "external-gcs") {
       const assets = await getExternalAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).get(ref);
@@ -55,6 +64,10 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
     return (await file(ref, area).download())[0];
   },
   async discard(ref: string) {
+    if (getApiObjectStorageProvider() === "supabase-storage") {
+      const assets = getSupabaseAssets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).discard(ref);
+    }
     if (getApiObjectStorageProvider() === "external-gcs") {
       const assets = await getExternalAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).discard(ref);

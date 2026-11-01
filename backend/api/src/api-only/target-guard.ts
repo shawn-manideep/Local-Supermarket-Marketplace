@@ -1,4 +1,5 @@
 import { externalGcsConfig } from "../storage/external-gcs-config.js";
+import { supabaseStorageConfig } from "../storage/supabase-storage-config.js";
 
 export const API_ONLY_TARGET_PROFILES = {
   "original-customer-apk": {
@@ -94,10 +95,11 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
     fail("The selected code-defined profile has an invalid database endpoint.");
   }
 
-  if (!["replit-app-storage", "external-gcs"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
-    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage or external-gcs.");
+  if (!["replit-app-storage", "external-gcs", "supabase-storage"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
+    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage, external-gcs or supabase-storage.");
   }
   if (env.API_OBJECT_STORAGE_PROVIDER === "external-gcs") externalGcsConfig(env);
+  if (env.API_OBJECT_STORAGE_PROVIDER === "supabase-storage") supabaseStorageConfig(env);
 
   exactHttpsProjectUrl(env.SUPABASE_URL, profile.supabaseUrl);
 
@@ -195,5 +197,8 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
   // node-postgres does not translate the libpq-style connect_timeout URL
   // parameter into PoolConfig.connectionTimeoutMillis. Return it explicitly
   // so the API-only startup path can pass the validated value to pg.
+  if (env.API_OBJECT_STORAGE_PROVIDER === "supabase-storage") {
+    fail("Supabase Storage live operations are disabled; offline prototype only.");
+  }
   return Number(connectTimeout) * 1_000;
 }

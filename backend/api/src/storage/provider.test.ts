@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { syntheticSupabaseEnv } from "./fixtures/fake-supabase-storage.js";
 import {
   getApiObjectStorageProvider,
   selectApiObjectStorage,
@@ -29,4 +30,14 @@ test("unknown or empty provider settings fail without falling back", () => {
       /API_OBJECT_STORAGE_PROVIDER must be/,
     );
   }
+});
+
+test("Supabase prototype selection is explicit and cannot fall through to a legacy adapter", () => {
+  const env = syntheticSupabaseEnv();
+  assert.equal(getApiObjectStorageProvider(env), "supabase-storage");
+  const legacy = { replitGcsSidecar: "sidecar", replitAppStorage: "sdk", externalGcs: "gcs" };
+  assert.throws(() => selectApiObjectStorage(env, legacy), /Offline Supabase Storage adapter/);
+  assert.equal(selectApiObjectStorage(env, { ...legacy, supabaseStorage: "offline" }), "offline");
+  assert.throws(() => getApiObjectStorageProvider({ ...env, SUPABASE_STORAGE_BUCKET: undefined }),
+    /Invalid offline Supabase Storage/);
 });
