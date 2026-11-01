@@ -2,12 +2,21 @@ import { plainData } from "../inventory/policy.js";
 import { safeObjectKey, type ObjectWriteMetadata } from "./object-store.js";
 import { SUPABASE_STORAGE_PROJECT, snapshotSupabaseStorageConfig, type SupabaseStorageConfig } from "./supabase-storage-config.js";
 
-export type SupabaseFailure = "INVALID_INPUT" | "INVALID_BINDING" | "NOT_FOUND" | "CONFLICT" |
-  "UNAVAILABLE" | "CANCELLED" | "TIMEOUT" | "UNKNOWN_OUTCOME" | "CLOSED" |
-  "BUSY" | "BUDGET_EXCEEDED" | "CAPABILITY_UNAVAILABLE" | "LIVE_OPERATIONS_DISABLED";
+const SUPABASE_FAILURE_CODES = Object.freeze([
+  "INVALID_INPUT", "INVALID_BINDING", "NOT_FOUND", "CONFLICT", "UNAVAILABLE",
+  "CANCELLED", "TIMEOUT", "UNKNOWN_OUTCOME", "CLOSED", "BUSY", "BUDGET_EXCEEDED",
+  "CAPABILITY_UNAVAILABLE", "LIVE_OPERATIONS_DISABLED",
+] as const);
+export type SupabaseFailure = typeof SUPABASE_FAILURE_CODES[number];
+const safeFailureCode = (value: unknown): SupabaseFailure =>
+  SUPABASE_FAILURE_CODES.find(code => code === value) ?? "UNAVAILABLE";
+
 export class SupabaseStorageError extends Error {
-  constructor(readonly code: SupabaseFailure) {
-    super(`Supabase storage operation failed (${code}).`);
+  readonly code: SupabaseFailure;
+  constructor(code: SupabaseFailure) {
+    const safeCode = safeFailureCode(code);
+    super(`Supabase storage operation failed (${safeCode}).`);
+    this.code = safeCode;
   }
 }
 export interface BasicMetadata {
@@ -170,15 +179,26 @@ export function createSupabaseBoundary(closePort: () => Promise<void>, options: 
         const status = (() => {
           try { return plainData(error).statusCode; } catch { return undefined; }
         })();
-        if (error instanceof SupabaseStorageError && !["TIMEOUT", "CANCELLED"].includes(error.code)) {
-          // Even fixture ports must not smuggle a modified message/stack/cause.
-          return denied(error.code);
-        }
+        const typedCode = (() => {
+          try {
+            return error instanceof SupabaseStorageError
+              ? safeFailureCode(Object.getOwnPropertyDescriptor(error, "code")?.value) : undefined;
+          } catch { return "UNAVAILABLE" as const; }
+        })();
+        // Exact plain-data provider statuses are known refusals, not ambiguous
+        // commits. Typed error codes alone are never proof a mutation did not run.
         if (status === 409 || status === 412) return denied("CONFLICT");
         if (status === 404) return denied("NOT_FOUND");
+        if (mutation && started) {
+          await close();
+          return denied("UNKNOWN_OUTCOME");
+        }
+        if (typedCode !== undefined && !["TIMEOUT", "CANCELLED"].includes(typedCode)) {
+          // Re-create errors using only runtime-allowlisted codes.
+          return denied(typedCode);
+        }
         await close();
-        if (mutation && started) return denied("UNKNOWN_OUTCOME");
-        return denied(error instanceof SupabaseStorageError ? error.code : "UNAVAILABLE");
+        return denied(typedCode ?? "UNAVAILABLE");
       } finally {
         if (timer) clearTimeout(timer);
         signal?.removeEventListener("abort", abort);

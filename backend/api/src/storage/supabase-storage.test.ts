@@ -262,3 +262,115 @@ test("tampered fixture errors are re-created rather than forwarded with private 
     return true;
   });
 });
+
+test("typed failures after committed upload, replacement or deletion close the boundary without retry", async () => {
+  for (const operation of ["upload", "replace-revision", "delete-revision"]) {
+    const f = fixture();
+    if (operation !== "upload") f.client.seed(key, bytes, "image/png");
+    const fail = () => { throw new SupabaseStorageError("UNAVAILABLE"); };
+    if (operation === "upload") {
+      const original = f.client.upload.bind(f.client);
+      f.client.upload = async (...args) => { await original(...args); fail(); };
+    } else if (operation === "replace-revision") {
+      const original = f.client.capabilities.replaceIfRevision!;
+      f.client.capabilities.replaceIfRevision = async (...args) => { await original(...args); fail(); };
+    } else {
+      const original = f.client.capabilities.deleteIfRevision!;
+      f.client.capabilities.deleteIfRevision = async (...args) => { await original(...args); fail(); };
+    }
+    const work = operation === "upload" ? f.basic.create(key, bytes, "image/png")
+      : operation === "replace-revision" ? f.strict.write(key, Buffer.from("new"), metadata, "fixture_1")
+      : f.strict.remove(key, "fixture_1");
+    await assert.rejects(work, code("UNKNOWN_OUTCOME"));
+    assert.equal(f.client.objects.has(key), operation !== "delete-revision");
+    if (operation === "replace-revision") assert.deepEqual(f.client.objects.get(key)!.bytes, Buffer.from("new"));
+    assert.equal(f.client.operations.filter(o => o.operation === operation).length, 1);
+    assert.equal(f.basic.boundary.state().closed, true);
+    assert.equal(f.client.closes, 1);
+    await assert.rejects(f.basic.create(key, bytes, "image/png"), code("CLOSED"));
+    assert.equal(f.client.operations.filter(o => o.operation === operation).length, 1);
+  }
+});
+
+test("typed error labels cannot assert a dispatched mutation was safely refused", async () => {
+  for (const label of ["INVALID_INPUT", "CONFLICT", "NOT_FOUND", "CLOSED", "UNKNOWN_OUTCOME"] as const) {
+    const f = fixture();
+    let attempts = 0;
+    await assert.rejects(f.basic.boundary.run(true, async () => {
+      attempts++;
+      throw new SupabaseStorageError(label);
+    }), code("UNKNOWN_OUTCOME"));
+    assert.equal(attempts, 1);
+    assert.equal(f.client.closes, 1);
+    assert.equal(f.basic.boundary.state().closed, true);
+  }
+});
+
+test("typed committed-write failure stays unknown when cleanup also fails", async () => {
+  const f = fixture();
+  const original = f.client.upload.bind(f.client);
+  f.client.upload = async (...args) => {
+    await original(...args);
+    throw new SupabaseStorageError("UNAVAILABLE");
+  };
+  f.client.rejectCleanup = true;
+  await assert.rejects(f.basic.create(key, bytes, "image/png"), code("UNKNOWN_OUTCOME"));
+  assert.equal(f.basic.boundary.state().closed, true);
+  assert.equal(f.basic.boundary.state().cancellationConfirmed, false);
+  assert.equal(f.client.operations.filter(o => o.operation === "upload").length, 1);
+  assert.equal(f.client.closes, 1);
+});
+
+test("unknown constructor inputs and mutated error codes use only the fixed safe fallback", async () => {
+  const canary = "SYNTHETIC_PRIVATE_CODE_https://fixture.invalid/?token=canary";
+  const expected = "Error: Supabase storage operation failed (UNAVAILABLE).";
+  for (const value of [canary, "", undefined, null, 404, {}, Symbol("fixture"),
+    { toString() { throw new Error("must not coerce"); } }]) {
+    const error = new SupabaseStorageError(value as SupabaseFailure);
+    assert.equal(error.code, "UNAVAILABLE");
+    assert.equal(String(error), expected);
+    assert.ok(!error.stack?.includes(canary));
+  }
+  const f = fixture();
+  f.client.info = async () => {
+    throw Object.assign(new SupabaseStorageError("CONFLICT"), {
+      code: canary, message: canary, cause: canary,
+    });
+  };
+  await assert.rejects(f.basic.head(key), error => {
+    assert.ok(code("UNAVAILABLE")(error));
+    assert.equal(String(error), expected);
+    assert.equal((error as Error).cause, undefined);
+    assert.ok(!JSON.stringify(error).includes(canary));
+    assert.ok(!(error as Error).stack?.includes(canary));
+    return true;
+  });
+});
+
+test("an accessor replacing an error code is never invoked or forwarded", async () => {
+  const f = fixture();
+  let accessed = false;
+  f.client.info = async () => {
+    const error = new SupabaseStorageError("CONFLICT");
+    Object.defineProperty(error, "code", { get() { accessed = true; throw new Error("private fixture detail"); } });
+    throw error;
+  };
+  await assert.rejects(f.basic.head(key), code("UNAVAILABLE"));
+  assert.equal(accessed, false);
+});
+
+test("local validation and pre-dispatch refusal retain safe codes with no mutation attempts", async () => {
+  const f = fixture({ maxRequests: 1 }), cancelled = new AbortController();
+  await assert.rejects(f.basic.create(key, bytes, "text/html"), code("INVALID_INPUT"));
+  cancelled.abort();
+  await assert.rejects(f.basic.create(key, bytes, "image/png", cancelled.signal), code("CANCELLED"));
+  assert.equal(f.basic.boundary.state().requests, 0);
+  assert.equal(f.client.operations.length, 0);
+  assert.equal(f.client.closes, 0);
+  assert.equal(await f.basic.head(key), null);
+  await assert.rejects(f.basic.create(key, bytes, "image/png"), code("BUDGET_EXCEEDED"));
+  assert.equal(f.client.operations.filter(o => o.operation === "upload").length, 0);
+  await f.basic.boundary.close();
+  await assert.rejects(f.basic.create(key, bytes, "image/png"), code("CLOSED"));
+  assert.equal(f.client.operations.filter(o => o.operation === "upload").length, 0);
+});
