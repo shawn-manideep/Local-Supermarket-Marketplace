@@ -14,11 +14,11 @@ export const API_ONLY_TARGET_PROFILES = {
   "isolated-native-preview": {
     projectRef: "nrnigsznectrgbgafwme",
     supabaseUrl: "https://nrnigsznectrgbgafwme.supabase.co",
-    databaseHost: "db.nrnigsznectrgbgafwme.supabase.co",
-    databaseUsername: "postgres",
+    databaseHost: "aws-0-ap-south-1.pooler.supabase.com",
+    databaseUsername: "postgres.nrnigsznectrgbgafwme",
     databasePort: "5432",
     databaseName: "postgres",
-    databaseMode: "direct",
+    databaseMode: "session",
     connectTimeoutSeconds: 10,
   },
 } as const;
@@ -87,12 +87,9 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
   const profile =
     API_ONLY_TARGET_PROFILES[requestedProfile as ApiOnlyTargetProfile];
   const profileHasValidEndpoint =
-    (profile.databaseMode === "session" &&
-      profile.databaseHost === "aws-0-ap-south-1.pooler.supabase.com" &&
-      profile.databaseUsername === `postgres.${profile.projectRef}`) ||
-    (profile.databaseMode === "direct" &&
-      profile.databaseHost === `db.${profile.projectRef}.supabase.co` &&
-      profile.databaseUsername === "postgres");
+    profile.databaseMode === "session" &&
+    profile.databaseHost === "aws-0-ap-south-1.pooler.supabase.com" &&
+    profile.databaseUsername === `postgres.${profile.projectRef}`;
   if (!profileHasValidEndpoint) {
     fail("The selected code-defined profile has an invalid database endpoint.");
   }

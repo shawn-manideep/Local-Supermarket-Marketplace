@@ -158,6 +158,49 @@ test("original database host, username, port, and mode are fixed by its profile"
     /metadata does not match/,
   );
 });
+test("isolated preview database host, username, port, and mode are fixed by its profile", () => {
+  const isolated = validEnv("isolated-native-preview");
+  const connection = new URL(isolated.SUPABASE_DB_URL!);
+
+  const wrongHost = new URL(connection);
+  wrongHost.hostname = "aws-1-ap-south-1.pooler.supabase.com";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, SUPABASE_DB_URL: wrongHost.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+
+  const wrongUser = new URL(connection);
+  wrongUser.username = "postgres.gkwcolipeavxnuzqlamb";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, SUPABASE_DB_URL: wrongUser.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+
+  const wrongPort = new URL(connection);
+  wrongPort.port = "6543";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, SUPABASE_DB_URL: wrongPort.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+
+  const missingPort = new URL(connection);
+  missingPort.port = "";
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, SUPABASE_DB_URL: missingPort.toString() }),
+    /does not match the selected target profile endpoint/,
+  );
+
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, API_ONLY_EXPECTED_DB_MODE: "direct" }),
+    /metadata does not match/,
+  );
+
+  assert.throws(
+    () => assertApiOnlyTarget({ ...isolated, API_ONLY_EXPECTED_DB_HOST: "other.pooler.supabase.com" }),
+    /metadata does not match/,
+  );
+});
+
 
 test("validated connect_timeout is applied through pg's connectionTimeoutMillis option", () => {
   const connectionString = validEnv().SUPABASE_DB_URL!;
