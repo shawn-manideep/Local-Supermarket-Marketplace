@@ -103,6 +103,14 @@ test("the preview check fails closed without public variables and never consumes
   assert.doesNotMatch(result.stdout + result.stderr, /must-not-be-used|never-print-this/);
 });
 
+test("EAS post-install validates configuration before building the validation package for Metro", () => {
+  const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+  assert.equal(
+    pkg.scripts["eas-build-post-install"],
+    "node scripts/check-native-config.mjs && pnpm --filter @workspace/validation run build",
+  );
+});
+
 test("EAS build check accepts only preview mapped to the isolated project", () => {
   const script = new URL("../../scripts/check-native-config.mjs", import.meta.url).pathname;
   const validEnv = {
