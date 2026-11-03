@@ -42,13 +42,14 @@ test("Customer login accepts email or username; registration retains a strict us
   assert.match(app, /\/api\/auth\/me/);
 });
 
-test("Customer recovery never asks for email or renders returned account data; reset flow clears secrets", async () => {
+test("Customer recovery accepts the sign-in email/username or mobile without rendering account data; reset flow clears secrets", async () => {
   const controls = await readFile(new URL("../components/AuthControls.tsx", import.meta.url), "utf8");
   const recovery = controls.slice(controls.indexOf("export function CustomerRecoveryForm"), controls.indexOf("export function CustomerResetForm"));
   const reset = controls.slice(controls.indexOf("export function CustomerResetForm"));
   assert.match(recovery, /role: "customer", identity: parsed\.data, identityType/);
   assert.match(recovery, /Platform\.OS !== "web" \? \{ client: "customer_native" as const \} : \{\}/);
   assert.match(recovery, /setMessage\(RECOVERY_CONFIRMATION\)/);
+  assert.match(recovery, /identityType === "mobile" \? indianMobileSchema\.safeParse\(initialIdentity\) : customerLoginIdentifierSchema\.safeParse\(initialIdentity\)/);
   assert.match(recovery, /PasswordField label=\{t\("Re-enter Password"\)\}/);
   assert.doesNotMatch(recovery, /keyboardType="email-address"|data\.user|\.email|reset_token|console\./);
   assert.match(controls, /secureTextEntry=\{visibility\.secureTextEntry\}/);

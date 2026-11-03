@@ -133,7 +133,8 @@ test("mobile recovery is explicit, rejects Admin/redirect injection and retains 
     assert.deepEqual(result, { message: RECOVERY_MESSAGE });
   }
   const source = await readFile(new URL("./account-access.ts", import.meta.url), "utf8");
-  assert.match(source, /verifiedMobileAccount\(input\.identity, input\.role\)/);
+  assert.match(source, /findMobile: typeof verifiedMobileAccount = verifiedMobileAccount/);
+  assert.match(source, /findMobile\(input\.identity, input\.role\)/);
   assert.match(source, /u\.phone_confirmed_at IS NOT NULL/);
 });
 

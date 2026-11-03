@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { getDb } from "@workspace/db";
 import { z } from "zod";
-import { usernameSchema, customerLoginSchema, RECOVERY_CONFIRMATION, indianMobileSchema } from "@workspace/validation";
+import { usernameSchema, customerLoginSchema, customerLoginIdentifierSchema, RECOVERY_CONFIRMATION, indianMobileSchema } from "@workspace/validation";
 import { partnerRepository } from "../delivery-partner/repository.js";
 import { supabasePartnerAuth, type PartnerAuthGateway } from "../delivery-partner/auth-service.js";
 import { getSupabasePublicConfig } from "./config.js";
@@ -19,7 +19,9 @@ export const recoveryInput = z.object({
 }).strict().refine(input => !input.client || input.role === "customer",
   "Native recovery is available only for Customers.").refine(input => input.identityType !== "mobile"
   || (input.role !== "admin" && indianMobileSchema.safeParse(input.identity).success),
-  "Enter a valid mobile number for a supported portal.");
+  "Enter a valid mobile number for a supported portal.").refine(input => input.role !== "customer"
+  || input.identityType === "mobile" || customerLoginIdentifierSchema.safeParse(input.identity).success,
+  "Enter a valid username or email address.");
 export type RecoveryInput = z.infer<typeof recoveryInput>;
 export type RecoveryIdentity = { id: string; role: string; email: string };
 export interface RecoveryGateway {
@@ -27,15 +29,18 @@ export interface RecoveryGateway {
   send(email: string, redirectTo: string): Promise<void>;
 }
 
-export function recoveryGateway(): RecoveryGateway {
+export function recoveryGateway(
+  lookup: (query: SQL) => Promise<{ rows: RecoveryIdentity[] }> = query => getDb().execute<RecoveryIdentity>(query),
+  findMobile: typeof verifiedMobileAccount = verifiedMobileAccount,
+): RecoveryGateway {
   return {
     async find(input) {
       if (input.identityType === "mobile") {
         if (input.role === "admin") return null;
-        const account = await verifiedMobileAccount(input.identity, input.role);
+        const account = await findMobile(input.identity, input.role);
         if (!account) return null;
         const phone = indianMobileSchema.parse(input.identity);
-        const result = await getDb().execute<RecoveryIdentity>(sql`
+        const result = await lookup(sql`
           SELECT u.id,p.role::text AS role,u.email FROM auth.users u
           JOIN public.user_profiles p ON p.id=u.id
           WHERE u.id=${account.id} AND p.role::text=${input.role}
@@ -43,17 +48,20 @@ export function recoveryGateway(): RecoveryGateway {
           AND u.phone IN (${phone},${phone.slice(1)},${phone.slice(3)}) LIMIT 1`);
         return result.rows[0] ?? null;
       }
-      const useEmail = input.role === "admin" || (input.role === "vendor" && input.identity.includes("@"));
+      // Only Customer recovery gains email support; retain other portal rules.
+      if (input.role === "customer" && !customerLoginIdentifierSchema.safeParse(input.identity).success) return null;
+      const useEmail = input.role === "admin" || ((input.role === "vendor" || input.role === "customer") && input.identity.includes("@"));
       const username = usernameSchema.safeParse(input.identity);
       if (!useEmail && !username.success) return null;
-      const result = await getDb().execute<RecoveryIdentity>(sql`
+      const result = await lookup(sql`
         SELECT u.id, p.role::text AS role, u.email
         FROM auth.users u JOIN public.user_profiles p ON p.id=u.id
         LEFT JOIN public.identity_usernames n ON n.user_id=u.id
         WHERE p.role::text=${input.role} AND ${useEmail
           ? sql`lower(u.email)=lower(${input.identity.trim()})`
           : sql`n.normalized_username=${username.success ? username.data : ""}`}
-        LIMIT 1`);
+        LIMIT ${input.role === "customer" ? 2 : 1}`);
+      if (input.role === "customer" && result.rows.length !== 1) return null;
       return result.rows[0] ?? null;
     },
     async send(email, redirectTo) {

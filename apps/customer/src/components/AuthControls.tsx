@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { requestAccountRecovery } from "@workspace/api-client-react";
-import { RECOVERY_CONFIRMATION, portalResetPasswordSchema, indianMobileSchema, usernameSchema, isPasswordOwner } from "@workspace/validation";
+import { RECOVERY_CONFIRMATION, portalResetPasswordSchema, indianMobileSchema, customerLoginIdentifierSchema, isPasswordOwner } from "@workspace/validation";
 import { CustomerText as Text, CustomerTextInput as TextInput } from "./CustomerTypography";
 import { colors, radius, spacing, typography, commonStyles } from "../theme";
 import { supabase } from "../lib/supabase";
@@ -41,9 +41,9 @@ export function CustomerRecoveryForm({ initialIdentity = "", identityType = "leg
     if (!checked.success || password !== confirmation) {
       setError(!checked.success ? "Use at least 8 characters, including a letter and a number." : "Passwords must match."); return;
     }
-    const parsed = identityType === "mobile" ? indianMobileSchema.safeParse(initialIdentity) : usernameSchema.safeParse(initialIdentity);
+    const parsed = identityType === "mobile" ? indianMobileSchema.safeParse(initialIdentity) : customerLoginIdentifierSchema.safeParse(initialIdentity);
     if (!initialIdentity.trim()) { setError("Enter your account identity on the sign-in screen first, then reopen Forgot Password."); return; }
-    if (!parsed.success) { setError(identityType === "mobile" ? "Enter a valid registered Indian mobile number." : "Enter a valid username."); return; }
+    if (!parsed.success) { setError(identityType === "mobile" ? "Enter a valid registered Indian mobile number." : t("Enter a valid username or email address.")); return; }
     setBusy(true); setError(""); setMessage("");
     try {
       await requestAccountRecovery({
@@ -58,7 +58,7 @@ export function CustomerRecoveryForm({ initialIdentity = "", identityType = "leg
   return <View style={styles.form}>
     <Text style={typography.title2}>{t("Forgot Password?")}</Text>
     <Text style={typography.body}>{t("Verify ownership using the recovery link sent for the account entered on sign-in. Re-enter your new password after verification.")}</Text>
-    <Text style={typography.body}>{t("Save Password becomes available after ownership verification. If your mobile number is not verified, use your existing username to request recovery.")}</Text>
+    <Text style={typography.body}>{t("Save Password becomes available after ownership verification. If your mobile number is not verified, use your registered username or email address to request recovery.")}</Text>
     <Text style={typography.body}>{t("Use at least 8 characters, including a letter and a number.")}</Text>
     <PasswordField label={t("New password")} autoComplete="new-password" value={password} onChangeText={setPassword} />
     <PasswordField label={t("Re-enter Password")} autoComplete="new-password" value={confirmation} onChangeText={setConfirmation} />
