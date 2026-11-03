@@ -1140,10 +1140,10 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/PartnerCredentials" }
+            schema: { $ref: "#/components/schemas/CustomerLoginCredentials" }
       responses:
         "200":
-          description: Existing Supabase password session for registered vendor username
+          description: Existing Supabase password session for registered vendor username or email
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PartnerSessionOutcome" }
@@ -1331,7 +1331,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/PartnerCredentials" }
+            schema: { $ref: "#/components/schemas/CustomerLoginCredentials" }
       responses:
         "200":
           description: Supabase tokens for an active authenticated partner
@@ -2303,7 +2303,7 @@ components:
           type: string
           minLength: 3
           maxLength: 254
-          description: Registered Customer username or email address. Field name retained for compatibility.
+          description: Registered portal username or email address. Field name retained for compatibility.
         password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
     PartnerCredentials:
       type: object

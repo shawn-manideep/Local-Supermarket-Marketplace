@@ -5,19 +5,20 @@ import { supabase } from "./supabase";
 import type { AccountRecoveryInput } from "../../../lib/api-client-react/src/generated/api.schemas";
 import "./auth-controls.css";
 import { passwordVisibility } from "@workspace/constants";
+import { signInTelugu } from "./sign-in-language";
 
 export function EyeIcon({ visible }: { visible: boolean }) {
   return <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />{visible && <path d="m3 3 18 18" />}</svg>;
 }
 
-export function PasswordInput(props: InputHTMLAttributes<HTMLInputElement>) {
+export function PasswordInput({ language = "en", ...props }: InputHTMLAttributes<HTMLInputElement> & { language?: "en" | "te" }) {
   const [visible, setVisible] = useState(false);
   const visibility = passwordVisibility(visible);
-  return <div className="auth-password-wrap"><input {...props} type={visibility.inputType} /><button type="button" className="auth-eye" aria-label={visibility.label} aria-pressed={visible} onClick={() => setVisible(value => !value)}><EyeIcon visible={visible} /></button></div>;
+  return <div className="auth-password-wrap"><input {...props} type={visibility.inputType} /><button type="button" className="auth-eye" aria-label={language === "te" ? signInTelugu[visible ? "Hide password" : "Show password"] : visibility.label} aria-pressed={visible} onClick={() => setVisible(value => !value)}><EyeIcon visible={visible} /></button></div>;
 }
 
-export function ForgotPassword({ role, initialIdentity = "", identityType = "legacy" }: {
-  role: AccountRecoveryInput["role"]; initialIdentity?: string; identityType?: "mobile" | "legacy";
+export function ForgotPassword({ role, initialIdentity = "", identityType: initialType = "legacy", language = "en" }: {
+  role: AccountRecoveryInput["role"]; initialIdentity?: string; identityType?: "mobile" | "legacy"; language?: "en" | "te";
 }) {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -25,13 +26,16 @@ export function ForgotPassword({ role, initialIdentity = "", identityType = "leg
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [mobileRecovery, setMobileRecovery] = useState(initialType === "mobile");
+  const [recoveryMobile, setRecoveryMobile] = useState(initialType === "mobile" ? initialIdentity : "");
+  const identityType = mobileRecovery ? "mobile" : "legacy";
   const send = async (event: FormEvent) => {
     event.preventDefault();
     const checked = (role === "admin" ? resetPasswordSchema : portalResetPasswordSchema).safeParse(password);
     if (!checked.success || password !== confirmation) {
       setError(!checked.success ? checked.error.issues[0]?.message ?? "Enter a valid password." : "Passwords must match."); return;
     }
-    const identity = initialIdentity.trim();
+    const identity = (role !== "admin" && mobileRecovery ? recoveryMobile : initialIdentity).trim();
     if (!identity) { setError("Enter your account identity on the sign-in screen first, then reopen Forgot Password."); return; }
     if (role !== "admin" && identityType === "mobile" && !indianMobileSchema.safeParse(identity).success) {
       setError("Enter a valid registered mobile number on the sign-in screen first."); return;
@@ -51,8 +55,12 @@ export function ForgotPassword({ role, initialIdentity = "", identityType = "leg
     } finally { setBusy(false); }
   };
   return <div className="auth-recovery">
-    {!open ? <button type="button" className="text-button" onClick={() => setOpen(true)}>Forgot Password?</button> :
+    {!open ? <button type="button" className="text-button" onClick={() => setOpen(true)}>{language === "te" ? signInTelugu["Forgot Password?"] : "Forgot Password?"}</button> :
       <form onSubmit={send} aria-label={`${role} password recovery`}>
+        {role !== "admin" && <>
+          <button type="button" className="text-button" disabled={busy} onClick={() => { setMobileRecovery(value => !value); setError(""); setMessage(""); }}>{mobileRecovery ? "Recover with username or email" : "Recover with verified mobile"}</button>
+          {mobileRecovery && <label>Verified mobile number<input type="tel" autoComplete="tel" maxLength={13} value={recoveryMobile} onChange={event => setRecoveryMobile(event.target.value)} /></label>}
+        </>}
         <h2>Reset your password</h2><p className="muted">Verify ownership using the recovery link sent for the account entered on sign-in. Your password will only be saved after verification; re-enter it on the verified reset screen.</p>
         {role !== "admin" && <p className="muted">Use at least 8 characters, including a letter and a number. Save Password becomes available after ownership verification. If mobile ownership is not verified yet, use legacy sign-in to request recovery.</p>}
         <label>New Password<PasswordInput autoComplete="new-password" required maxLength={128} value={password} onChange={event => setPassword(event.target.value)} /></label>

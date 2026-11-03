@@ -19,6 +19,8 @@ export const customerLoginSchema = z.object({
   username: customerLoginIdentifierSchema,
   password: z.string().min(1).max(128),
 }).strict();
+export const portalLoginIdentifierSchema = customerLoginIdentifierSchema;
+export const portalLoginSchema = customerLoginSchema;
 export const resetPasswordSchema = z.string().min(8, "Use at least 8 characters").max(128);
 export const portalResetPasswordSchema = resetPasswordSchema
   .regex(/\p{L}/u, "Include at least one letter.")

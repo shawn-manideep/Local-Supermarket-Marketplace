@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { storeUpdateSchema, operatingHoursSchema, usernameSchema, partnerProvisionSchema, partnerLoginSchema } from "./index.js";
+import { storeUpdateSchema, operatingHoursSchema, usernameSchema, partnerProvisionSchema, portalLoginSchema } from "./index.js";
 
 const hourSchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6),
@@ -25,7 +25,7 @@ export const vendorProvisionSchema = storeUpdateSchema.extend({
   pincode: storeUpdateSchema.shape.pincode.unwrap(),
   hours: hoursSchema.optional(),
 }).strict();
-export const vendorLoginSchema = partnerLoginSchema;
+export const vendorLoginSchema = portalLoginSchema;
 // Public onboarding accepts only identity and the required store profile.
 // Prices, fees, approval, documents and role are never client-assigned.
 export const vendorRegistrationSchema = z.object({

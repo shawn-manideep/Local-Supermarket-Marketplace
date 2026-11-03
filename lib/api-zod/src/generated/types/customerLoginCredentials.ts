@@ -8,7 +8,7 @@
 
 export interface CustomerLoginCredentials {
   /**
-     * Registered Customer username or email address. Field name retained for compatibility.
+     * Registered portal username or email address. Field name retained for compatibility.
      * @minLength 3
      * @maxLength 254
      */

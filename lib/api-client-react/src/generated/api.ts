@@ -76,7 +76,6 @@ import type {
   ManagedCustomerAddressUpdate,
   MobilePasswordCredentials,
   PartnerAdministrationOutcome,
-  PartnerCredentials,
   PartnerDashboardOutcome,
   PartnerDeliveriesOutcome,
   PartnerProfileOutcome,
@@ -5210,7 +5209,7 @@ export const getLoginVendorUsernameUrl = () => {
   return `/api/vendor/login`
 }
 
-export const loginVendorUsername = async (partnerCredentials: PartnerCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+export const loginVendorUsername = async (customerLoginCredentials: CustomerLoginCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -5231,7 +5230,7 @@ return customFetch<PartnerSessionOutcome>(getLoginVendorUsernameUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(partnerCredentials)
+    body: JSON.stringify(customerLoginCredentials)
   }
 );}
 
@@ -5269,9 +5268,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type LoginVendorUsernameMutationResult = NonNullable<Awaited<ReturnType<typeof loginVendorUsername>>>
-    export type LoginVendorUsernameMutationBody = BodyType<PartnerCredentials>
+    export type LoginVendorUsernameMutationBody = BodyType<CustomerLoginCredentials>
     export type LoginVendorUsernameMutationError = ErrorType<void>
-    export type LoginVendorUsernameMutationVariables = {data: BodyType<PartnerCredentials>}
+    export type LoginVendorUsernameMutationVariables = {data: BodyType<CustomerLoginCredentials>}
 
     export const useLoginVendorUsername = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginVendorUsername>>, TError,LoginVendorUsernameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -6212,7 +6211,7 @@ export const getSignInDeliveryPartnerUrl = () => {
   return `/api/delivery-partner/login`
 }
 
-export const signInDeliveryPartner = async (partnerCredentials: PartnerCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+export const signInDeliveryPartner = async (customerLoginCredentials: CustomerLoginCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6233,7 +6232,7 @@ return customFetch<PartnerSessionOutcome>(getSignInDeliveryPartnerUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(partnerCredentials)
+    body: JSON.stringify(customerLoginCredentials)
   }
 );}
 
@@ -6271,9 +6270,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SignInDeliveryPartnerMutationResult = NonNullable<Awaited<ReturnType<typeof signInDeliveryPartner>>>
-    export type SignInDeliveryPartnerMutationBody = BodyType<PartnerCredentials>
+    export type SignInDeliveryPartnerMutationBody = BodyType<CustomerLoginCredentials>
     export type SignInDeliveryPartnerMutationError = ErrorType<void>
-    export type SignInDeliveryPartnerMutationVariables = {data: BodyType<PartnerCredentials>}
+    export type SignInDeliveryPartnerMutationVariables = {data: BodyType<CustomerLoginCredentials>}
 
     export const useSignInDeliveryPartner = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInDeliveryPartner>>, TError,SignInDeliveryPartnerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

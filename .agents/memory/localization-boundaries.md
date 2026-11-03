@@ -1,16 +1,17 @@
 ---
-name: Customer-only localization boundaries
-description: Customer-only English/Telugu scope and preference/data boundaries; other portals are excluded.
+name: Localization boundaries
+description: Customer localization, limited Vendor/Delivery sign-in exception, and preference/data boundaries.
 ---
-English/Telugu localization is exclusively for the Customer Portal. Vendor,
-Delivery Partner, Admin, shared dashboard UI and their authentication screens
-are out of scope. This supersedes the earlier all-portals localization scope.
+English/Telugu localization covers the Customer Portal. The later approved
+username/email sign-in task adds a narrow exception for Vendor and Delivery
+Partner sign-in screens, including password visibility labels. Admin and the
+Vendor/Delivery operational screens remain outside that exception.
 
-**Why:** The user explicitly narrowed the scope to Customer only and requested
-removal of prior language-feature additions to the other portals.
+**Why:** The user initially narrowed localization to Customer only, then explicitly
+requested English/Telugu for all three username/email sign-in screens.
 
-**How to apply:** Reuse the Customer foundation without adding dashboard
-providers, selectors, font/style changes or language dependencies. Later
+**How to apply:** Keep the dashboard exception limited to sign-in; do not introduce
+global dashboard providers, font/style changes or translate operational screens. Later
 Customer phases must inventory labels, errors, empty/loading states,
 accessibility text and receipt presentation, not just navigation. Do not call
 the Customer interface fully bilingual after translating only the selector.

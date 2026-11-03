@@ -6,6 +6,7 @@ import type { vendorProvisionSchema, vendorProfileUpdateSchema } from "@workspac
 import { HttpError } from "../http.js";
 import { supabasePartnerAuth, type PartnerAuthGateway } from "../delivery-partner/auth-service.js";
 import { partnerRepository } from "../delivery-partner/repository.js";
+import { findPasswordEmail, resolvePasswordIdentity, type PasswordIdentity } from "../auth/password-identity.js";
 import { adminManagement } from "./service.js";
 
 type Database = ReturnType<typeof getDb>;
@@ -110,10 +111,12 @@ export async function updateVendorProfile(id: string, input: ProfileInput, actor
   });
   return adminManagement(db).detail("vendors", id);
 }
-export async function loginVendor(username: string, password: string, db = getDb(), auth = supabasePartnerAuth()) {
-  const identity = await partnerRepository(db).identity(username);
+export async function loginVendor(username: string, password: string, db = getDb(), auth = supabasePartnerAuth(),
+  findEmail: (email: string) => Promise<PasswordIdentity | undefined> = value => findPasswordEmail(value, "vendor", db)) {
+  const identity = await resolvePasswordIdentity(username,
+    value => partnerRepository(db).identity(value), findEmail);
   const session = await auth.signIn(identity?.role === "vendor" ? identity.id : null, password);
-  if (!session) throw new HttpError(401, "Invalid username or password.");
+  if (!session || identity?.role !== "vendor" || session.userId !== identity.id) throw new HttpError(401, "Invalid username or password.");
   const [store] = await db.select({ status: stores.status }).from(stores).where(eq(stores.ownerUserId, session.userId)).limit(1);
   if (!store) throw new HttpError(401, "Invalid username or password.");
   // Match the existing vendor access rule. Pending vendors can complete their

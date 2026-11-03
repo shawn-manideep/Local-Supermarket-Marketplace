@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getSupabasePublicConfig } from "../auth/config.js";
 import { HttpError } from "../http.js";
 import type { PartnerRepository, ProvisionInput } from "./repository.js";
+import { findPasswordEmail, resolvePasswordIdentity, type PasswordIdentity } from "../auth/password-identity.js";
 
 export interface PartnerAuthGateway {
   create(password: string, email?: string): Promise<string>;
@@ -79,10 +80,11 @@ export async function provisionPartner(repo: PartnerRepository, auth: PartnerAut
     throw error;
   }
 }
-export async function loginPartner(repo: PartnerRepository, auth: PartnerAuthGateway, username: string, password: string) {
-  const identity = await repo.identity(username);
+export async function loginPartner(repo: PartnerRepository, auth: PartnerAuthGateway, username: string, password: string,
+  findEmail: (email: string) => Promise<PasswordIdentity | undefined> = email => findPasswordEmail(email, "delivery_partner")) {
+  const identity = await resolvePasswordIdentity(username, value => repo.identity(value), findEmail);
   const session = await auth.signIn(identity?.role === "delivery_partner" ? identity.id : null, password);
-  if (!session) throw new HttpError(401, "Invalid username or password.");
+  if (!session || identity?.role !== "delivery_partner" || session.userId !== identity.id) throw new HttpError(401, "Invalid username or password.");
   const profile = await repo.profile(session.userId);
   if (!profile) throw new HttpError(401, "Invalid username or password.");
   if (profile.status !== "ACTIVE") throw new HttpError(403, "Your delivery partner account is inactive. Contact an administrator.", undefined, "PARTNER_INACTIVE");

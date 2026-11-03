@@ -36,7 +36,8 @@ test("Forgot Password shows password fields without identity inputs; saving veri
     assert.match(reset, /current\.session\?\.access_token !== before\.session\.access_token/);
     assert.match(reset, /supabase\.auth\.signOut/);
   }
-  assert.match(app, /CustomerRecoveryForm initialIdentity=\{legacyLogin \? username : mobileNumber\} identityType=\{legacyLogin \? "legacy" : "mobile"\}/);
+  assert.match(app, /CustomerRecoveryForm initialIdentity=\{username\} identityType="legacy"/);
+  assert.match(customer, /mobileRecovery \? recoveryMobile : initialIdentity/);
   assert.match(signup, /input\("name", "Shop Name"/);
   assert.match(signup, /password !== confirmation/);
   assert.match(registration, /if \(retry\.rows\[0\]\)/);

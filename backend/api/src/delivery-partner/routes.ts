@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { partnerLoginSchema, partnerProvisionSchema } from "@workspace/validation";
+import { portalLoginSchema, partnerProvisionSchema } from "@workspace/validation";
 import { requireRole } from "../auth/middleware.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import { asyncHandler, HttpError, validationDetails } from "../http.js";
@@ -24,7 +24,7 @@ deliveryPartnerRouter.post("/api/delivery-partner/orders/:orderId/claim",require
 deliveryPartnerRouter.use("/api/delivery-partner", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 deliveryPartnerRouter.use("/api/admin/delivery-partners", (_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 deliveryPartnerRouter.post("/api/delivery-partner/login", asyncHandler(async (req, res) => {
-  const input = partnerLoginSchema.safeParse(req.body);
+  const input = portalLoginSchema.safeParse(req.body);
   if (!input.success) throw new HttpError(401, "Invalid username or password.");
   res.json(await loginPartner(partnerRepository(), supabasePartnerAuth(), input.data.username, input.data.password));
 }));

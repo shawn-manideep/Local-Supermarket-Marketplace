@@ -3,30 +3,25 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("all three portals default to mobile/password and preserve explicit legacy sign-in without changing Admin", async () => {
+test("all three sign-in screens use one username/email field and password, never mobile or OTP sign-in", async () => {
   const [dashboard, partner, customer] = await Promise.all([
     read("./App.tsx"), read("./DeliveryPartnerLogin.tsx"), read("../../customer/App.tsx"),
   ]);
   for (const source of [dashboard, partner, customer]) {
-    assert.match(source, /Mobile Number/);
-    assert.match(source, /Enter your registered mobile number/);
-    assert.match(source, /indianMobileSchema\.safeParse/);
+    assert.match(source, /Username or email address/);
     assert.match(source, /setPassword\(""\)/);
-    assert.doesNotMatch(source, /Email or vendor username/);
+    assert.doesNotMatch(source, /legacyLogin|legacyVendorLogin|\/mobile-login|loginCustomerMobile|signInWithOtp|verifyOtp/);
   }
-  assert.match(dashboard, /legacyVendorLogin, setLegacyVendorLogin\] = useState\(false\)/);
-  assert.match(partner, /legacyLogin, setLegacyLogin\] = useState\(false\)/);
-  assert.match(customer, /legacyLogin, setLegacyLogin\] = useState\(false\)/);
-  assert.match(dashboard, /\/api\/vendor\/mobile-login/);
   assert.match(dashboard, /\/api\/vendor\/login/);
-  assert.match(partner, /\/api\/delivery-partner\/mobile-login/);
   assert.match(partner, /\/api\/delivery-partner\/login/);
-  assert.match(customer, /loginCustomerMobile\(\{ mobileNumber: parsed\.data, password \}\)/);
   assert.match(customer, /loginCustomerUsername\(\{ username: parsed\.data, password \}\)/);
-  assert.match(dashboard, /if \(!adminMode && !legacyVendorLogin\)/);
+  assert.match(dashboard, /if \(!adminMode\)/);
   assert.match(dashboard, /supabase\.auth\.signInWithPassword\(\{\s*email: email\.trim\(\),\s*password/);
   assert.match(dashboard, /adminMode \? <label>Email address/);
   assert.match(dashboard, /Admin access is verified before the portal opens/);
+  for (const source of [dashboard, partner]) assert.match(source, /portalLoginIdentifierSchema\.safeParse/);
+  assert.match(customer, /customerLoginIdentifierSchema\.safeParse/);
+  for (const source of [dashboard, partner]) assert.match(source, /useSignInLanguage/);
 });
 
 test("non-Admin recovery shows two passwords and keeps Save disabled until verified recovery; Admin presentation is preserved", async () => {

@@ -2,17 +2,17 @@
 name: Mobile login transition
 description: Approved phased mobile/password authentication scope and ownership prerequisites.
 ---
-Mobile/password sign-in is a phased transition for Customer, Vendor and Delivery
-Partner accounts. Preserve separate legacy sign-in, including existing Vendors'
-email-based access, until those accounts have securely verified mobile identities.
-Email-dependent Customer/Vendor registration and recovery remain available.
+Customer, Vendor and Delivery Partner sign-in must now use a single
+username-or-email field plus password, with no mobile/OTP sign-in options.
+Mobile registration and verified-mobile recovery remain available where
+already supported; this is not permission to remove their ownership checks.
 
-The current direction uses the mobile number as an identifier for the existing
-Supabase Auth account and its existing password authentication. Do not enable
-Phone Auth, implement OTP, integrate paid phone providers, or replace identities.
+Do not enable Phone Auth, implement OTP, integrate paid phone providers,
+replace identities or invent Delivery Partner passwords.
 
-**Why:** The user's revised mobile-login request explicitly requires retaining
-the existing password architecture without OTP or provider-setting changes.
+**Why:** The user replaced the earlier phased mobile-sign-in direction with
+consistent username/email/password sign-in across all three portals, while
+requiring mobile registration and recovery to be preserved.
 
 When secure phone enrollment or provider setup is out of scope, the user permits
 only the safe portion of mobile registration. Keep email-free account creation

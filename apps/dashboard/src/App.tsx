@@ -6,7 +6,8 @@ import { VendorStorePanel } from "./VendorStorePanel";
 import { DeliveryPartnerPortal } from "./DeliveryPartnerPortal";
 import { DeliveryPartnerLogin } from "./DeliveryPartnerLogin";
 import { AdminPortal } from "./admin/AdminPortal";
-import { usernameSchema, indianMobileSchema } from "@workspace/validation";
+import { portalLoginIdentifierSchema } from "@workspace/validation";
+import { useSignInLanguage } from "./sign-in-language";
 import { PasswordInput, ForgotPassword, ResetPassword } from "./AuthControls";
 import { VendorSignup } from "./VendorSignup";
 import { isCurrentSessionFailure, keepVendorProfile, keepVerifiedPortalOnTransientCheckFailure } from "./vendor-session";
@@ -23,8 +24,7 @@ export default function App() {
   const [roleLoading, setRoleLoading] = useState(false);
   const [profileCheckRevision, setProfileCheckRevision] = useState(0);
   const [email, setEmail] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [legacyVendorLogin, setLegacyVendorLogin] = useState(false);
+  const { t, language, languageControl } = useSignInLanguage();
   const [password, setPassword] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(() => new URLSearchParams(window.location.search).get("recovery") === "1");
   const [authError, setAuthError] = useState("");
@@ -227,32 +227,17 @@ export default function App() {
     if (!supabase) return;
     setAuthLoading(true);
     try {
-      if (!adminMode && !legacyVendorLogin) {
-        const parsed = indianMobileSchema.safeParse(mobileNumber);
+      if (!adminMode) {
+        const parsed = portalLoginIdentifierSchema.safeParse(email);
         if (!parsed.success) {
-          setAuthError("Enter a valid registered Indian mobile number.");
-          setPassword("");
-          return;
-        }
-        const response = await apiRequest<{ session: { access_token: string; refresh_token: string } }>("/api/vendor/mobile-login", "", {
-          method: "POST", body: JSON.stringify({ mobileNumber: parsed.data, password }),
-        });
-        const { error } = await supabase.auth.setSession(response.session);
-        if (error) throw new Error("Your session could not be established. Please sign in again.");
-        setPassword("");
-        return;
-      }
-      if (!adminMode && !email.trim().includes("@")) {
-        const parsed = usernameSchema.safeParse(email);
-        if (!parsed.success) {
-          setAuthError(parsed.error.issues[0]?.message || "Enter a valid vendor username.");
+          setAuthError("Enter a valid username or email address.");
           setPassword("");
           setAuthLoading(false);
           return;
         }
         const response = await apiRequest<{ session: { access_token: string; refresh_token: string } }>("/api/vendor/login", "", {
           method: "POST",
-          body: JSON.stringify({ username: email, password }),
+          body: JSON.stringify({ username: parsed.data, password }),
         });
         const { error } = await supabase.auth.setSession(response.session);
         if (error) throw new Error("Your session could not be established. Please sign in again.");
@@ -277,7 +262,7 @@ export default function App() {
         setPassword("");
       }
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Sign-in could not reach the authentication service. Try again.");
+      setAuthError(adminMode ? error instanceof Error ? error.message : "Sign-in could not reach the authentication service. Try again." : "Unable to sign in. Check your details and try again.");
       setPassword("");
     } finally {
       setAuthLoading(false);
@@ -326,18 +311,18 @@ export default function App() {
       <main className="page"><div className="dashboard-shell"><AuthFrame>
         {!adminMode && vendorSignup ? <VendorSignup onBack={() => setVendorSignup(false)} /> : <>
         <form className="auth-form" onSubmit={signIn}>
-          <p className="eyebrow">{adminMode ? "Apna Local Basket · Admin" : "Vendor Portal"}</p>
-          <h1>{adminMode ? "Admin Portal sign in" : "Vendor sign in"}</h1>
-          <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : legacyVendorLogin ? "Use your existing account sign-in details until mobile ownership is verified." : "Mobile sign-in requires verified ownership. Existing vendors can use legacy sign-in below."}</p>
-          {authError && <div className="auth-error" role="alert">{authError}</div>}
+          {!adminMode && languageControl}
+          <p className="eyebrow">{adminMode ? "Apna Local Basket · Admin" : t("Vendor Portal")}</p>
+          <h1>{adminMode ? "Admin Portal sign in" : t("Vendor sign in")}</h1>
+          <p className="muted">{adminMode ? "Use your existing administrator email and password. Admin access is verified before the portal opens." : t("Use your registered username or email address and password.")}</p>
+          {authError && <div className="auth-error" role="alert">{adminMode ? authError : t(authError)}</div>}
           {authSuccess && <div className="auth-success" role="status">{authSuccess}</div>}
-          {adminMode ? <label>Email address<input data-testid="input-email" autoComplete="email" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="email" value={email} required /></label> : legacyVendorLogin ? <label>Legacy account identifier<input data-testid="input-vendor-legacy" autoComplete="username" placeholder="Enter your existing sign-in identifier" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="text" value={email} required /></label> : <label>Mobile Number<input data-testid="input-vendor-mobile" type="tel" inputMode="tel" autoComplete="tel" maxLength={13} placeholder="Enter your registered mobile number" value={mobileNumber} onChange={event => { setMobileNumber(event.target.value); setAuthError(""); }} required /></label>}
-          <label>Password<PasswordInput data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} value={password} required /></label>
-          <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{authLoading ? "Signing in…" : "Sign in"}</button>
-          {!adminMode && <button className="text-button" type="button" onClick={() => setVendorSignup(true)}>Sign Up as Vendor</button>}
+          {adminMode ? <label>Email address<input data-testid="input-email" autoComplete="email" onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="email" value={email} required /></label> : <label>{t("Username or email address")}<input data-testid="input-vendor-username" autoComplete="username" maxLength={254} placeholder={t("Enter your username or email address")} onChange={(event) => { setEmail(event.target.value); setAuthError(""); }} type="text" value={email} required /></label>}
+          <label>{adminMode ? "Password" : t("Password")}<PasswordInput language={adminMode ? "en" : language} data-testid="input-password" autoComplete="current-password" onChange={(event) => { setPassword(event.target.value); setAuthError(""); }} value={password} required /></label>
+          <button className="primary-button auth-submit" data-testid="button-sign-in" disabled={authLoading} type="submit">{adminMode ? authLoading ? "Signing in…" : "Sign in" : t(authLoading ? "Signing in…" : "Sign in")}</button>
+          {!adminMode && <button className="text-button" type="button" onClick={() => setVendorSignup(true)}>{t("Sign Up as Vendor")}</button>}
         </form>
-        {!adminMode && <button type="button" className="text-button" disabled={authLoading} onClick={() => { setLegacyVendorLogin(value => !value); setPassword(""); setAuthError(""); setAuthSuccess(""); }}>{legacyVendorLogin ? "Use mobile number instead" : "Use legacy sign-in instead"}</button>}
-        <ForgotPassword key={adminMode ? "admin" : legacyVendorLogin ? "vendor-legacy" : "vendor-mobile"} role={adminMode ? "admin" : "vendor"} initialIdentity={adminMode || legacyVendorLogin ? email : mobileNumber} identityType={adminMode || legacyVendorLogin ? "legacy" : "mobile"} />
+        <ForgotPassword language={adminMode ? "en" : language} key={adminMode ? "admin" : "vendor"} role={adminMode ? "admin" : "vendor"} initialIdentity={email} identityType="legacy" />
         </>}
       </AuthFrame></div></main>
     );

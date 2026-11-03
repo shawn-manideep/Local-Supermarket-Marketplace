@@ -1361,7 +1361,7 @@ export const loginCustomerUsernameBodyPasswordMax = 128;
 
 
 export const LoginCustomerUsernameBody = zod.object({
-  "username": zod.string().min(loginCustomerUsernameBodyUsernameMin).max(loginCustomerUsernameBodyUsernameMax).describe('Registered Customer username or email address. Field name retained for compatibility.'),
+  "username": zod.string().min(loginCustomerUsernameBodyUsernameMin).max(loginCustomerUsernameBodyUsernameMax).describe('Registered portal username or email address. Field name retained for compatibility.'),
   "password": zod.string().min(1).max(loginCustomerUsernameBodyPasswordMax)
 })
 
@@ -1955,16 +1955,14 @@ export const ChangeAdminVendorStatusResponse = zod.unknown()
 
 
 export const loginVendorUsernameBodyUsernameMin = 3;
-export const loginVendorUsernameBodyUsernameMax = 30;
+export const loginVendorUsernameBodyUsernameMax = 254;
 
-
-export const loginVendorUsernameBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
 export const loginVendorUsernameBodyPasswordMax = 128;
 
 
 
 export const LoginVendorUsernameBody = zod.object({
-  "username": zod.string().min(loginVendorUsernameBodyUsernameMin).max(loginVendorUsernameBodyUsernameMax).regex(loginVendorUsernameBodyUsernameRegExp),
+  "username": zod.string().min(loginVendorUsernameBodyUsernameMin).max(loginVendorUsernameBodyUsernameMax).describe('Registered portal username or email address. Field name retained for compatibility.'),
   "password": zod.string().min(1).max(loginVendorUsernameBodyPasswordMax)
 })
 
@@ -2457,16 +2455,14 @@ export const PerformOwnDeliveryActionResponse = zod.object({
 
 
 export const signInDeliveryPartnerBodyUsernameMin = 3;
-export const signInDeliveryPartnerBodyUsernameMax = 30;
+export const signInDeliveryPartnerBodyUsernameMax = 254;
 
-
-export const signInDeliveryPartnerBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
 export const signInDeliveryPartnerBodyPasswordMax = 128;
 
 
 
 export const SignInDeliveryPartnerBody = zod.object({
-  "username": zod.string().min(signInDeliveryPartnerBodyUsernameMin).max(signInDeliveryPartnerBodyUsernameMax).regex(signInDeliveryPartnerBodyUsernameRegExp),
+  "username": zod.string().min(signInDeliveryPartnerBodyUsernameMin).max(signInDeliveryPartnerBodyUsernameMax).describe('Registered portal username or email address. Field name retained for compatibility.'),
   "password": zod.string().min(1).max(signInDeliveryPartnerBodyPasswordMax)
 })
 

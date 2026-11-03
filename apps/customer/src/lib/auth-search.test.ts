@@ -49,7 +49,8 @@ test("Customer recovery accepts the sign-in email/username or mobile without ren
   assert.match(recovery, /role: "customer", identity: parsed\.data, identityType/);
   assert.match(recovery, /Platform\.OS !== "web" \? \{ client: "customer_native" as const \} : \{\}/);
   assert.match(recovery, /setMessage\(RECOVERY_CONFIRMATION\)/);
-  assert.match(recovery, /identityType === "mobile" \? indianMobileSchema\.safeParse\(initialIdentity\) : customerLoginIdentifierSchema\.safeParse\(initialIdentity\)/);
+  assert.match(recovery, /mobileRecovery \? indianMobileSchema\.safeParse\(recoveryIdentity\) : customerLoginIdentifierSchema\.safeParse\(recoveryIdentity\)/);
+  assert.match(recovery, /identityType: mobileRecovery \? "mobile" : "legacy"/);
   assert.match(recovery, /PasswordField label=\{t\("Re-enter Password"\)\}/);
   assert.doesNotMatch(recovery, /keyboardType="email-address"|data\.user|\.email|reset_token|console\./);
   assert.match(controls, /secureTextEntry=\{visibility\.secureTextEntry\}/);

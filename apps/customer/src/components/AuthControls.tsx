@@ -36,18 +36,21 @@ export function CustomerRecoveryForm({ initialIdentity = "", identityType = "leg
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [mobileRecovery, setMobileRecovery] = useState(identityType === "mobile");
+  const [recoveryMobile, setRecoveryMobile] = useState(identityType === "mobile" ? initialIdentity : "");
   const submit = async () => {
     const checked = portalResetPasswordSchema.safeParse(password);
     if (!checked.success || password !== confirmation) {
       setError(!checked.success ? "Use at least 8 characters, including a letter and a number." : "Passwords must match."); return;
     }
-    const parsed = identityType === "mobile" ? indianMobileSchema.safeParse(initialIdentity) : customerLoginIdentifierSchema.safeParse(initialIdentity);
-    if (!initialIdentity.trim()) { setError("Enter your account identity on the sign-in screen first, then reopen Forgot Password."); return; }
-    if (!parsed.success) { setError(identityType === "mobile" ? "Enter a valid registered Indian mobile number." : t("Enter a valid username or email address.")); return; }
+    const recoveryIdentity = mobileRecovery ? recoveryMobile : initialIdentity;
+    const parsed = mobileRecovery ? indianMobileSchema.safeParse(recoveryIdentity) : customerLoginIdentifierSchema.safeParse(recoveryIdentity);
+    if (!recoveryIdentity.trim()) { setError("Enter your account identity on the sign-in screen first, then reopen Forgot Password."); return; }
+    if (!parsed.success) { setError(mobileRecovery ? "Enter a valid registered Indian mobile number." : t("Enter a valid username or email address.")); return; }
     setBusy(true); setError(""); setMessage("");
     try {
       await requestAccountRecovery({
-        role: "customer", identity: parsed.data, identityType,
+        role: "customer", identity: parsed.data, identityType: mobileRecovery ? "mobile" : "legacy",
         ...(Platform.OS !== "web" ? { client: "customer_native" as const } : {}),
       });
       setPassword(""); setConfirmation("");
@@ -57,6 +60,11 @@ export function CustomerRecoveryForm({ initialIdentity = "", identityType = "leg
   };
   return <View style={styles.form}>
     <Text style={typography.title2}>{t("Forgot Password?")}</Text>
+    <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setMobileRecovery(value => !value); setError(""); setMessage(""); }}>
+      <Text>{t(mobileRecovery ? "Recover with username or email" : "Recover with verified mobile")}</Text>
+    </Pressable>
+    {mobileRecovery && <TextInput accessibilityLabel={t("Mobile Number")} placeholder={t("Enter your registered mobile number")}
+      keyboardType="phone-pad" autoComplete="tel" maxLength={13} value={recoveryMobile} onChangeText={setRecoveryMobile} />}
     <Text style={typography.body}>{t("Verify ownership using the recovery link sent for the account entered on sign-in. Re-enter your new password after verification.")}</Text>
     <Text style={typography.body}>{t("Save Password becomes available after ownership verification. If your mobile number is not verified, use your registered username or email address to request recovery.")}</Text>
     <Text style={typography.body}>{t("Use at least 8 characters, including a letter and a number.")}</Text>

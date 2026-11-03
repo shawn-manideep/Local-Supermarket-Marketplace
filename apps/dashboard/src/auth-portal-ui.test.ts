@@ -18,12 +18,12 @@ test("shared password visibility transitions hidden → visible → hidden with 
 
 test("Vendor, Partner and Admin reuse password/recovery controls without nested forms", async () => {
   const [app, partner, controls] = await Promise.all([source("./App.tsx"), source("./DeliveryPartnerLogin.tsx"), source("./AuthControls.tsx")]);
-  assert.match(app, /<PasswordInput data-testid="input-password"/);
+  assert.match(app, /<PasswordInput\b[^>]*data-testid="input-password"/);
   assert.match(app, /role=\{adminMode \? "admin" : "vendor"\}/);
-  assert.match(partner, /<PasswordInput id="lbp-password"/);
+  assert.match(partner, /<PasswordInput\b[^>]*id="lbp-password"/);
   assert.match(partner, /<ForgotPassword[^>]*role="delivery_partner"/);
   assert.match(app, /<\/form>[\s\S]*?<ForgotPassword/);
-  assert.match(partner, /<\/form>\s*<button[\s\S]*?<ForgotPassword/);
+  assert.match(partner, /<\/form>\s*<ForgotPassword/);
   assert.match(controls, /setVisible\(value => !value\)/);
   assert.match(controls, /type="button" className="auth-eye"/);
   assert.match(controls, /aria-pressed=\{visible\}/);
