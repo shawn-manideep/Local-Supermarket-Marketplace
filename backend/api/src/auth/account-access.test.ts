@@ -5,7 +5,8 @@ import { customerLoginSchema, loginCustomer, RECOVERY_MESSAGE, recoveryInput, re
 
 test("Customer login reuses shared case normalization and rejects invalid credentials format", () => {
   assert.deepEqual(customerLoginSchema.parse({ username: "Existing_User", password: "unchanged" }), { username: "existing_user", password: "unchanged" });
-  for (const username of ["ab", "customer", "username@gmail.com", " abc", "abc ", "42customer"])
+  assert.deepEqual(customerLoginSchema.parse({ username: "Person@Example.test", password: "unchanged" }), { username: "person@example.test", password: "unchanged" });
+  for (const username of ["ab", "customer", "bad@", " abc", "abc ", "42customer"])
     assert.equal(customerLoginSchema.safeParse({ username, password: "password" }).success, false);
 });
 
@@ -14,7 +15,7 @@ test("Customer username login preserves the identity/password and returns only e
     identity: async username => { assert.equal(username, "existing_user"); return { id: "original-customer", role: "customer" }; },
   }, {
     signIn: async (id, password) => { assert.equal(id, "original-customer"); assert.equal(password, "original-password"); return { userId: id!, access_token: "test-access", refresh_token: "test-refresh" }; },
-  });
+  }, undefined, async () => true);
   assert.deepEqual(result, { session: { access_token: "test-access", refresh_token: "test-refresh" } });
 });
 

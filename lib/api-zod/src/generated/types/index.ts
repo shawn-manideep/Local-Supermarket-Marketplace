@@ -58,6 +58,7 @@ export * from './customerCheckoutOutcomeOrderStatusHistoryItem';
 export * from './customerCheckoutSubmission';
 export * from './customerCheckoutSubmissionDeliveryMode';
 export * from './customerCheckoutSubmissionPaymentMethod';
+export * from './customerLoginCredentials';
 export * from './customerSavedItem';
 export * from './customerShoppingCategories';
 export * from './customerShoppingCategory';

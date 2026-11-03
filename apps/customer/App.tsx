@@ -37,7 +37,7 @@ import {
 import { PhoneInput } from "./src/components/PhoneInput";
 import { ConfirmationDialog } from "./src/components/ConfirmationDialog";
 import { fontWeights } from "./src/theme";
-import { usernameSchema, indianMobileSchema, portalResetPasswordSchema } from "@workspace/validation";
+import { usernameSchema, customerLoginIdentifierSchema, indianMobileSchema, portalResetPasswordSchema } from "@workspace/validation";
 import { loginCustomerUsername, loginCustomerMobile } from "@workspace/api-client-react";
 import { PasswordField, CustomerRecoveryForm, CustomerResetForm } from "./src/components/AuthControls";
 import { CustomerBrandingLogo } from "./src/components/CustomerBrandingLogo";
@@ -179,8 +179,9 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
     setMessage("");
     try {
       const mobileLogin = mode === "signin" && !legacyLogin;
-      const parsed = mobileLogin ? indianMobileSchema.safeParse(mobileNumber) : usernameSchema.safeParse(username);
-      if (!parsed.success) { setMessage(mobileLogin ? "Enter a valid registered Indian mobile number." : parsed.error.issues[0]?.message ?? "Enter a valid username."); return; }
+      const parsed = mobileLogin ? indianMobileSchema.safeParse(mobileNumber)
+        : mode === "signin" ? customerLoginIdentifierSchema.safeParse(username) : usernameSchema.safeParse(username);
+      if (!parsed.success) { setMessage(mobileLogin ? "Enter a valid registered Indian mobile number." : mode === "signin" ? t("Enter a valid username or email address.") : parsed.error.issues[0]?.message ?? "Enter a valid username."); return; }
       if (mode === "signin") {
         const result = mobileLogin
           ? await loginCustomerMobile({ mobileNumber: parsed.data, password })
@@ -253,12 +254,12 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
             value={mobileNumber}
           />
           </> : <Field
-            label={t("Username")}
-            placeholder={t("Enter your username")}
-            accessibilityLabel={t("Username")}
+            label={mode === "signin" ? t("Username or email address") : t("Username")}
+            placeholder={mode === "signin" ? t("Enter your username or email address") : t("Enter your username")}
+            accessibilityLabel={mode === "signin" ? t("Username or email address") : t("Username")}
             autoComplete="username"
             autoCapitalize="none"
-            maxLength={30}
+            maxLength={mode === "signin" ? 254 : 30}
             onChangeText={setUsername}
             value={username}
           />}
@@ -295,7 +296,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
               </Text>
             )}
           </Pressable>
-          {mode === "signin" && <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setLegacyLogin(value => !value); setPassword(""); setMessage(""); }}><Text style={styles.linkText}>{legacyLogin ? t("Use mobile number instead") : t("Use existing username instead")}</Text></Pressable>}
+          {mode === "signin" && <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setLegacyLogin(value => !value); setPassword(""); setMessage(""); }}><Text style={styles.linkText}>{legacyLogin ? t("Use mobile number instead") : t("Use username or email instead")}</Text></Pressable>}
           {mode === "signin" && <Pressable accessibilityRole="button" onPress={() => { setPassword(""); setMessage(""); setMode("recovery"); }}><Text style={styles.linkText}>{t("Forgot Password?")}</Text></Pressable>}
           <Text style={styles.authDivider}>{t("OR")}</Text>
           <Pressable

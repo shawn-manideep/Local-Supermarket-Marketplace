@@ -9,6 +9,16 @@ export const usernameSchema = z.string().min(3).max(30)
   .refine(value => !RESERVED_USERNAMES.includes(value.toLowerCase() as typeof RESERVED_USERNAMES[number]), "This username is reserved")
   .transform(value => value.toLowerCase());
 export const partnerLoginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
+// Customer-only: retain the wire field "username" for existing clients.
+// Registration and the other portals continue using the strict username schema.
+export const customerLoginIdentifierSchema = z.union([
+  usernameSchema,
+  z.string().max(254).email().transform(value => value.toLowerCase()),
+]);
+export const customerLoginSchema = z.object({
+  username: customerLoginIdentifierSchema,
+  password: z.string().min(1).max(128),
+}).strict();
 export const resetPasswordSchema = z.string().min(8, "Use at least 8 characters").max(128);
 export const portalResetPasswordSchema = resetPasswordSchema
   .regex(/\p{L}/u, "Include at least one letter.")

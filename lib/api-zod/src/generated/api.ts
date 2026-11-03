@@ -1354,16 +1354,14 @@ export const CreateVendorLocalProductResponse = zod.object({
 
 
 export const loginCustomerUsernameBodyUsernameMin = 3;
-export const loginCustomerUsernameBodyUsernameMax = 30;
+export const loginCustomerUsernameBodyUsernameMax = 254;
 
-
-export const loginCustomerUsernameBodyUsernameRegExp = new RegExp('^[A-Za-z][A-Za-z0-9_]{2,29}$');
 export const loginCustomerUsernameBodyPasswordMax = 128;
 
 
 
 export const LoginCustomerUsernameBody = zod.object({
-  "username": zod.string().min(loginCustomerUsernameBodyUsernameMin).max(loginCustomerUsernameBodyUsernameMax).regex(loginCustomerUsernameBodyUsernameRegExp),
+  "username": zod.string().min(loginCustomerUsernameBodyUsernameMin).max(loginCustomerUsernameBodyUsernameMax).describe('Registered Customer username or email address. Field name retained for compatibility.'),
   "password": zod.string().min(1).max(loginCustomerUsernameBodyPasswordMax)
 })
 

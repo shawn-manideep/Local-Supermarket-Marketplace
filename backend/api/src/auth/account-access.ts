@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { getDb } from "@workspace/db";
 import { z } from "zod";
-import { usernameSchema, partnerLoginSchema, RECOVERY_CONFIRMATION, indianMobileSchema } from "@workspace/validation";
+import { usernameSchema, customerLoginSchema, RECOVERY_CONFIRMATION, indianMobileSchema } from "@workspace/validation";
 import { partnerRepository } from "../delivery-partner/repository.js";
 import { supabasePartnerAuth, type PartnerAuthGateway } from "../delivery-partner/auth-service.js";
 import { getSupabasePublicConfig } from "./config.js";
@@ -80,17 +80,44 @@ export async function requestRecovery(input: RecoveryInput, redirectTo: string, 
   return { message: RECOVERY_MESSAGE };
 }
 
+type CustomerLoginIdentity = { id: string; role: string; status?: string };
+export async function findCustomerEmail(email: string): Promise<CustomerLoginIdentity | undefined> {
+  // Parameterized, bounded lookup. Never select password hashes or expose emails.
+  const result = await getDb().execute<CustomerLoginIdentity>(sql`
+    SELECT u.id, p.role::text AS role, c.status
+    FROM auth.users u JOIN public.user_profiles p ON p.id=u.id
+    JOIN public.customers c ON c.id=u.id
+    WHERE lower(u.email)=lower(${email}) AND p.role='customer'
+    LIMIT 2`);
+  return result.rows.length === 1 ? result.rows[0] : undefined;
+}
+
+export async function customerIsActive(id: string): Promise<boolean> {
+  const result = await getDb().execute(sql`
+    SELECT c.id FROM public.customers c
+    JOIN public.user_profiles p ON p.id=c.id
+    WHERE c.id=${id} AND c.status='ACTIVE' AND p.role='customer' LIMIT 1`);
+  return result.rows.length === 1;
+}
+
 export async function loginCustomer(
   username: string, password: string,
   repo: Pick<ReturnType<typeof partnerRepository>, "identity"> = partnerRepository(),
   auth: Pick<PartnerAuthGateway, "signIn"> = supabasePartnerAuth(),
+  findEmail: (email: string) => Promise<CustomerLoginIdentity | undefined> = findCustomerEmail,
+  isActive: (id: string) => Promise<boolean> = customerIsActive,
 ) {
-  const identity = await repo.identity(username);
+  const input = customerLoginSchema.safeParse({ username, password });
+  if (!input.success) throw new HttpError(401, "Invalid username or password.");
+  const identifier = input.data.username;
+  const identity = identifier.includes("@") ? await findEmail(identifier) : await repo.identity(identifier);
   const session = await auth.signIn(identity?.role === "customer" ? identity.id : null, password);
   if (!session || identity?.role !== "customer" || session.userId !== identity.id) throw new HttpError(401, "Invalid username or password.");
+  // Recheck role and status after provider authentication, for both identifiers.
+  if (!await isActive(session.userId)) throw new HttpError(401, "Invalid username or password.");
   return { session: { access_token: session.access_token, refresh_token: session.refresh_token } };
 }
-export { partnerLoginSchema as customerLoginSchema };
+export { customerLoginSchema };
 
 export function recoveryRedirect(role: RecoveryInput["role"], origin: string, client?: RecoveryInput["client"]) {
   if (role === "customer" && client === "customer_native") return "apnalocalbasket-customer://auth/callback";

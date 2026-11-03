@@ -1288,6 +1288,20 @@ export interface MobilePasswordCredentials {
   password: string;
 }
 
+export interface CustomerLoginCredentials {
+  /**
+     * Registered Customer username or email address. Field name retained for compatibility.
+     * @minLength 3
+     * @maxLength 254
+     */
+  username: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  password: string;
+}
+
 export interface PartnerCredentials {
   /**
      * @minLength 3

@@ -42,6 +42,7 @@ import type {
   ClaimAvailableDeliveryBody,
   CustomerCheckoutOutcome,
   CustomerCheckoutSubmission,
+  CustomerLoginCredentials,
   CustomerShoppingCategories,
   DeliveryAssignRequest,
   DeliveryAssignmentOutcome,
@@ -3931,7 +3932,7 @@ export const getLoginCustomerUsernameUrl = () => {
   return `/api/customer/login`
 }
 
-export const loginCustomerUsername = async (partnerCredentials: PartnerCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
+export const loginCustomerUsername = async (customerLoginCredentials: CustomerLoginCredentials, options?: Parameters<typeof customFetch>[1]): Promise<PartnerSessionOutcome> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -3952,7 +3953,7 @@ return customFetch<PartnerSessionOutcome>(getLoginCustomerUsernameUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(partnerCredentials)
+    body: JSON.stringify(customerLoginCredentials)
   }
 );}
 
@@ -3990,9 +3991,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type LoginCustomerUsernameMutationResult = NonNullable<Awaited<ReturnType<typeof loginCustomerUsername>>>
-    export type LoginCustomerUsernameMutationBody = BodyType<PartnerCredentials>
+    export type LoginCustomerUsernameMutationBody = BodyType<CustomerLoginCredentials>
     export type LoginCustomerUsernameMutationError = ErrorType<void>
-    export type LoginCustomerUsernameMutationVariables = {data: BodyType<PartnerCredentials>}
+    export type LoginCustomerUsernameMutationVariables = {data: BodyType<CustomerLoginCredentials>}
 
     export const useLoginCustomerUsername = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginCustomerUsername>>, TError,LoginCustomerUsernameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

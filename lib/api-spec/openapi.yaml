@@ -886,7 +886,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PartnerCredentials'
+              $ref: '#/components/schemas/CustomerLoginCredentials'
       responses:
         '200':
           description: Existing Customer Supabase session
@@ -2294,6 +2294,17 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+    CustomerLoginCredentials:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 254
+          description: Registered Customer username or email address. Field name retained for compatibility.
+        password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
     PartnerCredentials:
       type: object
       additionalProperties: false
