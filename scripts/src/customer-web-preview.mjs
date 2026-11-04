@@ -4,7 +4,7 @@ import path from "node:path";
 
 const webRoot = path.resolve(process.argv[2] ?? "/tmp/phase12-customer-web");
 const port = Number(process.env.PORT ?? 8082);
-const backendOrigin = process.env.PREVIEW_BACKEND_ORIGIN ?? "http://127.0.0.1:5000";
+const backendOrigin = process.env.PREVIEW_BACKEND_ORIGIN ?? "http://127.0.0.1:8080";
 const configuredBasePath = process.env.BASE_PATH ?? "/";
 const basePath =
   configuredBasePath === "/"

@@ -15,7 +15,7 @@ export default defineConfig({
     allowedHosts,
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: process.env.PREVIEW_BACKEND_ORIGIN ?? "http://127.0.0.1:8080",
         changeOrigin: true,
         configure(proxy) {
           proxy.on("proxyReq", (proxyRequest) => {

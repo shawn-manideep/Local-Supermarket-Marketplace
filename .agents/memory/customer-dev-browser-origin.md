@@ -9,6 +9,20 @@ For authenticated Customer browser checks, use the workspace development domain,
 
 **How to apply:** Use the artifact screenshot proxy for static visual checks. For browser-driven Customer API interactions, use the existing development domain and keep credentials out of logs. Do not adjust API CORS just to accommodate a localhost-only test harness.
 
+Customer Web development and native builds can intentionally use different
+API/Supabase targets. Native public build variables must not implicitly select
+the Web API while Web Auth is configured for a different project.
+
+**Why:** Workspace-native variables selected the isolated Render API while the
+Web workflow supplied the original project's Auth configuration. Metro also
+retained the old API origin after the workflow environment was corrected;
+examining only the command was insufficient evidence.
+
+**How to apply:** Keep the target pairs explicit and separate. Verify a fresh
+export's compiled API origin after public environment changes, clearing Metro's
+cache when needed. Never repoint a Supabase project or change credentials just
+to make the two environments appear consistent.
+
 The tool notebook and browser tester do not automatically have the application's
 runtime secrets. Prefer a workspace-side browser harness that consumes existing
 test credentials internally and performs normal UI sign-in.
