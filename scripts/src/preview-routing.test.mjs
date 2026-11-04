@@ -27,18 +27,26 @@ test("development web previews use the managed API port and isolate native build
 test("Customer preview serves its base path, proxies API status/payloads and cleans up offline fixtures", { timeout: 15_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "alb-preview-fixture-"));
   const upstream = createServer(async (request, response) => {
-    assert.equal(request.headers.origin, undefined);
+    const recovery = request.url.startsWith("/api/auth/recovery");
+    assert.equal(request.headers.origin, recovery ? "https://offline.invalid" : undefined);
     if (request.url === "/api/health") {
       response.setHeader("Content-Type", "application/json");
       response.end(JSON.stringify({ status: "ok", fixture: true }));
     } else {
       let body = "";
       for await (const chunk of request) body += chunk;
-      assert.equal(request.url, "/api/customer/login");
       assert.equal(request.method, "POST");
-      assert.deepEqual(JSON.parse(body), { username: "fixture_user", password: "fixture-password" });
-      response.writeHead(401, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-      response.end(JSON.stringify({ error: "Invalid username or password." }));
+      if (recovery) {
+        assert.equal(request.url, "/api/auth/recovery/?source=fixture");
+        assert.deepEqual(JSON.parse(body), { role: "customer", identity: "fixture_user" });
+        response.writeHead(202, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        response.end(JSON.stringify({ message: "Offline recovery fixture" }));
+      } else {
+        assert.equal(request.url, "/api/customer/login");
+        assert.deepEqual(JSON.parse(body), { username: "fixture_user", password: "fixture-password" });
+        response.writeHead(401, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        response.end(JSON.stringify({ error: "Invalid username or password." }));
+      }
     }
   });
   let child;
@@ -76,6 +84,14 @@ test("Customer preview serves its base path, proxies API status/payloads and cle
     assert.equal(denied.status, 401);
     assert.equal(denied.headers.get("cache-control"), "no-store");
     assert.deepEqual(await denied.json(), { error: "Invalid username or password." });
+    const recovery = await fetch(`${origin}/api/auth/recovery/?source=fixture`, {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: "https://offline.invalid" },
+      body: JSON.stringify({ role: "customer", identity: "fixture_user" }),
+      signal: AbortSignal.timeout(2_000),
+    });
+    assert.equal(recovery.status, 202);
+    assert.equal(recovery.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await recovery.json(), { message: "Offline recovery fixture" });
     upstream.closeAllConnections();
     await new Promise(resolve => upstream.close(resolve));
     const unavailable = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(2_000) });

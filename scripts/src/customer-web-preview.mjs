@@ -30,11 +30,15 @@ async function proxyApi(request, response) {
     chunks.push(chunk);
   }
 
+  // Recovery validates the browser Origin and uses it for its allowlisted
+  // callback. Keep other API proxy behavior unchanged; never invent an Origin.
+  const recoveryRequest = /^\/api\/auth\/recovery\/?(?:\?|$)/i.test(request.url ?? "");
   const headers = new Headers();
   for (const [name, value] of Object.entries(request.headers)) {
     if (
       value &&
-      !["connection", "content-length", "host", "origin"].includes(name.toLowerCase())
+      !["connection", "content-length", "host"].includes(name.toLowerCase()) &&
+      (name.toLowerCase() !== "origin" || recoveryRequest)
     ) {
       headers.set(name, Array.isArray(value) ? value.join(", ") : value);
     }
