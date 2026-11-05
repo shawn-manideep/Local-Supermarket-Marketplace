@@ -43,8 +43,8 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.development]
-SUPABASE_ANON_KEY = "sb_publishable_olHk9WQVRmzGF05yQB4bSA_YQzZRbE2"
-SUPABASE_URL = "https://gkwcolipeavxnuzqlamb.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ybmlnc3puZWN0cmdiZ2Fmd21lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyMzM2MzcsImV4cCI6MjEwNzgwOTYzN30.NGh8TIHWJcpPdMSwF7C9oSMjDi7cWSwbVlMAl531dnk"
+SUPABASE_URL = "https://nrnigsznectrgbgafwme.supabase.co"
 CORS_ALLOWED_ORIGINS = "https://85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.replit.dev,https://85f32ae4-272f-47c7-a068-6b1e1b0107d8-00-1uodt3d5ylm7d.pike.repl.co"
 
 [nix]
