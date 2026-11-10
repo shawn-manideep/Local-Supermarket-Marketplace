@@ -1,7 +1,9 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
-import { assertStorageOperationsEnabled, getApiObjectStorageProvider } from "../storage/provider.js";
+import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
+import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
+import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createProductImageStorageAdapter,
   getReplitObjectStore,
@@ -34,6 +36,9 @@ async function appStorage() {
 export const productImageStorage = {
   async put(storeId: string, imageId: string, bytes: Buffer, mimeType: string) {
     assertStorageOperationsEnabled();
+    if (getApiAssetStorageProvider() === "supabase-storage") {
+      return getSupabaseLiveAssets().products.put(storeId, imageId, bytes, mimeType);
+    }
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().products.put(storeId, imageId, bytes, mimeType);
     }
@@ -49,6 +54,27 @@ export const productImageStorage = {
   },
   async get(storeId: string, imageId: string) {
     assertStorageOperationsEnabled();
+    if (getApiAssetStorageProvider() === "supabase-storage") {
+      const products = getSupabaseLiveAssets().products;
+      return readWithNotFoundFallback(
+        () => products.get(storeId, imageId),
+        async () => {
+          if (getApiObjectStorageProvider() === "supabase-storage") {
+            return getSupabaseAssets().products.get(storeId, imageId);
+          }
+          if (getApiObjectStorageProvider() === "external-gcs") {
+            return (await getExternalAssets()).products.get(storeId, imageId);
+          }
+          if (getApiObjectStorageProvider() === "replit-app-storage") {
+            return (await appStorage()).get(storeId, imageId);
+          }
+          const object = file(storeId, imageId);
+          const [metadata] = await object.getMetadata();
+          const [bytes] = await object.download();
+          return { bytes, mimeType: metadata.contentType ?? "application/octet-stream" };
+        },
+      );
+    }
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().products.get(storeId, imageId);
     }
@@ -65,6 +91,26 @@ export const productImageStorage = {
   },
   async discard(storeId: string, imageId: string) {
     assertStorageOperationsEnabled();
+    if (getApiAssetStorageProvider() === "supabase-storage") {
+      const products = getSupabaseLiveAssets().products;
+      return discardFromOwningStore(
+        () => products.has(storeId, imageId),
+        () => products.discard(storeId, imageId),
+        async () => {
+          if (getApiObjectStorageProvider() === "supabase-storage") {
+            return getSupabaseAssets().products.discard(storeId, imageId);
+          }
+          if (getApiObjectStorageProvider() === "external-gcs") {
+            return (await getExternalAssets()).products.discard(storeId, imageId);
+          }
+          if (getApiObjectStorageProvider() === "replit-app-storage") {
+            await (await appStorage()).discard(storeId, imageId);
+            return;
+          }
+          await file(storeId, imageId).delete({ ignoreNotFound: true });
+        },
+      );
+    }
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().products.discard(storeId, imageId);
     }

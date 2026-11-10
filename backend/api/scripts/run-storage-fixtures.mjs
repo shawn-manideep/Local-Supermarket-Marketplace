@@ -36,7 +36,7 @@ if (process.argv.length !== 3 || !["unit", "routes", "regression", "rehearsal"].
   }
   const args = mode === "rehearsal"
     ? ["src/storage/rehearsal-cli.ts", "--synthetic-only"]
-    : ["--test", "--test-concurrency=2", ...(mode === "unit" ? unitFiles
+    : ["--experimental-test-module-mocks", "--test", "--test-concurrency=2", ...(mode === "unit" ? unitFiles
       : mode === "routes" ? routeFiles : otherFiles)];
   // Do not inherit production configuration, secrets, ADC paths or proxy settings.
   const fixtureEnv = {

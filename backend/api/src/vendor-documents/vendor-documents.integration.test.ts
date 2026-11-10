@@ -217,8 +217,13 @@ test("optional uploads and four mandatory uploads remain locked until submission
   assert.equal(submitted.verificationStatus, "SUBMITTED");
   assert.equal(submitted.canManageCatalog, false);
   assert.equal((await request(vendorA, "/api/vendor/products", "POST", localInput())).status, 403);
-  assert.equal((await upload(vendorA, "pan")).status, 409);
-  const approved = await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`, "POST", { submissionId: submitted.submissionId });
+  assert.equal((await upload(vendorA, "pan")).status, 201);
+  const afterReplacement = await (await request(vendorA, "/api/vendor/documents")).json();
+  assert.equal(afterReplacement.verificationStatus, "DRAFT");
+  assert.equal(afterReplacement.canManageCatalog, false);
+  assert.equal((await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`, "POST", { submissionId: submitted.submissionId })).status, 409);
+  const resubmitted = await (await request(vendorA, "/api/vendor/documents/submit", "POST", {})).json();
+  const approved = await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`, "POST", { submissionId: resubmitted.submissionId });
   assert.equal(approved.status, 200);
   assert.equal((await approved.json()).canManageCatalog, true);
   documentId = complete.documents.find((item: { type: string }) => item.type === "fssai").current.id;
@@ -453,8 +458,21 @@ test("new Vendor submission, partial rejection, correction and receipt-safe appr
   for (const type of ["fssai", "aadhaar", "pan", "labour_license", "gst"]) assert.equal((await upload(vendorB, type)).status, 201);
   const uploaded = await (await request(vendorB, "/api/vendor/documents")).json();
   assert.equal(uploaded.canManageCatalog, false);
-  const pending = await (await request(vendorB, "/api/vendor/documents/submit", "POST", {})).json();
+  let pending = await (await request(vendorB, "/api/vendor/documents/submit", "POST", {})).json();
   assert.equal(pending.verificationStatus, "SUBMITTED"); assert.equal(pending.canManageCatalog, false);
+
+  // Replacing a mandatory document during review invalidates the old submission.
+  const replacementDuringReview = await upload(vendorB, "pan", pdf, "replacement-pan.pdf");
+  assert.equal(replacementDuringReview.status, 201);
+  const afterReplacement = await (await request(vendorB, "/api/vendor/documents")).json();
+  assert.equal(afterReplacement.verificationStatus, "DRAFT");
+  assert.equal(afterReplacement.canManageCatalog, false);
+  assert.equal((await request(admin, `${adminPath(vendorB)}/approve`, "POST",
+    { submissionId: pending.submissionId })).status, 409);
+
+  pending = await (await request(vendorB, "/api/vendor/documents/submit", "POST", {})).json();
+  assert.equal(pending.verificationStatus, "SUBMITTED");
+  assert.notEqual(pending.submissionId, afterReplacement.submissionId);
   for (const actor of [null, vendorA, vendorB, customer, delivery]) {
     for (const action of ["approve", "reject"]) {
       const response = await request(actor, `${adminPath(vendorB)}/${action}`, "POST",
@@ -484,7 +502,7 @@ test("new Vendor submission, partial rejection, correction and receipt-safe appr
   const ownProduct = await request(vendorB, "/api/vendor/products", "POST",
     { ...localInput(), name: "Store B jasmine rice", brand: "Store B Brand" });
   assert.equal(ownProduct.status, 201);
-  assert.equal((await pool.query("SELECT count(*)::integer AS n FROM vendor_documents WHERE store_id=$1 AND document_type='pan'", [storeB])).rows[0].n, 2);
+  assert.equal((await pool.query("SELECT count(*)::integer AS n FROM vendor_documents WHERE store_id=$1 AND document_type='pan'", [storeB])).rows[0].n, 3);
   const direct = await pool.connect();
   try {
     await direct.query("SET ROLE authenticated");

@@ -57,3 +57,24 @@ export function selectApiObjectStorage<T>(
   }
   return provider === "replit-app-storage" ? providers.replitAppStorage : providers.replitGcsSidecar;
 }
+
+export const API_ASSET_STORAGE_PROVIDER_ENV = "API_ASSET_STORAGE_PROVIDER";
+
+export type ApiAssetStorageProvider = "supabase-storage";
+
+export function getApiAssetStorageProvider(
+  env: NodeJS.ProcessEnv = process.env,
+): ApiAssetStorageProvider | undefined {
+  const configured = env[API_ASSET_STORAGE_PROVIDER_ENV];
+
+  if (configured === undefined) return undefined;
+
+  if (configured === "supabase-storage") {
+    supabaseStorageConfig(env);
+    return configured;
+  }
+
+  throw new Error(
+    `${API_ASSET_STORAGE_PROVIDER_ENV} must be supabase-storage when configured.`,
+  );
+}

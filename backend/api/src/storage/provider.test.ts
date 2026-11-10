@@ -3,7 +3,10 @@ import test from "node:test";
 import { syntheticSupabaseEnv } from "./fixtures/fake-supabase-storage.js";
 import {
   getApiObjectStorageProvider,
+  getApiAssetStorageProvider,
   selectApiObjectStorage,
+  assertStorageOperationsEnabled,
+  STORAGE_UNAVAILABLE_MESSAGE,
 } from "./provider.js";
 
 test("the unset storage provider preserves the Replit GCS sidecar default", () => {
@@ -40,4 +43,44 @@ test("Supabase prototype selection is explicit and cannot fall through to a lega
   assert.equal(selectApiObjectStorage(env, { ...legacy, supabaseStorage: "offline" }), "offline");
   assert.throws(() => getApiObjectStorageProvider({ ...env, SUPABASE_STORAGE_BUCKET: undefined }),
     /Invalid offline Supabase Storage/);
+});
+
+
+test("asset storage remains on the existing provider when its setting is unset", () => {
+  assert.equal(getApiAssetStorageProvider({}), undefined);
+  assert.equal(getApiObjectStorageProvider({}), "replit-gcs-sidecar");
+});
+
+test("Supabase can be explicitly selected for asset storage without changing the global provider", () => {
+  const env = {
+    ...syntheticSupabaseEnv(),
+    API_OBJECT_STORAGE_PROVIDER: "replit-gcs-sidecar",
+    API_ASSET_STORAGE_PROVIDER: "supabase-storage",
+  };
+  assert.equal(getApiAssetStorageProvider(env), "supabase-storage");
+  assert.equal(getApiObjectStorageProvider(env), "replit-gcs-sidecar");
+});
+
+test("unknown asset storage provider settings fail without fallback", () => {
+  assert.throws(
+    () => getApiAssetStorageProvider({ API_ASSET_STORAGE_PROVIDER: "replit-gcs-sidecar" }),
+    /API_ASSET_STORAGE_PROVIDER must be/,
+  );
+});
+
+
+test("disabled global storage blocks operations even when Supabase asset storage is configured", () => {
+  const env = {
+    ...syntheticSupabaseEnv(),
+    API_OBJECT_STORAGE_PROVIDER: "disabled",
+    API_ONLY_TARGET_PROFILE: "isolated-native-preview",
+    API_ASSET_STORAGE_PROVIDER: "supabase-storage",
+  };
+
+  assert.equal(getApiObjectStorageProvider(env), "disabled");
+  assert.equal(getApiAssetStorageProvider(env), "supabase-storage");
+  assert.throws(
+    () => assertStorageOperationsEnabled(env),
+    new RegExp(STORAGE_UNAVAILABLE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
 });

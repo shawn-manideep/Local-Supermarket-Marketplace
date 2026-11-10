@@ -59,7 +59,8 @@ pickupPhotosRouter.post("/api/delivery-partner/deliveries/:assignmentId/photo",r
             size_bytes=excluded.size_bytes,captured_at=excluded.captured_at,uploaded_at=clock_timestamp()`);
       });
     } catch(error) {
-      await pickupPhotoStorage.discard(ref).catch(() => undefined);
+      // Transaction outcome may be ambiguous. Retain the uploaded object
+      // so a committed database reference can never point to a deleted file.
       throw error;
     }
     if (previous) await pickupPhotoStorage.discard(previous).catch(() => undefined);

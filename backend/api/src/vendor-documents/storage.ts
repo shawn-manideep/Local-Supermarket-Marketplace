@@ -1,7 +1,9 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
-import { assertStorageOperationsEnabled, getApiObjectStorageProvider } from "../storage/provider.js";
+import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
+import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
+import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
   createPrivateObjectStorageAdapter,
   getReplitObjectStore,
@@ -34,6 +36,10 @@ async function appStorage(area: "vendor-documents" | "delivery-photos") {
 export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
     assertStorageOperationsEnabled();
+    if (getApiAssetStorageProvider() === "supabase-storage") {
+      const assets = getSupabaseLiveAssets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
+    }
     if (getApiObjectStorageProvider() === "supabase-storage") {
       const assets = getSupabaseAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
@@ -52,6 +58,27 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
   },
   async get(ref: string) {
     assertStorageOperationsEnabled();
+    if (getApiAssetStorageProvider() === "supabase-storage") {
+      const assets = getSupabaseLiveAssets();
+      const selected = area === "vendor-documents" ? assets.documents : assets.photos;
+      return readWithNotFoundFallback(
+        () => selected.get(ref),
+        async () => {
+          if (getApiObjectStorageProvider() === "supabase-storage") {
+            const legacy = getSupabaseAssets();
+            return (area === "vendor-documents" ? legacy.documents : legacy.photos).get(ref);
+          }
+          if (getApiObjectStorageProvider() === "external-gcs") {
+            const legacy = await getExternalAssets();
+            return (area === "vendor-documents" ? legacy.documents : legacy.photos).get(ref);
+          }
+          if (getApiObjectStorageProvider() === "replit-app-storage") {
+            return (await appStorage(area)).get(ref);
+          }
+          return (await file(ref, area).download())[0];
+        },
+      );
+    }
     if (getApiObjectStorageProvider() === "supabase-storage") {
       const assets = getSupabaseAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).get(ref);
@@ -67,6 +94,29 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
   },
   async discard(ref: string) {
     assertStorageOperationsEnabled();
+    if (getApiAssetStorageProvider() === "supabase-storage") {
+      const assets = getSupabaseLiveAssets();
+      const selected = area === "vendor-documents" ? assets.documents : assets.photos;
+      return discardFromOwningStore(
+        () => selected.has(ref),
+        () => selected.discard(ref),
+        async () => {
+          if (getApiObjectStorageProvider() === "supabase-storage") {
+            const legacy = getSupabaseAssets();
+            return (area === "vendor-documents" ? legacy.documents : legacy.photos).discard(ref);
+          }
+          if (getApiObjectStorageProvider() === "external-gcs") {
+            const legacy = await getExternalAssets();
+            return (area === "vendor-documents" ? legacy.documents : legacy.photos).discard(ref);
+          }
+          if (getApiObjectStorageProvider() === "replit-app-storage") {
+            await (await appStorage(area)).discard(ref);
+            return;
+          }
+          await file(ref, area).delete({ ignoreNotFound: true });
+        },
+      );
+    }
     if (getApiObjectStorageProvider() === "supabase-storage") {
       const assets = getSupabaseAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).discard(ref);
