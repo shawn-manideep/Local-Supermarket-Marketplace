@@ -32,12 +32,49 @@ generation. Manifest contents include the unique revision, preventing ordinary
 same-content ABA. Reads retain the selected manifest snapshot and retrieve exactly
 its immutable payload, verifying size, SHA-256 and accepted file signature.
 
+After each acknowledged create-only payload PUT, the adapter also reads back that
+exact immutable key and verifies its byte length, SHA-256 and accepted signature
+**before** attempting manifest publication. Verification uses the same overall
+15-second operation budget and a streaming limit equal to the expected payload
+size. Missing/corrupt payloads fail closed; unavailable verification does not
+publish a manifest. Failed replacement verification leaves the old manifest intact.
+There are no automatic verification or mutation retries, nor destructive cleanup.
+This read-back strategy is used instead of assuming an unverified R2 checksum-header
+contract. It adds one payload GET per write and associated latency/usage. Integrity
+still assumes exclusive application ownership of immutable keys; it does not
+protect against a privileged external actor overwriting objects after verification.
+
+Manifest ETags are bounded strong HTTP entity-tags (at most 1024 characters),
+treated as opaque tokens and forwarded byte-for-byte in If-Match. They are not
+restricted to hexadecimal hashes or normalized. Weak tags, unquoted tokens, lists,
+control characters and embedded quotes are rejected.
+
 Delete is a conditional **logical tombstone**, not physical erasure. Keys are never
 reused, tombstones are permanent, and payloads are retained. No DeleteObject,
 listing, multipart, copying, unconditional overwrite, mutation retry or automatic
 cleanup is implemented. Losing a response may mean a write committed; the adapter
 reports UNKNOWN_OUTCOME and leaves objects intact. Conflicting publishes can leave
 unreferenced payloads. This intentionally trades reclamation for safety.
+
+### Retention and recovery safeguards
+
+- Manifests and tombstones are permanent ownership records. Never delete them,
+  expire them through lifecycle rules, or restore payloads without their ownership
+  history. A missing tombstone can make an owned key look never-owned, enabling
+  key reuse or legacy fallback. Recovery must preserve tombstones and reconcile
+  manifest history before enabling writes or fallback.
+- Replacements retain older payloads. CAS losers, failed read-back verification
+  and ambiguous PUTs can retain orphan payloads. These are not safe to erase merely
+  because they are old or absent from one database/manifest snapshot.
+- Before activation, assign an owner and budget for monitoring total stored bytes,
+  object count, write/read usage, retained revisions, orphan growth and quota alerts.
+  No monitor or quota enforcement is installed by this offline preparation.
+- Future garbage collection requires separately approved inventory/reconciliation,
+  a durable recovery journal, protection for all live database references and
+  in-flight readers, and conservative handling of unknown outcomes. Tombstones
+  must remain permanent. Do not introduce blanket lifecycle deletion rules.
+- Logical deletion is not physical erasure. Any physical-erasure obligation needs
+  a separately designed and approved process; this adapter provides none.
 
 No database migration is needed for this manifest protocol. It does NOT make
 database transactions and storage atomic, resolve ambiguous application transactions,
@@ -87,6 +124,21 @@ The SDK uses explicit credentials, `region: auto`, no region-following redirect,
 `maxAttempts: 1`, bounded response streaming and a 15-second overall operation
 budget. Sanitized categories do not include provider text, URLs or object paths.
 Application files are limited to 5 MiB. MIME rules follow asset category.
+
+## Cancellation limitation
+
+The ObjectStore and existing asset/route interfaces carry no request-scoped
+AbortSignal. The cached runtime asset factory therefore cannot safely propagate
+one caller's disconnect without broader API changes. Do not attach a request signal
+to the shared singleton: aborting it could affect other callers.
+
+The store's injected signal remains available to isolated callers/tests. Runtime
+operations retain their independent internal controller and 15-second deadline.
+After a timeout/cancellation following mutation dispatch, UNKNOWN_OUTCOME is
+conservative: an already-dispatched PUT may still commit. No later request is sent
+after the controller aborts, but abort is not a rollback. A request disconnect alone
+does not abort runtime work, which may continue until completion or its deadline.
+No new request-scoped cancellation interface is introduced in this change.
 
 ## Legacy and cutover limitation
 

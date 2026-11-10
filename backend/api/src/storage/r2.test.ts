@@ -97,6 +97,120 @@ test("R2 create-only upload, exact download and metadata preservation", async ()
   assert.deepEqual((await store.read(key)).bytes, jpeg());
 });
 
+for (const [defect, stored] of [
+  ["checksum", jpeg(9)],
+  ["length", Buffer.concat([jpeg(), Buffer.from([0])])],
+] as const) {
+  test(`R2 failed ${defect} verification retains the upload without publishing a manifest`, async () => {
+    const fake = new FakeR2();
+    fake.before = async request => {
+      if (request.kind === "get" && request.key.includes("/objects/")) {
+        fake.objects.get(request.key)!.body = stored;
+      }
+    };
+    await assert.rejects(fake.store().write(key, jpeg(), meta, 0), failure("INTEGRITY"));
+    assert.equal(fake.calls.filter(c => c.kind === "put").length, 1);
+    assert.equal(fake.calls.filter(c => c.kind === "put" && c.key.includes("/references/")).length, 0);
+    assert.equal(fake.objects.size, 1, "failed verification must not delete the uploaded payload");
+  });
+}
+
+for (const category of ["UNAVAILABLE", "NOT_FOUND"] as const) {
+  test(`R2 acknowledged upload with ${category} read-back fails closed without retry or publication`, async () => {
+    const fake = new FakeR2();
+    fake.before = async request => {
+      if (request.kind === "get" && request.key.includes("/objects/")) throw new R2Error(category);
+    };
+    await assert.rejects(fake.store().write(key, jpeg(), meta, 0),
+      failure(category === "NOT_FOUND" ? "INTEGRITY" : category));
+    assert.equal(fake.calls.filter(c => c.kind === "put").length, 1);
+    assert.equal(fake.calls.filter(c => c.kind === "get" && c.key.includes("/objects/")).length, 1);
+    assert.equal(fake.objects.size, 1);
+  });
+}
+
+test("R2 failed replacement verification preserves the existing manifest and both payloads", async () => {
+  const fake = new FakeR2(), store = fake.store();
+  await store.write(key, jpeg(), meta, 0);
+  const revision = (await store.head(key))!.generation;
+  const [manifestKey, original] = [...fake.objects.entries()].find(([k]) => k.includes("/references/"))!;
+  const before = fake.calls.length;
+  fake.before = async request => {
+    if (request.kind === "get" && request.key.includes("/objects/")) {
+      fake.objects.get(request.key)!.body = jpeg(8);
+    }
+  };
+  await assert.rejects(store.write(key, jpeg(1), meta, revision), failure("INTEGRITY"));
+  assert.deepEqual(fake.objects.get(manifestKey), original);
+  assert.equal(fake.calls.slice(before).filter(c => c.kind === "put").length, 1);
+  assert.equal(fake.objects.size, 3);
+  fake.before = undefined;
+  assert.deepEqual((await store.read(key)).bytes, jpeg());
+});
+
+test("R2 cannot publish a manifest before immutable payload read-back completes", { timeout: 1000 }, async () => {
+  const fake = new FakeR2();
+  let reached!: () => void, release!: () => void;
+  const verifying = new Promise<void>(resolve => { reached = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  fake.before = async request => {
+    if (request.kind === "get" && request.key.includes("/objects/")) {
+      assert.equal(request.maxBytes, jpeg().length);
+      reached();
+      await gate;
+    }
+  };
+  const writing = fake.store().write(key, jpeg(), meta, 0);
+  await verifying;
+  assert.equal(fake.objects.size, 1);
+  assert.equal(fake.calls.filter(c => c.kind === "put" && c.key.includes("/references/")).length, 0);
+  release();
+  await writing;
+  assert.deepEqual(fake.calls.map(c => [c.kind, c.key.includes("/references/") ? "manifest" : "payload"]),
+    [["get", "manifest"], ["put", "payload"], ["get", "payload"], ["put", "manifest"]]);
+});
+
+test("R2 ambiguous payload PUT retains the object without verification, manifest publication or retry", async () => {
+  const fake = new FakeR2();
+  fake.after = request => {
+    if (request.kind === "put" && request.key.includes("/objects/")) throw new Error("lost acknowledgement");
+  };
+  await assert.rejects(fake.store().write(key, jpeg(), meta, 0), failure("UNKNOWN_OUTCOME"));
+  assert.deepEqual(fake.calls.map(c => c.kind), ["get", "put"]);
+  assert.equal(fake.objects.size, 1);
+  assert.ok([...fake.objects.keys()].every(k => k.includes("/objects/")));
+});
+
+test("R2 opaque strong ETags are preserved exactly for replacement and tombstone If-Match", async () => {
+  for (const token of ['"opaque:Rev/v1+token=,Case"', '"slash\\\\backslash!#$%&~"', '""', '"opaque-\u0080"']) {
+    const fake = new FakeR2(), store = fake.store();
+    await store.write(key, jpeg(), meta, 0);
+    const revision = (await store.head(key))!.generation;
+    const manifestKey = [...fake.objects.keys()].find(k => k.includes("/references/"))!;
+    fake.objects.get(manifestKey)!.etag = token;
+    await store.write(key, jpeg(1), meta, revision);
+    assert.equal(fake.calls.at(-1)!.ifMatch, token);
+    const updated = (await store.head(key))!.generation;
+    fake.objects.get(manifestKey)!.etag = token;
+    await store.remove(key, updated);
+    assert.equal(fake.calls.at(-1)!.ifMatch, token);
+    assert.equal(JSON.parse(fake.objects.get(manifestKey)!.body.toString()).deleted, true);
+  }
+});
+
+test("R2 rejects weak, oversized or header-unsafe ETags without any new mutation", async () => {
+  for (const token of ['W/"weak"', "*", "unquoted", '"a", "b"', '"a b"', '"a\tb"',
+    '"a\r\nb"', '"a"\n', '"a"b"', '"\u007f"', '"\u0100"', `"${"a".repeat(1023)}"`]) {
+    const fake = new FakeR2(), store = fake.store();
+    await store.write(key, jpeg(), meta, 0);
+    const manifestKey = [...fake.objects.keys()].find(k => k.includes("/references/"))!;
+    fake.objects.get(manifestKey)!.etag = token;
+    await assert.rejects(store.head(key), failure("INTEGRITY"));
+    await assert.rejects(store.write(key, jpeg(1), meta, 0), failure("INTEGRITY"));
+    assert.equal(fake.calls.filter(c => c.kind === "put").length, 2);
+  }
+});
+
 test("R2 concurrent creates have exactly one winner", async () => {
   const fake = new FakeR2(), store = fake.store();
   const results = await Promise.allSettled([store.write(key, jpeg(1), meta, 0), store.write(key, jpeg(2), meta, 0)]);
@@ -128,16 +242,56 @@ test("R2 concurrent replacements and deletes cannot remove a winning newer revis
   else await assert.rejects(store.read(key), failure("NOT_FOUND"));
 });
 
+for (const winner of ["replacement", "deletion"] as const) {
+  test(`R2 independent clients retain the winning ${winner} against a delayed competing mutation`, { timeout: 1000 }, async () => {
+    const fake = new FakeR2(), writer = fake.store(), deleter = fake.store();
+    await writer.write(key, jpeg(), meta, 0);
+    const revision = (await writer.head(key))!.generation;
+    let reached!: () => void, release!: () => void;
+    const paused = new Promise<void>(resolve => { reached = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    fake.before = async request => {
+      const deleting = request.kind === "put" && request.key.includes("/references/")
+        && JSON.parse(request.body!.toString()).deleted;
+      const verifying = request.kind === "get" && request.key.includes("/objects/");
+      if (winner === "replacement" ? deleting : verifying) {
+        reached();
+        await gate;
+      }
+    };
+    const losing = assert.rejects(winner === "replacement"
+      ? deleter.remove(key, revision) : writer.write(key, jpeg(2), meta, revision), failure("CONFLICT"));
+    await paused;
+    if (winner === "replacement") await writer.write(key, jpeg(2), meta, revision);
+    else await deleter.remove(key, revision);
+    release();
+    await losing;
+    fake.before = undefined;
+    if (winner === "replacement") assert.deepEqual((await writer.read(key)).bytes, jpeg(2));
+    else {
+      assert.equal(await writer.head(key), null);
+      await assert.rejects(writer.write(key, jpeg(3), meta, 0), failure("CONFLICT"));
+    }
+    assert.equal(fake.objects.size, 3, "both immutable payloads and the ownership manifest remain");
+  });
+}
+
 test("R2 logical deletion preserves payloads, forbids key reuse and prevents legacy resurrection", async () => {
   const fake = new FakeR2(), store = fake.store();
   await store.write(key, jpeg(), meta, 0);
-  await store.remove(key, (await store.head(key))!.generation);
+  const revision = (await store.head(key))!.generation;
+  await store.remove(key, revision);
+  const [manifestKey, tombstone] = [...fake.objects.entries()].find(([k]) => k.includes("/references/"))!;
+  assert.equal(JSON.parse(tombstone.body.toString()).deleted, true);
   assert.equal(await store.head(key), null);
   await assert.rejects(store.write(key, jpeg(1), meta, 0), failure("CONFLICT"));
+  await assert.rejects(fake.store().write(key, jpeg(2), meta, 0), failure("CONFLICT"));
+  await assert.rejects(fake.store().remove(key, revision), failure("CONFLICT"));
   let legacy = 0;
   await assert.rejects(readR2WithLegacy(() => store.read(key), async () => { legacy++; return {} as never; }), failure("NOT_FOUND"));
   assert.equal(legacy, 0);
   assert.equal(fake.objects.size, 2);
+  assert.deepEqual(fake.objects.get(manifestKey), tombstone);
   assert.ok(fake.calls.every(call => ["put", "get"].includes(call.kind)));
 });
 
@@ -262,6 +416,42 @@ test("R2 in-flight mutation timeout is UNKNOWN_OUTCOME and cannot publish after 
   assert.equal(fake.objects.size, 0);
 });
 
+test("R2 cancellation during read-back retains the payload and cannot publish after resumption", async () => {
+  const fake = new FakeR2(), controller = new AbortController();
+  let release!: () => void;
+  fake.before = async request => {
+    if (request.kind === "get" && request.key.includes("/objects/")) {
+      controller.abort();
+      await new Promise<void>(resolve => { release = resolve; });
+    }
+  };
+  await assert.rejects(fake.store({ signal: controller.signal }).write(key, jpeg(), meta, 0), failure("UNKNOWN_OUTCOME"));
+  release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(fake.calls.length, 3);
+  assert.equal(fake.objects.size, 1);
+  assert.ok([...fake.objects.keys()].every(k => k.includes("/objects/")));
+});
+
+test("R2 timed-out payload PUT may commit late but cannot trigger read-back or publication", async () => {
+  const fake = new FakeR2();
+  let release!: () => void;
+  const transport: R2Transport = async request => {
+    if (request.kind === "put" && request.key.includes("/objects/")) {
+      await new Promise<void>(resolve => { release = resolve; });
+      // Model a provider that commits despite abort: cancellation is not rollback.
+      return fake.transport({ ...request, signal: new AbortController().signal });
+    }
+    return fake.transport(request);
+  };
+  await assert.rejects(r2ObjectStore(transport, scope, { timeoutMs: 10 }).write(key, jpeg(), meta, 0),
+    failure("UNKNOWN_OUTCOME"));
+  release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(fake.calls.map(c => c.kind), ["get", "put"]);
+  assert.equal(fake.objects.size, 1);
+});
+
 test("R2 delete response loss reports unknown outcome without physical deletion or retries", async () => {
   const fake = new FakeR2(), store = fake.store();
   await store.write(key, jpeg(), meta, 0);
@@ -319,6 +509,26 @@ test("R2 SDK supports conditional headers and distinguishes missing key from mis
   responseCode = "NoSuchBucket";
   await assert.rejects(transport({ ...base, kind: "get" }), failure("UNAVAILABLE"));
   await transport({ ...base, kind: "put", body: jpeg(), metadata: meta, ifNoneMatch: "*" });
+});
+
+test("R2 SDK forwards opaque If-Match unchanged and does not retry a conditional conflict", async () => {
+  const token = '"opaque:Rev/v1+token=,Case"';
+  let calls = 0;
+  const transport = r2Transport(r2Config(env()), {
+    async handle(request: { headers: Record<string, string> }) {
+      assert.equal(request.headers["if-match"], token);
+      assert.equal(request.headers["if-none-match"], undefined);
+      calls++;
+      return { response: { statusCode: calls === 1 ? 200 : 412,
+        headers: { "content-type": "application/xml" },
+        body: Readable.from(calls === 1 ? [] : ["<Error><Code>PreconditionFailed</Code></Error>"]) } };
+    },
+  });
+  const request = { kind: "put" as const, key: "synthetic", maxBytes: 64,
+    signal: new AbortController().signal, body: jpeg(), metadata: meta, ifMatch: token };
+  await transport(request);
+  await assert.rejects(transport(request), failure("CONFLICT"));
+  assert.equal(calls, 2);
 });
 
 test("R2 SDK bounds downloads, closes streams and sanitizes access denial", async () => {

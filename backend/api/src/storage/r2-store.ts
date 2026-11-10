@@ -41,6 +41,14 @@ const MANIFEST_LIMIT = 16 * 1024;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
+// A bounded strong HTTP entity-tag, not a content hash. Keep the original token
+// (including quotes) for If-Match; weak tags and header/list injection are invalid.
+function strongEtag(value: unknown): value is string {
+  return typeof value === "string" && value.length >= 2 && value.length <= 1024
+    && value.startsWith('"') && value.endsWith('"')
+    && !/[^\x21\x23-\x7e\x80-\xff]/.test(value.slice(1, -1));
+}
+
 export function r2ObjectStore(
   transport: R2Transport,
   scope: R2Scope,
@@ -129,8 +137,7 @@ export function r2ObjectStore(
       throw error;
     }
     try {
-      if (!result.body || result.body.length > MANIFEST_LIMIT || !result.etag
-        || !/^"[a-fA-F0-9-]{1,128}"$/.test(result.etag)) throw new Error();
+      if (!result.body || result.body.length > MANIFEST_LIMIT || !strongEtag(result.etag)) throw new Error();
       const value = JSON.parse(result.body.toString("utf8")) as Manifest;
       if (value.version !== 1 || value.keyHash !== location.keyHash || !uuid.test(value.revision)
         || typeof value.deleted !== "boolean" || !/^[a-f0-9]{64}$/.test(value.sha256)
@@ -138,6 +145,22 @@ export function r2ObjectStore(
       metadata(value.metadata, location.kind, location.isPrivate);
       return { value, etag: result.etag };
     } catch { throw new R2Error("INTEGRITY"); }
+  }
+  async function verifiedPayload(send: R2Transport, location: Location, value: Manifest) {
+    let result: R2Response;
+    try {
+      result = await send({ kind: "get", key: `${prefix}/objects/${location.keyHash}/${value.revision}`,
+        maxBytes: value.size, signal });
+    } catch (error) {
+      if (error instanceof R2Error && error.category === "NOT_FOUND") throw new R2Error("INTEGRITY");
+      throw error;
+    }
+    if (!result.body || result.body.length !== value.size || hash(result.body) !== value.sha256) {
+      throw new R2Error("INTEGRITY");
+    }
+    try { validateLiveAssetBytes(result.body, value.metadata.mimeType); }
+    catch { throw new R2Error("INTEGRITY"); }
+    return result.body;
   }
   async function publish(send: R2Transport, location: Location, value: Manifest, etag?: string) {
     const body = Buffer.from(JSON.stringify(value));
@@ -160,18 +183,8 @@ export function r2ObjectStore(
         const entry = await current(send, location);
         if (!entry || entry.value.deleted) throw new R2Error("NOT_FOUND", !entry);
         const m = entry.value;
-        let result: R2Response;
-        try {
-          result = await send({ kind: "get", key: `${prefix}/objects/${location.keyHash}/${m.revision}`,
-            maxBytes: MAX_BYTES, signal });
-        } catch (error) {
-          if (error instanceof R2Error && error.category === "NOT_FOUND") throw new R2Error("INTEGRITY");
-          throw error;
-        }
-        if (!result.body || result.body.length !== m.size || hash(result.body) !== m.sha256) throw new R2Error("INTEGRITY");
-        try { validateLiveAssetBytes(result.body, m.metadata.mimeType); }
-        catch { throw new R2Error("INTEGRITY"); }
-        return { bytes: result.body, metadata: { ...m.metadata, generation: m.revision } };
+        const bytes = await verifiedPayload(send, location, m);
+        return { bytes, metadata: { ...m.metadata, generation: m.revision } };
       });
     },
     async write(key, bytes, attributes, expected) {
@@ -195,6 +208,9 @@ export function r2ObjectStore(
         await send({ kind: "put", key: `${prefix}/objects/${location.keyHash}/${revision}`,
           maxBytes: MAX_BYTES, signal, body: payload, metadata: attributesCopy, ifNoneMatch: "*" });
         // A lost response may mean commit succeeded. NEVER retry or delete this payload.
+        // Verify persisted bytes before making this revision discoverable. Failure
+        // leaves the payload retained and the old manifest (if any) untouched.
+        await verifiedPayload(send, location, value);
         await publish(send, location, value, entry?.etag);
       });
     },
