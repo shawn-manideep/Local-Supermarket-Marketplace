@@ -113,18 +113,18 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
       // Deny before inspection: absence must never cause legacy deletion.
       if (area === "vendor-documents") throw new SupabaseStorageError("CAPABILITY_UNAVAILABLE");
       const assets = getSupabaseLiveAssets();
-      const selected = area === "vendor-documents" ? assets.documents : assets.photos;
+      const selected = assets.photos;
       return discardFromOwningStore(
         () => selected.has(ref),
         () => selected.discard(ref),
         async () => {
           if (getApiObjectStorageProvider() === "supabase-storage") {
             const legacy = getSupabaseAssets();
-            return (area === "vendor-documents" ? legacy.documents : legacy.photos).discard(ref);
+            return legacy.photos.discard(ref);
           }
           if (getApiObjectStorageProvider() === "external-gcs") {
             const legacy = await getExternalAssets();
-            return (area === "vendor-documents" ? legacy.documents : legacy.photos).discard(ref);
+            return legacy.photos.discard(ref);
           }
           if (getApiObjectStorageProvider() === "replit-app-storage") {
             await (await appStorage(area)).discard(ref);
