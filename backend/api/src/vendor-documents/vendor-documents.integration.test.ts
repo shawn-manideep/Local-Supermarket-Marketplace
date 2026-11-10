@@ -14,6 +14,8 @@ import { productImageStorage } from "../product-images/storage.js";
 import { createExternalAssets } from "../storage/external-assets.js";
 import { createGcsObjectStore } from "../storage/external-gcs.js";
 import { FakeGcs } from "../storage/fixtures/fake-gcs.js";
+import { createSupabaseVendorDocuments } from "../storage/supabase-vendor-documents.js";
+import { fixtureSupabaseConfig } from "../storage/fixtures/fake-supabase-storage.js";
 
 const exec = promisify(execFile);
 const postgres = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
@@ -263,6 +265,84 @@ test("replacements retain versions, failed provider upload leaves current valid 
   assert.equal(replacement.canManageCatalog, false);
   const submitted = await (await request(vendorA, "/api/vendor/documents/submit", "POST", {})).json();
   assert.equal((await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`, "POST", { submissionId: submitted.submissionId })).status, 200);
+});
+
+test("Supabase verification failure preserves metadata, current version and previously stored document", async () => {
+  const previous = { ...documentStorage };
+  const retained = new Map<string, Buffer>();
+  const config = fixtureSupabaseConfig();
+  const fakeBucket = {
+    async upload(key: string, bytes: Buffer) {
+      if (retained.has(key)) return { error: { status: 409 } };
+      retained.set(key, Buffer.from(bytes));
+      return { error: null };
+    },
+    async download() {
+      // A valid PDF with different bytes cannot pass the upload digest check.
+      return { data: new Blob([Uint8Array.from(Buffer.concat([pdf, Buffer.from("changed")]))],
+        { type: "application/pdf" }), error: null };
+    },
+  };
+  const hardened = createSupabaseVendorDocuments(
+    () => ({ storage: { from: () => fakeBucket } }) as never, config,
+  );
+  const beforeRows = (await pool.query(
+    "SELECT * FROM vendor_documents WHERE store_id=$1 ORDER BY id", [storeA],
+  )).rows;
+  const beforeStore = (await pool.query(
+    "SELECT document_verification_status,document_submission_id FROM stores WHERE id=$1", [storeA],
+  )).rows;
+  const oldObjects = new Map(objects);
+  try {
+    documentStorage.put = (ref, bytes, mime) => hardened.put(
+      ref.replace("qa-private-bucket/private", config.privateRoot), bytes, mime,
+    );
+    assert.equal((await upload(vendorA, "fssai", pdf, "verification.pdf")).status, 500);
+    assert.equal(retained.size, 1, "failed verification must retain the uploaded object");
+    assert.deepEqual((await pool.query(
+      "SELECT * FROM vendor_documents WHERE store_id=$1 ORDER BY id", [storeA],
+    )).rows, beforeRows);
+    assert.deepEqual((await pool.query(
+      "SELECT document_verification_status,document_submission_id FROM stores WHERE id=$1", [storeA],
+    )).rows, beforeStore);
+    assert.deepEqual(objects, oldObjects);
+  } finally {
+    Object.assign(documentStorage, previous);
+  }
+});
+
+test("pending-review mandatory replacement returns 409 and unauthorized uploads never reach storage", async () => {
+  const previous = { ...documentStorage };
+  let calls = 0;
+  try {
+    documentStorage.put = async () => { calls++; };
+    for (const actor of [null, customer, admin, delivery]) {
+      const response = actor === null
+        ? await originalFetch(`${base}/api/vendor/documents/pan?fileName=anonymous.pdf`, {
+          method: "PUT", headers: { "Content-Type": "application/pdf" }, body: new Uint8Array(pdf),
+        })
+        : await upload(actor, "pan");
+      assert.equal(response.status, actor === null ? 401 : 403);
+    }
+    assert.equal(calls, 0);
+    const submission = await request(vendorA, "/api/vendor/documents/submit", "POST", {});
+    assert.equal(submission.status, 200);
+    const submitted = await submission.json();
+    const beforeRows = (await pool.query(
+      "SELECT * FROM vendor_documents WHERE store_id=$1 ORDER BY id", [storeA],
+    )).rows;
+    const response = await upload(vendorA, "pan", pdf, "pending.pdf");
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).code, "DOCUMENTS_PENDING_REVIEW");
+    assert.deepEqual((await pool.query(
+      "SELECT * FROM vendor_documents WHERE store_id=$1 ORDER BY id", [storeA],
+    )).rows, beforeRows);
+    // Restore the fixture's approved state through its existing fake Admin flow.
+    assert.equal((await request(admin, `/api/admin/vendors/${vendorA}/documents/approve`,
+      "POST", { submissionId: submitted.submissionId })).status, 200);
+  } finally {
+    Object.assign(documentStorage, previous);
+  }
 });
 test("atomic store-local creation uses existing products/variants, no global writes or other-vendor access", async () => {
   const response = await request(vendorA, "/api/vendor/products", "POST", localInput());

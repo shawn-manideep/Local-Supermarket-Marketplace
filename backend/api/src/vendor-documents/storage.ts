@@ -3,6 +3,7 @@ import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
 import { getR2Assets } from "../storage/r2-assets.js";
 import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
+import { SupabaseStorageError } from "../storage/supabase-storage.js";
 import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
 import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
@@ -108,6 +109,9 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
       return (area === "vendor-documents" ? assets.documents : assets.photos).discard(ref);
     }
     if (getApiAssetStorageProvider() === "supabase-storage") {
+      // Document erasure has no established conditional ownership guarantee.
+      // Deny before inspection: absence must never cause legacy deletion.
+      if (area === "vendor-documents") throw new SupabaseStorageError("CAPABILITY_UNAVAILABLE");
       const assets = getSupabaseLiveAssets();
       const selected = area === "vendor-documents" ? assets.documents : assets.photos;
       return discardFromOwningStore(

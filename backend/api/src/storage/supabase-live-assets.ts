@@ -7,6 +7,7 @@ import {
 } from "./supabase-storage-config.js";
 import { SupabaseStorageError } from "./supabase-storage.js";
 import { validateLiveAssetBytes } from "./live-asset-validation.js";
+import { createSupabaseVendorDocuments, documentFetch } from "./supabase-vendor-documents.js";
 
 type StorageClient = Pick<SupabaseClient, "storage">;
 
@@ -85,6 +86,7 @@ function productKey(
 export function createSupabaseLiveAssets(
   client: StorageClient,
   input: SupabaseStorageConfig,
+  documentClientForSignal: (signal: AbortSignal) => StorageClient = () => client,
 ) {
   const config = snapshotSupabaseStorageConfig(input);
   const bucket = client.storage.from(config.bucket);
@@ -181,7 +183,7 @@ export function createSupabaseLiveAssets(
   }
 
   return {
-    documents: privateArea("vendor-documents"),
+    documents: createSupabaseVendorDocuments(documentClientForSignal, config),
     photos: privateArea("delivery-photos"),
     products: {
       async put(
@@ -234,6 +236,15 @@ export function getSupabaseLiveAssets() {
     },
   );
 
-  liveAssets = createSupabaseLiveAssets(client, config);
+  // Isolated per-operation clients prevent document cancellation from affecting
+  // product images, delivery photos or another concurrent document operation.
+  liveAssets = createSupabaseLiveAssets(client, config, signal => createClient(
+    `https://${config.projectRef}.supabase.co`,
+    serviceKey,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: documentFetch(signal) },
+    },
+  ));
   return liveAssets;
 }
