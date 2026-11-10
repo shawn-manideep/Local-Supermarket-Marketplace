@@ -1,6 +1,7 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
+import { getR2Assets } from "../storage/r2-assets.js";
 import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
 import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
 import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider } from "../storage/provider.js";
@@ -36,6 +37,10 @@ async function appStorage(area: "vendor-documents" | "delivery-photos") {
 export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") {
+      const assets = getR2Assets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
+    }
     if (getApiAssetStorageProvider() === "supabase-storage") {
       const assets = getSupabaseLiveAssets();
       return (area === "vendor-documents" ? assets.documents : assets.photos).put(ref, bytes, mimeType);
@@ -58,6 +63,10 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
   },
   async get(ref: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") {
+      const assets = getR2Assets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).get(ref);
+    }
     if (getApiAssetStorageProvider() === "supabase-storage") {
       const assets = getSupabaseLiveAssets();
       const selected = area === "vendor-documents" ? assets.documents : assets.photos;
@@ -94,6 +103,10 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
   },
   async discard(ref: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") {
+      const assets = getR2Assets();
+      return (area === "vendor-documents" ? assets.documents : assets.photos).discard(ref);
+    }
     if (getApiAssetStorageProvider() === "supabase-storage") {
       const assets = getSupabaseLiveAssets();
       const selected = area === "vendor-documents" ? assets.documents : assets.photos;

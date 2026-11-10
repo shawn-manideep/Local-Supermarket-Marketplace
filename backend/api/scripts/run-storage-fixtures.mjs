@@ -14,6 +14,10 @@ if (process.argv.length !== 3 || !["unit", "routes", "regression", "rehearsal"].
     "src/storage/external-gcs.test.ts", "src/api-only/target-guard.test.ts",
     "src/storage/provider.test.ts", "src/storage/replit-object-storage.test.ts",
     "src/branding/branding.test.ts",
+    "src/storage/r2.test.ts",
+    "src/storage/r2-routing.test.ts",
+    "src/storage/supabase-storage.test.ts", "src/storage/supabase-assets.test.ts",
+    "src/storage/supabase-live-assets.test.ts", "src/storage/asset-storage-fallback.test.ts",
   ];
   const routeFiles = [
     "src/vendor-documents/vendor-documents.integration.test.ts",

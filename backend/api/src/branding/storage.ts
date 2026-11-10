@@ -1,6 +1,7 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
+import { getR2Assets } from "../storage/r2-assets.js";
 import { randomUUID } from "node:crypto";
 import { assertStorageOperationsEnabled, getApiObjectStorageProvider } from "../storage/provider.js";
 import {
@@ -35,6 +36,7 @@ async function appStorage() {
 export const brandingStorage = {
   async metadata() {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") return getR2Assets().branding.metadata();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().branding.metadata();
     }
@@ -54,6 +56,7 @@ export const brandingStorage = {
   },
   async put(bytes: Buffer, mimeType: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") return getR2Assets().branding.put(bytes, mimeType);
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().branding.put(bytes, mimeType);
     }
@@ -70,6 +73,7 @@ export const brandingStorage = {
   },
   async get() {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") return getR2Assets().branding.get();
     if (getApiObjectStorageProvider() === "supabase-storage") {
       return getSupabaseAssets().branding.get();
     }

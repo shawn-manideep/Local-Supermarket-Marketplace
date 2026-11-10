@@ -36,5 +36,5 @@
 - [Supabase IPv6 DNS](supabase-ipv6-dns.md) — Node ADDRCONFIG can reject an IPv6-only host that resolves normally; management-API inspection does not prove driver connectivity.
 - [Supabase pooler security](supabase-pooler-security.md) — external TLS and the pooler’s upstream hop are separate; verify session settings rather than trusting startup options.
 - [Replit deployment isolation](replit-deployment-isolation.md) — publishing is project-wide; each project owns its App Storage bucket and should use the supported SDK.
-- [External storage direction](external-storage-direction.md) — owner prefers private external GCS; original storage stays active until separately approved migration and cutover.
+- [External storage direction](external-storage-direction.md) — R2 preparation is approved; preserve legacy files/providers and require separate live migration and activation approval.
 - [Native Customer backend target](native-customer-backend-target.md) — Customer native preview targets the isolated project; preserve the separate protected-original backend guard.

@@ -1,6 +1,7 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
+import { getR2Assets } from "../storage/r2-assets.js";
 import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
 import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
 import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider } from "../storage/provider.js";
@@ -36,6 +37,9 @@ async function appStorage() {
 export const productImageStorage = {
   async put(storeId: string, imageId: string, bytes: Buffer, mimeType: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") {
+      return getR2Assets().products.put(storeId, imageId, bytes, mimeType);
+    }
     if (getApiAssetStorageProvider() === "supabase-storage") {
       return getSupabaseLiveAssets().products.put(storeId, imageId, bytes, mimeType);
     }
@@ -54,6 +58,9 @@ export const productImageStorage = {
   },
   async get(storeId: string, imageId: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") {
+      return getR2Assets().products.get(storeId, imageId);
+    }
     if (getApiAssetStorageProvider() === "supabase-storage") {
       const products = getSupabaseLiveAssets().products;
       return readWithNotFoundFallback(
@@ -91,6 +98,9 @@ export const productImageStorage = {
   },
   async discard(storeId: string, imageId: string) {
     assertStorageOperationsEnabled();
+    if (getApiObjectStorageProvider() === "cloudflare-r2") {
+      return getR2Assets().products.discard(storeId, imageId);
+    }
     if (getApiAssetStorageProvider() === "supabase-storage") {
       const products = getSupabaseLiveAssets().products;
       return discardFromOwningStore(

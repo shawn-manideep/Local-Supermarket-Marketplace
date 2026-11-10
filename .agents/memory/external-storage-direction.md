@@ -1,17 +1,18 @@
 ---
 name: External storage direction
-description: Owner-approved preparation scope for a future separate API and private external GCS.
+description: Current portable-storage direction and approval boundaries.
 ---
 
-Preferred target: owner-controlled private GCS for a future separate API deployment.
-Preserve the original Supabase database and existing database references wherever
-compatibility is verified. Preserve all four portals and their authorization.
-The existing Replit-managed storage remains the active source.
+The user selected Cloudflare R2 as an additional portable storage provider.
+Preserve existing Replit files, existing providers/defaults, database references
+and all four portals' authorization. Do not infer approval to activate or migrate
+from approval to implement code and synthetic tests.
 
-**Why:** The user selected this direction after the project-exclusive storage
-boundary ruled out a supported no-copy bridge under the no-mixed-publishing rule.
+**Why:** The user explicitly requested R2 preparation while prohibiting live
+activation, credential installation, cloud-resource creation and database migrations.
+This supersedes the earlier external-GCS preference, not the preservation rules.
 
-**How to apply:** Code preparation and synthetic local fixtures do not authorize
-live migration, cutover, bucket/IAM provisioning, runtime activation, deployment,
-or APK building. Seek separate approval for those stages; do not interpret a
-configuration marker or synthetic compatibility test as evidence of live readiness.
+**How to apply:** Seek separate approval for live inventory, asset copying,
+credentials, cloud resources, runtime activation, deployment and APK building.
+Stop if safety requires an unapproved schema migration. A configuration marker
+or synthetic compatibility test is not evidence of live readiness.

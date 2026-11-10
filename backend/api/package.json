@@ -21,6 +21,7 @@
     "seed:initial-catalog": "tsx src/master-catalog/seed-initial-catalog.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@google-cloud/storage": "^8.2.0",
     "@replit/object-storage": "^1.0.0",
     "@supabase/supabase-js": "^2.57.4",

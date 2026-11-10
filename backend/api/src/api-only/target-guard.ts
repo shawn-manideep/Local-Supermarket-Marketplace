@@ -1,5 +1,6 @@
 import { externalGcsConfig } from "../storage/external-gcs-config.js";
 import { supabaseStorageConfig } from "../storage/supabase-storage-config.js";
+import { r2Config } from "../storage/r2-config.js";
 
 export const API_ONLY_TARGET_PROFILES = {
   "original-customer-apk": {
@@ -95,9 +96,10 @@ export function assertApiOnlyTarget(env: NodeJS.ProcessEnv): number {
     fail("The selected code-defined profile has an invalid database endpoint.");
   }
 
-  if (!["replit-app-storage", "external-gcs", "supabase-storage", "disabled"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
-    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage, external-gcs, supabase-storage or disabled.");
+  if (!["replit-app-storage", "external-gcs", "supabase-storage", "cloudflare-r2", "disabled"].includes(env.API_OBJECT_STORAGE_PROVIDER ?? "")) {
+    fail("API_OBJECT_STORAGE_PROVIDER must explicitly select replit-app-storage, external-gcs, supabase-storage, cloudflare-r2 or disabled.");
   }
+  if (env.API_OBJECT_STORAGE_PROVIDER === "cloudflare-r2") r2Config(env);
   if (env.API_OBJECT_STORAGE_PROVIDER === "disabled" &&
     requestedProfile !== "isolated-native-preview") {
     fail("Disabled storage requires the isolated-native-preview target profile.");

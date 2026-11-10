@@ -57,6 +57,8 @@ vendorDocumentsRouter.put("/api/vendor/documents/:type", requireRole("vendor"),
         // never replaces the current valid document.
         const state = await transaction.execute(sql`SELECT id,documents_required,document_verification_status FROM stores WHERE id=${storeId} FOR UPDATE`);
         const mandatory = DOCUMENT_TYPES.some(d => d.type === type && d.mandatory);
+        if (mandatory && state.rows[0]?.document_verification_status === "SUBMITTED")
+          throw new HttpError(409, "Submitted documents are locked while Admin reviews them.", undefined, "DOCUMENTS_PENDING_REVIEW");
         if (mandatory && state.rows[0]?.documents_required) {
           await transaction.execute(sql`INSERT INTO platform_management_events(actor_user_id,action,target_type,target_id,previous_status,next_status,details)
             VALUES(${(request as AuthenticatedRequest).auth!.userId},'mandatory_document_replaced','store',${storeId},

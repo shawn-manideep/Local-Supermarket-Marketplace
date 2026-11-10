@@ -69,6 +69,24 @@ test("API-only guard accepts only the two fixed project profiles and explicit SD
   );
 });
 
+test("R2 guard requires explicit activation without weakening database, auth or TLS validation", () => {
+  const valid: NodeJS.ProcessEnv = {
+    ...validEnv("isolated-native-preview"), API_OBJECT_STORAGE_PROVIDER: "cloudflare-r2",
+    R2_RUNTIME_APPROVAL: "approved-for-runtime", R2_BUCKET_ACCESS: "private",
+    R2_ACCOUNT_ID: "a".repeat(32), R2_ACCESS_KEY_ID: "b".repeat(32), R2_SECRET_ACCESS_KEY: "c".repeat(64),
+    R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`, R2_BUCKET: "synthetic-bucket",
+    R2_OBJECT_PREFIX: "alb-r2", R2_PRIVATE_REFERENCE_ROOT: "private", R2_PUBLIC_REFERENCE_ROOT: "public",
+  };
+  assert.equal(assertApiOnlyTarget(valid), 10_000);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, R2_RUNTIME_APPROVAL: undefined }), /unapproved/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_URL: "https://other.invalid" }), /SUPABASE_URL/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SUPABASE_ANON_KEY: jwt("other") }), /API key/);
+  assert.throws(() => assertApiOnlyTarget({ ...valid, SESSION_SECRET: undefined }), /signing secrets/);
+  assert.throws(() => assertApiOnlyTarget({
+    ...valid, SUPABASE_DB_URL: valid.SUPABASE_DB_URL!.replace("verify-full", "disable"),
+  }), /TLS/);
+});
+
 test("original Supabase target is accepted only by its explicitly named profile", () => {
   const original = validEnv("original-customer-apk");
   assert.equal(assertApiOnlyTarget(original), 10_000);
