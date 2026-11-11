@@ -46,7 +46,14 @@ vendorDocumentsRouter.put("/api/vendor/documents/:type", requireRole("vendor"),
     const mimeType = request.get("content-type")?.split(";")[0] ?? "";
     const bytes = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
     validateDocument(fileName, mimeType, bytes);
-    const directory = process.env.PRIVATE_OBJECT_DIR?.replace(/\/$/, "");
+    const privateObjectDir = process.env.PRIVATE_OBJECT_DIR;
+    const directory = privateObjectDir?.replace(/\/$/, "");
+    // Temporary diagnostic: never log the root or any request data.
+    process.stderr.write(`${JSON.stringify({
+      privateObjectDirPresent: privateObjectDir !== undefined,
+      privateObjectDirNonempty: Boolean(privateObjectDir),
+      privateObjectDirUsableByUploadRoute: Boolean(directory),
+    })}\n`);
     if (!directory) throw new HttpError(503, "Private document storage is unavailable");
     const id = randomUUID();
     const ref = `${directory}/vendor-documents/${storeId}/${id}`;
