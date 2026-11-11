@@ -16,6 +16,7 @@ import { createGcsObjectStore } from "../storage/external-gcs.js";
 import { FakeGcs } from "../storage/fixtures/fake-gcs.js";
 import { createSupabaseVendorDocuments } from "../storage/supabase-vendor-documents.js";
 import { fixtureSupabaseConfig } from "../storage/fixtures/fake-supabase-storage.js";
+import { getApiVendorDocumentStorageProvider } from "../storage/provider.js";
 
 const exec = promisify(execFile);
 const postgres = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
@@ -892,5 +893,103 @@ test("GCS-backed product routes preserve published visibility, owning Vendor acc
   } finally {
     Object.assign(productImageStorage, previous);
     await pool.query("UPDATE stores SET status='ACTIVE' WHERE id=$1", [storeA]);
+  }
+});
+
+test("Vendor-only selection with disabled base preserves verified upload, ownership, Admin reads and review lock", async () => {
+  // Route/database fixture remains local. The selector receives synthetic target
+  // metadata, and the adapter receives an in-memory port, never a live client.
+  const previous = { ...documentStorage };
+  const config = { ...fixtureSupabaseConfig(), privateRoot: "qa-private-bucket/private" };
+  const jwt = (role: string) => `fixture.${Buffer.from(JSON.stringify({
+    ref: config.projectRef, role,
+  })).toString("base64url")}.fixture`;
+  const env: NodeJS.ProcessEnv = {
+    API_OBJECT_STORAGE_PROVIDER: "disabled", API_ONLY_TARGET_PROFILE: "isolated-native-preview",
+    API_VENDOR_DOCUMENT_STORAGE_PROVIDER: "supabase-storage",
+    SUPABASE_URL: `https://${config.projectRef}.supabase.co`,
+    SUPABASE_ANON_KEY: jwt("anon"), SUPABASE_SERVICE_ROLE_KEY: jwt("service_role"),
+    SUPABASE_DB_URL: "postgresql://postgres.nrnigsznectrgbgafwme:fixture@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&connect_timeout=10",
+    SESSION_SECRET: "synthetic-session-signing-secret-32-characters",
+    MASTER_CATALOG_REVIEW_TOKEN_SECRET: "synthetic-catalog-signing-secret-32-characters",
+    SUPABASE_STORAGE_BUCKET: config.bucket,
+    SUPABASE_STORAGE_PRIVATE_REFERENCE_ROOT: config.privateRoot,
+    SUPABASE_STORAGE_PUBLIC_REFERENCE_ROOT: config.publicRoot,
+    PRIVATE_OBJECT_DIR: config.privateRoot, PUBLIC_OBJECT_SEARCH_PATHS: config.publicRoot,
+  };
+  const retained = new Map<string, Buffer>();
+  const calls: string[] = [];
+  const bucket = {
+    async upload(key: string, bytes: Buffer, options: { upsert: boolean }) {
+      calls.push("upload");
+      assert.equal(options.upsert, false);
+      if (retained.has(key)) return { error: { status: 409 } };
+      retained.set(key, Buffer.from(bytes));
+      return { error: null };
+    },
+    async download(key: string) {
+      calls.push("download");
+      const bytes = retained.get(key);
+      return bytes
+        ? { data: new Blob([Uint8Array.from(bytes)], { type: "application/pdf" }), error: null }
+        : { data: null, error: { status: 404, code: "NoSuchKey" } };
+    },
+  };
+  const hardened = createSupabaseVendorDocuments(() => {
+    calls.push("client");
+    return { storage: { from: () => bucket } } as never;
+  }, config);
+  try {
+    documentStorage.put = (ref, bytes, mime) => {
+      assert.equal(getApiVendorDocumentStorageProvider(env), "supabase-storage");
+      return hardened.put(ref, bytes, mime);
+    };
+    documentStorage.get = ref => {
+      assert.equal(getApiVendorDocumentStorageProvider(env), "supabase-storage");
+      return hardened.get(ref);
+    };
+    documentStorage.discard = ref => hardened.discard(ref);
+    const oldCurrent = (await pool.query(
+      "SELECT id,version FROM vendor_documents WHERE store_id=$1 AND document_type='fssai' AND is_current", [storeA],
+    )).rows[0];
+    const uploaded = await upload(vendorA, "fssai", pdf, "vendor-only.pdf");
+    assert.equal(uploaded.status, 201);
+    const current = (await uploaded.json()).documents.find((item: any) => item.type === "fssai").current;
+    assert.notEqual(current.id, oldCurrent.id);
+    assert.equal(current.version, oldCurrent.version + 1);
+    assert.deepEqual(calls, ["client", "upload", "download"]);
+    const path = `/api/vendor/documents/${current.id}/content`;
+    const owner = await request(vendorA, path);
+    assert.equal(owner.status, 200);
+    assert.equal(owner.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(Buffer.from(await owner.arrayBuffer()), pdf);
+    const reviewed = await request(admin, `/api/admin/vendors/${vendorA}/documents/${current.id}/content`);
+    assert.equal(reviewed.status, 200);
+    assert.deepEqual(Buffer.from(await reviewed.arrayBuffer()), pdf);
+    const beforeDenied = calls.length;
+    for (const [actor, status] of [[null, 401], [customer, 403], [vendorB, 404]] as const) {
+      assert.equal((await request(actor, path)).status, status);
+    }
+    assert.equal((await request(vendorA, `/api/vendor/documents/${oldCurrent.id}/content`)).status, 404);
+    assert.equal(calls.length, beforeDenied);
+    await assert.rejects(documentStorage.discard(
+      `${config.privateRoot}/vendor-documents/${storeA}/${current.id}`,
+    ), /CAPABILITY_UNAVAILABLE/);
+    assert.equal(calls.length, beforeDenied);
+    const submitted = await request(vendorA, "/api/vendor/documents/submit", "POST", {});
+    assert.equal(submitted.status, 200);
+    const beforeRows = (await pool.query(
+      "SELECT * FROM vendor_documents WHERE store_id=$1 ORDER BY id", [storeA],
+    )).rows;
+    const pending = await upload(vendorA, "pan");
+    assert.equal(pending.status, 409);
+    assert.equal((await pending.json()).code, "DOCUMENTS_PENDING_REVIEW");
+    assert.deepEqual((await pool.query(
+      "SELECT * FROM vendor_documents WHERE store_id=$1 ORDER BY id", [storeA],
+    )).rows, beforeRows);
+    assert.equal(env.API_OBJECT_STORAGE_PROVIDER, "disabled");
+    assert.equal(env.API_ASSET_STORAGE_PROVIDER, undefined);
+  } finally {
+    Object.assign(documentStorage, previous);
   }
 });

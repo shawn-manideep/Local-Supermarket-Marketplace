@@ -5,7 +5,7 @@ import { getR2Assets } from "../storage/r2-assets.js";
 import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
 import { SupabaseStorageError } from "../storage/supabase-storage.js";
 import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
-import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider } from "../storage/provider.js";
+import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider, getApiVendorDocumentStorageProvider } from "../storage/provider.js";
 import {
   createPrivateObjectStorageAdapter,
   getReplitObjectStore,
@@ -35,8 +35,27 @@ async function appStorage(area: "vendor-documents" | "delivery-photos") {
     () => process.env.PRIVATE_OBJECT_DIR,
   );
 }
+async function readLegacyPrivateObject(area: "vendor-documents" | "delivery-photos", ref: string) {
+  // Even an explicit missing Supabase document cannot enable a disabled source.
+  assertStorageOperationsEnabled();
+  if (getApiObjectStorageProvider() === "supabase-storage") {
+    const legacy = getSupabaseAssets();
+    return (area === "vendor-documents" ? legacy.documents : legacy.photos).get(ref);
+  }
+  if (getApiObjectStorageProvider() === "external-gcs") {
+    const legacy = await getExternalAssets();
+    return (area === "vendor-documents" ? legacy.documents : legacy.photos).get(ref);
+  }
+  if (getApiObjectStorageProvider() === "replit-app-storage") {
+    return (await appStorage(area)).get(ref);
+  }
+  return (await file(ref, area).download())[0];
+}
 export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
+    if (area === "vendor-documents" && getApiVendorDocumentStorageProvider() === "supabase-storage") {
+      return getSupabaseLiveAssets().documents.put(ref, bytes, mimeType);
+    }
     assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "cloudflare-r2") {
       const assets = getR2Assets();
@@ -63,6 +82,14 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
         metadata: { visibility: "private" } } });
   },
   async get(ref: string) {
+    if (area === "vendor-documents" && getApiVendorDocumentStorageProvider() === "supabase-storage") {
+      const documents = getSupabaseLiveAssets().documents;
+      if (getApiObjectStorageProvider() === "disabled") return documents.get(ref);
+      return readWithNotFoundFallback(
+        () => documents.get(ref),
+        () => readLegacyPrivateObject(area, ref),
+      );
+    }
     assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "cloudflare-r2") {
       const assets = getR2Assets();
@@ -73,20 +100,7 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
       const selected = area === "vendor-documents" ? assets.documents : assets.photos;
       return readWithNotFoundFallback(
         () => selected.get(ref),
-        async () => {
-          if (getApiObjectStorageProvider() === "supabase-storage") {
-            const legacy = getSupabaseAssets();
-            return (area === "vendor-documents" ? legacy.documents : legacy.photos).get(ref);
-          }
-          if (getApiObjectStorageProvider() === "external-gcs") {
-            const legacy = await getExternalAssets();
-            return (area === "vendor-documents" ? legacy.documents : legacy.photos).get(ref);
-          }
-          if (getApiObjectStorageProvider() === "replit-app-storage") {
-            return (await appStorage(area)).get(ref);
-          }
-          return (await file(ref, area).download())[0];
-        },
+        () => readLegacyPrivateObject(area, ref),
       );
     }
     if (getApiObjectStorageProvider() === "supabase-storage") {
@@ -103,6 +117,9 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
     return (await file(ref, area).download())[0];
   },
   async discard(ref: string) {
+    if (area === "vendor-documents" && getApiVendorDocumentStorageProvider() === "supabase-storage") {
+      throw new SupabaseStorageError("CAPABILITY_UNAVAILABLE");
+    }
     assertStorageOperationsEnabled();
     if (getApiObjectStorageProvider() === "cloudflare-r2") {
       const assets = getR2Assets();

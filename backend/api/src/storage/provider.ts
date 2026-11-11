@@ -1,6 +1,7 @@
 import { externalGcsConfig } from "./external-gcs-config.js";
 import { supabaseStorageConfig } from "./supabase-storage-config.js";
 import { r2Config } from "./r2-config.js";
+import { assertApiOnlyTarget } from "../api-only/target-guard.js";
 
 export const API_OBJECT_STORAGE_PROVIDER_ENV = "API_OBJECT_STORAGE_PROVIDER";
 export const STORAGE_UNAVAILABLE_MESSAGE = "Storage is unavailable.";
@@ -86,4 +87,29 @@ export function getApiAssetStorageProvider(
   throw new Error(
     `${API_ASSET_STORAGE_PROVIDER_ENV} must be supabase-storage when configured.`,
   );
+}
+
+export const API_VENDOR_DOCUMENT_STORAGE_PROVIDER_ENV = "API_VENDOR_DOCUMENT_STORAGE_PROVIDER";
+
+/** Pure, fail-closed opt-in. This does not relax the global disabled guard. */
+export function getApiVendorDocumentStorageProvider(
+  env: NodeJS.ProcessEnv = process.env,
+): "supabase-storage" | undefined {
+  const configured = env[API_VENDOR_DOCUMENT_STORAGE_PROVIDER_ENV];
+  if (configured === undefined) return undefined;
+  if (configured !== "supabase-storage") {
+    throw new Error(`${API_VENDOR_DOCUMENT_STORAGE_PROVIDER_ENV} must be supabase-storage when configured.`);
+  }
+  if (env.API_ASSET_STORAGE_PROVIDER !== undefined ||
+      env.API_OBJECT_STORAGE_PROVIDER === "cloudflare-r2") {
+    throw new Error("Vendor document storage conflicts with shared asset or R2 selection.");
+  }
+  // Full existing project/key/database/TLS/signing validation, not just the
+  // provider parser's narrower disabled/profile check. No connection is made.
+  assertApiOnlyTarget(env);
+  supabaseStorageConfig(env);
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Vendor document storage requires a server-side service credential.");
+  }
+  return configured;
 }

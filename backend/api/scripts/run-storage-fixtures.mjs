@@ -18,6 +18,7 @@ if (process.argv.length !== 3 || !["unit", "routes", "regression", "rehearsal"].
     "src/storage/r2-routing.test.ts",
     "src/storage/supabase-storage.test.ts", "src/storage/supabase-assets.test.ts",
     "src/storage/supabase-live-assets.test.ts", "src/storage/asset-storage-fallback.test.ts",
+    "src/storage/vendor-document-routing.test.ts",
   ];
   const routeFiles = [
     "src/vendor-documents/vendor-documents.integration.test.ts",
