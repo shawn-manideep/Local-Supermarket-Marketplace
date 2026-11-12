@@ -1,19 +1,24 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, rm, statfs } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { isDeepStrictEqual } from "node:util";
-import { generateSyntheticBackupKey, sealSyntheticPackage, verifySyntheticPackage } from "./synthetic-backup-crypto.mjs";
+import { generateSyntheticBackupKey, sealSyntheticPackage, verifySyntheticPackage, assertSyntheticMemoryBudget } from "./synthetic-backup-crypto.mjs";
 
-const require = createRequire(new URL("../../lib/db/package.json", import.meta.url));
-const { Client } = require("pg");
 const BIN = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
 const ENV = Object.freeze({
   PATH: "/usr/bin:/bin", LANG: "C", LC_ALL: "C", PGPASSFILE: "/dev/null", PGSERVICEFILE: "/dev/null",
+  HOME: "/nonexistent", PGSYSCONFDIR: "/nonexistent", PGCONNECT_TIMEOUT: "3",
+  PGOPTIONS: "-c statement_timeout=10000 -c idle_in_transaction_session_timeout=10000",
 });
 const USER = "synthetic_backup_owner", PORT = "55440", LIMIT = 32 * 1024 * 1024;
 const DATABASES = ["postgres", "synthetic_backup_source", "synthetic_backup_restore"];
 const contexts = new WeakMap();
 const fail = code => { throw new Error(code); };
+let memoryReserved = false;
+function reserveMemory() {
+  if (memoryReserved) fail("SYNTHETIC_MEMORY_BUSY");
+  memoryReserved = true;
+  return () => { memoryReserved = false; };
+}
 
 export function assertSyntheticDiskBudget(availableBytes) {
   if (typeof availableBytes !== "bigint" || availableBytes < 256n * 1024n * 1024n) fail("INSUFFICIENT_DISK_SPACE");
@@ -24,43 +29,63 @@ export function assertSyntheticLocalTarget(target) {
     !DATABASES.includes(target.database) || target.user !== USER || String(target.port) !== PORT ||
     target.ssl !== false) fail("NON_SYNTHETIC_TARGET_REFUSED");
 }
-function command(name, args, input) {
-  if (!["initdb", "pg_ctl", "pg_dump", "pg_restore"].includes(name)) fail("TOOL_REFUSED");
+function command(name, args, input, statusOnly = false) {
+  if (!["initdb", "pg_ctl", "pg_dump", "pg_restore", "psql"].includes(name)) fail("TOOL_REFUSED");
+  assertSyntheticMemoryBudget(input?.length ?? 0);
   return new Promise((resolve, reject) => {
     const child = spawn(`${BIN}/${name}`, args, { env: ENV, stdio: ["pipe", "pipe", "pipe"] });
-    const output = []; let size = 0, rejected = false;
+    const output = []; let size = 0, rejected = false, outcome;
     const stop = () => {
-      if (!rejected) { rejected = true; child.kill("SIGKILL"); reject(new Error("SYNTHETIC_TOOL_FAILED")); }
+      if (!rejected) { rejected = true; child.kill("SIGKILL"); }
     };
     const timer = setTimeout(stop, 30000);
-    child.stdout.on("data", bytes => { size += bytes.length; if (size > LIMIT) stop(); else output.push(bytes); });
-    child.stderr.on("data", () => {}); // Provider/tool text is never exposed.
+    child.stdout.on("data", bytes => {
+      size += bytes.length;
+      try { assertSyntheticMemoryBudget(size + (input?.length ?? 0)); }
+      catch { bytes.fill(0); stop(); return; }
+      if (rejected || size > LIMIT) { bytes.fill(0); stop(); } else output.push(bytes);
+    });
+    child.stderr.on("data", bytes => { bytes.fill(0); }); // Never expose tool text.
     child.on("error", stop);
     child.stdin.on("error", () => {}); // Exit status determines success, never EPIPE alone.
     child.on("close", code => {
       clearTimeout(timer);
-      if (rejected) return;
-      if (code !== 0) reject(new Error("SYNTHETIC_TOOL_FAILED"));
-      else resolve(Buffer.concat(output));
+      if (statusOnly && !rejected && (code === 0 || code === 3)) {
+        output.forEach(bytes => bytes.fill(0));
+        resolve(code);
+        return;
+      }
+      if (!rejected && code === 0) {
+        outcome = ["psql", "pg_dump"].includes(name) ? Buffer.concat(output, size) : Buffer.alloc(0);
+      }
+      output.forEach(bytes => bytes.fill(0));
+      // Settle only after close: killing a process is not confirmation of exit.
+      if (!outcome) reject(new Error("SYNTHETIC_TOOL_FAILED"));
+      else resolve(outcome);
     });
     child.stdin.end(input);
   });
 }
-async function connect(context, database) {
+async function query(context, database, sql) {
   const target = { host: context.directory, database, user: USER, port: PORT, ssl: false };
   assertSyntheticLocalTarget(target);
-  const c = new Client({ ...target, password: "", connectionTimeoutMillis: 3000,
-    query_timeout: 10000, statement_timeout: 10000 });
+  let input, output;
   try {
-    await c.connect();
-    const identity = (await c.query("SELECT current_database() AS db,current_user AS role,inet_server_addr() AS address")).rows[0];
+    input = Buffer.from(`DO $$ BEGIN
+      IF current_database() <> '${database}' OR current_user <> '${USER}' OR inet_server_addr() IS NOT NULL
+      THEN RAISE EXCEPTION 'SYNTHETIC_IDENTITY_REFUSED'; END IF; END $$;
+      SELECT json_build_object('db',current_database(),'role',current_user,'address',inet_server_addr());\n${sql}`);
+    output = await command("psql", [...pgArgs(context, database), "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1"], input);
+    const lines = output.toString("utf8").trim().split("\n");
+    const identity = JSON.parse(lines.shift());
     if (identity.db !== database || identity.role !== USER || identity.address !== null) fail("NON_SYNTHETIC_TARGET_REFUSED");
-    return c;
-  } catch { await c.end().catch(() => {}); fail("SYNTHETIC_CONNECTION_FAILED"); }
+    return lines;
+  } catch { fail("SYNTHETIC_QUERY_FAILED"); }
+  finally { input?.fill(0); output?.fill(0); }
 }
 function contextFor(handle) {
   const context = contexts.get(handle);
-  if (!context || context.closed) fail("UNKNOWN_OR_CLOSED_SANDBOX");
+  if (!context || context.closed || context.closing || context.cleanupPending || context.quarantined) fail("UNKNOWN_OR_CLOSED_SANDBOX");
   return context;
 }
 const FIXTURE = `
@@ -114,79 +139,125 @@ SELECT jsonb_build_object(
  'sequence',(SELECT jsonb_build_object('last_value',last_value,'is_called',is_called) FROM app_fixture.catalog_id_seq)
 )::text AS snapshot`;
 async function snapshot(context, database) {
-  const c = await connect(context, database);
-  try { return (await c.query(SNAPSHOT)).rows[0].snapshot; }
-  finally { await c.end(); }
+  const result = (await query(context, database, SNAPSHOT)).at(-1);
+  if (!result || Buffer.byteLength(result) > 1024 * 1024) fail("SNAPSHOT_SIZE_LIMIT");
+  return result;
 }
 function pgArgs(context, database) { return ["-h", context.directory, "-p", PORT, "-U", USER, "-d", database, "--no-password"]; }
+
+// pg_identify_object covers dependency-tracked functions, types, operators,
+// collations, relations, and other namespaced objects, not just pg_class rows.
+const EMPTY_DESTINATION = `
+SELECT NOT (
+ EXISTS (SELECT 1 FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema','pg_toast','public'))
+ OR EXISTS (SELECT 1 FROM pg_depend d
+   CROSS JOIN LATERAL pg_identify_object(d.classid,d.objid,d.objsubid) i
+   WHERE i.schema = 'public')
+ OR EXISTS (SELECT 1 FROM pg_extension WHERE extname <> 'plpgsql')
+ OR EXISTS (SELECT 1 FROM pg_event_trigger)
+ OR EXISTS (SELECT 1 FROM pg_foreign_server)
+ OR EXISTS (SELECT 1 FROM pg_publication)
+ OR EXISTS (SELECT 1 FROM pg_default_acl)
+ OR EXISTS (SELECT 1 FROM pg_largeobject_metadata)
+) AS empty;`;
+
+async function ensureStopped(context) {
+  if (!context.startAttempted) return;
+  // A failed start may still have launched a postmaster. status exit code 3,
+  // specifically, confirms there is no running server; other errors fail closed.
+  try {
+    await command("pg_ctl", ["-D", `${context.directory}/data`, "-m", "immediate", "-w", "stop"]);
+  } catch {
+    if (!await serverStopped(context)) fail("SYNTHETIC_CLEANUP_FAILED");
+  }
+  if (!await serverStopped(context)) fail("SYNTHETIC_CLEANUP_FAILED");
+  // Keep startAttempted until removal succeeds: every cleanup retry must
+  // reconfirm stopped status, including retries following a removal failure.
+}
+async function serverStopped(context) {
+  const code = await command("pg_ctl", ["-D", `${context.directory}/data`, "status"], undefined, true);
+  return code === 3;
+}
 
 export async function createSyntheticSandbox() {
   const stats = await statfs("/tmp", { bigint: true });
   assertSyntheticDiskBudget(stats.bavail * stats.bsize);
   const directory = await mkdtemp("/tmp/alb-synthetic-backup-");
-  const context = { directory, running: false, closed: false, restoreAttempted: false };
+  const context = { directory, startAttempted: false, closed: false, restoreAttempted: false };
   const handle = Object.freeze({ syntheticOnly: true });
   contexts.set(handle, context);
   try {
     await command("initdb", ["-D", `${directory}/data`, "-U", USER, "-A", "trust", "--no-locale", "--encoding=UTF8"]);
+    context.startAttempted = true;
     await command("pg_ctl", ["-D", `${directory}/data`, "-l", `${directory}/server.log`, "-o", `-p ${PORT} -h '' -k ${directory}`, "-w", "start"]);
-    context.running = true;
-    const c = await connect(context, "postgres");
-    try {
-      await c.query("CREATE DATABASE synthetic_backup_source");
-      await c.query("CREATE DATABASE synthetic_backup_restore");
-    } finally { await c.end(); }
-    const source = await connect(context, "synthetic_backup_source");
-    try { await source.query(FIXTURE); } finally { await source.end(); }
+    await query(context, "postgres", "CREATE DATABASE synthetic_backup_source;\nCREATE DATABASE synthetic_backup_restore;");
+    await query(context, "synthetic_backup_source", FIXTURE);
     return handle;
   } catch {
-    await closeSyntheticSandbox(handle);
+    try { await closeSyntheticSandbox(handle); }
+    catch {
+      // Preserve a cleanup-only capability, never a usable database target.
+      const error = new Error("SYNTHETIC_SETUP_CLEANUP_REQUIRED");
+      error.cleanupHandle = handle;
+      throw error;
+    }
     fail("SYNTHETIC_SETUP_FAILED");
   }
 }
 export async function closeSyntheticSandbox(handle) {
   const context = contexts.get(handle);
   if (!context || context.closed) return;
-  context.closed = true;
-  if (context.running) {
-    try { await command("pg_ctl", ["-D", `${context.directory}/data`, "-m", "immediate", "-w", "stop"]); }
-    catch { fail("SYNTHETIC_CLEANUP_FAILED"); } // Do not erase a possibly running cluster.
+  if (context.closing) fail("SYNTHETIC_CLEANUP_BUSY");
+  if (context.active) fail("SYNTHETIC_OPERATION_ACTIVE");
+  context.closing = true;
+  context.cleanupPending = true;
+  try {
+    await ensureStopped(context);
+    await rm(context.directory, { recursive: true, force: true });
+    context.closed = true;
+  } catch { fail("SYNTHETIC_CLEANUP_FAILED"); }
+  finally {
+    context.closing = false; // Stop/removal failures remain retryable.
   }
-  await rm(context.directory, { recursive: true, force: true });
 }
 export async function captureSyntheticBackup(handle) {
   const context = contextFor(handle);
-  let archive, files;
-  const key = generateSyntheticBackupKey();
+  const release = reserveMemory();
+  context.active = true;
+  let archive, files, key;
   try {
+    key = generateSyntheticBackupKey();
     const before = await snapshot(context, "synthetic_backup_source");
     archive = await command("pg_dump", [...pgArgs(context, "synthetic_backup_source"), "--format=custom"]);
-    const version = (await command("pg_dump", ["--version"])).toString("utf8").trim();
+    const versionBytes = await command("pg_dump", ["--version"]);
+    const version = versionBytes.toString("utf8").trim();
+    versionBytes.fill(0);
     files = Buffer.from("synthetic file bytes only");
     const pkg = sealSyntheticPackage({ archive, files, key, summary: {
       toolVersion: version, nodeVersion: process.version, snapshot: before,
       counts: { users: 1, identities: 1, profiles: 1, catalog: 2, objects: 1 },
     } });
     return { package: pkg, key };
-  } catch { key.fill(0); fail("SYNTHETIC_CAPTURE_FAILED"); }
-  finally { archive?.fill(0); files?.fill(0); }
+  } catch { key?.fill(0); fail("SYNTHETIC_CAPTURE_FAILED"); }
+  finally { archive?.fill(0); files?.fill(0); context.active = false; release(); }
 }
-export async function restoreSyntheticBackup(handle, pkg, key) {
+export async function restoreSyntheticBackup(handle, pkg, key, expectedBackupSetId) {
+  if (contexts.get(handle)?.restoreAttempted) fail("RESTORE_ALREADY_ATTEMPTED");
   const context = contextFor(handle);
-  if (context.restoreAttempted) fail("RESTORE_ALREADY_ATTEMPTED");
-  const verified = verifySyntheticPackage(pkg, key); // Authenticate every component before using any plaintext.
+  if (context.active) fail("SYNTHETIC_OPERATION_ACTIVE");
+  const release = reserveMemory();
+  context.restoreAttempted = true; // Reserve synchronously, before ANY asynchronous work.
+  context.active = true;
+  let verified;
   try {
-    const c = await connect(context, "synthetic_backup_restore");
-    try {
-      const count = (await c.query("SELECT count(*)::int AS count FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'")).rows[0].count;
-      if (count !== 0) fail("RESTORE_DESTINATION_NOT_EMPTY");
-    } finally { await c.end(); }
-    context.restoreAttempted = true; // Never retry an interrupted or ambiguous restore on this target.
+    verified = verifySyntheticPackage(pkg, key, expectedBackupSetId);
+    const empty = (await query(context, "synthetic_backup_restore", EMPTY_DESTINATION)).at(-1);
+    if (empty !== "t") fail("RESTORE_DESTINATION_NOT_EMPTY");
     await command("pg_restore", [...pgArgs(context, "synthetic_backup_restore"), "--exit-on-error", "--single-transaction", "--no-owner"], verified.archive);
     const actual = await snapshot(context, "synthetic_backup_restore");
     if (!isDeepStrictEqual(actual, verified.manifest.summary.snapshot) ||
       verified.files.toString("utf8") !== "synthetic file bytes only") fail("RESTORE_COMPARISON_FAILED");
     return Object.freeze({ status: "VERIFIED_SYNTHETIC_RESTORE", catalogRows: 2, fileComponents: 1 });
-  } catch { fail("SYNTHETIC_RESTORE_FAILED_NO_RETRY"); }
-  finally { verified.archive.fill(0); verified.files.fill(0); }
+  } catch { context.quarantined = true; fail("SYNTHETIC_RESTORE_FAILED_NO_RETRY"); }
+  finally { verified?.archive.fill(0); verified?.files.fill(0); context.active = false; release(); }
 }

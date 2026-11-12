@@ -8,8 +8,8 @@ The existing Master Catalog recovery files and all application files are separat
 
     node --test scripts/src/synthetic-backup.test.mjs
 
-Requirements already present: Node.js built-in crypto, existing lib/db pg
-dependency, PostgreSQL 17.6 at the explicit Nix tool path used by the module.
+Requirements already present: Node.js built-in crypto and PostgreSQL 17.6
+(including psql) at the explicit Nix tool path used by the module.
 No new dependencies or credentials are needed.
 
 ## Architecture
@@ -33,7 +33,11 @@ Cluster handles are registered privately; arbitrary lookalike handles are refuse
 Every client and restore target is validated as a fixed local Unix-socket
 database/user. Server address must be NULL and current database/user must match.
 Tools receive only static safe environment settings, with credential files
-redirected to /dev/null. No parent environment values are read.
+redirected to /dev/null, HOME/system configuration directories disabled, and
+psql startup files disabled with -X. The in-process pg driver is not used:
+an empty password in that driver does NOT prevent ambient credential inheritance.
+No parent environment values are read or modified. Every fixed SQL operation
+includes a server identity check before its statements execute.
 
 ## Encryption and key custody
 
@@ -42,6 +46,12 @@ the encrypted package. It is never written to disk or put in child arguments.
 Every component, including the manifest, gets a fresh random 12-byte nonce and
 16-byte GCM tag. Reused nonces are refused. AAD binds format version, backup-set
 ID, component name and ordinal.
+
+Verification and restore require a separate expected backup-set ID argument.
+The caller must retain this capture-time receipt independently of an incoming
+package; do not derive it from an untrusted incoming package. A valid older set
+with a different expected ID is refused. This is identity matching, not a global
+replay registry, source-provenance proof or guarantee of freshness.
 
 Component inventory is fixed and ordered: database, synthetic-files, then the
 encrypted manifest. Missing, duplicated, reordered or substituted parts fail
@@ -55,25 +65,48 @@ erasure is best effort, not a guarantee against heap snapshots or swap.
 
 ## Failure handling and limitations
 
-- 32 MiB maximum per component/tool stdout; a bounded in-memory synthetic design,
-  not streaming production backups. No plaintext archive file or protected
-  temporary-storage assumption is used.
+- 32 MiB maximum per component/tool stdout, 2 MiB manifest limit, and 1 MiB
+  comparison snapshot limit. An enforced conservative per-operation envelope is
+  192 MiB: 16 MiB headroom + 6 times component bytes + 8 times metadata bytes.
+  Individually valid components can therefore fail the aggregate budget.
+  The runner permits only one capture/restore memory operation at a time.
+  Tool output is budgeted while accumulating; temporary chunks are cleared after
+  concatenation or failure, and GCM avoids unnecessary payload copies.
+  This is not an RSS/heap/OS memory ceiling: caller-retained packages, runtime
+  overhead, JSON strings, swap, crash dumps and GC copies cannot be securely
+  erased or fully controlled by JavaScript. No plaintext archive file is used.
 - PostgreSQL fixture database files are ordinary disposable local files containing
   SYNTHETIC data only. No real account, private-file or project records are used.
 - Initial disk capacity is checked. Low-space tests inject byte counts into the
   budget checker; they do not fill a disk. Mid-run tool errors stop the workflow.
-- Tool timeout: 30 seconds; client query timeout: 10 seconds. Raw tool stderr and
+- Tool timeout: 30 seconds; SQL statement timeout: 10 seconds. Raw tool stderr and
   underlying errors are not logged. Never automatically retry a restore attempt;
   failures may be ambiguous. Dispose of the sandbox instead.
-- Restore uses exit-on-error and one transaction. Target must be empty. There is
-  no clean/drop-overwrite production mode.
-- Cleanup stops the cluster before removing its files. A stop failure is reported;
-  do not delete a potentially running cluster's data directory.
+- Restore reserves its single attempt synchronously, before asynchronous work.
+  Uses exit-on-error and one transaction. Empty-target checks include unexpected
+  schemas, public dependency-tracked objects (functions/types/relations and more),
+  extra extensions, event triggers, foreign servers, publications, default ACLs
+  and large objects. There is no clean/drop-overwrite production mode.
+  Comparison is after pg_restore commits; failure quarantines the disposable
+  target and requires disposal, not automatic retry or an assertion of rollback.
+- Startup is considered potentially successful as soon as attempted. Timeout
+  handling waits for child close after killing the tool. Cleanup confirms pg_ctl
+  status reports a stopped server before removing files. Stop/removal failures
+  retain retryable cleanup state and block normal operations. Setup failures
+  needing cleanup carry only an opaque cleanupHandle for retrying
+  closeSyntheticSandbox; they do not expose a database path or credentials.
+- A stop-confirmation failure leaves files in place. A child that cannot be
+  killed/closed requires operator intervention; the promise does not pretend the
+  process has terminated. No automatic data-directory deletion is attempted.
 - Tests cover actual pg_dump/pg_restore, synthetic encryption faults and local
   cleanup. They do not prove Supabase managed roles, Auth service compatibility,
   real Storage byte coverage, platform settings or full-project restorability.
 - No persistent package format, owner key escrow, encrypted offsite copy, real
   extraction connector, backup scheduler or live restoration exists.
+- These are fixed, trusted synthetic archives. GCM authentication alone does not
+  make SQL in an arbitrary archive safe. The pre-dump comparison snapshot and
+  dump are separate snapshots, acceptable only for the immutable fixture.
+  Full mutable-source consistency needs a future separately reviewed design.
 - No repository migrations, live ledgers (including entries 27/28), RLS, roles,
   environment values, providers or application behavior are altered.
 
