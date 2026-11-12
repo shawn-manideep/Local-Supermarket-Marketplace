@@ -38,11 +38,40 @@ Fixed project descriptors do not establish live database identity.
 No live extraction, identity/TLS connector, encryption or backup mechanism exists
 in this implementation. There is no live apply switch.
 
-JSONB is compared as typed semantic content, not original lexical key order.
-The offline serializer refuses fractional/unsafe numeric JSON values rather than
-risk precision loss. A future extractor must inspect actual JSONB numeric values
-and either establish lossless compatibility or use a lossless representation.
-No actual catalog rows have been inspected for this purpose.
+## Lossless JSONB numeric preservation
+
+Package format 2 represents the `attributes` column as PostgreSQL JSONB text.
+Both source rehearsal and precommit comparison explicitly select
+`attributes::text AS attributes`, bypassing pg's default JSON.parse handler.
+Numbers are never decoded to JavaScript Number. Parameterized INSERT passes this
+text directly to PostgreSQL's JSONB column; numeric tokens remain JSON numbers,
+not JSON strings. All other columns retain their original package types.
+
+The bounded JSON syntax validator examines number tokens without converting,
+rounding, truncating or normalizing them. It decodes only JSON strings for syntax
+and duplicate-key checks. Root attributes must remain a JSON object, matching the
+actual NOT NULL/object constraint. SQL NULL attributes and root JSON null/arrays
+are rejected, not conflated. Nested nulls/arrays, numeric strings and empty objects
+remain supported; SQL NULL in permitted nullable text columns is separate.
+
+`serializePackage` and `loadPackage` preserve the attributes text and validate its
+SHA-256. Version 1/object-decoded attributes are deliberately rejected: a value
+already rounded by JSON.parse cannot safely be recovered.
+
+`readOfflineSourcePackage` exercises fixed-query extraction of synthetic local
+data only, inside a repeatable-read read-only transaction. It does not enable
+live extraction. Source database canonical JSONB text is preserved byte-for-byte
+through packaging, insertion and comparison. PostgreSQL has already normalized
+exponent notation and object ordering in stored JSONB; pre-storage lexical JSON
+spelling cannot be recovered. No additional normalization is performed by JS.
+Hand-authored noncanonical JSON text fails precommit comparison if PostgreSQL
+changes its representation; the tool never silently accepts that difference.
+
+Limits: 1 MiB per attributes document, nesting depth 64, 32 MiB serialized package.
+Duplicate object keys, malformed JSON and unsupported roots fail closed. Values
+outside PostgreSQL JSONB/numeric limits are rejected by the database and rolled
+back. No external dependency was added. Encrypted filesystem package handling
+and real source extraction remain separately approved future work.
 
 This suite does not claim to reproduce Supabase roles, Auth, RLS, permissions,
 all schema objects or platform behavior. It tests relevant table constraints and

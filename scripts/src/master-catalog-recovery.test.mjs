@@ -3,7 +3,7 @@ import { test, before, after } from "node:test";
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { SOURCE_PROJECT, DESTINATION_PROJECT, COLUMNS, createPackage, validatePackage, rehearseRecovery } from "./master-catalog-recovery.mjs";
+import { SOURCE_PROJECT, DESTINATION_PROJECT, COLUMNS, createPackage, validatePackage, serializePackage, loadPackage, readOfflineSourcePackage, rehearseRecovery } from "./master-catalog-recovery.mjs";
 
 const require = createRequire(new URL("../../lib/db/package.json", import.meta.url));
 const { Client } = require("pg");
@@ -22,7 +22,7 @@ function dataset() {
       id: id(i + 1000), master_category_id: i % 3 === 0 ? null : id(i % 63 + 1),
       name: `తెలుగు ' Product ${i}`, description: i % 2 ? "" : null,
       image: i % 2 ? "https://example.invalid/path?x=%2F" : null, brand: i % 2 ? "" : null,
-      attributes: { nested: { b: [true, null, ""] }, a: "value" },
+      attributes: '{"a": "value", "nested": {"b": [true, null, ""]}}',
       is_active: i % 2 === 0, created_at: date, updated_at: date,
     })),
   };
@@ -107,11 +107,11 @@ test("duplicate UUIDs and invalid category references are rejected", () => {
 test("fixed source/destination identities cannot be swapped", () => {
   assert.throws(() => createPackage({ sourceProject: DESTINATION_PROJECT, destinationProject: SOURCE_PROJECT, data: dataset() }), /TARGET_REFUSED/);
 });
-test("invalid dates and potentially lossy JSON numbers fail closed", () => {
+test("invalid dates and decoded attributes fail closed", () => {
   const invalid = dataset(); invalid.master_products[0].created_at = "2026-02-30T01:02:03.123456Z";
   assert.throws(() => pkg(invalid), /INVALID_TIMESTAMP/);
   const numeric = dataset(); numeric.master_products[0].attributes = { precisionRisk: 0.1 };
-  assert.throws(() => pkg(numeric), /INVALID_JSON/);
+  assert.throws(() => pkg(numeric), /INVALID_ATTRIBUTES_TEXT/);
 });
 test("remote clients are rejected before any query", async () => {
   await assert.rejects(run({ connectionParameters: { host: "remote.invalid" }, query() { assert.fail(); } }), /OFFLINE_CLIENT_REQUIRED/);
@@ -214,4 +214,121 @@ test("SQL statements are fixed insert-only with explicit columns", () => {
   assert.equal(COLUMNS.master_products.length, 10);
   const source = readFileSync(new URL("./master-catalog-recovery.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(source, /ON CONFLICT|TRUNCATE|DELETE FROM|UPDATE public|process\.env|console\./);
+});
+
+test("serialized packages preserve numeric lexemes as text and detect corruption on load", () => {
+  const d = dataset();
+  d.master_products[0].attributes = '{"n":123456789012345678901234567890.12345678901234567890,"e":-1.23456789e-80}';
+  const value = pkg(d);
+  const loaded = loadPackage(serializePackage(value));
+  assert.equal(loaded.data.master_products[0].attributes, d.master_products[0].attributes);
+  assert.deepEqual(loaded, value);
+  const corrupted = serializePackage(value).replace("123456789012345678901234567890", "123456789012345678901234567891");
+  assert.throws(() => loadPackage(corrupted), /PACKAGE_INTEGRITY_FAILURE/);
+  assert.throws(() => loadPackage("{"), /INVALID_PACKAGE_JSON/);
+  const legacy = { ...value, version: 1 };
+  assert.throws(() => validatePackage(legacy), /TARGET_REFUSED/);
+});
+
+test("JSON syntax checks reject unsupported values and ambiguous duplicate keys", () => {
+  for (const attributes of [
+    '{"x":NaN}', '{"x":Infinity}', '{"x":01}', '{"x":1.}', '{"x":+1}',
+    '{"x":1e}', '{"x":1} trailing', '{"x":1,"x":2}', '{"x":1,"\\u0078":2}',
+    '{"x":"\\q"}', '{"x":[1,]}', "null", "[]", null, {},
+  ]) {
+    const d = dataset(); d.master_products[0].attributes = attributes;
+    assert.throws(() => pkg(d));
+  }
+});
+
+test("numeric strings stay distinct from numeric tokens and JSON null from text null", () => {
+  const d = dataset();
+  d.master_products[0].attributes = '{"a": 9007199254740993, "b": "9007199254740993", "c": null, "d": "null", "e": {}, "f": []}';
+  assert.equal(loadPackage(serializePackage(pkg(d))).data.master_products[0].attributes,
+    d.master_products[0].attributes);
+});
+
+test("bounded JSON validation rejects excessive nesting and size", () => {
+  const nested = dataset(); nested.master_products[0].attributes = '{"a":' + "[".repeat(66) + "0" + "]".repeat(66) + "}";
+  assert.throws(() => pkg(nested), /ATTRIBUTES_DEPTH_LIMIT/);
+  const large = dataset(); large.master_products[0].attributes = '{"a":"' + "x".repeat(1024 * 1024) + '"}';
+  assert.throws(() => pkg(large), /INVALID_ATTRIBUTES_TEXT/);
+});
+
+test("real PostgreSQL source extraction, package loading and destination comparison preserve all numeric values", async () => {
+  const source = await fixture();
+  const rawAttributes = [
+    '{"big":12345678901234567890123456789012345678901234567890}',
+    '{"tiny":0.000000000000000000000000000000000000000000000000000000000001}',
+    '{"precise":1234567890.123456789012345678901234567890123456789000}',
+    '{"negative":-987654321098765432109876543210.12345678901234567890}',
+    '{"positiveExponent":1.23456789012345678901234567890e+80,"negativeExponent":-9.876543210987654321e-70}',
+    '{"nested":[{},[],null,"null",{"large":9007199254740993,"text":"9007199254740993","values":[1e-40,-0.000000000000000000000001,123.4500]}]}',
+    '{}',
+    '{"jsonNull":null,"emptyArray":[],"emptyObject":{},"text":"1.0000000000000000001"}',
+  ];
+  const data = dataset();
+  for (const [table, columns] of Object.entries(COLUMNS)) {
+    for (const [i, original] of data[table].entries()) {
+      const row = table === "master_products"
+        ? { ...original, description: i === 7 ? null : original.description,
+          attributes: rawAttributes[i % rawAttributes.length] } : original;
+      await source.c.query(`INSERT INTO public.${table} (${columns.join(",")}) VALUES (${columns.map((_, n) => `$${n + 1}`).join(",")})`,
+        columns.map(column => row[column]));
+    }
+  }
+  const query = source.c.query.bind(source.c), statements = [];
+  source.c.query = (sql, values) => { statements.push(sql); return query(sql, values); };
+  const packageFromPostgres = await readOfflineSourcePackage({ client: source.c, sourceProject: SOURCE_PROJECT });
+  assert.equal(statements[0], "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+  assert.equal(statements.at(-1), "ROLLBACK");
+  assert.ok(statements.some(sql => sql.includes("attributes::text AS attributes")));
+  assert.ok(statements.every(sql => /^(BEGIN|SET LOCAL|SELECT|ROLLBACK)/.test(sql)));
+  const loaded = loadPackage(serializePackage(packageFromPostgres));
+  const destination = await fixture();
+  await run(destination.c, loaded);
+  const c = await client();
+  try {
+    // Compare PostgreSQL's canonical text and all typed fields, not JS numbers.
+    for (const [table, columns] of Object.entries(COLUMNS)) {
+      const projection = columns.map(column => column === "attributes" ? "attributes::text AS attributes" : column).join(",");
+      const result = await c.query(`SELECT count(*)::int AS differences FROM (
+        (SELECT ${projection} FROM ${source.schema}.${table} EXCEPT SELECT ${projection} FROM ${destination.schema}.${table})
+        UNION ALL
+        (SELECT ${projection} FROM ${destination.schema}.${table} EXCEPT SELECT ${projection} FROM ${source.schema}.${table})
+      ) AS differences`);
+      assert.equal(result.rows[0].differences, 0);
+    }
+    const types = (await c.query(`SELECT jsonb_typeof(attributes->'nested'->5->'large') AS absent,
+      jsonb_typeof(attributes->'nested'->4->'large') AS numeric,
+      jsonb_typeof(attributes->'nested'->4->'text') AS string,
+      jsonb_typeof(attributes->'nested'->2) AS json_null,
+      description IS NULL AS sql_null
+      FROM ${destination.schema}.master_products WHERE id=$1`, [id(1005)])).rows[0];
+    assert.deepEqual(types, { absent: null, numeric: "number", string: "string", json_null: "null", sql_null: false });
+    const nulls = (await c.query(`SELECT description IS NULL AS sql_null,
+      jsonb_typeof(attributes->'jsonNull') AS json_null
+      FROM ${destination.schema}.master_products WHERE id=$1`, [id(1007)])).rows[0];
+    assert.deepEqual(nulls, { sql_null: true, json_null: "null" });
+  } finally { await c.end(); }
+});
+
+test("noncanonical package text is not silently rewritten before precommit comparison", async () => {
+  const d = dataset(); d.master_products[0].attributes = '{"number":1e3}';
+  const { c, schema } = await fixture();
+  await assert.rejects(run(c, pkg(d)), /RECOVERY_ABORTED/);
+  assert.deepEqual(await count(schema), { categories: 0, products: 0 });
+});
+
+test("source rehearsal refuses wrong project and remote transport before reading", async () => {
+  const c = { connectionParameters: { host: "remote.invalid" }, query() { assert.fail(); } };
+  await assert.rejects(readOfflineSourcePackage({ client: c, sourceProject: DESTINATION_PROJECT }), /TARGET_REFUSED/);
+  await assert.rejects(readOfflineSourcePackage({ client: c, sourceProject: SOURCE_PROJECT }), /OFFLINE_CLIENT_REQUIRED/);
+});
+
+test("PostgreSQL rejects out-of-range numeric values without leaving inserted categories", async () => {
+  const d = dataset(); d.master_products[0].attributes = '{"tooLarge":1e999999}';
+  const { c, schema } = await fixture();
+  await assert.rejects(run(c, pkg(d)), e => e.message === "RECOVERY_ABORTED" && !e.cause);
+  assert.deepEqual(await count(schema), { categories: 0, products: 0 });
 });
