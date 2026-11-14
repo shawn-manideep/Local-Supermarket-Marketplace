@@ -4,7 +4,7 @@ import { Readable } from "node:stream";
 import test from "node:test";
 import { getApiObjectStorageProvider, selectApiObjectStorage } from "./provider.js";
 import { r2Config } from "./r2-config.js";
-import { createR2Assets, readR2WithLegacy } from "./r2-assets.js";
+import { createR2Assets, createR2DeliveryPhotoAssets, readR2WithLegacy } from "./r2-assets.js";
 import { R2Error, r2ObjectStore, type R2Request, type R2Transport } from "./r2-store.js";
 import { r2Transport } from "./r2-transport.js";
 import type { ObjectWriteMetadata } from "./object-store.js";
@@ -95,6 +95,45 @@ test("R2 create-only upload, exact download and metadata preservation", async ()
   assert.deepEqual(payload?.metadata, meta);
   await assert.rejects(store.write(key, jpeg(1), meta, 0), failure("CONFLICT"));
   assert.deepEqual((await store.read(key)).bytes, jpeg());
+});
+
+test("photo-scoped R2 denies every other category before any transport access", async () => {
+  const fake = new FakeR2();
+  const store = fake.store({ category: "delivery-photos" });
+  const privateMeta = { ...meta, cacheControl: "private, no-store", custom: { visibility: "private" } };
+  for (const denied of [
+    key, `${scope.publicRoot}/application-branding/active-logo`,
+    `${scope.privateRoot}/vendor-documents/store/doc`,
+    `${scope.privateRoot}/delivery-photos/../other/photo`,
+    `${scope.privateRoot}/delivery-photos/assignment/photo/extra`,
+  ]) {
+    await assert.rejects(store.head(denied));
+    await assert.rejects(store.read(denied));
+    await assert.rejects(store.write(denied, jpeg(), privateMeta, 0));
+    await assert.rejects(store.remove(denied, "00000000-0000-4000-8000-000000000001"));
+  }
+  assert.equal(fake.calls.length, 0);
+  const photos = createR2DeliveryPhotoAssets(fake.transport, scope);
+  const ref = `${scope.privateRoot}/delivery-photos/assignment/photo`;
+  await photos.put(ref, jpeg(), "image/jpeg");
+  assert.deepEqual(await photos.get(ref), jpeg());
+  await photos.discard(ref);
+  await assert.rejects(photos.get(ref), failure("NOT_FOUND"));
+  await assert.rejects(photos.put(ref, jpeg(), "image/jpeg"), failure("CONFLICT"));
+  const concurrentKey = `${scope.privateRoot}/delivery-photos/assignment/concurrent`;
+  await store.write(concurrentKey, jpeg(), privateMeta, 0);
+  const initial = (await store.head(concurrentKey))!.generation;
+  await store.write(concurrentKey, jpeg(2), privateMeta, initial);
+  await assert.rejects(store.write(concurrentKey, jpeg(3), privateMeta, initial), failure("CONFLICT"));
+  await assert.rejects(store.remove(concurrentKey, initial), failure("CONFLICT"));
+  const revision = (await store.head(concurrentKey))!.generation;
+  const competing = await Promise.allSettled([
+    store.write(concurrentKey, jpeg(4), privateMeta, revision),
+    store.remove(concurrentKey, revision),
+  ]);
+  assert.equal(competing.filter(result => result.status === "fulfilled").length, 1);
+  const loser = competing.find(result => result.status === "rejected") as PromiseRejectedResult;
+  assert.ok(failure("CONFLICT")(loser.reason));
 });
 
 for (const [defect, stored] of [

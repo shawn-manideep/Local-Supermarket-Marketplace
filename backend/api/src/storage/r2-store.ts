@@ -52,9 +52,11 @@ function strongEtag(value: unknown): value is string {
 export function r2ObjectStore(
   transport: R2Transport,
   scope: R2Scope,
-  options: { timeoutMs?: number; signal?: AbortSignal } = {},
+  options: { timeoutMs?: number; signal?: AbortSignal; category?: "delivery-photos" } = {},
 ): ObjectStore {
   const { publicRoot, privateRoot, prefix } = scope;
+  const category = options.category;
+  if (category !== undefined && category !== "delivery-photos") throw new R2Error("INVALID_INPUT");
   for (const root of [publicRoot, privateRoot, prefix]) safeObjectKey(root);
   if (publicRoot === privateRoot || publicRoot.startsWith(`${privateRoot}/`)
     || privateRoot.startsWith(`${publicRoot}/`)) throw new R2Error("INVALID_INPUT");
@@ -67,7 +69,7 @@ export function r2ObjectStore(
     const isPrivate = priv.length === 3 && ["vendor-documents", "delivery-photos"].includes(priv[0]!);
     const kind = isPrivate ? priv[0] : pub.length === 3 && pub[0] === "product-images" ? "product-images"
       : pub.length === 2 && pub[0] === "application-branding" && pub[1] === "active-logo" ? "branding" : undefined;
-    if (!kind) throw new R2Error("INVALID_INPUT");
+    if (!kind || category !== undefined && kind !== category) throw new R2Error("INVALID_INPUT");
     const keyHash = hash(key);
     return { keyHash, kind, isPrivate, manifestKey: `${prefix}/references/${keyHash}` };
   }

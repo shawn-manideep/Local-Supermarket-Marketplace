@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { before,after,test } from "node:test";
+import { before,after,test,mock } from "node:test";
 import { execFile,spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp,readFile,readdir,rm } from "node:fs/promises";
@@ -7,17 +7,17 @@ import { tmpdir } from "node:os";
 import net from "node:net";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
-import { createApp } from "../app.js";
 import { getPool } from "@workspace/db";
 import { bankDetailsInput } from "../vendor-documents/bank-details.js";
-import { documentStorage } from "../vendor-documents/storage.js";
-import { pickupPhotoStorage } from "../delivery-partner/photos.js";
 import { orderReportRows,dailyReportRows } from "./reports.js";
 import { dailyBounds,indiaDate,orderDateBounds } from "./report-dates.js";
 import type { Server } from "node:http";
 import { createExternalAssets } from "../storage/external-assets.js";
 import { createGcsObjectStore } from "../storage/external-gcs.js";
 import { FakeGcs } from "../storage/fixtures/fake-gcs.js";
+import { R2Error, type R2Transport } from "../storage/r2-store.js";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 
 const exec = promisify(execFile), binary = "/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin";
 const admin=randomUUID(),customer=randomUUID(),vendorA=randomUUID(),vendorB=randomUUID(),partnerA=randomUUID(),partnerB=randomUUID();
@@ -32,6 +32,52 @@ const externalClient = new FakeGcs();
 const externalAssets = createExternalAssets(createGcsObjectStore(externalClient, "synthetic-destination"), {
   privateRoot: "fixture/private", publicRoot: "fixture/public",
 });
+// Inject only the SDK send boundary. The real selector, constructor, transport,
+// scoped store, immutable verification and route/DB implementation remain in use.
+const r2Objects = new Map<string, { body: Buffer; etag: string }>();
+let r2Sequence = 0;
+let r2Fault: "corrupt-readback" | "payload-unknown" | "manifest-unknown" | undefined;
+const r2Requests: Array<{ kind: string; key: string }> = [];
+const fakeR2Transport: R2Transport = async request => {
+  r2Requests.push({ kind: request.kind, key: request.key });
+  const old = r2Objects.get(request.key);
+  if (request.kind === "get") {
+    if (!old) throw new R2Error("NOT_FOUND");
+    const body = Buffer.from(old.body);
+    if (r2Fault === "corrupt-readback" && request.key.includes("/objects/")) body[0] ^= 1;
+    return { body, etag: old.etag };
+  }
+  if (request.ifNoneMatch === "*" && old || request.ifMatch && request.ifMatch !== old?.etag) {
+    throw new R2Error("CONFLICT");
+  }
+  assert.ok(request.ifMatch || request.ifNoneMatch);
+  r2Objects.set(request.key, { body: Buffer.from(request.body!), etag: `"revision/${++r2Sequence}"` });
+  if (r2Fault === "payload-unknown" && request.key.includes("/objects/") ||
+      r2Fault === "manifest-unknown" && request.key.includes("/references/")) throw new R2Error("UNKNOWN_OUTCOME");
+  return {};
+};
+const r2TransportMock = mock.method(S3Client.prototype, "send", new Proxy(S3Client.prototype.send, {
+  async apply(_target, _receiver, [command, options]) {
+    assert.ok(command instanceof PutObjectCommand || command instanceof GetObjectCommand);
+    const input = command.input;
+    const result = await fakeR2Transport({
+      kind: command instanceof PutObjectCommand ? "put" : "get",
+      key: input.Key!, maxBytes: 5 * 1024 * 1024,
+      signal: options.abortSignal,
+      ...(command instanceof PutObjectCommand ? {
+        body: Buffer.from(command.input.Body as Buffer),
+        ifMatch: command.input.IfMatch, ifNoneMatch: command.input.IfNoneMatch as "*" | undefined,
+      } : {}),
+    });
+    return command instanceof GetObjectCommand ? {
+      Body: Readable.from([result.body!]), ETag: result.etag, ContentLength: result.body!.length,
+    } : {};
+  },
+}));
+const { createApp } = await import("../app.js");
+const { documentStorage } = await import("../vendor-documents/storage.js");
+const { pickupPhotoStorage } = await import("../delivery-partner/photos.js");
+const originalPickupStorage = { ...pickupPhotoStorage };
 const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZAAAAABJRU5ErkJggg==","base64");
 const bank={accountHolderName:"Fixture Vendor",accountNumber:"00123456789012",ifsc:"SBIN0001234",bankName:"Fixture Bank",bankBranch:"Hyderabad",vendorMobileNumber:"9876543210"};
 async function call(path:string,actor?:string,body?:unknown,method?:string) {
@@ -106,7 +152,11 @@ before(async()=>{
   process.env.PRIVATE_OBJECT_DIR="/fixture/private";
   globalThis.fetch=async(input,init)=>{
     const url=typeof input==="string"?input:input instanceof URL?input.href:input.url;
-    if(!url.startsWith(`${process.env.SUPABASE_URL}/auth/v1/`))return originalFetch(input,init);
+    // The cached Auth client keeps its initial synthetic URL while the R2
+    // target-validation test below uses isolated-project metadata. Both are
+    // fixture responses only; the network guard blocks every external request.
+    if(!url.startsWith(`${process.env.SUPABASE_URL}/auth/v1/`) &&
+       !url.startsWith("https://enhancements.fixture.invalid/auth/v1/"))return originalFetch(input,init);
     const headers=new Headers(init?.headers),id=headers.get("Authorization")?.replace("Bearer fixture-","");
     if(!id || !roles.has(id))return Response.json({message:"Invalid token"},{status:401});
     return Response.json({id,email:`fixture_${id.slice(0,8)}@fixture.invalid`,aud:"authenticated",role:"authenticated"});
@@ -130,6 +180,7 @@ before(async()=>{
   base=`http://127.0.0.1:${(server.address() as net.AddressInfo).port}`;
 });
 after(async()=>{
+  r2TransportMock.mock.restore();
   globalThis.fetch=originalFetch;
   if(server)await new Promise<void>(r=>server.close(()=>r()));
   if(process.env.SUPABASE_DB_URL?.includes("fixture@"))await getPool().end();
@@ -304,6 +355,147 @@ test("pickup requires durable private photo; denied users and failed uploads lea
   assert.equal((await call(`/api/delivery-partner/deliveries/${assignment}/actions`,winner,{action:"START"})).status,200);
   assert.equal((await call(`/api/delivery-partner/deliveries/${assignment}/actions`,winner,{action:"DELIVER"})).status,200);
 });
+test("photo-only R2 route persists privately and retains objects after verification, storage and transaction failures", async () => {
+  const dbPool = getPool();
+  // The real pool was already created against the disposable loopback cluster.
+  // Metadata below satisfies pure target guards only; never opens a remote pool.
+  assert.equal(new URL(dbPool.options.connectionString!).hostname, "127.0.0.1");
+  const jwt = (role: string) => `fixture.${Buffer.from(JSON.stringify({
+    ref: "nrnigsznectrgbgafwme", role,
+  })).toString("base64url")}.fixture`;
+  const env: NodeJS.ProcessEnv = {
+    API_OBJECT_STORAGE_PROVIDER: "disabled", API_ONLY_TARGET_PROFILE: "isolated-native-preview",
+    API_DELIVERY_PHOTO_STORAGE_PROVIDER: "cloudflare-r2",
+    SUPABASE_URL: "https://nrnigsznectrgbgafwme.supabase.co",
+    SUPABASE_ANON_KEY: jwt("anon"), SUPABASE_SERVICE_ROLE_KEY: jwt("service_role"),
+    SUPABASE_DB_URL: "postgresql://postgres.nrnigsznectrgbgafwme:fixture@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&connect_timeout=10",
+    SESSION_SECRET: "synthetic-session-signing-secret-32-characters",
+    MASTER_CATALOG_REVIEW_TOKEN_SECRET: "synthetic-catalog-signing-secret-32-characters",
+    R2_RUNTIME_APPROVAL: "approved-for-runtime", R2_BUCKET_ACCESS: "private",
+    R2_ACCOUNT_ID: "a".repeat(32), R2_ACCESS_KEY_ID: "b".repeat(32),
+    R2_SECRET_ACCESS_KEY: "c".repeat(64), R2_BUCKET: "synthetic-bucket",
+    R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`,
+    R2_OBJECT_PREFIX: "route-r2", R2_PRIVATE_REFERENCE_ROOT: "fixture/private",
+    R2_PUBLIC_REFERENCE_ROOT: "fixture/public", PUBLIC_OBJECT_SEARCH_PATHS: "fixture/public",
+  };
+  const savedEnv = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
+  const savedStorage = { ...pickupPhotoStorage };
+  const testServer = createApp().listen(0, "127.0.0.1");
+  await new Promise<void>(resolve => testServer.once("listening", resolve));
+  const origin = `http://127.0.0.1:${(testServer.address() as net.AddressInfo).port}`;
+  const order = await makeOrder(storeA, "READY"), id = randomUUID();
+  await pool.query(`INSERT INTO delivery_assignments(id,order_id,partner_user_id,status,accepted_at)
+    VALUES($1,$2,$3,'ACCEPTED',now())`, [id, order, partnerA]);
+  const path = `/api/delivery-partner/deliveries/${id}/photo`;
+  const read = (url: string, actor?: string) => originalFetch(`${origin}${url}`, {
+    headers: actor ? { Authorization: `Bearer fixture-${actor}` } : {},
+  });
+  const row = async () => (await pool.query(
+    "SELECT id,object_ref FROM delivery_pickup_photos WHERE assignment_id=$1", [id],
+  )).rows[0];
+  const manifests = () => [...r2Objects.entries()].filter(([key]) => key.includes("/references/"));
+  const payloads = () => [...r2Objects.entries()].filter(([key]) => key.includes("/objects/"));
+  try {
+    Object.assign(process.env, env);
+    Object.assign(pickupPhotoStorage, originalPickupStorage);
+    assert.equal(getPool(), dbPool);
+    assert.equal((await originalFetch(`${origin}/api/delivery-partner/deliveries/${id}/actions`, {
+      method: "POST", headers: { Authorization: `Bearer fixture-${partnerA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "PICKUP" }),
+    })).status, 409);
+    const beforeDenied = r2Requests.length;
+    assert.equal((await upload(path, partnerB, png, "image/png", null, origin)).status, 404);
+    assert.equal((await upload(path, customer, png, "image/png", null, origin)).status, 403);
+    assert.equal(r2Requests.length, beforeDenied);
+
+    for (const fault of ["corrupt-readback", "payload-unknown", "manifest-unknown"] as const) {
+      const beforePayload = payloads().length, beforeManifest = manifests().length;
+      r2Fault = fault;
+      assert.equal((await upload(path, partnerA, png, "image/png", null, origin)).status, 500);
+      r2Fault = undefined;
+      assert.equal(payloads().length, beforePayload + 1, "ambiguous or failed uploads must be retained");
+      assert.equal(manifests().length, beforeManifest + (fault === "manifest-unknown" ? 1 : 0));
+      assert.equal(await row(), undefined);
+    }
+    const save = () => upload(path, partnerA, png, "image/png", null, origin);
+    assert.equal((await save()).status, 201);
+    const first = await row();
+    assert.equal(first.object_ref, `/fixture/private/delivery-photos/${id}/${first.id}`);
+    assert.equal((await read(path)).status, 401);
+    assert.equal((await read(path, partnerB)).status, 404);
+    assert.equal((await read(path, vendorA)).status, 403);
+    for (const [url, actor] of [[path, partnerA], [`/api/admin/deliveries/${id}/photo`, admin]]) {
+      const response = await read(url!, actor);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), png);
+    }
+    const reloaded = await (await read(`${path}/metadata`, partnerA)).json() as { photo: { id: string } };
+    assert.equal(reloaded.photo.id, first.id);
+    assert.equal("objectRef" in reloaded.photo, false);
+    assert.equal((await save()).status, 201);
+    const replacement = await row();
+    assert.notEqual(replacement.id, first.id);
+    assert.ok(manifests().some(([, value]) => JSON.parse(value.body.toString()).deleted === true));
+    assert.deepEqual(Buffer.from(await (await read(path, partnerA)).arrayBuffer()), png);
+
+    // Inject failures only into the disposable pool's transaction clients.
+    for (const outcome of ["insert-failed", "commit-acknowledgement-lost"] as const) {
+      const oldRow = await row(), beforePayload = payloads().length, beforeManifest = manifests().length;
+      const connect = dbPool.connect.bind(dbPool);
+      let injected = false;
+      // Pool.query uses callback-style connect; Drizzle transactions use the
+      // Promise overload. Preserve both, instrumenting only transaction clients.
+      const fault = mock.method(dbPool, "connect", (callback?: Parameters<typeof dbPool.connect>[0]) => {
+        if (callback) return connect(callback);
+        return connect().then(client => {
+          const query = client.query, release = client.release;
+          client.query = new Proxy(query, { apply(target, receiver, args) {
+            const text = typeof args[0] === "string" ? args[0] : args[0]?.text ?? "";
+            if (!injected && outcome === "insert-failed" && /INSERT INTO delivery_pickup_photos/i.test(text)) {
+              injected = true;
+              return Promise.reject(new Error("Synthetic transaction failure"));
+            }
+            const result = Reflect.apply(target, receiver, args);
+            if (!injected && outcome === "commit-acknowledgement-lost" && /^commit$/i.test(text.trim())) {
+              injected = true;
+              return Promise.resolve(result).then(() => { throw new Error("Synthetic lost COMMIT acknowledgement"); });
+            }
+            return result;
+          } });
+          client.release = (...args) => {
+            client.query = query; client.release = release;
+            release.apply(client, args);
+          };
+          return client;
+        });
+      });
+      try { assert.equal((await save()).status, 500); }
+      finally { fault.mock.restore(); }
+      assert.equal(injected, true);
+      assert.equal(payloads().length, beforePayload + 1);
+      assert.equal(manifests().length, beforeManifest + 1, "no cleanup/tombstone after a transaction error");
+      const actual = await row();
+      if (outcome === "insert-failed") assert.equal(actual.id, oldRow.id);
+      else assert.notEqual(actual.id, oldRow.id, "lost acknowledgement may follow a committed DB reference");
+      assert.deepEqual(Buffer.from(await (await read(path, partnerA)).arrayBuffer()), png);
+    }
+    assert.equal((await originalFetch(`${origin}/api/delivery-partner/deliveries/${id}/actions`, {
+      method: "POST", headers: { Authorization: `Bearer fixture-${partnerA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "PICKUP" }),
+    })).status, 200);
+    assert.equal((await save()).status, 409);
+  } finally {
+    r2Fault = undefined;
+    Object.assign(pickupPhotoStorage, savedStorage);
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    await new Promise<void>((resolve, reject) => testServer.close(error => error ? reject(error) : resolve()));
+  }
+});
+
 test("Asia/Kolkata ranges include the whole end day and correctly handle midnight and invalid dates",()=>{
   assert.deepEqual(dailyBounds("2026-10-14"),{start:new Date("2026-10-13T18:30:00Z"),end:new Date("2026-10-14T18:30:00Z")});
   assert.equal(orderDateBounds({dateFilter:"WEEK"},new Date("2026-10-14T12:00:00Z"))!.start.toISOString(),"2026-10-07T18:30:00.000Z");

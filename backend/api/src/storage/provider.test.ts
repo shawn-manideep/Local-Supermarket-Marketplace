@@ -5,6 +5,7 @@ import {
   getApiObjectStorageProvider,
   getApiAssetStorageProvider,
   getApiVendorDocumentStorageProvider,
+  getApiDeliveryPhotoStorageProvider,
   selectApiObjectStorage,
   assertStorageOperationsEnabled,
   STORAGE_UNAVAILABLE_MESSAGE,
@@ -33,6 +34,51 @@ function vendorEnv(): NodeJS.ProcessEnv {
     MASTER_CATALOG_REVIEW_TOKEN_SECRET: "synthetic-catalog-signing-secret-32-characters",
   };
 }
+
+function photoEnv(): NodeJS.ProcessEnv {
+  return {
+    ...vendorEnv(),
+    API_DELIVERY_PHOTO_STORAGE_PROVIDER: "cloudflare-r2",
+    R2_RUNTIME_APPROVAL: "approved-for-runtime", R2_BUCKET_ACCESS: "private",
+    R2_ACCOUNT_ID: "a".repeat(32), R2_ACCESS_KEY_ID: "b".repeat(32),
+    R2_SECRET_ACCESS_KEY: "c".repeat(64), R2_BUCKET: "synthetic-bucket",
+    R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`,
+    R2_OBJECT_PREFIX: "photo-r2",
+    R2_PUBLIC_REFERENCE_ROOT: vendorEnv().PUBLIC_OBJECT_SEARCH_PATHS,
+    R2_PRIVATE_REFERENCE_ROOT: vendorEnv().PRIVATE_OBJECT_DIR,
+  };
+}
+
+test("Delivery photo opt-in preserves disabled defaults and the independent Vendor exception", () => {
+  assert.equal(getApiDeliveryPhotoStorageProvider({}), undefined);
+  const env = photoEnv();
+  assert.equal(getApiDeliveryPhotoStorageProvider(env), "cloudflare-r2");
+  assert.equal(getApiObjectStorageProvider(env), "disabled");
+  assert.equal(getApiVendorDocumentStorageProvider(env), "supabase-storage");
+  assert.throws(() => assertStorageOperationsEnabled(env), /Storage is unavailable/);
+});
+
+test("Delivery photo selector rejects invalid values, targets, TLS and incomplete R2 configuration", () => {
+  const env = photoEnv();
+  for (const value of ["", "disabled", "supabase-storage", "CLOUDFLARE-R2"]) {
+    assert.throws(() => getApiDeliveryPhotoStorageProvider({
+      ...env, API_DELIVERY_PHOTO_STORAGE_PROVIDER: value,
+    }), /API_DELIVERY_PHOTO_STORAGE_PROVIDER/);
+  }
+  for (const changes of [
+    { API_OBJECT_STORAGE_PROVIDER: undefined }, { API_OBJECT_STORAGE_PROVIDER: "cloudflare-r2" },
+    { API_ONLY_TARGET_PROFILE: "original-customer-apk" }, { API_ASSET_STORAGE_PROVIDER: "" },
+    { SUPABASE_URL: "https://gkwcolipeavxnuzqlamb.supabase.co" },
+    { SUPABASE_SERVICE_ROLE_KEY: "invalid" },
+    { SUPABASE_DB_URL: env.SUPABASE_DB_URL!.replace("verify-full", "disable") },
+    { SESSION_SECRET: undefined }, { MASTER_CATALOG_REVIEW_TOKEN_SECRET: undefined },
+  ]) assert.throws(() => getApiDeliveryPhotoStorageProvider({ ...env, ...changes }));
+  for (const name of [
+    "R2_RUNTIME_APPROVAL", "R2_BUCKET_ACCESS", "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ENDPOINT", "R2_OBJECT_PREFIX",
+    "R2_PRIVATE_REFERENCE_ROOT", "R2_PUBLIC_REFERENCE_ROOT", "PRIVATE_OBJECT_DIR", "PUBLIC_OBJECT_SEARCH_PATHS",
+  ]) assert.throws(() => getApiDeliveryPhotoStorageProvider({ ...env, [name]: undefined }), /unapproved/);
+});
 
 test("Vendor selector explicitly permits isolated documents without enabling global storage", () => {
   const env = vendorEnv();

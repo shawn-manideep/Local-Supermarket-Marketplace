@@ -91,6 +91,27 @@ export function getApiAssetStorageProvider(
 
 export const API_VENDOR_DOCUMENT_STORAGE_PROVIDER_ENV = "API_VENDOR_DOCUMENT_STORAGE_PROVIDER";
 
+export const API_DELIVERY_PHOTO_STORAGE_PROVIDER_ENV = "API_DELIVERY_PHOTO_STORAGE_PROVIDER";
+
+/** Category-only exception; never enables the global provider or a legacy fallback. */
+export function getApiDeliveryPhotoStorageProvider(
+  env: NodeJS.ProcessEnv = process.env,
+): "cloudflare-r2" | undefined {
+  const configured = env[API_DELIVERY_PHOTO_STORAGE_PROVIDER_ENV];
+  if (configured === undefined) return undefined;
+  if (configured !== "cloudflare-r2") {
+    throw new Error(`${API_DELIVERY_PHOTO_STORAGE_PROVIDER_ENV} must be cloudflare-r2 when configured.`);
+  }
+  if (env.API_OBJECT_STORAGE_PROVIDER !== "disabled" ||
+      env.API_ONLY_TARGET_PROFILE !== "isolated-native-preview" ||
+      env.API_ASSET_STORAGE_PROVIDER !== undefined) {
+    throw new Error("Delivery photo storage requires isolated disabled global storage without a shared override.");
+  }
+  assertApiOnlyTarget(env);
+  r2Config(env);
+  return configured;
+}
+
 /** Pure, fail-closed opt-in. This does not relax the global disabled guard. */
 export function getApiVendorDocumentStorageProvider(
   env: NodeJS.ProcessEnv = process.env,

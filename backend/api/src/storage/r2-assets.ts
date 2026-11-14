@@ -2,6 +2,8 @@ import { createExternalAssets } from "./external-assets.js";
 import { r2Config } from "./r2-config.js";
 import { R2Error, r2ObjectStore, type R2Transport } from "./r2-store.js";
 import { r2Transport } from "./r2-transport.js";
+import { getApiDeliveryPhotoStorageProvider } from "./provider.js";
+import type { R2Config } from "./r2-config.js";
 
 export function createR2Assets(transport: R2Transport, scope: {
   publicRoot: string; privateRoot: string; prefix: string;
@@ -16,6 +18,30 @@ export function getR2Assets() {
   }
   const config = r2Config(process.env);
   return assets ??= createR2Assets(r2Transport(config), config);
+}
+
+/** Expose only photos, with a second namespace boundary inside the object store. */
+export function createR2DeliveryPhotoAssets(
+  transport: R2Transport,
+  scope: { publicRoot: string; privateRoot: string; prefix: string },
+) {
+  return createExternalAssets(
+    r2ObjectStore(transport, scope, { category: "delivery-photos" }), scope,
+  ).photos;
+}
+
+let photoCache: { config: R2Config; photos: ReturnType<typeof createR2DeliveryPhotoAssets> } | undefined;
+export function getR2DeliveryPhotoAssets() {
+  if (getApiDeliveryPhotoStorageProvider() !== "cloudflare-r2") {
+    throw new Error("Delivery photo R2 storage is not explicitly selected.");
+  }
+  const config = r2Config(process.env);
+  // Revalidate even on cache hits; never retain a prior bucket/root/credential selection.
+  if (!photoCache || Object.keys(config).some(key =>
+    config[key as keyof R2Config] !== photoCache!.config[key as keyof R2Config])) {
+    photoCache = { config, photos: createR2DeliveryPhotoAssets(r2Transport(config), config) };
+  }
+  return photoCache.photos;
 }
 
 /**

@@ -1,5 +1,63 @@
 # Cloudflare R2 preparation — inactive, offline-verified only
 
+## Delivery-photo-only routing (Stage A — not activated)
+
+The optional `API_DELIVERY_PHOTO_STORAGE_PROVIDER=cloudflare-r2` selector is
+absent by default. It is a category-specific exception, not a global activation.
+It requires `API_OBJECT_STORAGE_PROVIDER=disabled`,
+`API_ONLY_TARGET_PROFILE=isolated-native-preview`, and no
+`API_ASSET_STORAGE_PROVIDER` (even an empty shared override is rejected).
+The full existing API-only target, project/key, database URL/TLS/timeout and
+signing-secret validation still applies before any R2 client is constructed.
+
+The existing `API_VENDOR_DOCUMENT_STORAGE_PROVIDER` and its Supabase exception
+are unchanged and can coexist with this photo selector. Vendor operations never
+consult the photo selector. Product images and branding still reach the disabled
+global guard. No Supabase general-storage operations or Replit fallback are enabled.
+
+Photo-only construction uses its own cache, revalidates on every access, and
+reconstructs after a valid configuration change. It exposes only `put/get/discard`
+for photos. A second restriction inside `r2ObjectStore` rejects other categories
+before any transport request, including `head/read/write/remove` attempts.
+The existing global R2 constructor remains unchanged and separate.
+
+Future configuration would also require the existing validated R2 settings:
+`R2_RUNTIME_APPROVAL=approved-for-runtime`, `R2_BUCKET_ACCESS=private`,
+`R2_ACCOUNT_ID`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_OBJECT_PREFIX`, `R2_PRIVATE_REFERENCE_ROOT`,
+`R2_PUBLIC_REFERENCE_ROOT`, `PRIVATE_OBJECT_DIR`, and
+`PUBLIC_OBJECT_SEARCH_PATHS`. The private/public logical roots must match the
+existing application roots and remain disjoint. This preserves the existing
+reference structure:
+`PRIVATE_OBJECT_DIR/delivery-photos/<assignment UUID>/<photo UUID>`.
+No configuration values, credentials, buckets or policies are installed by this work.
+`R2_BUCKET_ACCESS=private` is a required declaration, not proof of cloud privacy.
+
+The API keeps assignment/role checks and the existing upload-before-transaction
+sequence. A replacement creates a fresh logical reference, commits the DB pointer,
+and only then attempts a conditional tombstone of the previous reference. On a
+failed or ambiguous DB transaction, newly uploaded objects are retained; there
+is no destructive cleanup or retry. A lost storage response can leave an
+unreferenced manifest/payload, which is deliberately retained.
+
+Offline integration tests inject only the SDK send boundary: real selectors,
+transport, scoped adapter, manifest verification, authenticated routes and disposable PostgreSQL
+persistence are exercised. The fixture pool remains pinned to its already-created
+loopback connection; isolated-project metadata is used only for pure guard
+validation. Auth responses are synthetic and a network guard blocks non-loopback
+connections. This does not demonstrate live R2 credentials, privacy, permissions,
+conditional-write semantics, production DB access or browser/device acceptance.
+
+Rollback: remove the photo selector to restore blocked photo operations without
+changing Vendor, product or branding routing. R2-backed photo retrieval will also
+be unavailable until compatible routing is restored. Retain all DB references,
+payloads and permanent tombstones; never roll back by deleting objects or applying
+blanket lifecycle expiry. The same limitation applies to deploying older code.
+Existing objects are not copied or discovered automatically; no legacy read fallback
+exists in this route. Retention/orphan growth and request/storage quotas need
+separately approved monitoring and acceptance. No automatic garbage collection,
+physical erasure, paid service or production activation is introduced.
+
 ## Selection and boundaries
 
 `cloudflare-r2` is an additional `API_OBJECT_STORAGE_PROVIDER`. The unset default

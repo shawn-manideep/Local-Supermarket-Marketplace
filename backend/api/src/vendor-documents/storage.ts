@@ -1,11 +1,11 @@
 import { Storage } from "@google-cloud/storage";
 import { getExternalAssets } from "../storage/external-assets.js";
 import { getSupabaseAssets } from "../storage/supabase-assets.js";
-import { getR2Assets } from "../storage/r2-assets.js";
+import { getR2Assets, getR2DeliveryPhotoAssets } from "../storage/r2-assets.js";
 import { getSupabaseLiveAssets } from "../storage/supabase-live-assets.js";
 import { SupabaseStorageError } from "../storage/supabase-storage.js";
 import { readWithNotFoundFallback, discardFromOwningStore } from "../storage/asset-storage-fallback.js";
-import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider, getApiVendorDocumentStorageProvider } from "../storage/provider.js";
+import { assertStorageOperationsEnabled, getApiAssetStorageProvider, getApiObjectStorageProvider, getApiVendorDocumentStorageProvider, getApiDeliveryPhotoStorageProvider } from "../storage/provider.js";
 import {
   createPrivateObjectStorageAdapter,
   getReplitObjectStore,
@@ -53,6 +53,9 @@ async function readLegacyPrivateObject(area: "vendor-documents" | "delivery-phot
 }
 export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos") => ({
   async put(ref: string, bytes: Buffer, mimeType: string) {
+    if (area === "delivery-photos" && getApiDeliveryPhotoStorageProvider() === "cloudflare-r2") {
+      return getR2DeliveryPhotoAssets().put(ref, bytes, mimeType);
+    }
     if (area === "vendor-documents" && getApiVendorDocumentStorageProvider() === "supabase-storage") {
       return getSupabaseLiveAssets().documents.put(ref, bytes, mimeType);
     }
@@ -82,6 +85,9 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
         metadata: { visibility: "private" } } });
   },
   async get(ref: string) {
+    if (area === "delivery-photos" && getApiDeliveryPhotoStorageProvider() === "cloudflare-r2") {
+      return getR2DeliveryPhotoAssets().get(ref);
+    }
     if (area === "vendor-documents" && getApiVendorDocumentStorageProvider() === "supabase-storage") {
       const documents = getSupabaseLiveAssets().documents;
       if (getApiObjectStorageProvider() === "disabled") return documents.get(ref);
@@ -117,6 +123,9 @@ export const privateObjectStorage = (area: "vendor-documents" | "delivery-photos
     return (await file(ref, area).download())[0];
   },
   async discard(ref: string) {
+    if (area === "delivery-photos" && getApiDeliveryPhotoStorageProvider() === "cloudflare-r2") {
+      return getR2DeliveryPhotoAssets().discard(ref);
+    }
     if (area === "vendor-documents" && getApiVendorDocumentStorageProvider() === "supabase-storage") {
       throw new SupabaseStorageError("CAPABILITY_UNAVAILABLE");
     }

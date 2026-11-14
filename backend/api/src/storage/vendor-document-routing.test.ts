@@ -50,7 +50,9 @@ test("Vendor-only dispatch validates before client access and isolates every oth
         products: { put: deny, get: deny, discard: deny } };
     },
   } });
-  const r2 = mock.module("./r2-assets.js", { namedExports: { getR2Assets: deny } });
+  const r2 = mock.module("./r2-assets.js", { namedExports: {
+    getR2Assets: deny, getR2DeliveryPhotoAssets: deny,
+  } });
   const legacy = mock.module("./replit-object-storage.js", { namedExports: {
     getReplitObjectStore: async () => { calls.push("legacy-client"); return {}; },
     createPrivateObjectStorageAdapter: () => ({
@@ -174,6 +176,16 @@ test("Vendor-only dispatch validates before client access and isolates every oth
       apply({ API_VENDOR_DOCUMENT_STORAGE_PROVIDER: undefined, API_OBJECT_STORAGE_PROVIDER: "replit-app-storage" });
       assert.deepEqual(await documentStorage.get(ref), bytes);
       assert.deepEqual(calls, ["legacy-client", "legacy.get"]);
+    });
+    await t.test("photo selector cannot change Vendor routing or cause Vendor access to R2", async () => {
+      apply({ API_DELIVERY_PHOTO_STORAGE_PROVIDER: "cloudflare-r2" });
+      calls.length = 0;
+      await documentStorage.put(ref, bytes, "application/pdf");
+      assert.deepEqual(await documentStorage.get(ref), bytes);
+      await assert.rejects(documentStorage.discard(ref), /CAPABILITY_UNAVAILABLE/);
+      assert.deepEqual(calls, ["client", "documents.put", "client", "documents.get"]);
+      delete process.env.API_DELIVERY_PHOTO_STORAGE_PROVIDER;
+      apply();
     });
   } finally {
     live.restore(); legacy.restore(); r2.restore();
