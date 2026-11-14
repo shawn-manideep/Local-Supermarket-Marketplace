@@ -396,7 +396,7 @@ export function DeliveryPartnerPortal({ token, onSignOut }: Props) {
     photoUploadGate.current = true;
     setPhotoBusy(true); setPhotoError("");
     try {
-      const query = new URLSearchParams({ fileName: photoFile.name, mimeType: photoFile.type, capturedAt: photoCapturedAt || new Date().toISOString() });
+      const query = new URLSearchParams({ capturedAt: photoCapturedAt || new Date().toISOString() });
       const response = await fetch(apiUrl(`/api/delivery-partner/deliveries/${encodeURIComponent(current.id)}/photo?${query}`), {
         method: "POST", credentials: "same-origin",
         headers: apiAuthorizationHeaders(token, { "Content-Type": photoFile.type }), body: photoFile, signal,

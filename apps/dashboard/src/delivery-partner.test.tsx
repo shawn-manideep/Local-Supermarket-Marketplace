@@ -5,6 +5,17 @@ import { readSeenOfferIds, rememberSeenOfferIds, unseenOffers } from "./delivery
 import { readBrowserNotificationIds, rememberBrowserNotificationIds } from "./BrowserNotificationControl";
 
 const source = (name: string) => readFile(new URL(`./${name}`, import.meta.url), "utf8");
+test("package photo upload omits client filenames and retains saved-photo reload and pickup guards", async () => {
+  const portal = await source("DeliveryPartnerPortal.tsx");
+  const upload = portal.slice(portal.indexOf("const uploadPhoto ="), portal.indexOf("const uploadPhoto =") + 2200);
+  assert.match(upload, /new URLSearchParams\(\{ capturedAt:/);
+  assert.doesNotMatch(upload, /fileName|photoFile\.name|mimeType:/);
+  assert.match(upload, /"Content-Type": photoFile\.type/);
+  assert.match(upload, /body: photoFile/);
+  assert.ok(upload.indexOf("if (!response.ok)") < upload.indexOf("setPhotoExists(true)"));
+  assert.match(portal, /\/photo\/metadata/);
+  assert.match(portal, /if \(action === "PICKUP" && !photoExists\)/);
+});
 test("partner login validates literal username input and uses Supabase session tokens without a second password system", async () => {
   const login = await source("DeliveryPartnerLogin.tsx"), app = await source("App.tsx");
   assert.match(login, /usernameSchema\.safeParse\(username\)/);

@@ -39,9 +39,10 @@ async function call(path:string,actor?:string,body?:unknown,method?:string) {
     headers:{...(actor?{Authorization:`Bearer fixture-${actor}`} : {}),...(body!==undefined?{"Content-Type":"application/json"}:{})},
     ...(body===undefined?{}:{body:JSON.stringify(body)})}) as FixtureResponse;
 }
-async function upload(path:string,actor:string,bytes=png) {
-  return await originalFetch(`${base}${path}?fileName=fixture.png&capturedAt=${encodeURIComponent(new Date().toISOString())}`,
-    {method:"POST",headers:{Authorization:`Bearer fixture-${actor}`,"Content-Type":"image/png"},body:new Uint8Array(bytes)}) as FixtureResponse;
+async function upload(path:string,actor:string,bytes=png,mime="image/png",fileName:string|null="fixture.png",origin=base) {
+  const query=new URLSearchParams({capturedAt:new Date().toISOString(),...(fileName===null?{}:{fileName})});
+  return await originalFetch(`${origin}${path}?${query}`,
+    {method:"POST",headers:{Authorization:`Bearer fixture-${actor}`,"Content-Type":mime},body:new Uint8Array(bytes)}) as FixtureResponse;
 }
 async function makeOrder(store:string,status="PLACED",at=new Date().toISOString()) {
   const id=randomUUID();
@@ -223,6 +224,63 @@ test("pickup requires durable private photo; denied users and failed uploads lea
   failStorage=true;assert.equal((await upload(path,winner)).status,500);failStorage=false;
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM delivery_pickup_photos WHERE assignment_id=$1",[assignment])).rows[0].n,0);
   assert.equal((await pool.query("SELECT status FROM delivery_assignments WHERE id=$1",[assignment])).rows[0].status,"ACCEPTED");
+  // Exercise the actual upload route, persistent metadata and protected read-back.
+  // Synthetic JPEG framing satisfies the existing content-signature validator.
+  const jpeg=Buffer.concat([Buffer.from([0xff,0xd8,0xff]),Buffer.alloc(32,1),Buffer.from([0xff,0xd9])]);
+  const invalidUploads=[
+    {bytes:png,mime:"application/pdf"},
+    {bytes:Buffer.from("not an image"),mime:"image/jpeg"},
+    {bytes:png,mime:"image/jpeg"},
+    {bytes:Buffer.alloc(0),mime:"image/png"},
+    {bytes:Buffer.alloc(5*1024*1024+1),mime:"image/jpeg"},
+  ];
+  // A separate real app instance retains its normal rate limiter without
+  // consuming the mutation budget of unrelated tests sharing the main server.
+  const photoServer=createApp().listen(0,"127.0.0.1");
+  await new Promise<void>(resolve=>photoServer.once("listening",resolve));
+  const photoBase=`http://127.0.0.1:${(photoServer.address() as net.AddressInfo).port}`;
+  try {
+  const beforeInvalid=objects.size;
+  for(const invalid of invalidUploads){
+    const response=await upload(path,winner,invalid.bytes,invalid.mime,"fixture.png",photoBase);
+    assert.equal(response.status,invalid.bytes.length>5*1024*1024?413:400);
+  }
+  assert.equal(objects.size,beforeInvalid);
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM delivery_pickup_photos WHERE assignment_id=$1",[assignment])).rows[0].n,0);
+  const deniedPickup=await originalFetch(`${photoBase}/api/delivery-partner/deliveries/${assignment}/actions`,{
+    method:"POST",headers:{Authorization:`Bearer fixture-${winner}`,"Content-Type":"application/json"},body:JSON.stringify({action:"PICKUP"}),
+  });
+  assert.equal(deniedPickup.status,409);
+  const uploads=[
+    {bytes:jpeg,mime:"image/jpeg",fileName:"Make it even simpler for very young children... Use ver".repeat(8)+".jpg"},
+    {bytes:jpeg,mime:"image/jpeg",fileName:"package.jpg"},
+    {bytes:png,mime:"image/png",fileName:"package.png"},
+    {bytes:png,mime:"image/png",fileName:"../untrusted\\name\u0000.png"},
+    {bytes:png,mime:"image/png",fileName:null},
+  ];
+  const photoIds=new Set<string>();
+  for(const input of uploads){
+    const response=await upload(path,winner,input.bytes,input.mime,input.fileName,photoBase);
+    assert.equal(response.status,201,await response.clone().text());
+    const {photo}=await response.json();
+    assert.ok(photo.id);
+    assert.equal(photo.mimeType,input.mime);
+    assert.equal(photoIds.has(photo.id),false);photoIds.add(photo.id);
+    const row=(await pool.query("SELECT object_ref,mime_type,size_bytes FROM delivery_pickup_photos WHERE assignment_id=$1",[assignment])).rows[0];
+    assert.equal(row.object_ref,`/fixture/private/delivery-photos/${assignment}/${photo.id}`);
+    assert.equal(row.mime_type,input.mime);assert.equal(row.size_bytes,input.bytes.length);
+    assert.deepEqual(objects.get(row.object_ref),input.bytes);
+    // Fresh HTTP requests model the metadata/image fetches made after a reload.
+    const reloaded=await(await call(`${path}/metadata`,winner)).json();
+    assert.equal(reloaded.photo.id,photo.id);
+    const image=await call(path,winner);assert.equal(image.status,200);
+    assert.equal(image.headers.get("content-type"),input.mime);
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()),input.bytes);
+    assert.equal((await pool.query("SELECT status FROM delivery_assignments WHERE id=$1",[assignment])).rows[0].status,"ACCEPTED");
+  }
+  } finally {
+    await new Promise<void>((resolve,reject)=>photoServer.close(error=>error?reject(error):resolve()));
+  }
   const saved=await upload(path,winner);assert.equal(saved.status,201);
   const metadata=await saved.json();assert.equal("objectRef" in metadata.photo,false);
   assert.equal((await call(path)).status,401);

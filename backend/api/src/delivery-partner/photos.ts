@@ -33,13 +33,16 @@ pickupPhotosRouter.post("/api/delivery-partner/deliveries/:assignmentId/photo",r
     const mime = req.get("content-type")?.split(";")[0] ?? "";
     if (!["image/jpeg","image/png"].includes(mime)) throw new HttpError(400,"Use a JPEG or PNG photograph.");
     const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-    validateDocument(typeof req.query.fileName === "string" ? req.query.fileName : `package.${mime === "image/png" ? "png" : "jpg"}`,mime,bytes);
+    // Client filenames are display metadata, never trusted validation inputs or keys.
+    // Ignore legacy fileName query parameters, including descriptive camera names.
+    const photoId = randomUUID();
+    validateDocument(`${id}-${photoId}.${mime === "image/png" ? "png" : "jpg"}`,mime,bytes);
     const captured = req.query.capturedAt === undefined ? new Date() : new Date(String(req.query.capturedAt));
     if (!Number.isFinite(captured.getTime()) || captured.getTime()>Date.now()+60_000 || captured.getTime()<Date.now()-86_400_000)
       throw new HttpError(400,"Capture time must be a valid recent timestamp.");
     const directory = process.env.PRIVATE_OBJECT_DIR?.replace(/\/$/,"");
     if (!directory) throw new HttpError(503,"Private image storage is unavailable. Pickup has not been confirmed.");
-    const photoId = randomUUID(), ref = `${directory}/delivery-photos/${id}/${photoId}`;
+    const ref = `${directory}/delivery-photos/${id}/${photoId}`;
     await pickupPhotoStorage.put(ref,bytes,mime);
     let previous: string | undefined;
     try {
