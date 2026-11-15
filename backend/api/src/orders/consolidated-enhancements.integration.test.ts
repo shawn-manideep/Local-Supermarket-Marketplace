@@ -395,6 +395,12 @@ test("photo-only R2 route persists privately and retains objects after verificat
   )).rows[0];
   const manifests = () => [...r2Objects.entries()].filter(([key]) => key.includes("/references/"));
   const payloads = () => [...r2Objects.entries()].filter(([key]) => key.includes("/objects/"));
+  const diagnostics: Array<{ event: string; stage: string; category: string; postgresCode: string | null }> = [];
+  const diagnosticOutput = mock.method(process.stderr, "write", (chunk: string | Uint8Array) => {
+    const line = chunk.toString();
+    if (line.startsWith('{"event":"delivery_photo_upload_failure"')) diagnostics.push(JSON.parse(line));
+    return true;
+  });
   try {
     Object.assign(process.env, env);
     Object.assign(pickupPhotoStorage, originalPickupStorage);
@@ -408,6 +414,18 @@ test("photo-only R2 route persists privately and retains objects after verificat
     assert.equal((await upload(path, customer, png, "image/png", null, origin)).status, 403);
     assert.equal(r2Requests.length, beforeDenied);
 
+    // Pre-transport configuration failures must be distinct from SDK/DB errors.
+    const bucket = process.env.R2_BUCKET;
+    delete process.env.R2_BUCKET;
+    try {
+      assert.equal((await upload(path, partnerA, png, "image/png", null, origin)).status, 500);
+      assert.equal(r2Requests.length, beforeDenied);
+      assert.equal(await row(), undefined);
+      assert.deepEqual(diagnostics.at(-1), {
+        event: "delivery_photo_upload_failure", stage: "STORAGE_WRITE",
+        category: "R2_CONFIGURATION_REJECTED", postgresCode: null,
+      });
+    } finally { process.env.R2_BUCKET = bucket; }
     for (const fault of ["corrupt-readback", "payload-unknown", "manifest-unknown"] as const) {
       const beforePayload = payloads().length, beforeManifest = manifests().length;
       r2Fault = fault;
@@ -416,6 +434,10 @@ test("photo-only R2 route persists privately and retains objects after verificat
       assert.equal(payloads().length, beforePayload + 1, "ambiguous or failed uploads must be retained");
       assert.equal(manifests().length, beforeManifest + (fault === "manifest-unknown" ? 1 : 0));
       assert.equal(await row(), undefined);
+      assert.deepEqual(diagnostics.at(-1), {
+        event: "delivery_photo_upload_failure", stage: "STORAGE_WRITE",
+        category: fault === "corrupt-readback" ? "INTEGRITY" : "UNKNOWN_OUTCOME", postgresCode: null,
+      });
     }
     const save = () => upload(path, partnerA, png, "image/png", null, origin);
     assert.equal((await save()).status, 201);
@@ -455,7 +477,7 @@ test("photo-only R2 route persists privately and retains objects after verificat
             const text = typeof args[0] === "string" ? args[0] : args[0]?.text ?? "";
             if (!injected && outcome === "insert-failed" && /INSERT INTO delivery_pickup_photos/i.test(text)) {
               injected = true;
-              return Promise.reject(new Error("Synthetic transaction failure"));
+              return Promise.reject(Object.assign(new Error("NEVER_LOG_SQL_OR_PRIVATE_VALUES"), { code: "42501" }));
             }
             const result = Reflect.apply(target, receiver, args);
             if (!injected && outcome === "commit-acknowledgement-lost" && /^commit$/i.test(text.trim())) {
@@ -474,6 +496,12 @@ test("photo-only R2 route persists privately and retains objects after verificat
       try { assert.equal((await save()).status, 500); }
       finally { fault.mock.restore(); }
       assert.equal(injected, true);
+      assert.deepEqual(diagnostics.at(-1), {
+        event: "delivery_photo_upload_failure",
+        stage: outcome === "insert-failed" ? "PHOTO_UPSERT" : "TRANSACTION_COMMIT",
+        category: outcome === "insert-failed" ? "DATABASE_ERROR" : "UNCLASSIFIED",
+        postgresCode: outcome === "insert-failed" ? "42501" : null,
+      });
       assert.equal(payloads().length, beforePayload + 1);
       assert.equal(manifests().length, beforeManifest + 1, "no cleanup/tombstone after a transaction error");
       const actual = await row();
@@ -486,7 +514,15 @@ test("photo-only R2 route persists privately and retains objects after verificat
       body: JSON.stringify({ action: "PICKUP" }),
     })).status, 200);
     assert.equal((await save()).status, 409);
+    for (const event of diagnostics) {
+      assert.deepEqual(Object.keys(event).sort(), ["category", "event", "postgresCode", "stage"]);
+      const serialized = JSON.stringify(event);
+      for (const forbidden of [id, order, partnerA, "fixture/private", "NEVER_LOG_SQL_OR_PRIVATE_VALUES"]) {
+        assert.equal(serialized.includes(forbidden), false);
+      }
+    }
   } finally {
+    diagnosticOutput.mock.restore();
     r2Fault = undefined;
     Object.assign(pickupPhotoStorage, savedStorage);
     for (const [key, value] of Object.entries(savedEnv)) {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import express, { Router } from "express";
+import express, { Router, type ErrorRequestHandler, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { getDb } from "@workspace/db";
@@ -9,6 +9,7 @@ import { requireDeliveryPartner } from "./middleware.js";
 import { HttpError, asyncHandler } from "../http.js";
 import { MAX_DOCUMENT_BYTES, validateDocument } from "../vendor-documents/files.js";
 import { privateObjectStorage } from "../vendor-documents/storage.js";
+import { R2Error } from "../storage/r2-store.js";
 
 export const pickupPhotoStorage = privateObjectStorage("delivery-photos");
 const idInput = z.string().uuid();
@@ -25,11 +26,42 @@ async function authorize(id: string, partnerId?: string) {
   return row;
 }
 export const pickupPhotosRouter = Router();
-pickupPhotosRouter.post("/api/delivery-partner/deliveries/:assignmentId/photo",requireDeliveryPartner(),
+// Request-local fixed stage names only; never retain request data in diagnostics.
+const uploadStages = new WeakMap<Request, string>();
+const reportUploadFailure: ErrorRequestHandler = (error: unknown, req, _res, next) => {
+  try {
+    const cause = typeof error === "object" && error !== null && "cause" in error
+      ? error.cause : error;
+    const code = typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
+    const postgresCode = typeof code === "string" && [
+      "08001", "08003", "08006", "08007", "08P01", "22007", "22P02",
+      "23502", "23503", "23505", "23514", "25P02", "40001", "40P01",
+      "42501", "42703", "42P01", "53300", "57014", "57P01",
+    ].includes(code) ? code : null;
+    process.stderr.write(`${JSON.stringify({
+      event: "delivery_photo_upload_failure",
+      stage: uploadStages.get(req) ?? "UNKNOWN",
+      category: error instanceof R2Error ? error.category
+        : error instanceof HttpError ? "REQUEST_REJECTED"
+          : postgresCode ? "DATABASE_ERROR"
+            : error instanceof Error && error.message === "Invalid or unapproved Cloudflare R2 configuration."
+              ? "R2_CONFIGURATION_REJECTED" : "UNCLASSIFIED",
+      postgresCode,
+    })}\n`);
+  } catch {
+    // Preserve the original error even if diagnostic output fails.
+  }
+  next(error);
+};
+pickupPhotosRouter.post("/api/delivery-partner/deliveries/:assignmentId/photo",
+  (req:Request,_res:Response,next:NextFunction) => { uploadStages.set(req,"AUTHORIZATION"); next(); },requireDeliveryPartner(),
+  (req:Request,_res:Response,next:NextFunction) => { uploadStages.set(req,"BODY_PARSING"); next(); },
   express.raw({type:["image/jpeg","image/png"],limit:MAX_DOCUMENT_BYTES}),asyncHandler(async(req,res) => {
+    uploadStages.set(req,"ASSIGNMENT_LOOKUP");
     const id = assignmentId(req.params.assignmentId), partnerId = (req as AuthenticatedRequest).auth!.userId;
     const assignment = await authorize(id,partnerId);
     if (assignment.status !== "ACCEPTED") throw new HttpError(409,"A package photo can be saved or replaced only before pickup on an accepted assignment.");
+    uploadStages.set(req,"IMAGE_VALIDATION");
     const mime = req.get("content-type")?.split(";")[0] ?? "";
     if (!["image/jpeg","image/png"].includes(mime)) throw new HttpError(400,"Use a JPEG or PNG photograph.");
     const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
@@ -37,40 +69,52 @@ pickupPhotosRouter.post("/api/delivery-partner/deliveries/:assignmentId/photo",r
     // Ignore legacy fileName query parameters, including descriptive camera names.
     const photoId = randomUUID();
     validateDocument(`${id}-${photoId}.${mime === "image/png" ? "png" : "jpg"}`,mime,bytes);
+    uploadStages.set(req,"CAPTURE_TIME_VALIDATION");
     const captured = req.query.capturedAt === undefined ? new Date() : new Date(String(req.query.capturedAt));
     if (!Number.isFinite(captured.getTime()) || captured.getTime()>Date.now()+60_000 || captured.getTime()<Date.now()-86_400_000)
       throw new HttpError(400,"Capture time must be a valid recent timestamp.");
+    uploadStages.set(req,"PRIVATE_ROOT");
     const directory = process.env.PRIVATE_OBJECT_DIR?.replace(/\/$/,"");
     if (!directory) throw new HttpError(503,"Private image storage is unavailable. Pickup has not been confirmed.");
     const ref = `${directory}/delivery-photos/${id}/${photoId}`;
+    uploadStages.set(req,"STORAGE_WRITE");
     await pickupPhotoStorage.put(ref,bytes,mime);
     let previous: string | undefined;
     try {
+      uploadStages.set(req,"TRANSACTION_BEGIN");
       await getDb().transaction(async tx => {
         // Same lock order as pickup/assignment paths.
+        uploadStages.set(req,"ORDER_LOCK");
         await tx.execute(sql`SELECT id FROM orders WHERE id=${assignment.order_id} FOR UPDATE`);
+        uploadStages.set(req,"PARTNER_RECHECK");
         const partner = (await tx.execute(sql`SELECT p.status FROM delivery_partner_profiles p JOIN user_profiles u ON u.id=p.user_id
           WHERE p.user_id=${partnerId} AND u.role='delivery_partner' FOR SHARE OF p,u`)).rows[0];
+        uploadStages.set(req,"ASSIGNMENT_LOCK");
         const current = (await tx.execute(sql`SELECT status FROM delivery_assignments
           WHERE id=${id} AND partner_user_id=${partnerId} FOR UPDATE`)).rows[0];
         if (partner?.status !== "ACTIVE" || current?.status !== "ACCEPTED") throw new HttpError(409,"Assignment changed or partner is inactive. Pickup has not been confirmed.");
+        uploadStages.set(req,"PREVIOUS_PHOTO_LOOKUP");
         const old = (await tx.execute(sql`SELECT object_ref FROM delivery_pickup_photos WHERE assignment_id=${id}`)).rows[0];
         previous = old ? String(old.object_ref) : undefined;
+        uploadStages.set(req,"PHOTO_UPSERT");
         await tx.execute(sql`INSERT INTO delivery_pickup_photos(id,assignment_id,order_id,partner_user_id,object_ref,mime_type,size_bytes,captured_at)
           VALUES(${photoId},${id},${assignment.order_id},${partnerId},${ref},${mime},${bytes.length},${captured})
           ON CONFLICT(assignment_id) DO UPDATE SET id=excluded.id,object_ref=excluded.object_ref,mime_type=excluded.mime_type,
             size_bytes=excluded.size_bytes,captured_at=excluded.captured_at,uploaded_at=clock_timestamp()`);
+        uploadStages.set(req,"TRANSACTION_COMMIT");
       });
     } catch(error) {
       // Transaction outcome may be ambiguous. Retain the uploaded object
       // so a committed database reference can never point to a deleted file.
       throw error;
     }
+    uploadStages.set(req,"PREVIOUS_PHOTO_DISCARD");
     if (previous) await pickupPhotoStorage.discard(previous).catch(() => undefined);
+    uploadStages.set(req,"SAVED_METADATA_READ");
     const photo = (await getDb().execute(sql`SELECT ${metadataFields} FROM delivery_pickup_photos WHERE assignment_id=${id}`)).rows[0];
     res.setHeader("Cache-Control","private, no-store");
     res.status(201).json({photo});
-  }));
+  }),reportUploadFailure);
 for (const admin of [false,true]) {
   const path = admin ? "/api/admin/deliveries/:assignmentId/photo" : "/api/delivery-partner/deliveries/:assignmentId/photo";
   const guard = admin ? requireRole("admin") : requireDeliveryPartner();
