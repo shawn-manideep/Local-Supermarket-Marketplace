@@ -2,6 +2,34 @@ import { GetObjectCommand, PutObjectCommand, S3Client, type S3ClientConfig } fro
 import type { R2Config } from "./r2-config.js";
 import { R2Error, type R2Transport } from "./r2-store.js";
 
+/** Allowlisted scalar metadata only: never serialize the exception or request. */
+function logTransportFailure(operation: "get" | "put", error: unknown): void {
+  try {
+    const failure = error as {
+      name?: unknown; Code?: unknown; code?: unknown;
+      $metadata?: { httpStatusCode?: unknown; requestId?: unknown };
+      $response?: { headers?: Record<string, unknown> };
+    } | null;
+    const token = (value: unknown) =>
+      typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value)
+        ? value : null;
+    const status = failure?.$metadata?.httpStatusCode;
+    const headers = failure?.$response?.headers;
+    process.stderr.write(`${JSON.stringify({
+      event: "r2_transport_failure",
+      operation,
+      awsErrorName: token(failure?.name),
+      awsErrorCode: token(failure?.Code) ?? token(failure?.code),
+      httpStatus: typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599
+        ? status : null,
+      awsRequestId: token(failure?.$metadata?.requestId) ?? token(headers?.["x-amz-request-id"]),
+      cloudflareRequestId: token(headers?.["cf-ray"]),
+    })}\n`);
+  } catch {
+    // Diagnostics must not replace the original failure or affect translation.
+  }
+}
+
 /** Construction does not contact R2. No default credential chain or SDK retries. */
 export function r2Transport(config: R2Config, requestHandler?: S3ClientConfig["requestHandler"]): R2Transport {
   const client = new S3Client({
@@ -49,6 +77,7 @@ export function r2Transport(config: R2Config, requestHandler?: S3ClientConfig["r
       }
     } catch (error) {
       if (error instanceof R2Error) throw error;
+      logTransportFailure(request.kind, error);
       const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
       if (status === 404 && request.kind === "get" && (error as { name?: string })?.name === "NoSuchKey") {
         throw new R2Error("NOT_FOUND");

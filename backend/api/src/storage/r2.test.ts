@@ -591,3 +591,75 @@ test("R2 SDK bounds downloads, closes streams and sanitizes access denial", asyn
     return error.category === "UNAVAILABLE";
   });
 });
+
+test("R2 diagnostics emit only safe SDK metadata once per failed operation", async t => {
+  const events: string[] = [];
+  t.mock.method(process.stderr, "write", (line: string) => { events.push(line); return true; });
+  let calls = 0;
+  const transport = r2Transport(r2Config(env()), {
+    async handle() {
+      calls++;
+      throw Object.assign(new Error("NEVER_LOG_MESSAGE credential private/path"), {
+        name: "AccessDenied", code: "AccessDenied",
+        $metadata: { httpStatusCode: 403, requestId: "aws-request-123" },
+        $response: { headers: {
+          "cf-ray": "0123456789abcdef-BOM", authorization: "NEVER_LOG_AUTH",
+          "x-sensitive-header": "NEVER_LOG_HEADER",
+        } },
+        objectKey: "NEVER_LOG_KEY", body: "NEVER_LOG_BYTES",
+      });
+    },
+  });
+  const base = { key: "NEVER_LOG_REQUEST_KEY", maxBytes: 64, signal: new AbortController().signal };
+  await assert.rejects(transport({ ...base, kind: "get" }), failure("UNAVAILABLE"));
+  await assert.rejects(transport({ ...base, kind: "put", body: jpeg(), metadata: meta }), failure("UNKNOWN_OUTCOME"));
+  assert.equal(calls, 2);
+  assert.equal(events.length, 2);
+  for (const [index, line] of events.entries()) {
+    assert.deepEqual(JSON.parse(line), {
+      event: "r2_transport_failure", operation: index === 0 ? "get" : "put",
+      awsErrorName: "AccessDenied", awsErrorCode: "AccessDenied", httpStatus: 403,
+      awsRequestId: "aws-request-123", cloudflareRequestId: "0123456789abcdef-BOM",
+    });
+    assert.equal(line.includes("NEVER_LOG"), false);
+    assert.equal(line.includes(env().R2_SECRET_ACCESS_KEY), false);
+    assert.equal(line.includes(env().R2_ACCESS_KEY_ID), false);
+  }
+});
+
+test("R2 diagnostics reject malformed metadata and preserve conditional conflicts", async t => {
+  const events: string[] = [];
+  t.mock.method(process.stderr, "write", (line: string) => { events.push(line); return true; });
+  const transport = r2Transport(r2Config(env()), {
+    async handle() {
+      throw Object.assign(new Error("NEVER_LOG_MESSAGE"), {
+        name: "private/path", code: "injected\nlog", Code: "x".repeat(129),
+        $metadata: { httpStatusCode: 412, requestId: "https://private.invalid/key" },
+        $response: { headers: { "cf-ray": { secret: "NEVER_LOG_OBJECT" } } },
+      });
+    },
+  });
+  await assert.rejects(transport({
+    kind: "put", key: "private/key", maxBytes: 64, body: jpeg(), metadata: meta,
+    ifMatch: '"unchanged"', signal: new AbortController().signal,
+  }), failure("CONFLICT"));
+  assert.equal(events.length, 1);
+  assert.deepEqual(JSON.parse(events[0]!), {
+    event: "r2_transport_failure", operation: "put",
+    awsErrorName: null, awsErrorCode: null, httpStatus: 412,
+    awsRequestId: null, cloudflareRequestId: null,
+  });
+});
+
+test("R2 diagnostic output failure cannot replace the translated error or cause retries", async t => {
+  t.mock.method(process.stderr, "write", () => { throw new Error("synthetic log failure"); });
+  let calls = 0;
+  const transport = r2Transport(r2Config(env()), {
+    async handle() { calls++; throw new Error("synthetic transport failure"); },
+  });
+  await assert.rejects(transport({
+    kind: "put", key: "private/key", body: jpeg(), metadata: meta,
+    maxBytes: 64, signal: new AbortController().signal,
+  }), failure("UNKNOWN_OUTCOME"));
+  assert.equal(calls, 1);
+});
