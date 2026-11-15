@@ -76,7 +76,10 @@ test("R2 configuration requires explicit endpoint, bucket, credentials, roots an
 
 test("R2 configuration diagnostics independently report existing predicates using the supplied environment", t => {
   const events: string[] = [];
-  t.mock.method(process.stderr, "write", (line: string) => { events.push(line); return true; });
+  t.mock.method(process.stderr, "write", (line: string) => {
+    if (Object.hasOwn(JSON.parse(line), "runtimeApprovalValid")) events.push(line);
+    return true;
+  });
   const fields = [
     "runtimeApprovalValid", "bucketAccessValid", "accountIdValid", "accessKeyIdValid",
     "secretAccessKeyValid", "bucketNameValid", "sharedAssetOverrideAbsent", "endpointValid",
@@ -147,6 +150,61 @@ test("R2 configuration diagnostic output failures preserve the existing rejectio
   t.mock.method(process.stderr, "write", () => { calls++; throw new Error("synthetic log failure"); });
   assert.throws(() => r2Config({}), /^Error: Invalid or unapproved Cloudflare R2 configuration\.$/);
   assert.equal(calls, 1);
+});
+
+test("R2 configuration endpoint diagnostics report only sanitized mismatch details", t => {
+  const events: Array<Record<string, unknown>> = [];
+  t.mock.method(process.stderr, "write", (line: string) => {
+    const value = JSON.parse(line);
+    if (Object.hasOwn(value, "actualEndpointPresent")) events.push(value);
+    return true;
+  });
+  const expected = env().R2_ENDPOINT;
+  const fields = [
+    "actualEndpointPresent", "expectedEndpointPresent", "actualEndpointLength", "expectedEndpointLength",
+    "firstDifferencePosition", "actualCharacterCodeAtDifference", "expectedCharacterCodeAtDifference",
+    "actualHasLeadingOrTrailingWhitespace", "actualHasQuotes", "actualHasNonPrintableCharacters", "accountIdPresent",
+  ];
+  const cases: Array<[string | undefined, number | null, number | null, number | null, boolean | null, boolean | null, boolean | null]> = [
+    [`${expected}/`, expected.length, 47, null, false, false, false],
+    [`${expected} `, expected.length, 32, null, true, false, false],
+    [` ${expected}`, 0, 32, 104, true, false, false],
+    [`${expected}\n`, expected.length, 10, null, true, false, true],
+    [`"${expected}"`, 0, 34, 104, false, true, false],
+    [`'${expected}'`, 0, 39, 104, false, true, false],
+    [expected.replace("https", "HTTPS"), 0, 72, 104, false, false, false],
+    [expected.slice(0, -1), expected.length - 1, null, expected.charCodeAt(expected.length - 1), false, false, false],
+    [`${expected}\u200b`, expected.length, 8203, null, false, false, true],
+    ["", 0, null, 104, false, false, false],
+    [undefined, null, null, null, null, null, null],
+  ];
+  for (const [actual, position, actualCode, expectedCode, whitespace, quotes, nonPrintable] of cases) {
+    assert.throws(() => r2Config({ ...env(), R2_ENDPOINT: actual }), /^Error: Invalid or unapproved Cloudflare R2 configuration\.$/);
+    const event = events.at(-1)!;
+    assert.deepEqual(Object.keys(event).sort(), [...fields].sort());
+    assert.deepEqual(event, {
+      actualEndpointPresent: actual !== undefined, expectedEndpointPresent: true,
+      actualEndpointLength: actual === undefined ? null : actual.length, expectedEndpointLength: expected.length,
+      firstDifferencePosition: position, actualCharacterCodeAtDifference: actualCode,
+      expectedCharacterCodeAtDifference: expectedCode, actualHasLeadingOrTrailingWhitespace: whitespace,
+      actualHasQuotes: quotes, actualHasNonPrintableCharacters: nonPrintable, accountIdPresent: true,
+    });
+    assert.ok(Object.values(event).every(value => value === null || typeof value === "boolean" || typeof value === "number"));
+  }
+  assert.equal(events.length, cases.length);
+  r2Config(env());
+  assert.equal(events.length, cases.length, "valid endpoints must not emit mismatch details");
+  assert.throws(() => r2Config({ ...env(), R2_ENDPOINT: "invalid", R2_RUNTIME_APPROVAL: undefined }), /Invalid or unapproved/);
+  assert.equal(events.length, cases.length, "earlier failures must not execute endpoint diagnostics");
+  assert.throws(() => r2Config({ ...env(), R2_OBJECT_PREFIX: undefined }), /Invalid or unapproved/);
+  assert.equal(events.length, cases.length, "later failures with a valid endpoint must not emit mismatch details");
+});
+
+test("R2 configuration endpoint diagnostic output failures preserve the generic error", t => {
+  let calls = 0;
+  t.mock.method(process.stderr, "write", () => { calls++; throw new Error("synthetic log failure"); });
+  assert.throws(() => r2Config({ ...env(), R2_ENDPOINT: undefined }), /^Error: Invalid or unapproved Cloudflare R2 configuration\.$/);
+  assert.equal(calls, 2, "endpoint and existing predicate diagnostics each remain best effort");
 });
 
 test("R2 selection is opt-in and never changes existing default or disabled storage", () => {

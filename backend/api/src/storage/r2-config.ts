@@ -11,6 +11,38 @@ export interface R2Config {
   prefix: string;
 }
 
+/** Temporary endpoint-mismatch diagnostics; never emit either compared string. */
+function logEndpointMismatch(env: NodeJS.ProcessEnv, expected: string): void {
+  try {
+    const actual = env.R2_ENDPOINT;
+    let difference: number | null = null;
+    if (actual !== undefined) {
+      const length = Math.max(actual.length, expected.length);
+      for (let index = 0; index < length; index++) {
+        if (actual[index] !== expected[index]) { difference = index; break; }
+      }
+    }
+    process.stderr.write(`${JSON.stringify({
+      actualEndpointPresent: actual !== undefined,
+      expectedEndpointPresent: true,
+      actualEndpointLength: actual === undefined ? null : actual.length,
+      expectedEndpointLength: expected.length,
+      firstDifferencePosition: difference,
+      actualCharacterCodeAtDifference: actual !== undefined && difference !== null && difference < actual.length
+        ? actual.charCodeAt(difference) : null,
+      expectedCharacterCodeAtDifference: difference !== null && difference < expected.length
+        ? expected.charCodeAt(difference) : null,
+      actualHasLeadingOrTrailingWhitespace: actual === undefined ? null : /^\s|\s$/.test(actual),
+      actualHasQuotes: actual === undefined ? null : /["']/.test(actual),
+      // The expected endpoint is ASCII; also flag non-ASCII/invisible characters.
+      actualHasNonPrintableCharacters: actual === undefined ? null : /[^\x20-\x7e]/.test(actual),
+      accountIdPresent: env.R2_ACCOUNT_ID !== undefined,
+    })}\n`);
+  } catch {
+    // Diagnostics must not change the validator's rejection behavior.
+  }
+}
+
 /** Temporary failure-only diagnostics. Never serialize configuration or errors. */
 function logRejectedPredicates(env: NodeJS.ProcessEnv): void {
   try {
@@ -54,7 +86,10 @@ export function r2Config(env: NodeJS.ProcessEnv): R2Config {
       || !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(env.R2_BUCKET ?? "")
       || env.API_ASSET_STORAGE_PROVIDER !== undefined) throw new Error();
     const endpoint = `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-    if (env.R2_ENDPOINT !== endpoint) throw new Error();
+    if (env.R2_ENDPOINT !== endpoint) {
+      logEndpointMismatch(env, endpoint);
+      throw new Error();
+    }
     const privateRoot = referenceRoot(env.R2_PRIVATE_REFERENCE_ROOT);
     const publicRoot = referenceRoot(env.R2_PUBLIC_REFERENCE_ROOT);
     const prefix = referenceRoot(env.R2_OBJECT_PREFIX);
