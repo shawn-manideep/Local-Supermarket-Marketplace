@@ -74,6 +74,81 @@ test("R2 configuration requires explicit endpoint, bucket, credentials, roots an
   ]) assert.throws(() => r2Config({ ...valid, ...invalid }), /Invalid or unapproved/);
 });
 
+test("R2 configuration diagnostics independently report existing predicates using the supplied environment", t => {
+  const events: string[] = [];
+  t.mock.method(process.stderr, "write", (line: string) => { events.push(line); return true; });
+  const fields = [
+    "runtimeApprovalValid", "bucketAccessValid", "accountIdValid", "accessKeyIdValid",
+    "secretAccessKeyValid", "bucketNameValid", "sharedAssetOverrideAbsent", "endpointValid",
+    "privateRootValid", "publicRootValid", "objectPrefixValid", "rootsDisjoint",
+    "privateRootMatches", "publicRootMatches",
+  ];
+  const cases: Array<[NodeJS.ProcessEnv, string[]]> = [
+    [{ R2_RUNTIME_APPROVAL: undefined }, ["runtimeApprovalValid"]],
+    [{ R2_RUNTIME_APPROVAL: "true" }, ["runtimeApprovalValid"]],
+    [{ R2_BUCKET_ACCESS: "public" }, ["bucketAccessValid"]],
+    [{ R2_ACCOUNT_ID: undefined }, ["accountIdValid", "endpointValid"]],
+    [{ R2_ACCOUNT_ID: "A".repeat(32) }, ["accountIdValid", "endpointValid"]],
+    [{ R2_ACCESS_KEY_ID: undefined }, ["accessKeyIdValid"]],
+    [{ R2_ACCESS_KEY_ID: "g".repeat(32) }, ["accessKeyIdValid"]],
+    [{ R2_SECRET_ACCESS_KEY: undefined }, ["secretAccessKeyValid"]],
+    [{ R2_SECRET_ACCESS_KEY: "sensitive-invalid" }, ["secretAccessKeyValid"]],
+    [{ R2_BUCKET: undefined }, ["bucketNameValid"]],
+    [{ R2_BUCKET: "../private" }, ["bucketNameValid"]],
+    [{ R2_BUCKET: "ab" }, ["bucketNameValid"]],
+    [{ API_ASSET_STORAGE_PROVIDER: "" }, ["sharedAssetOverrideAbsent"]],
+    [{ R2_ENDPOINT: undefined }, ["endpointValid"]],
+    [{ R2_ENDPOINT: `${env().R2_ENDPOINT}/` }, ["endpointValid"]],
+    [{ R2_PRIVATE_REFERENCE_ROOT: undefined }, ["privateRootValid", "rootsDisjoint", "privateRootMatches"]],
+    [{ R2_PRIVATE_REFERENCE_ROOT: "../private" }, ["privateRootValid", "rootsDisjoint", "privateRootMatches"]],
+    [{ R2_PUBLIC_REFERENCE_ROOT: undefined }, ["publicRootValid", "rootsDisjoint", "publicRootMatches"]],
+    [{ R2_PUBLIC_REFERENCE_ROOT: "legacy//public" }, ["publicRootValid", "rootsDisjoint", "publicRootMatches"]],
+    [{ R2_OBJECT_PREFIX: undefined }, ["objectPrefixValid"]],
+    [{ R2_OBJECT_PREFIX: "../prefix" }, ["objectPrefixValid"]],
+    [{ R2_PUBLIC_REFERENCE_ROOT: scope.privateRoot }, ["rootsDisjoint", "publicRootMatches"]],
+    [{ R2_PUBLIC_REFERENCE_ROOT: `${scope.privateRoot}/nested` }, ["rootsDisjoint", "publicRootMatches"]],
+    [{ R2_PRIVATE_REFERENCE_ROOT: `${scope.publicRoot}/nested` }, ["rootsDisjoint", "privateRootMatches"]],
+    [{ PRIVATE_OBJECT_DIR: undefined }, ["privateRootMatches"]],
+    [{ PRIVATE_OBJECT_DIR: "other/private" }, ["privateRootMatches"]],
+    [{ PUBLIC_OBJECT_SEARCH_PATHS: undefined }, ["publicRootMatches"]],
+    [{ PUBLIC_OBJECT_SEARCH_PATHS: "other/public" }, ["publicRootMatches"]],
+  ];
+  for (const [changes, failed] of cases) {
+    assert.throws(() => r2Config({ ...env(), ...changes }), /^Error: Invalid or unapproved Cloudflare R2 configuration\.$/);
+    const line = events.at(-1)!;
+    assert.deepEqual(JSON.parse(line), Object.fromEntries(fields.map(field => [field, !failed.includes(field)])));
+    assert.ok(Object.values(JSON.parse(line)).every(value => typeof value === "boolean"));
+    for (const forbidden of [env().R2_ACCOUNT_ID, env().R2_ACCESS_KEY_ID,
+      env().R2_SECRET_ACCESS_KEY, env().R2_ENDPOINT, env().R2_BUCKET, scope.privateRoot, scope.publicRoot]) {
+      assert.equal(line.includes(forbidden), false);
+    }
+  }
+  assert.equal(events.length, cases.length);
+});
+
+test("R2 configuration diagnostics evaluate all predicates after early failure and preserve root normalization", t => {
+  const events: string[] = [];
+  t.mock.method(process.stderr, "write", (line: string) => { events.push(line); return true; });
+  assert.throws(() => r2Config({ API_ASSET_STORAGE_PROVIDER: "" }), /Invalid or unapproved/);
+  assert.equal(Object.keys(JSON.parse(events[0]!)).length, 14);
+  assert.ok(Object.values(JSON.parse(events[0]!)).every(value => value === false));
+  r2Config({ ...env(), R2_PRIVATE_REFERENCE_ROOT: `/${scope.privateRoot}`,
+    R2_PUBLIC_REFERENCE_ROOT: `/${scope.publicRoot}`, R2_OBJECT_PREFIX: "/alb-r2",
+    PRIVATE_OBJECT_DIR: `/${scope.privateRoot}`, PUBLIC_OBJECT_SEARCH_PATHS: `/${scope.publicRoot}` });
+  assert.equal(events.length, 1, "successful validation must not emit diagnostics");
+  assert.throws(() => r2Config({ ...env(), R2_RUNTIME_APPROVAL: undefined,
+    PRIVATE_OBJECT_DIR: `/${scope.privateRoot}`, PUBLIC_OBJECT_SEARCH_PATHS: `/${scope.publicRoot}` }), /Invalid or unapproved/);
+  assert.equal(JSON.parse(events[1]!).privateRootMatches, true);
+  assert.equal(JSON.parse(events[1]!).publicRootMatches, true);
+});
+
+test("R2 configuration diagnostic output failures preserve the existing rejection", t => {
+  let calls = 0;
+  t.mock.method(process.stderr, "write", () => { calls++; throw new Error("synthetic log failure"); });
+  assert.throws(() => r2Config({}), /^Error: Invalid or unapproved Cloudflare R2 configuration\.$/);
+  assert.equal(calls, 1);
+});
+
 test("R2 selection is opt-in and never changes existing default or disabled storage", () => {
   assert.equal(getApiObjectStorageProvider({}), "replit-gcs-sidecar");
   assert.equal(getApiObjectStorageProvider(env()), "cloudflare-r2");

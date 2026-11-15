@@ -11,6 +11,38 @@ export interface R2Config {
   prefix: string;
 }
 
+/** Temporary failure-only diagnostics. Never serialize configuration or errors. */
+function logRejectedPredicates(env: NodeJS.ProcessEnv): void {
+  try {
+    const root = (value: string | undefined) => {
+      try { return referenceRoot(value); } catch { return undefined; }
+    };
+    const privateRoot = root(env.R2_PRIVATE_REFERENCE_ROOT);
+    const publicRoot = root(env.R2_PUBLIC_REFERENCE_ROOT);
+    const prefix = root(env.R2_OBJECT_PREFIX);
+    process.stderr.write(`${JSON.stringify({
+      runtimeApprovalValid: env.R2_RUNTIME_APPROVAL === "approved-for-runtime",
+      bucketAccessValid: env.R2_BUCKET_ACCESS === "private",
+      accountIdValid: /^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID ?? ""),
+      accessKeyIdValid: /^[a-fA-F0-9]{32}$/.test(env.R2_ACCESS_KEY_ID ?? ""),
+      secretAccessKeyValid: /^[a-fA-F0-9]{64}$/.test(env.R2_SECRET_ACCESS_KEY ?? ""),
+      bucketNameValid: /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(env.R2_BUCKET ?? ""),
+      sharedAssetOverrideAbsent: env.API_ASSET_STORAGE_PROVIDER === undefined,
+      endpointValid: env.R2_ENDPOINT === `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      privateRootValid: privateRoot !== undefined,
+      publicRootValid: publicRoot !== undefined,
+      objectPrefixValid: prefix !== undefined,
+      rootsDisjoint: privateRoot !== undefined && publicRoot !== undefined &&
+        privateRoot !== publicRoot && !privateRoot.startsWith(`${publicRoot}/`) &&
+        !publicRoot.startsWith(`${privateRoot}/`),
+      privateRootMatches: privateRoot !== undefined && root(env.PRIVATE_OBJECT_DIR) === privateRoot,
+      publicRootMatches: publicRoot !== undefined && root(env.PUBLIC_OBJECT_SEARCH_PATHS) === publicRoot,
+    })}\n`);
+  } catch {
+    // Logging must never replace the validator's existing generic error.
+  }
+}
+
 /** Pure validation. Never reads credentials from disk or discovers an account. */
 export function r2Config(env: NodeJS.ProcessEnv): R2Config {
   try {
@@ -36,6 +68,7 @@ export function r2Config(env: NodeJS.ProcessEnv): R2Config {
       publicRoot, privateRoot, prefix,
     };
   } catch {
+    logRejectedPredicates(env);
     throw new Error("Invalid or unapproved Cloudflare R2 configuration.");
   }
 }
