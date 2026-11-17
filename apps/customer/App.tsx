@@ -200,8 +200,10 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
           },
         });
         if (result.error) throw new Error();
-        signupState.current = "pending";
-        setConfirmationEmail(signupEmail);
+        if (!result.data.session) {
+          signupState.current = "pending";
+          setConfirmationEmail(signupEmail);
+        }
       }
     } catch (error) {
       setMessage("Unable to authenticate. Check your details and try again.");
@@ -247,6 +249,7 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
             <Pressable accessibilityRole="button" onPress={() => {
               signupState.current = "idle";
               setConfirmationEmail(null);
+              setMode("signup");
               setLegacyRegistration(true);
               setEmail(confirmationEmail);
               setPassword(""); setConfirmation(""); setMessage("");
