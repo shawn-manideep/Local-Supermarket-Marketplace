@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { portalResetPasswordSchema, usernameSchema } from "@workspace/validation";
+import { portalLoginIdentifierSchema, portalResetPasswordSchema, usernameSchema } from "@workspace/validation";
 import { vendorRegistrationSchema } from "@workspace/validation/vendor-profile";
 import { apiRequest } from "./api";
 import { PasswordInput } from "./AuthControls";
@@ -33,10 +33,18 @@ export function VendorSignup({ session, onBack, onCompleted }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const signupState = useRef<"idle" | "sending" | "pending">("idle");
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
 
   const begin = async (event: FormEvent) => {
     event.preventDefault();
+    if (signupState.current !== "idle") return;
     if (!legacyRegistration) return;
+    const signupEmail = email.trim();
+    // Require the shared identifier schema's email branch, not a valid username.
+    if (!signupEmail.includes("@") || !portalLoginIdentifierSchema.safeParse(signupEmail).success) {
+      setError("Enter a valid email address."); return;
+    }
     const checked = portalResetPasswordSchema.safeParse(password);
     const name = usernameSchema.safeParse(fields.username);
     const shop = vendorRegistrationSchema.shape.name.safeParse(fields.name);
@@ -48,22 +56,27 @@ export function VendorSignup({ session, onBack, onCompleted }: {
         !name.success ? name.error.issues[0]?.message ?? "Invalid username." : "Passwords must match.");
       return;
     }
+    signupState.current = "sending";
     setBusy(true); setError("");
     try {
       if (!supabase) throw new Error("Sign-up is unavailable.");
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(), password,
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: signupEmail, password,
         options: {
           data: { vendor_signup: true, username: name.data, shop_name: fields.name.trim() },
           emailRedirectTo: `${window.location.origin}${portalRoutePath("vendor-login", import.meta.env.BASE_URL)}`,
         },
       });
       if (signUpError) throw signUpError;
+      signupState.current = "pending";
+      setConfirmationEmail(signupEmail);
       setPassword(""); setConfirmation("");
-      if (!data.session) setMessage("Check your email to verify your account, then return here to complete your store registration.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sign-up could not be completed.");
-    } finally { setBusy(false); }
+    } finally {
+      if (signupState.current === "sending") signupState.current = "idle";
+      setBusy(false);
+    }
   };
 
   const finish = async (event: FormEvent) => {
@@ -90,6 +103,19 @@ export function VendorSignup({ session, onBack, onCompleted }: {
       autoComplete={autoComplete} value={fields[key]}
       onChange={event => { setFields(old => ({ ...old, [key]: event.target.value })); setError(""); }} /></label>
   );
+  if (!session && confirmationEmail) return <div className="auth-form">
+    <h1>Email confirmation requested</h1>
+    <p className="muted">Check your inbox to verify your email, then return here to complete your store registration.</p>
+    <p role="status">{confirmationEmail}</p>
+    <p className="muted">If this address is incorrect, change it before submitting again. This does not change an existing account.</p>
+    <button className="text-button" type="button" onClick={() => {
+      signupState.current = "idle";
+      setConfirmationEmail(null);
+      setEmail(confirmationEmail);
+      setPassword(""); setConfirmation(""); setError(""); setMessage("");
+    }}>Change email address</button>
+    <button className="text-button" type="button" onClick={onBack}>Back to sign in</button>
+  </div>;
   if (!session && !legacyRegistration) return <MobileVendorSignup onBack={onBack} onLegacy={shopName => {
     setFields(old => ({ ...old, name: shopName })); setLegacyRegistration(true);
     setError(""); setMessage(""); setPassword(""); setConfirmation("");

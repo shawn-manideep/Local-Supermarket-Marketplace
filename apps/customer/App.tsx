@@ -161,17 +161,26 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(initialMessage);
+  const signupState = useRef<"idle" | "sending" | "pending">("idle");
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   useEffect(() => {
     if (initialMessage) setMessage(initialMessage);
   }, [initialMessage]);
 
   const submit = async () => {
+    const signupEmail = email.trim();
     if (mode === "signup") {
+      if (signupState.current !== "idle") return;
       if (!legacyRegistration) return;
+      // The shared identifier schema's email branch must match, not its username branch.
+      if (!signupEmail.includes("@") || !customerLoginIdentifierSchema.safeParse(signupEmail).success) {
+        setMessage("Enter a valid email address."); return;
+      }
       if (!portalResetPasswordSchema.safeParse(password).success) {
         setMessage("Use at least 8 characters, including a letter and a number."); return;
       }
       if (password !== confirmation) { setMessage("Passwords must match."); return; }
+      signupState.current = "sending";
     }
     setBusy(true);
     setMessage("");
@@ -184,18 +193,20 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
         if (error) throw new Error();
       } else {
         const result = await supabase.auth.signUp({
-          email: email.trim(), password,
+          email: signupEmail, password,
           options: {
             data: { customer_signup: true, username: parsed.data },
             ...(Platform.OS !== "web" ? { emailRedirectTo: CUSTOMER_NATIVE_AUTH_REDIRECT } : {}),
           },
         });
         if (result.error) throw new Error();
-        if (!result.data.session) setMessage("Check your registered email to confirm your account, then sign in with your chosen username.");
+        signupState.current = "pending";
+        setConfirmationEmail(signupEmail);
       }
     } catch (error) {
       setMessage("Unable to authenticate. Check your details and try again.");
     } finally {
+      if (signupState.current === "sending") signupState.current = "idle";
       setPassword("");
       setConfirmation("");
       setBusy(false);
@@ -228,7 +239,24 @@ function AuthScreen({ initialMessage = "" }: { initialMessage?: string }) {
           {t("Shop fresh. Shop local.")}
         </Text>
         <View style={styles.authForm}>
-          {mode === "signup" && !legacyRegistration ? <>
+          {mode === "signup" && confirmationEmail ? <View style={{ gap: spacing.md }}>
+            <Text style={typography.bodySemibold}>{localizeCustomerMessage("Email confirmation requested", t)}</Text>
+            <Text style={typography.body}>{t("Check your registered email to confirm your account, then sign in with your chosen username.")}</Text>
+            <Text selectable style={typography.body}>{confirmationEmail}</Text>
+            <Text style={typography.body}>{localizeCustomerMessage("If this address is incorrect, change it before submitting again. This does not change an existing account.", t)}</Text>
+            <Pressable accessibilityRole="button" onPress={() => {
+              signupState.current = "idle";
+              setConfirmationEmail(null);
+              setLegacyRegistration(true);
+              setEmail(confirmationEmail);
+              setPassword(""); setConfirmation(""); setMessage("");
+            }} style={styles.authOutline}>
+              <Text style={styles.authOutlineText}>{localizeCustomerMessage("Change email address", t)}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setMode("signin"); setMessage(""); }} style={styles.authOutline}>
+              <Text style={styles.authOutlineText}>{t("Back to sign in")}</Text>
+            </Pressable>
+          </View> : mode === "signup" && !legacyRegistration ? <>
             <MobileRegistrationForm onLegacy={() => { setLegacyRegistration(true); setPassword(""); setConfirmation(""); setMessage(""); }} />
             <Pressable accessibilityRole="button" onPress={() => { setMode("signin"); setMessage(""); }} style={styles.authOutline}>
               <Text style={styles.authOutlineText}>{t("Back to sign in")}</Text>
