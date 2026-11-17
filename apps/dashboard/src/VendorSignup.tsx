@@ -6,6 +6,7 @@ import { apiRequest } from "./api";
 import { PasswordInput } from "./AuthControls";
 import { supabase } from "./supabase";
 import { MobileVendorSignup } from "./MobileVendorSignup";
+import { portalRoutePath } from "./portal-routes";
 
 type Registration = {
   username: string; name: string; ownerName: string; phone: string;
@@ -54,7 +55,7 @@ export function VendorSignup({ session, onBack, onCompleted }: {
         email: email.trim(), password,
         options: {
           data: { vendor_signup: true, username: name.data, shop_name: fields.name.trim() },
-          emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+          emailRedirectTo: `${window.location.origin}${portalRoutePath("vendor-login", import.meta.env.BASE_URL)}`,
         },
       });
       if (signUpError) throw signUpError;
